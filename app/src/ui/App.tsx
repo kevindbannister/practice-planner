@@ -6,11 +6,14 @@ import { ClientPage } from "./ClientPage";
 import { ClientsPage } from "./ClientsPage";
 import { useData, useIndex } from "./data";
 import { SetupPage } from "./SetupPage";
+import { EditorProvider, useEditor } from "./Editors";
+import { PlanPage } from "./PlanPage";
+import { SettingsPage } from "./SettingsPage";
 
 export function App({ demo }: { demo: boolean }) {
   const { status, error, reload } = useData();
   const { parts } = useRoute();
-  const section = parts[0] || "clients";
+  const section = parts[0] || "plan";
 
   let body;
   if (status === "connecting" || status === "loading") {
@@ -36,22 +39,25 @@ export function App({ demo }: { demo: boolean }) {
   } else if (section === "groups") {
     body = <GroupsPage />;
   } else if (section === "plan") {
-    body = <PlanComingSoon />;
+    body = <PlanPage />;
+  } else if (section === "settings") {
+    body = <SettingsPage />;
   } else {
     body = <ClientsPage />;
   }
 
   return (
-    <>
-      <TopBar section={section} demo={demo} />
+    <EditorProvider>
+      <TopBar section={section} demo={demo} ready={status === "ready"} />
       {body}
-    </>
+    </EditorProvider>
   );
 }
 
-function TopBar({ section, demo }: { section: string; demo: boolean }) {
+function TopBar({ section, demo, ready }: { section: string; demo: boolean; ready: boolean }) {
   const { save, user } = useData();
-  const nav: [string, string][] = [["plan", "Plan"], ["clients", "Clients"], ["groups", "Groups"]];
+  const { open } = useEditor();
+  const nav: [string, string][] = [["plan", "Plan"], ["clients", "Clients"], ["groups", "Groups"], ["settings", "Settings"]];
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -74,6 +80,7 @@ function TopBar({ section, demo }: { section: string; demo: boolean }) {
         {save.state === "error" && (
           <span className="save error" role="alert"><Icon name="alert" size={14} />Not saved: {save.error}</span>
         )}
+        {ready && <button type="button" className="btn small primary" onClick={() => open({ kind: "task" })}>+ New task</button>}
         {user && <span className="muted">{user}</span>}
         {!demo && <button type="button" className="linkbtn" onClick={signOut}>Sign out</button>}
       </div>
@@ -120,22 +127,6 @@ function GroupsPage() {
             </section>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function PlanComingSoon() {
-  return (
-    <div className="center">
-      <div className="panel">
-        <span className="eyebrow">Stage 3</span>
-        <h1>The planning board is next</h1>
-        <p style={{ margin: 0 }}>
-          This is where you'll drag jobs into days and weeks, with capacity and tight-deadline warnings. Until then, the
-          clients list and each client's Work tab show what's open and when it's due.
-        </p>
-        <div><a className="btn primary" href="#/clients">Go to clients</a></div>
       </div>
     </div>
   );

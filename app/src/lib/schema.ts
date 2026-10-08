@@ -87,7 +87,7 @@ export const LISTS: ListDef[] = [
     key: "Tasks", displayName: "PP Tasks", description: "Practice Planner: advisory and practice tasks",
     columns: [
       t("Key", true), t("ClientKey", true), t("GroupKey"), t("Type"), t("PlannedDate", true), n("EstimateHours"),
-      t("DueDate"), t("Status"), note("Notes"),
+      t("DueDate"), t("Status"), t("CompletedDate"), note("Notes"),
     ],
   },
   {

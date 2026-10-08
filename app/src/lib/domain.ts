@@ -11,7 +11,14 @@ export type Job = Row & {
   Key: string; Title: string; ClientKey: string; ServiceKey?: string; PeriodEnd?: string; StageNo?: number;
   StageName?: string; PlannedDate?: string; Deadline?: string; Priority?: string; EstimateHours?: number;
   CHDeadline?: string; SuggestedSlot?: string; DeadlineSource?: string; RecordsReceived?: string;
+  Status?: string; ClientName?: string; ActualHours?: number; CompletedDate?: string; Notes?: string;
 };
+export type Task = Row & {
+  Key: string; Title: string; ClientKey?: string; GroupKey?: string; Type?: string; PlannedDate?: string;
+  EstimateHours?: number; DueDate?: string; Status?: string; CompletedDate?: string; Notes?: string;
+};
+
+export const isOpen = (j: { Status?: string }) => j.Status !== "Complete" && j.Status !== "Done" && j.Status !== "Cancelled";
 
 export function todayIso(now = new Date()): string {
   const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, "0"), d = String(now.getDate()).padStart(2, "0");
@@ -49,8 +56,14 @@ export function fmtHours(h?: number): string {
 
 export type JobState = "overdue" | "tight" | "ok" | "none";
 
+let tightDaysSetting = DEFAULT_TIGHT_DAYS;
+/** Set from the Settings list once loaded. */
+export function setTightDays(days: number): void {
+  tightDaysSetting = days;
+}
+
 /** How a job stands against its deadline. Tight = due within the threshold. */
-export function jobState(job: Job, today: string, tightDays = DEFAULT_TIGHT_DAYS): { state: JobState; days?: number } {
+export function jobState(job: Job, today: string, tightDays = tightDaysSetting): { state: JobState; days?: number } {
   if (!job.Deadline) return { state: "none" };
   const days = daysBetween(today, job.Deadline);
   if (days < 0) return { state: "overdue", days };

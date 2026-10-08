@@ -37,6 +37,9 @@ export class FakeGraph implements Graph {
   async patch<T = any>(path: string, body: unknown): Promise<T> {
     return this.route("PATCH", path, body) as T;
   }
+  async delete(path: string): Promise<void> {
+    this.route("DELETE", path);
+  }
   async getAll<T = any>(path: string): Promise<T[]> {
     const out: T[] = [];
     let next: string | undefined = path;
@@ -144,6 +147,14 @@ export class FakeGraph implements Graph {
         this.save();
         return { id: item.id, fields: item.fields };
       }
+    }
+    if ((m = path.match(/^\/sites\/site-1\/lists\/([^/]+)\/items\/([^/]+)$/)) && method === "DELETE") {
+      const list = this.list(m[1]);
+      const i = list.items.findIndex((x) => x.id === m![2]);
+      if (i < 0) throw new GraphError(404, "Item not found");
+      list.items.splice(i, 1);
+      this.save();
+      return undefined;
     }
     if ((m = path.match(/^\/sites\/site-1\/lists\/([^/]+)\/items\/([^/]+)\/fields$/)) && method === "PATCH") {
       const list = this.list(m[1]);

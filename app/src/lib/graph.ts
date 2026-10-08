@@ -15,6 +15,7 @@ export interface Graph {
   get<T = any>(path: string): Promise<T>;
   post<T = any>(path: string, body: unknown): Promise<T>;
   patch<T = any>(path: string, body: unknown): Promise<T>;
+  delete(path: string): Promise<void>;
   getAll<T = any>(path: string): Promise<T[]>;
   batch(requests: BatchRequest[], onProgress?: (done: number) => void): Promise<BatchResponse[]>;
 }
@@ -65,6 +66,9 @@ export class HttpGraph implements Graph {
   }
   patch<T = any>(path: string, body: unknown): Promise<T> {
     return this.request("PATCH", path, body);
+  }
+  async delete(path: string): Promise<void> {
+    await this.request("DELETE", path);
   }
 
   async getAll<T = any>(path: string): Promise<T[]> {

@@ -103,6 +103,11 @@ export class SharePointStore {
     await this.graph.patch(`${this.listPath(key)}/items/${itemId}/fields`, fields);
   }
 
+  /** Delete one item (it goes to the site's recycle bin). */
+  async remove(key: ListKey, itemId: string): Promise<void> {
+    await this.graph.delete(`${this.listPath(key)}/items/${itemId}`);
+  }
+
   /** Create many rows in batches. Returns how many failed, with the first error. */
   async createMany(key: ListKey, rows: Row[], onProgress?: (done: number) => void): Promise<{ failed: number; error?: string }> {
     const list = LIST_BY_KEY[key];

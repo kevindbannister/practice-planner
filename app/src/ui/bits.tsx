@@ -66,7 +66,7 @@ export function Icon({ name, size = 16 }: { name: "check" | "close" | "search" |
 
 export function Brand() {
   return (
-    <a className="brand" href="#/clients">
+    <a className="brand" href="#/plan">
       <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
         <rect x="1" y="1" width="24" height="24" rx="6" fill="#17191C" />
         <path d="M7 9h12M7 13h8M7 17h5" stroke="#F4F3EF" strokeWidth="2" strokeLinecap="round" />

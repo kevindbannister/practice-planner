@@ -4,8 +4,10 @@ import {
   Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
 } from "../lib/domain";
 import { Row } from "../lib/schema";
+import { jobHours } from "../lib/planning";
 import { ClientBadge, DeadlineChip, companiesHouseUrl, href } from "./bits";
 import { useData, useIndex } from "./data";
+import { useEditor } from "./Editors";
 
 export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" }) {
   const idx = useIndex();
@@ -315,18 +317,54 @@ function EditableCard({
 function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   const { data } = useData();
   const idx = useIndex();
+  const { open } = useEditor();
   const today = todayIso();
-  const history = data.history
-    .filter((h) => h.ClientKey === c.Key)
-    .sort((a, b) => String(b.Completed || b.StatutoryDeadline || "").localeCompare(String(a.Completed || a.StatutoryDeadline || "")));
+  const tasks = idx.tasksByClient.get(c.Key) || [];
+  // finished work: imported history plus jobs completed in Practice Planner
+  const history = [
+    ...data.history.filter((h) => h.ClientKey === c.Key).map((h) => ({
+      key: h.Key as string, title: (h.ServiceKey !== "TASK" && idx.serviceName.get(h.ServiceKey as string)) || (h.Title as string),
+      date: h.Completed as string | undefined,
+    })),
+    ...data.jobs.filter((j) => j.ClientKey === c.Key && j.Status === "Complete").map((j) => ({
+      key: j.Key, title: j.Title, date: j.CompletedDate,
+    })),
+    ...data.tasks.filter((t) => t.ClientKey === c.Key && t.Status === "Done").map((t) => ({
+      key: t.Key, title: t.Title, date: t.CompletedDate,
+    })),
+  ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 
   return (
     <div className="cols">
       <div className="col-main">
+        <div className="row-wrap" style={{ justifyContent: "flex-end" }}>
+          <button type="button" className="btn" onClick={() => open({ kind: "task", clientKey: c.Key })}>+ Task</button>
+          <button type="button" className="btn" onClick={() => open({ kind: "newJob", clientKey: c.Key })}>+ Job</button>
+        </div>
         {jobs.map((j) => <JobCard key={j.Key} job={j} />)}
         {!jobs.length && <div className="card empty">No open work for this client.</div>}
       </div>
       <div className="col-side">
+        <section className="card pad stack" aria-labelledby="tasks-h">
+          <h2 id="tasks-h">Tasks</h2>
+          {tasks.length ? (
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+              {tasks.map((t) => (
+                <li key={t.Key}>
+                  <button type="button" className="task-row" onClick={() => open({ kind: "task", key: t.Key })}>
+                    <span style={{ fontWeight: 600 }}>{t.Title}</span>
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {t.Type}{t.PlannedDate ? ` · planned ${fmtDate(t.PlannedDate, { weekday: true, year: false })}` : " · not planned"}
+                      {t.DueDate ? ` · due ${fmtDate(t.DueDate, { year: false })}` : ""}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted" style={{ margin: 0 }}>No open tasks. Advisory work, meetings and one-offs go here.</p>
+          )}
+        </section>
         <section className="card pad stack" aria-labelledby="next-h">
           <h2 id="next-h">Coming up</h2>
           <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
@@ -345,11 +383,9 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
           {history.length ? (
             <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
               {history.slice(0, 12).map((h) => (
-                <li key={h.Key} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                  <span>{idx.serviceName.get(h.ServiceKey as string) && h.ServiceKey !== "TASK" ? idx.serviceName.get(h.ServiceKey as string) : h.Title}</span>
-                  <span className="mono muted" style={{ fontSize: 12, whiteSpace: "nowrap" }}>
-                    {h.Completed ? fmtDate(h.Completed as string) : "closed"}
-                  </span>
+                <li key={h.key} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <span>{h.title}</span>
+                  <span className="mono muted" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{h.date ? fmtDate(h.date) : "closed"}</span>
                 </li>
               ))}
             </ol>
@@ -364,6 +400,7 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
 
 function JobCard({ job: j }: { job: Job }) {
   const { data } = useData();
+  const { open } = useEditor();
   const today = todayIso();
   const st = jobState(j, today);
   const templates = data.stageTemplates
@@ -373,7 +410,7 @@ function JobCard({ job: j }: { job: Job }) {
     data.clientStages.filter((s) => s.ClientKey === j.ClientKey && s.ServiceKey === j.ServiceKey).map((s) => [s.StageNo as number, s]),
   );
   const current = j.StageNo || 1;
-  const budget = j.EstimateHours || [...mine.values()].reduce((t, s) => t + ((s.BudgetHours as number) || 0), 0);
+  const budget = jobHours(j, data.services);
 
   return (
     <article className={`job${st.state === "overdue" ? " late" : st.state === "tight" ? " warn" : ""}`} aria-label={j.Title}>
@@ -389,12 +426,13 @@ function JobCard({ job: j }: { job: Job }) {
             {j.DeadlineSource ? ` · deadline from ${j.DeadlineSource}` : ""}
           </span>
         </div>
+        <button type="button" className="btn" onClick={() => open({ kind: "job", key: j.Key })}>Update job</button>
       </div>
       <div className="job-dates">
         <div><div className="label">Records</div><div className="value">{j.RecordsReceived ? `In ${fmtDate(j.RecordsReceived, { year: false })}` : "Not in yet"}</div></div>
         <div><div className="label">Planned</div><div className="value" style={j.PlannedDate ? { color: "var(--blue-ink)" } : undefined}>{j.PlannedDate ? fmtDate(j.PlannedDate, { weekday: true }) : "Not yet"}</div></div>
         <div><div className="label">Deadline</div><div className="value mono" style={st.state !== "ok" ? { color: st.state === "overdue" ? "var(--red-ink)" : "var(--amber-ink)" } : undefined}>{fmtDate(j.Deadline) || "—"}</div></div>
-        <div><div className="label">Budget</div><div className="value">{budget ? fmtHours(budget) : <span style={{ color: "var(--amber-ink)" }}>Not set</span>}</div></div>
+        <div><div className="label">Your hours</div><div className="value">{fmtHours(budget)}{j.EstimateHours ? "" : <span className="muted" style={{ fontWeight: 400 }}> (default)</span>}</div></div>
       </div>
       {templates.length > 0 && (
         <div className="job-stages">
