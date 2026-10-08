@@ -1,0 +1,19 @@
+# Client data never goes in this repository.
+raw/
+out/
+final/
+data/
+*.csv
+*.xlsx
+*.xls
+*.zip
+name_fixes.json
+
+# Build and tooling
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+__pycache__/
+.DS_Store
