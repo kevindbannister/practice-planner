@@ -459,6 +459,8 @@ def main():
                     last_done = p["completed"]
                     if gap <= 366:
                         s = deadline - dt.timedelta(days=max(gap, 7))
+                        while s.weekday() >= 5:  # plan on a working day
+                            s -= dt.timedelta(days=1)
                         suggested = max(s, today) if deadline >= today else None
 
             # compare with Companies House

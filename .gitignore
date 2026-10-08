@@ -10,7 +10,7 @@ data/
 name_fixes.json
 
 # Build and tooling
-node_modules/
+node_modules
 dist/
 .env
 .env.*

@@ -15,7 +15,7 @@ See [docs/spec.md](docs/spec.md) for the full spec and [docs/setup-microsoft.md]
 |---|---|
 | `docs/` | Spec and setup guides |
 | `scripts/import/` | One-off import from Engager exports (see its README) |
-| `app/` | The web app (from stage 2) |
+| `app/` | The web app (see its README) |
 
 ## Client data
 

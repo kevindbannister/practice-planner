@@ -40,7 +40,23 @@ These are *delegated* permissions: the app can only ever do what the signed-in p
 - The Application (client) ID
 - The Directory (tenant) ID
 
-## Later (stage 2 onwards)
+## 5. Host the app (Azure Static Web Apps, free plan)
 
-- **Hosting:** an Azure Static Web App, deployed automatically from GitHub. Its web address gets added to the redirect URIs in step 2.
-- **Companies House API key:** free from the Companies House developer hub; stored server-side only, never in the app.
+Do this once the code is in the GitHub repository.
+
+1. Go to **portal.azure.com** and sign in with your Microsoft 365 admin account. If you have no Azure subscription, create a **Pay-As-You-Go** one: it asks for a card, but the Static Web Apps **Free** plan costs nothing.
+2. **Create a resource** → search **Static Web App** → **Create**.
+   - Resource group: new, `practice-planner`
+   - Name: `practice-planner`
+   - Plan type: **Free**
+   - Region: **West Europe**
+   - Source: **GitHub** → sign in → choose your account, the `practice-planner` repository, branch `main`
+   - Build presets: **Custom** · App location: `/app` · Api location: *(blank)* · Output location: `dist`
+3. Select **Review + create** → **Create**. Azure adds a deployment workflow to the repository and publishes the app (a few minutes).
+4. On the new resource's **Overview**, copy the **URL** (like `https://something.azurestaticapps.net`).
+5. Back in **entra.microsoft.com** → your **Practice Planner** app registration → **Authentication** → under *Single-page application*, **Add URI**: the URL from step 4 with a `/` on the end. Save.
+6. Open the URL, sign in, and follow the Setup page: **Create the lists**, then **Choose import file**.
+
+## Later
+
+- **Companies House API key** (stage 4): free from the Companies House developer hub; stored server-side only, never in the app.

@@ -30,9 +30,12 @@ python3 build_report.py --out out --file "Engager import check.xlsx"
 python3 apply_decisions.py --out out --decisions raw/decisions.xlsx --ch raw/ch_snapshot.csv \
     --extra raw/extra_jobs.csv --extra-members raw/extra_group_members.csv \
     --final final --today 2026-10-08
+
+# 4. Package the tables for the app's Setup page
+python3 make_bundle.py --final final --file practice-planner-import.json
 ```
 
-`final/` then holds the tables to load (clients, contacts, groups, group members, service and stage templates, client services, jobs, job history) plus `import_log.csv`, listing every change the decisions made.
+`final/` then holds the tables to load (clients, contacts, groups, group members, service and stage templates, client services, jobs, job history) plus `import_log.csv`, listing every change the decisions made. `practice-planner-import.json` is what you choose on the app's Setup page; delete it once loaded.
 
 ## What the import does
 
