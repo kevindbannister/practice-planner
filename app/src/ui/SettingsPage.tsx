@@ -10,6 +10,10 @@ import { href, useRoute } from "./bits";
 import { useData, useIndex } from "./data";
 import { SelectField } from "./Editors";
 import { CompaniesHouseSettings } from "./CompaniesHouse";
+import { ThemeChoice, useTheme } from "./theme";
+import { signOut } from "../lib/auth";
+
+declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
 const TABS: [string, string][] = [["week", "Your week"], ["work", "Types of work"], ["companies-house", "Companies House"]];
@@ -26,6 +30,7 @@ export function SettingsPage() {
         ))}
       </nav>
       {tab === "week" && <HoursCard />}
+      {tab === "week" && <AppearanceCard />}
       {tab === "work" && <TypesOfWork />}
       {tab === "companies-house" && <CompaniesHouseSettings />}
     </div>
@@ -78,6 +83,31 @@ function HoursCard() {
           {state === "saving" ? "Saving…" : "Save"}
         </button>
       </div>
+    </section>
+  );
+}
+
+function AppearanceCard() {
+  const { choice, set } = useTheme();
+  const { user } = useData();
+  const options: [ThemeChoice, string][] = [["system", "Match this device"], ["light", "Light"], ["dark", "Dark"]];
+  return (
+    <section className="card pad stack" aria-labelledby="look-h" style={{ maxWidth: 560 }}>
+      <h2 id="look-h">Appearance and account</h2>
+      <div className="stack" style={{ gap: 6 }}>
+        <span className="muted" style={{ fontSize: 12 }} id="look-l">Light or dark (remembered on this device)</span>
+        <div className="seg" role="group" aria-labelledby="look-l" style={{ alignSelf: "flex-start", maxWidth: "100%" }}>
+          {options.map(([k, label]) => (
+            <button key={k} type="button" aria-pressed={choice === k} onClick={() => set(k)}>{label}</button>
+          ))}
+        </div>
+      </div>
+      {!__DEMO__ && (
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+          <span style={{ fontSize: 14 }}>Signed in{user ? ` as ${user}` : ""}</span>
+          <button type="button" className="btn small" onClick={signOut}>Sign out</button>
+        </div>
+      )}
     </section>
   );
 }

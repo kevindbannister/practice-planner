@@ -1,11 +1,25 @@
 // The planning board: a working week of days with capacity, and a tray of unplanned
 // work. Drag cards between days (or back to the tray); click a card to edit it.
-import { DragEvent, useMemo, useState } from "react";
+// On a phone the week becomes a strip of days: tap one to see it, or drag a card onto it.
+import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, jobState, todayIso } from "../lib/domain";
 import { addDays, jobHours, mondayOf, weekday } from "../lib/planning";
 import { Icon } from "./bits";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
+import { useBoardDrag } from "./useBoardDrag";
+
+function useNarrow(query = "(max-width: 720px)"): boolean {
+  const get = () => typeof matchMedia === "function" && matchMedia(query).matches;
+  const [narrow, setNarrow] = useState(get);
+  useEffect(() => {
+    const m = matchMedia(query);
+    const on = () => setNarrow(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, [query]);
+  return narrow;
+}
 
 type Item = {
   kind: "job" | "task";
@@ -33,11 +47,14 @@ export function PlanPage() {
   const [show, setShow] = useState<Show>("all");
   const [horizon, setHorizon] = useState<Horizon>("90");
   const [search, setSearch] = useState("");
-  const [dragKey, setDragKey] = useState<string>();
-  const [dropTarget, setDropTarget] = useState<string>();
   const [error, setError] = useState<string>();
+  const [toast, setToast] = useState<{ text: string; undo?: () => void }>();
+  const toastTimer = useRef(0);
+  const narrow = useNarrow();
 
   const days = [0, 1, 2, 3, 4].map((i) => addDays(week, i));
+  const [picked, setPicked] = useState<string>();
+  const shownDay = picked && days.includes(picked) ? picked : days.includes(today) ? today : days[0];
 
   const items: Item[] = useMemo(() => {
     const jobs = idx.openJobs.map<Item>((j) => ({
@@ -73,32 +90,35 @@ export function PlanPage() {
   const tightPlanned = days.flatMap((d) => byDay.get(d) || []).filter((i) => ["tight", "overdue"].includes(state(i, today))).length;
   const dueSoonUnplanned = items.filter((i) => !i.planned && i.deadline && i.deadline <= addDays(today, 30)).length;
 
-  const move = async (key: string, date?: string) => {
+  const say = (text: string, undo?: () => void) => {
+    window.clearTimeout(toastTimer.current);
+    setToast({ text, undo });
+    toastTimer.current = window.setTimeout(() => setToast(undefined), 5000);
+  };
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+
+  const move = async (key: string, date?: string, quiet = false) => {
     const item = items.find((i) => i.key === key);
-    if (!item || item.planned === date) return;
+    if (!item || (item.planned || undefined) === date) return;
+    const before = item.planned;
     setError(undefined);
     try {
       await update(item.kind === "job" ? "Jobs" : "Tasks", item.row, { PlannedDate: date || "" });
+      if (!quiet) {
+        say(
+          `${item.client || item.title}: ${date ? `planned for ${fmtDate(date, { weekday: true, year: false })}` : "back to unplanned"}`,
+          () => moveRef.current(key, before, true).then(() => setToast(undefined)),
+        );
+      }
     } catch {
       setError("That move didn't save. It's been put back; try again.");
     }
   };
 
-  const onDrop = (date?: string) => (e: DragEvent) => {
-    e.preventDefault();
-    const key = e.dataTransfer.getData("text/plain") || dragKey;
-    setDropTarget(undefined);
-    setDragKey(undefined);
-    if (key) move(key, date);
-  };
-  const dropProps = (target: string, date?: string) => ({
-    onDragOver: (e: DragEvent) => {
-      e.preventDefault();
-      setDropTarget(target);
-    },
-    onDragLeave: () => setDropTarget((t) => (t === target ? undefined : t)),
-    onDrop: onDrop(date),
-  });
+  const moveRef = useRef(move);
+  moveRef.current = move; // undo runs later, so it needs the latest board
+
+  const { dragKey, target: dropTarget, cardProps } = useBoardDrag((key, t) => move(key, t === "tray" ? undefined : t));
 
   const card = (i: Item) => (
     <PlanCard
@@ -107,12 +127,7 @@ export function PlanPage() {
       today={today}
       dragging={dragKey === i.key}
       onOpen={() => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key })}
-      onDragStart={(e) => {
-        e.dataTransfer.setData("text/plain", i.key);
-        e.dataTransfer.effectAllowed = "move";
-        setDragKey(i.key);
-      }}
-      onDragEnd={() => setDragKey(undefined)}
+      dragProps={cardProps(i.key)}
     />
   );
 
@@ -135,7 +150,7 @@ export function PlanPage() {
                 </button>
               ))}
             </div>
-            <button type="button" className="btn primary" onClick={() => open({ kind: "task" })}>+ New task</button>
+            <button type="button" className="btn primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
           </div>
         </div>
         <div className="tiles" style={{ flex: "1 1 320px", minWidth: 0, maxWidth: 680 }}>
@@ -147,12 +162,31 @@ export function PlanPage() {
       </section>
       {error && <p className="error-text" role="alert" style={{ padding: "0 24px" }}>{error}</p>}
 
+      <div className="daystrip" role="group" aria-label="Days this week">
+        {days.map((d) => {
+          const used = load(d), cap = capacity(d);
+          const over = used > cap;
+          return (
+            <button
+              key={d}
+              type="button"
+              data-drop={d}
+              className={`daypill${d === today ? " today" : ""}${dropTarget === d ? " drop" : ""}`}
+              aria-pressed={shownDay === d}
+              aria-label={`${fmtDate(d, { weekday: true, year: false })}, ${fmtHours(used) || "0h"} of ${fmtHours(cap)} planned`}
+              onClick={() => setPicked(d)}
+            >
+              <span className="dw">{fmtDate(d, { weekday: true, year: false }).split(" ")[0]}</span>
+              <span className="dn">{Number(d.slice(8))}</span>
+              <span className="cap" aria-hidden="true"><span className={over ? "over" : ""} style={{ width: `${cap ? Math.min(100, Math.round((used / cap) * 100)) : 100}%` }} /></span>
+              <span className={`dh${over ? " over" : ""}`}>{fmtHours(used) || "0h"}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="plan-body">
-        <aside
-          className={`tray${dropTarget === "tray" ? " drop" : ""}`}
-          aria-label="Unplanned work"
-          {...dropProps("tray", undefined)}
-        >
+        <aside className={`tray${dropTarget === "tray" ? " drop" : ""}`} aria-label="Unplanned work" data-drop="tray">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
             <h2 style={{ margin: 0, fontSize: 16 }}>Unplanned <span className="muted" style={{ fontWeight: 500 }}>({unplanned.length})</span></h2>
             <label>
@@ -169,7 +203,11 @@ export function PlanPage() {
             <span className="sr-only">Search unplanned work</span>
             <input type="search" placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
           </label>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Drag onto a day to plan it, or open a card to pick a date.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+            {narrow
+              ? "Hold a card, or drag its handle, onto a day above to plan it. Tap a card to open it."
+              : "Drag onto a day to plan it, or open a card to pick a date."}
+          </p>
           {missed.length > 0 && (
             <p style={{ margin: 0, fontSize: 12, color: "var(--amber-ink)", fontWeight: 600 }}>
               {missed.length} planned on an earlier day but not finished
@@ -189,7 +227,18 @@ export function PlanPage() {
             const over = used > cap;
             const pct = cap ? Math.min(100, Math.round((used / cap) * 100)) : 100;
             return (
-              <div key={d} role="listitem" className={`day${d === today ? " today" : ""}${dropTarget === d ? " drop" : ""}`} {...dropProps(d, d)}>
+              <div
+                key={d}
+                role="listitem"
+                data-drop={d}
+                className={`day${d === today ? " today" : ""}${dropTarget === d ? " drop" : ""}${d === shownDay ? " shown" : ""}`}
+              >
+                <div className="day-title">
+                  <h2 style={{ margin: 0, fontSize: 16 }}>{fmtDate(d, { weekday: true, year: false })}</h2>
+                  <span className="mono" style={{ fontSize: 12, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>
+                    {fmtHours(used) || "0h"} / {fmtHours(cap)}{over ? ` · ${fmtHours(used - cap)} over` : ""}
+                  </span>
+                </div>
                 <div className="day-head">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                     <span style={{ fontWeight: 700 }}>{fmtDate(d, { weekday: true, year: false })}</span>
@@ -201,6 +250,7 @@ export function PlanPage() {
                   {over && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red-ink)" }}>{fmtHours(used - cap)} over</span>}
                 </div>
                 {list.map(card)}
+                {!list.length && narrow && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing planned yet.</p>}
                 <button type="button" className="day-add" onClick={() => open({ kind: "task", plannedDate: d })}>+ Task</button>
               </div>
             );
@@ -211,6 +261,13 @@ export function PlanPage() {
         <span className="chip amber">Tight</span> due within {settings.tightDays} days of when it's planned ·{" "}
         <span className="chip red">Late</span> past its deadline · dashed cards are your own tasks
       </p>
+      <div aria-live="polite" className="sr-only">{toast?.text}</div>
+      {toast && (
+        <div className="toast" role="status">
+          <span>{toast.text}</span>
+          {toast.undo && <button type="button" onClick={toast.undo}>Undo</button>}
+        </div>
+      )}
     </div>
   );
 }
@@ -219,11 +276,16 @@ function state(i: Item, today: string) {
   return jobState((i.kind === "task" ? taskAsJob(i.row as Task) : (i.row as Job)), today).state;
 }
 
+type DragProps = {
+  onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void;
+  onContextMenu: (e: { preventDefault: () => void }) => void;
+  onClickCapture: (e: { preventDefault: () => void; stopPropagation: () => void }) => void;
+};
+
 function PlanCard({
-  item: i, today, dragging, onOpen, onDragStart, onDragEnd,
+  item: i, today, dragging, onOpen, dragProps,
 }: {
-  item: Item; today: string; dragging: boolean; onOpen: () => void;
-  onDragStart: (e: DragEvent) => void; onDragEnd: () => void;
+  item: Item; today: string; dragging: boolean; onOpen: () => void; dragProps: DragProps;
 }) {
   const st = jobState(i.kind === "task" ? taskAsJob(i.row as Task) : (i.row as Job), today);
   const job = i.kind === "job" ? (i.row as Job) : undefined;
@@ -231,15 +293,16 @@ function PlanCard({
     <button
       type="button"
       className={`pcard${i.compliance ? "" : " task"}${dragging ? " dragging" : ""}`}
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      {...dragProps}
       onClick={onOpen}
       aria-label={`${i.title}${i.client ? ", " + i.client : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}. Open to edit.`}
     >
       <span className="pcard-top">
         <span className="pcard-tag">{i.tag}</span>
-        <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{fmtHours(i.hours)}</span>
+        <span className="row-wrap" style={{ gap: 6, flexWrap: "nowrap" }}>
+          <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{fmtHours(i.hours)}</span>
+          <span className="pcard-grip" aria-hidden="true" title="Drag to plan"><Icon name="grip" /></span>
+        </span>
       </span>
       <span className="pcard-client">{i.client || i.title}</span>
       <span className="pcard-sub">

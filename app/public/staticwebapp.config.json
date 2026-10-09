@@ -4,6 +4,7 @@
     "exclude": [
       "/app.js",
       "/styles.css",
+      "/theme.js",
       "/api/*"
     ]
   },

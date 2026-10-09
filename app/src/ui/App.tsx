@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { fmtDate, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { signOut } from "../lib/auth";
-import { Brand, ClientBadge, Icon, href, useRoute } from "./bits";
+import { Brand, ClientBadge, Icon, IconName, href, useRoute } from "./bits";
+import { useTheme } from "./theme";
 import { ClientPage } from "./ClientPage";
 import { ClientsPage } from "./ClientsPage";
 import { useData, useIndex } from "./data";
@@ -17,6 +18,8 @@ export function App({ demo }: { demo: boolean }) {
   const { status, error, reload } = useData();
   const { parts } = useRoute();
   const section = parts[0] || "plan";
+  const path = parts.join("/");
+  useEffect(() => window.scrollTo(0, 0), [path]); // a new screen starts at the top
 
   let body;
   if (status === "connecting" || status === "loading") {
@@ -62,35 +65,63 @@ export function App({ demo }: { demo: boolean }) {
 function TopBar({ section, demo, ready }: { section: string; demo: boolean; ready: boolean }) {
   const { save, user } = useData();
   const { open } = useEditor();
-  const nav: [string, string][] = [["plan", "Plan"], ["clients", "Clients"], ["groups", "Groups"], ["settings", "Settings"]];
+  const nav: [string, string, IconName][] = [
+    ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"], ["settings", "Settings", "settings"],
+  ];
   return (
     <header className="topbar">
       <div className="topbar-left">
         <Brand />
         <nav className="nav" aria-label="Main">
-          {nav.map(([k, label]) => (
-            <a key={k} href={`#/${k}`} aria-current={section === k ? "page" : undefined}>{label}</a>
+          {nav.map(([k, label, icon]) => (
+            <a key={k} href={`#/${k}`} aria-current={section === k ? "page" : undefined}>
+              <Icon name={icon} size={22} />
+              {label}
+            </a>
           ))}
         </nav>
       </div>
       <div className="topbar-right">
-        {demo && <span className="chip amber">Demo data store</span>}
-        {save.state === "saving" && <span className="save saving">Saving…</span>}
+        {demo && <span className="chip amber hide-phone">Demo data store</span>}
+        {save.state === "saving" && <span className="save saving"><span className="save-text">Saving…</span></span>}
         {save.state === "saved" && (
-          <span className="save saved">
+          <span className="save saved" title={`Saved to SharePoint at ${save.at!.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}>
             <Icon name="check" size={14} />
-            Saved to SharePoint · {save.at!.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+            <span className="save-text">Saved to SharePoint · {save.at!.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
           </span>
         )}
         {save.state === "error" && (
-          <span className="save error" role="alert"><Icon name="alert" size={14} />Not saved: {save.error}</span>
+          <span className="save error" role="alert"><Icon name="alert" size={14} /><span className="save-text">Not saved: {save.error}</span></span>
         )}
+        <ThemeToggle />
         {ready && <Alerts />}
-        {ready && <button type="button" className="btn small primary" onClick={() => open({ kind: "task" })}>+ New task</button>}
-        {user && <span className="muted">{user}</span>}
-        {!demo && <button type="button" className="linkbtn" onClick={signOut}>Sign out</button>}
+        {ready && (
+          <>
+            <button type="button" className="btn small primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
+            <button type="button" className="btn primary topbar-icon only-phone" aria-label="New task" onClick={() => open({ kind: "task" })}>
+              <Icon name="plus" size={20} />
+            </button>
+          </>
+        )}
+        {user && <span className="muted hide-phone">{user}</span>}
+        {!demo && <button type="button" className="linkbtn hide-phone" onClick={signOut}>Sign out</button>}
       </div>
     </header>
+  );
+}
+
+function ThemeToggle() {
+  const { dark, set } = useTheme();
+  return (
+    <button
+      type="button"
+      className="iconbtn"
+      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      title={dark ? "Light mode" : "Dark mode"}
+      onClick={() => set(dark ? "light" : "dark")}
+    >
+      <Icon name={dark ? "sun" : "moon"} size={18} />
+    </button>
   );
 }
 
