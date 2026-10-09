@@ -7,6 +7,7 @@ import {
 } from "../lib/domain";
 import { deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
+import { chaseSummary } from "../lib/chase";
 import { DeadlineChip, Icon, href } from "./bits";
 import { useData, useIndex } from "./data";
 
@@ -144,7 +145,12 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const today = todayIso();
   const save = (patch: Row) => update("Jobs", job, patch);
   const num = (v: string) => (v === "" ? "" : Number(v));
-  const setStage = (n: number) => save({ StageNo: n, StageName: (stages[n - 1]?.Title as string) || "" });
+  const setStage = (n: number) => {
+    const name = (stages[n - 1]?.Title as string) || "";
+    // reaching a "records received" stage means the records are in
+    const records = /received/i.test(name) && !job.RecordsReceived ? { RecordsReceived: today } : {};
+    return save({ StageNo: n, StageName: name, ...records });
+  };
   const rule = ruleFor(job.ServiceKey, data.services);
   const preview = nextPeriod(rule, job.PeriodEnd, job.Deadline);
 
@@ -207,6 +213,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v })} />
         <Field label="Deadline" type="date" value={job.Deadline} onSave={(v) => save({ Deadline: v, DeadlineSource: "Manual" })} />
+        <Field label="Records expected" type="date" value={job.RecordsExpected as string} onSave={(v) => save({ RecordsExpected: v })} />
         <Field label="Records received" type="date" value={job.RecordsReceived} onSave={(v) => save({ RecordsReceived: v })} />
         <Field
           label={`Your hours (default ${fmtHours(jobHours({ ServiceKey: job.ServiceKey }, data.services))})`}
@@ -254,6 +261,12 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       )}
 
       <Field label="Notes" multiline value={job.Notes} onSave={(v) => save({ Notes: v })} />
+      {job.ChaseLog ? (
+        <details>
+          <summary>Chasing: {chaseSummary(job)}</summary>
+          <pre className="chase-log">{job.ChaseLog as string}</pre>
+        </details>
+      ) : null}
 
       {isOpen(job) && (
         <section className="stack complete-box" aria-labelledby="complete-h">

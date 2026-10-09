@@ -49,7 +49,7 @@ export const LISTS: ListDef[] = [
     key: "Services", displayName: "PP Services", description: "Practice Planner: types of work",
     columns: [
       t("Key", true), t("Recurrence"), t("DeadlineRule"), n("DefaultHours"), n("RepeatMonths"), t("DeadlineMode"),
-      n("DeadlineMonths"), n("DeadlineDays"), t("DeadlineFixed"), b("KeepMonthEnd"),
+      n("DeadlineMonths"), n("DeadlineDays"), t("DeadlineFixed"), b("KeepMonthEnd"), t("RecordsNeeded"), n("RecordsLeadDays"),
     ],
   },
   {
@@ -77,7 +77,7 @@ export const LISTS: ListDef[] = [
       n("EstimateHours"), t("InternalDeadline"), t("Deadline", true), t("DeadlineSource"), t("CHDeadline"),
       t("SuggestedSlot"), t("LastCompleted"), t("Priority"), t("Status"), t("CompletedDate"),
       n("ActualHours"), n("Fee"), t("FeePeriod"), t("Source"), t("EngagerClient"), note("Notes"),
-      t("HoldReason"), t("HoldUntil"), t("HeldOn"),
+      t("HoldReason"), t("HoldUntil"), t("HeldOn"), t("LastChased"), n("ChaseCount"), note("ChaseLog"),
     ],
   },
   {

@@ -11,6 +11,7 @@ import { useData, useIndex } from "./data";
 import { SetupPage } from "./SetupPage";
 import { EditorProvider, useEditor } from "./Editors";
 import { PlanPage } from "./PlanPage";
+import { ChasePage, useChaseCount } from "./ChasePage";
 import { SettingsPage } from "./SettingsPage";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
@@ -49,6 +50,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <PlanPage />;
   } else if (section === "settings") {
     body = <SettingsPage />;
+  } else if (section === "chase") {
+    body = <ChasePage />;
   } else {
     body = <ClientsPage />;
   }
@@ -68,8 +71,10 @@ export function App({ demo }: { demo: boolean }) {
 function TopBar({ section, demo, ready }: { section: string; demo: boolean; ready: boolean }) {
   const { save, user } = useData();
   const { open } = useEditor();
+  const chase = useChaseCount();
   const nav: [string, string, IconName][] = [
-    ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"], ["settings", "Settings", "settings"],
+    ["plan", "Plan", "plan"], ["chase", "Chase", "mail"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"],
+    ["settings", "Settings", "settings"],
   ];
   return (
     <header className="topbar">
@@ -80,6 +85,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
             <a key={k} href={`#/${k}`} aria-current={section === k ? "page" : undefined}>
               <Icon name={icon} size={22} />
               {label}
+              {k === "chase" && ready && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
             </a>
           ))}
         </nav>

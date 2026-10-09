@@ -47,7 +47,7 @@ export function DeadlineChip({ job, today = todayIso() }: { job: Job; today?: st
 
 export type IconName =
   | "check" | "close" | "search" | "left" | "right" | "alert" | "plan" | "clients" | "groups" | "settings" | "sun" | "moon"
-  | "plus" | "grip";
+  | "plus" | "grip" | "mail" | "print" | "download";
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", "aria-hidden": true } as const;
@@ -77,6 +77,12 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       return <svg {...common}><circle cx="8" cy="8" r="3" {...stroke} /><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3 3l1 1M12 12l1 1M3 13l1-1M12 4l1-1" {...stroke} /></svg>;
     case "moon":
       return <svg {...common}><path d="M13.5 9.5A5.5 5.5 0 016.5 2.5a5.5 5.5 0 107 7z" {...stroke} /></svg>;
+    case "mail":
+      return <svg {...common}><rect x="1.5" y="3" width="13" height="10" rx="2" {...stroke} /><path d="M2 4.5l6 4.5 6-4.5" {...stroke} /></svg>;
+    case "print":
+      return <svg {...common}><path d="M4 6V1.5h8V6M4 12H2.5a1 1 0 01-1-1V7a1 1 0 011-1h11a1 1 0 011 1v4a1 1 0 01-1 1H12" {...stroke} /><rect x="4" y="9.5" width="8" height="5" rx="0.5" {...stroke} /></svg>;
+    case "download":
+      return <svg {...common}><path d="M8 2v8M4.5 7L8 10.5 11.5 7M2.5 13.5h11" {...stroke} /></svg>;
     case "plus":
       return <svg {...common}><path d="M8 3v10M3 8h10" {...stroke} /></svg>;
     case "grip":

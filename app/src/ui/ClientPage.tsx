@@ -7,6 +7,7 @@ import { Row } from "../lib/schema";
 import { jobHours } from "../lib/planning";
 import { ClientBadge, DeadlineChip, companiesHouseUrl, href } from "./bits";
 import { useData, useIndex } from "./data";
+import { chaseSummary } from "../lib/chase";
 import { useEditor } from "./Editors";
 
 export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" }) {
@@ -436,7 +437,13 @@ function JobCard({ job: j }: { job: Job }) {
         <button type="button" className="btn" onClick={() => open({ kind: "job", key: j.Key })}>Update job</button>
       </div>
       <div className="job-dates">
-        <div><div className="label">Records</div><div className="value">{j.RecordsReceived ? `In ${fmtDate(j.RecordsReceived, { year: false })}` : "Not in yet"}</div></div>
+        <div>
+          <div className="label">Records</div>
+          <div className="value">
+            {j.RecordsReceived ? `In ${fmtDate(j.RecordsReceived, { year: false })}` : j.RecordsExpected ? `Expected ${fmtDate(j.RecordsExpected as string, { year: false })}` : "Not in yet"}
+          </div>
+          {!j.RecordsReceived && (j.ChaseCount as number) > 0 && <div className="muted" style={{ fontSize: 12 }}>{chaseSummary(j)}</div>}
+        </div>
         <div><div className="label">Planned</div><div className="value" style={j.PlannedDate ? { color: "var(--blue-ink)" } : undefined}>{j.PlannedDate ? fmtDate(j.PlannedDate, { weekday: true }) : "Not yet"}</div></div>
         <div><div className="label">Deadline</div><div className="value mono" style={st.state !== "ok" ? { color: st.state === "overdue" ? "var(--red-ink)" : "var(--amber-ink)" } : undefined}>{fmtDate(j.Deadline) || "—"}</div></div>
         <div><div className="label">Your hours</div><div className="value">{fmtHours(budget)}{j.EstimateHours ? "" : <span className="muted" style={{ fontWeight: 400 }}> (default)</span>}</div></div>

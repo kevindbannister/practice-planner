@@ -9,6 +9,7 @@ import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
 import { useData, useIndex } from "./data";
 import { SelectField } from "./Editors";
+import { recordsRule } from "../lib/chase";
 import { CompaniesHouseSettings } from "./CompaniesHouse";
 import { BackupSettings } from "./Backups";
 import { ThemeChoice, useTheme } from "./theme";
@@ -190,8 +191,10 @@ function RuleCard({ service: s }: { service: Row }) {
   const [name, setName] = useState(String(s.Title || ""));
   const [rule, setRule] = useState<Rule>(saved);
   const [hours, setHours] = useState(s.DefaultHours !== undefined ? String(s.DefaultHours) : "");
+  const savedRecords = recordsRule(s.Key as string, data.services);
+  const [records, setRecords] = useState(savedRecords);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  useEffect(() => setState("idle"), [rule, name, hours]);
+  useEffect(() => setState("idle"), [rule, name, hours, records]);
 
   const fixedMonth = Number((rule.fixed || "01-31").split("-")[0]);
   const fixedDay = Number((rule.fixed || "01-31").split("-")[1]);
@@ -199,7 +202,8 @@ function RuleCard({ service: s }: { service: Row }) {
   const changed =
     JSON.stringify(ruleFields(rule)) !== JSON.stringify(ruleFields(saved)) ||
     name.trim() !== s.Title ||
-    hours !== (s.DefaultHours !== undefined ? String(s.DefaultHours) : "");
+    hours !== (s.DefaultHours !== undefined ? String(s.DefaultHours) : "") ||
+    records.needs !== savedRecords.needs || records.leadDays !== savedRecords.leadDays;
 
   // worked example from a real open job where there is one
   const today = Date.now();
@@ -220,6 +224,8 @@ function RuleCard({ service: s }: { service: Row }) {
         ...ruleFields(rule),
         ...(name.trim() && name.trim() !== s.Title ? { Title: name.trim() } : {}),
         DefaultHours: hours === "" ? ("" as any) : Number(hours),
+        RecordsNeeded: records.needs ? "yes" : "no",
+        RecordsLeadDays: records.leadDays,
       });
       setState("saved");
     } catch {
@@ -292,6 +298,24 @@ function RuleCard({ service: s }: { service: Row }) {
         </fieldset>
       )}
 
+      <fieldset className="fieldset">
+        <legend>Records from the client</legend>
+        <label className="radio">
+          <input type="checkbox" checked={records.needs} onChange={(e) => setRecords({ ...records, needs: e.target.checked })} />
+          <span>This work needs records from the client (shows on the Chase list when they're due)</span>
+        </label>
+        {records.needs && (
+          <div className="row-wrap" style={{ paddingLeft: 30 }}>
+            <span>Need them</span>
+            <label className="inline-num">
+              <input className="input" type="number" min="0" max="365" value={records.leadDays} aria-label="Days before the deadline"
+                onChange={(e) => setRecords({ ...records, leadDays: Math.max(0, Number(e.target.value) || 0) })} />
+              days before the deadline
+            </label>
+          </div>
+        )}
+      </fieldset>
+
       <div className="example" aria-live="polite">
         <strong>{describeRule(rule)}</strong>
         <span>
@@ -307,7 +331,7 @@ function RuleCard({ service: s }: { service: Row }) {
       </p>
       <div className="form-actions" style={{ alignItems: "center", justifyContent: "space-between" }}>
         {builtIn ? (
-          <button type="button" className="linkbtn" onClick={() => setRule(builtIn)}>Use the standard rule</button>
+          <button type="button" className="linkbtn" onClick={() => { setRule(builtIn); setRecords(recordsRule(s.Key as string)); }}>Use the standard rule</button>
         ) : <span />}
         <div className="row-wrap">
           {state === "saved" && !changed && <span className="muted" style={{ fontSize: 13 }}>Saved</span>}

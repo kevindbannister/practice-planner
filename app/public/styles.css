@@ -456,3 +456,25 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; -webkit-user
 .held-list { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 8px 10px; }
 .held-cards { max-height: 40vh; overflow-y: auto; }
 .held-list > summary { color: var(--ink); font-size: 14px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+
+/* ---------- chase ---------- */
+.nav-count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--amber-solid); color: var(--on-solid); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.nav a[aria-current="page"] .nav-count { background: var(--amber-solid); color: var(--on-solid); }
+.chase-card { overflow: hidden; }
+.chase-card.late { border-left: 4px solid var(--red-solid); }
+.chase-card.soon { border-left: 4px solid var(--amber-solid); }
+.chase-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; padding: 14px 16px; }
+.chase-head > .ident { flex: 1 1 320px; }
+.chase-actions { justify-content: flex-end; }
+.chase-jobs { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-2); }
+.chase-jobs li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--line-2); }
+.chase-jobs li:first-child { border-top: 0; }
+.chase-log { margin: 6px 0 0; white-space: pre-wrap; font-family: var(--mono); font-size: 12px; color: var(--ink-2); background: var(--surface-2); border-radius: 6px; padding: 8px 10px; }
+.hide-desktop { display: none; }
+@media (max-width: 720px) {
+  .hide-desktop { display: inline-flex; }
+  .nav { grid-template-columns: repeat(5, 1fr); }
+  .nav a { position: relative; }
+  .nav .nav-count { position: absolute; top: 2px; left: calc(50% + 6px); }
+  .chase-actions { width: 100%; justify-content: flex-start; }
+}
