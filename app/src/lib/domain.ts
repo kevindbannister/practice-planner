@@ -20,6 +20,43 @@ export type Task = Row & {
 
 export const isOpen = (j: { Status?: string }) => j.Status !== "Complete" && j.Status !== "Done" && j.Status !== "Cancelled";
 
+// ------------------------------------------------------------------ on hold
+// A job or task on hold is still open and tracked, but it's off the planning board and out of
+// the late/unplanned alerts until you take it off hold. Statutory deadlines don't pause, so
+// it comes back to your attention when its deadline gets close or its "look again" date arrives.
+
+export const ON_HOLD = "On hold";
+export const HOLD_WARN_DAYS = 14;
+type Holdable = { Status?: string; HoldReason?: unknown; HoldUntil?: unknown; HeldOn?: unknown; Notes?: unknown };
+
+export const isOnHold = (j: { Status?: string }) => j.Status === ON_HOLD;
+
+/** Why something on hold needs a look now, or null. `deadline` is the job's deadline or task's due date. */
+export function holdAlert(item: Holdable, deadline: string | undefined, today: string): { level: "red" | "amber"; text: string } | null {
+  if (!isOnHold(item)) return null;
+  if (deadline && deadline < today) return { level: "red", text: `On hold and past its deadline (${fmtDate(deadline)})` };
+  if (deadline && daysBetween(today, deadline) <= HOLD_WARN_DAYS) {
+    const n = daysBetween(today, deadline);
+    return { level: "amber", text: `On hold, but due ${n === 0 ? "today" : `in ${n} day${n === 1 ? "" : "s"}`}` };
+  }
+  const until = item.HoldUntil as string | undefined;
+  if (until && until <= today) return { level: "amber", text: `On hold: time to look again (from ${fmtDate(until)})` };
+  return null;
+}
+
+/** Fields to save when putting something on hold. It comes off the board. */
+export function holdPatch(reason: string, until: string, today: string): Row {
+  return { Status: ON_HOLD, HoldReason: reason.trim(), HoldUntil: until, HeldOn: today, PlannedDate: "" };
+}
+
+/** Fields to save when taking something off hold; the hold is noted in its Notes for the record. */
+export function resumePatch(item: Holdable, today: string): Row {
+  const from = item.HeldOn ? fmtDate(item.HeldOn as string) : "";
+  const line = `On hold${from ? ` ${from} to ${fmtDate(today)}` : ` until ${fmtDate(today)}`}${item.HoldReason ? `: ${item.HoldReason}` : ""}`;
+  const notes = item.Notes ? `${String(item.Notes).trimEnd()}\n${line}` : line;
+  return { Status: "Open", HoldReason: "", HoldUntil: "", HeldOn: "", Notes: notes };
+}
+
 export function todayIso(now = new Date()): string {
   const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, "0"), d = String(now.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;

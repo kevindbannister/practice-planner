@@ -1,6 +1,6 @@
 // Clients list with filters, and the quick look panel for the selected client.
 import { useMemo, useState } from "react";
-import { Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtMoney, jobState, loeLabel, recordGaps, todayIso } from "../lib/domain";
+import { Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtMoney, isOnHold, jobState, loeLabel, recordGaps, todayIso } from "../lib/domain";
 import { ClientBadge, DeadlineChip, Icon, companiesHouseUrl, go, href, useRoute } from "./bits";
 import { useData, useIndex } from "./data";
 
@@ -22,7 +22,7 @@ export function ClientsPage() {
     () =>
       data.clients.map((c) => {
         const jobs = idx.jobsByClient.get(c.Key) || [];
-        const attention = jobs.some((j) => j.Priority === "urgent" || jobState(j, today).state === "overdue");
+        const attention = jobs.some((j) => !isOnHold(j) && (j.Priority === "urgent" || jobState(j, today).state === "overdue"));
         return { client: c, next: jobs[0], groups: idx.groupsByMember.get(c.Key) || [], attention };
       }),
     [data.clients, idx, today],
@@ -181,7 +181,7 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
   const gaps = recordGaps(c, idx.servicesByClient.get(c.Key) || new Set());
   const aml = amlLabel(c.XamaStatus);
   const loe = loeLabel(c.LoEStatus);
-  const urgent = jobs.filter((j) => j.Priority === "urgent" || jobState(j, today).state === "overdue");
+  const urgent = jobs.filter((j) => !isOnHold(j) && (j.Priority === "urgent" || jobState(j, today).state === "overdue"));
   const ch = c.Kind === "Ltd" || c.Kind === "LLP" ? companiesHouseUrl(c.CompanyNumber) : undefined;
 
   return (
@@ -232,7 +232,7 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
                   <div style={{ fontWeight: 600 }}>{j.Title}</div>
                   <div className="muted" style={{ fontSize: 12 }}>
                     {j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)} · ` : ""}
-                    {j.PlannedDate ? `planned ${fmtDate(j.PlannedDate, { year: false })}` : "not planned"}
+                    {isOnHold(j) ? "on hold" : j.PlannedDate ? `planned ${fmtDate(j.PlannedDate, { year: false })}` : "not planned"}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>

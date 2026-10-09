@@ -2,7 +2,9 @@
 // and jobs. Open them from anywhere with useEditor().open(...). Every field saves as
 // soon as it's changed.
 import { createContext, ReactNode, useContext, useEffect, useId, useRef, useState } from "react";
-import { Job, Task, fmtDate, fmtHours, isOpen, jobState, todayIso } from "../lib/domain";
+import {
+  HOLD_WARN_DAYS, Job, Task, fmtDate, fmtHours, holdAlert, holdPatch, isOnHold, isOpen, jobState, resumePatch, todayIso,
+} from "../lib/domain";
 import { deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
 import { DeadlineChip, Icon, href } from "./bits";
@@ -196,9 +198,11 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       </div>
       <div className="row-wrap" style={{ gap: 6 }}>
         {job.Priority === "urgent" && <span className="chip red">Urgent</span>}
+        {isOnHold(job) && <span className="chip hold">On hold</span>}
         <DeadlineChip job={job} today={today} />
         {!isOpen(job) && <span className="chip green">Complete</span>}
       </div>
+      {isOpen(job) && <HoldSection item={job} deadline={job.Deadline} save={save} what="job" />}
 
       <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v })} />
@@ -357,6 +361,101 @@ function NewJobPanel({ clientKey, onClose }: { clientKey: string; onClose: () =>
   );
 }
 
+// ---------------------------------------------------------------- on hold
+
+/** Put a job or task on hold (with a reason and a date to look again), or take it off hold. */
+function HoldSection({ item, deadline, save, what }: { item: Job | Task; deadline?: string; save: (p: Row) => Promise<void>; what: "job" | "task" }) {
+  const today = todayIso();
+  const [asking, setAsking] = useState(false);
+  const [reason, setReason] = useState("");
+  const [until, setUntil] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const run = async (patch: Row) => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await save(patch);
+      setAsking(false);
+      setReason("");
+      setUntil("");
+    } catch {
+      setError("Couldn't save that. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (isOnHold(item)) {
+    const alert = holdAlert(item, deadline, today);
+    return (
+      <section className={`hold-box${alert ? ` ${alert.level}` : ""}`} aria-label="On hold">
+        <div className="stack" style={{ gap: 2 }}>
+          <strong>On hold{item.HeldOn ? ` since ${fmtDate(item.HeldOn as string)}` : ""}</strong>
+          {item.HoldReason ? <span>{item.HoldReason as string}</span> : <span className="muted">No reason given</span>}
+          <span className="muted" style={{ fontSize: 12 }}>
+            {item.HoldUntil ? `Look again on ${fmtDate(item.HoldUntil as string, { weekday: true })}` : "No date to look again"}
+            {alert ? ` · ${alert.text}` : ""}
+          </span>
+        </div>
+        {error && <span className="error-text" role="alert">{error}</span>}
+        <div className="row-wrap">
+          <button type="button" className="btn small primary" disabled={busy} onClick={() => run(resumePatch(item, today))}>Take off hold</button>
+          <button type="button" className="btn small" disabled={busy} onClick={() => { setReason(String(item.HoldReason || "")); setUntil(String(item.HoldUntil || "")); setAsking(true); }}>Change</button>
+        </div>
+        {asking && (
+          <HoldForm reason={reason} until={until} setReason={setReason} setUntil={setUntil} busy={busy}
+            onCancel={() => setAsking(false)} onSave={() => run({ HoldReason: reason.trim(), HoldUntil: until })} label="Save" />
+        )}
+      </section>
+    );
+  }
+
+  if (!asking) {
+    return (
+      <div>
+        <button type="button" className="btn small" onClick={() => setAsking(true)}>Put on hold…</button>
+      </div>
+    );
+  }
+  return (
+    <section className="hold-box" aria-label="Put on hold">
+      <strong>Put this {what} on hold</strong>
+      <span className="muted" style={{ fontSize: 13 }}>
+        It stays on the client's record but comes off the plan and out of the alerts. You'll be reminded on the date you pick,
+        or if the deadline gets within {HOLD_WARN_DAYS} days.
+      </span>
+      <HoldForm reason={reason} until={until} setReason={setReason} setUntil={setUntil} busy={busy}
+        onCancel={() => setAsking(false)} onSave={() => run(holdPatch(reason, until, today))} label="Put on hold" />
+      {error && <span className="error-text" role="alert">{error}</span>}
+    </section>
+  );
+}
+
+function HoldForm(p: {
+  reason: string; until: string; setReason: (v: string) => void; setUntil: (v: string) => void;
+  busy: boolean; onCancel: () => void; onSave: () => void; label: string;
+}) {
+  return (
+    <>
+      <div className="form" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+        <label>
+          Why (optional)
+          <input className="input" value={p.reason} placeholder="e.g. waiting for the client's bank statements" onChange={(e) => p.setReason(e.target.value)} />
+        </label>
+        <label>
+          Look again on (optional)
+          <input className="input" type="date" value={p.until} onChange={(e) => p.setUntil(e.target.value)} />
+        </label>
+      </div>
+      <div className="form-actions">
+        <button type="button" className="btn small" onClick={p.onCancel} disabled={p.busy}>Cancel</button>
+        <button type="button" className="btn small primary" onClick={p.onSave} disabled={p.busy}>{p.busy ? "Saving…" : p.label}</button>
+      </div>
+    </>
+  );
+}
+
 // ---------------------------------------------------------------- tasks
 
 export const TASK_TYPES = ["Advisory", "Client work", "Practice", "Admin", "Other"];
@@ -373,6 +472,7 @@ function TaskPanel({ taskKey, clientKey, plannedDate, onClose }: { taskKey?: str
     const save = (patch: Row) => update("Tasks", existing, patch);
     return (
       <Drawer title={existing.Title} eyebrow={existing.Type || "Task"} onClose={onClose}>
+        {isOpen(existing) && <HoldSection item={existing} deadline={existing.DueDate} save={save} what="task" />}
         <TaskFields value={existing} clients={clients} onChange={(patch) => save(patch)} live />
         {isOpen(existing) ? (
           <div className="form-actions" style={{ justifyContent: "space-between" }}>

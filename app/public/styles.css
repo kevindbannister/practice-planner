@@ -444,3 +444,15 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; -webkit-user
 @media (hover: none) {
   .pcard-grip { width: 36px; height: 36px; margin: -10px -10px -8px 0; }
 }
+
+/* ---------- on hold ---------- */
+.chip.hold { background: var(--line-2); border-color: var(--line-strong); color: var(--ink-2); font-weight: 600; }
+.hold-box { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 8px; border: 1.5px dashed var(--line-strong); background: var(--surface-2); font-size: 14px; }
+.hold-box.amber { border-color: var(--amber-line); background: var(--amber-soft); }
+.hold-box.red { border-color: var(--red-line); background: var(--red-soft); }
+.pcard.held { opacity: 0.85; border-style: dashed; }
+.job.held { border-style: dashed; }
+.job.held .job-head h2 { color: var(--ink-2); }
+.held-list { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 8px 10px; }
+.held-cards { max-height: 40vh; overflow-y: auto; }
+.held-list > summary { color: var(--ink); font-size: 14px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }

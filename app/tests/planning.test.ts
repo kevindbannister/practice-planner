@@ -96,3 +96,24 @@ test("rules saved in Settings override the built-in ones", () => {
   assert.equal(describeRule(BUILT_IN_RULES.VAT), "Quarterly · due 1 month and 7 days after period end");
   assert.equal(describeRule(BUILT_IN_RULES.PAYROLL), "Monthly · due the same time after period end as last time");
 });
+
+import { holdAlert, holdPatch, resumePatch } from "../src/lib/domain";
+
+test("on hold: reminders when the look-again date comes or the deadline gets close", () => {
+  const held = { Status: "On hold", HoldReason: "Waiting for bank statements", HoldUntil: "2026-11-01", HeldOn: "2026-10-09" };
+  assert.equal(holdAlert(held, "2027-01-31", "2026-10-20"), null);
+  assert.equal(holdAlert(held, "2027-01-31", "2026-11-01")?.text, "On hold: time to look again (from 1 Nov 2026)");
+  assert.deepEqual(holdAlert(held, "2026-10-30", "2026-10-20"), { level: "amber", text: "On hold, but due in 10 days" });
+  assert.equal(holdAlert(held, "2026-10-19", "2026-10-20")?.level, "red");
+  assert.equal(holdAlert({ Status: "Open" }, "2026-10-19", "2026-10-20"), null);
+});
+
+test("on hold: putting on and taking off keeps a note of the hold", () => {
+  assert.deepEqual(holdPatch(" Client abroad ", "2026-12-01", "2026-10-09"), {
+    Status: "On hold", HoldReason: "Client abroad", HoldUntil: "2026-12-01", HeldOn: "2026-10-09", PlannedDate: "",
+  });
+  const back = resumePatch({ Status: "On hold", HoldReason: "Client abroad", HeldOn: "2026-10-09", Notes: "Called 3 Oct" }, "2026-11-02");
+  assert.equal(back.Status, "Open");
+  assert.equal(back.Notes, "Called 3 Oct\nOn hold 9 Oct 2026 to 2 Nov 2026: Client abroad");
+  assert.equal(resumePatch({ Status: "On hold" }, "2026-11-02").Notes, "On hold until 2 Nov 2026");
+});

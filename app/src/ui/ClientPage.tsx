@@ -1,7 +1,7 @@
 // The full client page: overview and work tabs, with editable contact and references.
 import { ReactNode, useState } from "react";
 import {
-  Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
+  Client, Job, KIND_LABEL, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
 } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { jobHours } from "../lib/planning";
@@ -24,7 +24,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
   const today = todayIso();
   const company = c.Kind === "Ltd" || c.Kind === "LLP";
   const ch = company ? companiesHouseUrl(c.CompanyNumber) : undefined;
-  const urgent = jobs.filter((j) => j.Priority === "urgent" || jobState(j, today).state === "overdue");
+  const urgent = jobs.filter((j) => !isOnHold(j) && (j.Priority === "urgent" || jobState(j, today).state === "overdue"));
   const aml = amlLabel(c.XamaStatus);
   const loe = loeLabel(c.LoEStatus);
 
@@ -352,9 +352,9 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
               {tasks.map((t) => (
                 <li key={t.Key}>
                   <button type="button" className="task-row" onClick={() => open({ kind: "task", key: t.Key })}>
-                    <span style={{ fontWeight: 600 }}>{t.Title}</span>
+                    <span style={{ fontWeight: 600 }}>{t.Title}{isOnHold(t) && <span className="chip hold" style={{ marginLeft: 6 }}>On hold</span>}</span>
                     <span className="muted" style={{ fontSize: 12 }}>
-                      {t.Type}{t.PlannedDate ? ` · planned ${fmtDate(t.PlannedDate, { weekday: true, year: false })}` : " · not planned"}
+                      {t.Type}{isOnHold(t) ? (t.HoldReason ? ` · ${t.HoldReason}` : "") : t.PlannedDate ? ` · planned ${fmtDate(t.PlannedDate, { weekday: true, year: false })}` : " · not planned"}
                       {t.DueDate ? ` · due ${fmtDate(t.DueDate, { year: false })}` : ""}
                     </span>
                   </button>
@@ -413,18 +413,25 @@ function JobCard({ job: j }: { job: Job }) {
   const budget = jobHours(j, data.services);
 
   return (
-    <article className={`job${st.state === "overdue" ? " late" : st.state === "tight" ? " warn" : ""}`} aria-label={j.Title}>
+    <article className={`job${isOnHold(j) ? " held" : st.state === "overdue" ? " late" : st.state === "tight" ? " warn" : ""}`} aria-label={j.Title}>
       <div className="job-head">
         <div className="stack" style={{ gap: 4 }}>
           <div className="row-wrap">
             <h2>{j.Title}</h2>
             {j.Priority === "urgent" && <span className="chip red">Urgent</span>}
+            {isOnHold(j) && <span className="chip hold">On hold</span>}
             <DeadlineChip job={j} today={today} />
           </div>
           <span className="muted">
             {j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)}` : ""}
             {j.DeadlineSource ? ` · deadline from ${j.DeadlineSource}` : ""}
           </span>
+          {isOnHold(j) && (
+            <span style={{ fontSize: 13 }}>
+              {(j.HoldReason as string) || "On hold"}
+              {j.HoldUntil ? <span className="muted"> · look again {fmtDate(j.HoldUntil as string, { year: false })}</span> : null}
+            </span>
+          )}
         </div>
         <button type="button" className="btn" onClick={() => open({ kind: "job", key: j.Key })}>Update job</button>
       </div>

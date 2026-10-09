@@ -1,6 +1,6 @@
 // App shell: top bar, save indicator, and routing between pages.
 import { useEffect, useRef, useState } from "react";
-import { fmtDate, jobState, todayIso } from "../lib/domain";
+import { fmtDate, holdAlert, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { signOut } from "../lib/auth";
 import { Brand, ClientBadge, Icon, IconName, href, useRoute } from "./bits";
@@ -135,7 +135,7 @@ function GroupsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
         {data.groups.map((g) => {
           const members = idx.membersByGroup.get(g.Key as string) || [];
-          const jobs = members.flatMap((m) => idx.jobsByClient.get(m.MemberKey as string) || []);
+          const jobs = members.flatMap((m) => idx.jobsByClient.get(m.MemberKey as string) || []).filter((j) => !isOnHold(j));
           const late = jobs.filter((j) => jobState(j, today).state === "overdue").length;
           const tight = jobs.filter((j) => jobState(j, today).state === "tight").length;
           const next = [...jobs].sort((a, b) => (a.Deadline || "9999").localeCompare(b.Deadline || "9999"))[0];
@@ -198,6 +198,11 @@ function Alerts() {
   const name = (k?: string) => (k && idx.clientByKey.get(k)?.Title) || "";
   const alerts: Alert[] = [];
   for (const j of idx.openJobs) {
+    if (isOnHold(j)) {
+      const h = holdAlert(j, j.Deadline, today);
+      if (h) alerts.push({ key: j.Key, kind: "job", level: h.level, title: `${name(j.ClientKey) || j.ClientName}: ${j.Title}`, detail: h.text });
+      continue;
+    }
     if (!j.Deadline) continue;
     if (jobState(j, today).state === "overdue") {
       alerts.push({ key: j.Key, kind: "job", level: "red", title: `${name(j.ClientKey) || j.ClientName}: ${j.Title}`, detail: `Was due ${fmtDate(j.Deadline)}` });
@@ -206,6 +211,11 @@ function Alerts() {
     }
   }
   for (const t of idx.openTasks) {
+    if (isOnHold(t)) {
+      const h = holdAlert(t, t.DueDate, today);
+      if (h) alerts.push({ key: t.Key, kind: "task", level: h.level, title: t.ClientKey ? `${name(t.ClientKey)}: ${t.Title}` : t.Title, detail: h.text });
+      continue;
+    }
     if (t.DueDate && t.DueDate < today) {
       alerts.push({ key: t.Key, kind: "task", level: "red", title: t.ClientKey ? `${name(t.ClientKey)}: ${t.Title}` : t.Title, detail: `Task was due ${fmtDate(t.DueDate)}` });
     }
@@ -237,8 +247,9 @@ function Alerts() {
             <strong>Needs attention</strong>
             <span className="muted" style={{ fontSize: 12 }}>
               {[
-                `${alerts.filter((a) => a.kind !== "ch" && a.level === "red").length} late`,
-                `${alerts.filter((a) => a.kind !== "ch" && a.level === "amber").length} due this week, unplanned`,
+                `${alerts.filter((a) => a.kind !== "ch" && !a.detail.startsWith("On hold") && a.level === "red").length} late`,
+                `${alerts.filter((a) => a.kind !== "ch" && !a.detail.startsWith("On hold") && a.level === "amber").length} due this week, unplanned`,
+                ...(alerts.some((a) => a.detail.startsWith("On hold")) ? [`${alerts.filter((a) => a.detail.startsWith("On hold")).length} on hold to look at`] : []),
                 ...(chCount ? [`${chCount} from Companies House`] : []),
               ].join(" · ")}
             </span>

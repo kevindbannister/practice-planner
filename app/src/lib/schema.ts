@@ -77,6 +77,7 @@ export const LISTS: ListDef[] = [
       n("EstimateHours"), t("InternalDeadline"), t("Deadline", true), t("DeadlineSource"), t("CHDeadline"),
       t("SuggestedSlot"), t("LastCompleted"), t("Priority"), t("Status"), t("CompletedDate"),
       n("ActualHours"), n("Fee"), t("FeePeriod"), t("Source"), t("EngagerClient"), note("Notes"),
+      t("HoldReason"), t("HoldUntil"), t("HeldOn"),
     ],
   },
   {
@@ -90,7 +91,7 @@ export const LISTS: ListDef[] = [
     key: "Tasks", displayName: "PP Tasks", description: "Practice Planner: advisory and practice tasks",
     columns: [
       t("Key", true), t("ClientKey", true), t("GroupKey"), t("Type"), t("PlannedDate", true), n("EstimateHours"),
-      t("DueDate"), t("Status"), t("CompletedDate"), note("Notes"),
+      t("DueDate"), t("Status"), t("CompletedDate"), note("Notes"), t("HoldReason"), t("HoldUntil"), t("HeldOn"),
     ],
   },
   {

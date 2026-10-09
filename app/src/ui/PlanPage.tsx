@@ -2,7 +2,7 @@
 // work. Drag cards between days (or back to the tray); click a card to edit it.
 // On a phone the week becomes a strip of days: tap one to see it, or drag a card onto it.
 import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Job, Task, fmtDate, fmtHours, jobState, todayIso } from "../lib/domain";
+import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
 import { addDays, jobHours, mondayOf, weekday } from "../lib/planning";
 import { Icon } from "./bits";
 import { useData, useIndex } from "./data";
@@ -33,6 +33,7 @@ type Item = {
   deadline?: string;
   urgent: boolean;
   compliance: boolean;
+  held: boolean;
 };
 
 type Show = "all" | "compliance" | "other";
@@ -62,18 +63,22 @@ export function PlanPage() {
       client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "",
       tag: shortTag(j.ServiceKey, idx.serviceName.get(j.ServiceKey || "")),
       hours: jobHours(j, data.services), planned: j.PlannedDate, deadline: j.Deadline,
-      urgent: j.Priority === "urgent", compliance: true,
+      urgent: j.Priority === "urgent", compliance: true, held: isOnHold(j),
     }));
     const tasks = idx.openTasks.map<Item>((t) => ({
       kind: "task", key: t.Key, row: t, title: t.Title,
       client: (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "",
       tag: t.Type || "Task", hours: t.EstimateHours || 1, planned: t.PlannedDate, deadline: t.DueDate,
-      urgent: false, compliance: false,
+      urgent: false, compliance: false, held: isOnHold(t),
     }));
     return [...jobs, ...tasks];
   }, [idx, data.services]);
 
-  const visible = items.filter((i) => (show === "all" ? true : show === "compliance" ? i.compliance : !i.compliance));
+  const shownKind = items.filter((i) => (show === "all" ? true : show === "compliance" ? i.compliance : !i.compliance));
+  const visible = shownKind.filter((i) => !i.held); // on-hold work is off the board
+  const held = shownKind
+    .filter((i) => i.held)
+    .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
   const byDay = new Map(days.map((d) => [d, visible.filter((i) => i.planned === d)]));
   const unplanned = visible
     .filter((i) => !i.planned || (i.planned < today && !days.includes(i.planned)))
@@ -88,7 +93,7 @@ export function PlanPage() {
   const weekCapacity = days.reduce((t, d) => t + capacity(d), 0);
   const overDays = days.filter((d) => load(d) > capacity(d)).length;
   const tightPlanned = days.flatMap((d) => byDay.get(d) || []).filter((i) => ["tight", "overdue"].includes(state(i, today))).length;
-  const dueSoonUnplanned = items.filter((i) => !i.planned && i.deadline && i.deadline <= addDays(today, 30)).length;
+  const dueSoonUnplanned = items.filter((i) => !i.held && !i.planned && i.deadline && i.deadline <= addDays(today, 30)).length;
 
   const say = (text: string, undo?: () => void) => {
     window.clearTimeout(toastTimer.current);
@@ -101,9 +106,17 @@ export function PlanPage() {
     const item = items.find((i) => i.key === key);
     if (!item || (item.planned || undefined) === date) return;
     const before = item.planned;
+    const list = item.kind === "job" ? "Jobs" : "Tasks";
     setError(undefined);
     try {
-      await update(item.kind === "job" ? "Jobs" : "Tasks", item.row, { PlannedDate: date || "" });
+      if (item.held) {
+        // dropping something on hold onto the board takes it off hold
+        if (!date) return;
+        await update(list, item.row, { ...resumePatch(item.row, today), PlannedDate: date });
+        say(`${item.client || item.title}: taken off hold and planned for ${fmtDate(date, { weekday: true, year: false })}`);
+        return;
+      }
+      await update(list, item.row, { PlannedDate: date || "" });
       if (!quiet) {
         say(
           `${item.client || item.title}: ${date ? `planned for ${fmtDate(date, { weekday: true, year: false })}` : "back to unplanned"}`,
@@ -213,6 +226,18 @@ export function PlanPage() {
               {missed.length} planned on an earlier day but not finished
             </p>
           )}
+          {held.length > 0 && (
+            <details className="held-list">
+              <summary>
+                On hold ({held.length})
+                {held.some((i) => holdAlert(i.row, i.deadline, today)) && (
+                  <span className="chip amber" style={{ marginLeft: 6 }}>{held.filter((i) => holdAlert(i.row, i.deadline, today)).length} to look at</span>
+                )}
+              </summary>
+              <p className="muted" style={{ margin: "6px 0", fontSize: 12 }}>Drag one onto a day to take it off hold and plan it.</p>
+              <div className="stack held-cards" style={{ gap: 8 }}>{held.map(card)}</div>
+            </details>
+          )}
           <div className="tray-list">
             {unplanned.slice(0, 80).map(card)}
             {unplanned.length > 80 && <p className="muted" style={{ fontSize: 12 }}>{unplanned.length - 80} more; narrow the dates or search.</p>}
@@ -292,7 +317,7 @@ function PlanCard({
   return (
     <button
       type="button"
-      className={`pcard${i.compliance ? "" : " task"}${dragging ? " dragging" : ""}`}
+      className={`pcard${i.compliance ? "" : " task"}${i.held ? " held" : ""}${dragging ? " dragging" : ""}`}
       {...dragProps}
       onClick={onOpen}
       aria-label={`${i.title}${i.client ? ", " + i.client : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}. Open to edit.`}
@@ -310,12 +335,18 @@ function PlanCard({
         {job?.PeriodEnd ? ` · to ${fmtDate(job.PeriodEnd, { year: false })}` : ""}
         {job?.StageNo ? ` · stage ${job.StageNo}` : ""}
       </span>
+      {i.held && (
+        <span className="pcard-foot">
+          <span className="chip hold">On hold</span>
+          {(i.row.HoldReason as string) && <span style={{ fontSize: 12 }}>{i.row.HoldReason as string}</span>}
+        </span>
+      )}
       {(i.deadline || i.urgent) && (
         <span className="pcard-foot">
           {i.deadline && <span className="mono" style={{ fontSize: 12 }}>Due {fmtDate(i.deadline, { year: i.deadline.slice(0, 4) !== today.slice(0, 4) })}</span>}
           {i.urgent && <span className="chip red">Urgent</span>}
-          {st.state === "overdue" && <span className="chip red">{-st.days!}d late</span>}
-          {st.state === "tight" && <span className="chip amber">Tight · {st.days}d</span>}
+          {!i.held && st.state === "overdue" && <span className="chip red">{-st.days!}d late</span>}
+          {!i.held && st.state === "tight" && <span className="chip amber">Tight · {st.days}d</span>}
           {i.planned && i.planned < today && <span className="chip amber">Planned {fmtDate(i.planned, { year: false })}</span>}
         </span>
       )}
