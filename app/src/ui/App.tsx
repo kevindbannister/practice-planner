@@ -15,6 +15,7 @@ import { ChasePage, useChaseCount } from "./ChasePage";
 import { SettingsPage } from "./SettingsPage";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
+import { CalendarProvider } from "./Calendar";
 
 export function App({ demo }: { demo: boolean }) {
   const { status, error, reload } = useData();
@@ -59,10 +60,12 @@ export function App({ demo }: { demo: boolean }) {
   return (
     <BackupProvider>
       <CompaniesHouseProvider demo={demo}>
-        <EditorProvider>
-          <TopBar section={section} demo={demo} ready={status === "ready"} />
-          {body}
-        </EditorProvider>
+        <CalendarProvider demo={demo}>
+          <EditorProvider>
+            <TopBar section={section} demo={demo} ready={status === "ready"} />
+            {body}
+          </EditorProvider>
+        </CalendarProvider>
       </CompaniesHouseProvider>
     </BackupProvider>
   );

@@ -10,6 +10,7 @@ import { MonthsView } from "./MonthsView";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 import { useBoardDrag } from "./useBoardDrag";
+import { useCalendar } from "./Calendar";
 import { readSetting } from "./data";
 import { Candidate, DEFAULT_FILL, LOOK_AHEAD_DAYS, Skipped, Suggestion, suggestPlan } from "../lib/autoplan";
 import { waitingForRecords } from "../lib/chase";
@@ -107,7 +108,9 @@ function WeekView() {
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
   const missed = unplanned.filter((i) => i.planned && i.planned < today);
 
-  const capacity = (d: string) => settings.hours[String(weekday(d)) as keyof typeof settings.hours] ?? 0;
+  const cal = useCalendar();
+  const usualHours = (d: string) => settings.hours[String(weekday(d)) as keyof typeof settings.hours] ?? 0;
+  const capacity = (d: string) => cal.capacityFor(d, usualHours(d)); // less meetings, when the calendar is connected
   const load = (d: string) => (byDay.get(d) || []).reduce((t, i) => t + i.hours, 0);
   const suggestedLoad = (d: string) => suggestedOn(d).reduce((t, x) => t + x.item.hours, 0);
   const weekHours = days.reduce((t, d) => t + load(d), 0);
@@ -383,6 +386,7 @@ function WeekView() {
                   </div>
                   {over && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red-ink)" }}>{fmtHours(used - cap)} over</span>}
                   {sHours > 0 && <span style={{ fontSize: 12, color: "var(--blue-ink)" }}>+{fmtHours(sHours)} suggested</span>}
+                  {cal.meetingsOn(d) > 0 && <span className="muted" style={{ fontSize: 12 }}>Meetings {fmtHours(cal.meetingsOn(d))}</span>}
                 </div>
                 {list.map(card)}
                 {sugg.map(({ s, item }) => (

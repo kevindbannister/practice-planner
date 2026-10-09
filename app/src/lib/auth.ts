@@ -7,6 +7,35 @@ type Tokens = { access: string; refresh?: string; expires: number };
 type Pending = { verifier: string; state: string; returnTo: string };
 
 const TOKENS = "pp.tokens";
+const EXTRA = "pp.scopes.extra";
+
+/** Permissions asked for on top of the standard ones (e.g. the calendar), remembered on this device. */
+export function extraScopes(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(EXTRA) || "[]");
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+export function hasExtraScope(scope: string): boolean {
+  return extraScopes().includes(scope);
+}
+/** Ask for an extra permission from now on. With `now`, signs in again straight away to get it. */
+export async function addScope(scope: string, now = false): Promise<void> {
+  if (!hasExtraScope(scope)) {
+    try {
+      localStorage.setItem(EXTRA, JSON.stringify([...extraScopes(), scope]));
+    } catch {
+      /* asked for this visit only */
+    }
+  }
+  if (now) {
+    sessionStorage.removeItem(TOKENS);
+    await signIn();
+  }
+}
+const scopes = () => [...SCOPES, ...extraScopes()].join(" ");
 const PENDING = "pp.pkce";
 
 export class AuthError extends Error {}
@@ -52,7 +81,7 @@ export async function signIn(prompt?: "select_account"): Promise<never> {
     response_type: "code",
     redirect_uri: redirectUri(),
     response_mode: "query",
-    scope: SCOPES.join(" "),
+    scope: scopes(),
     state,
     code_challenge: await pkceChallenge(verifier),
     code_challenge_method: "S256",
@@ -87,7 +116,7 @@ export async function handleRedirect(): Promise<boolean> {
 }
 
 async function tokenRequest(params: Record<string, string>): Promise<Tokens> {
-  const body = new URLSearchParams({ client_id: CLIENT_ID, scope: SCOPES.join(" "), ...params });
+  const body = new URLSearchParams({ client_id: CLIENT_ID, scope: scopes(), ...params });
   const res = await fetch(`${AUTHORITY}/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -124,6 +153,13 @@ export async function getAccessToken(): Promise<string> {
   }
   sessionStorage.removeItem(TOKENS);
   return signIn();
+}
+
+/** Get a fresh token now (e.g. after adding a permission). Throws if Microsoft wants you to sign in again. */
+export async function refreshNow(): Promise<void> {
+  const t = load();
+  if (!t?.refresh) throw new AuthError("Not signed in");
+  await tokenRequest({ grant_type: "refresh_token", refresh_token: t.refresh });
 }
 
 export function signOut(): void {

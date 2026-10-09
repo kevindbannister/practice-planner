@@ -5,7 +5,8 @@ import { BatchRequest, BatchResponse, Graph, GraphError } from "./graph";
 type Item = { id: string; fields: Record<string, unknown> };
 type List = { id: string; displayName: string; description?: string; columns: { name: string }[]; items: Item[]; nextItem: number };
 type DriveFile = { id: string; name: string; path: string; size: number; at: string };
-type State = { lists: List[]; nextList: number; files?: DriveFile[] };
+type FakeEvent = { id: string; subject: string; start: string; end: string; showAs: string; isAllDay: boolean; categories: string[]; props: { id: string; value: string }[] };
+type State = { lists: List[]; nextList: number; files?: DriveFile[]; events?: FakeEvent[]; nextEvent?: number };
 
 const BUILT_IN = ["Title", "Created", "Modified", "ID"];
 
@@ -54,6 +55,68 @@ export class FakeGraph implements Graph {
     this.save();
     return { id: file.id, name, size: file.size, webUrl: `https://example-my.sharepoint.com/personal/demo/Documents/${encodeURI(full)}` } as T;
   }
+  /** A small Outlook calendar for the demo, with a few meetings in the next fortnight. */
+  private calendar(method: string, path: string, q: URLSearchParams, body: any): any {
+    if (!this.state.events) {
+      const monday = new Date();
+      monday.setHours(0, 0, 0, 0);
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+      const at = (dayOffset: number, h: number, m = 0) => {
+        const d = new Date(monday);
+        d.setDate(d.getDate() + dayOffset);
+        d.setHours(h, m, 0, 0);
+        return d.toISOString();
+      };
+      const mk = (subject: string, s: string, e: string, showAs = "busy") =>
+        ({ id: `ev-${(this.state.nextEvent = (this.state.nextEvent || 0) + 1)}`, subject, start: s, end: e, showAs, isAllDay: false, categories: [], props: [] });
+      this.state.events = [];
+      for (const w of [0, 7]) {
+        this.state.events.push(
+          mk("Client meeting", at(w + 0, 10), at(w + 0, 11, 30)),
+          mk("Networking lunch", at(w + 2, 12), at(w + 2, 14)),
+          mk("Training", at(w + 3, 9), at(w + 3, 12, 30)),
+          mk("Optional webinar", at(w + 4, 15), at(w + 4, 16), "free"),
+        );
+      }
+    }
+    const events = this.state.events;
+    const out = (e: FakeEvent) => ({
+      id: e.id, subject: e.subject, start: { dateTime: e.start.replace("Z", ""), timeZone: "UTC" }, end: { dateTime: e.end.replace("Z", ""), timeZone: "UTC" },
+      showAs: e.showAs, isAllDay: e.isAllDay, isCancelled: false, categories: e.categories, singleValueExtendedProperties: e.props,
+    });
+    const toIso = (t: { dateTime: string; timeZone: string }) => new Date(t.dateTime + (t.timeZone === "UTC" ? "Z" : "")).toISOString();
+    if (method === "GET" && path === "/me/calendarView") {
+      const from = q.get("startDateTime")!, to = q.get("endDateTime")!;
+      return { value: events.filter((e) => e.end > from && e.start < to).map(out) };
+    }
+    if (method === "POST" && path === "/me/events") {
+      const e: FakeEvent = {
+        id: `ev-${(this.state.nextEvent = (this.state.nextEvent || 0) + 1)}`, subject: body.subject, start: toIso(body.start), end: toIso(body.end),
+        showAs: body.showAs || "busy", isAllDay: false, categories: body.categories || [], props: body.singleValueExtendedProperties || [],
+      };
+      events.push(e);
+      this.save();
+      return out(e);
+    }
+    const m = path.match(/^\/me\/events\/([^/]+)$/);
+    const e = m && events.find((x) => x.id === m[1]);
+    if (!e) throw new GraphError(404, "Event not found");
+    if (method === "PATCH") {
+      if (body.subject) e.subject = body.subject;
+      if (body.start) e.start = toIso(body.start);
+      if (body.end) e.end = toIso(body.end);
+      if (body.showAs) e.showAs = body.showAs;
+      this.save();
+      return out(e);
+    }
+    if (method === "DELETE") {
+      events.splice(events.indexOf(e), 1);
+      this.save();
+      return undefined;
+    }
+    throw new GraphError(400, `FakeGraph doesn't handle ${method} ${path}`);
+  }
+
   /** The bytes of the most recent upload (not saved between visits). */
   lastUpload?: Uint8Array;
   async getAll<T = any>(path: string): Promise<T[]> {
@@ -106,6 +169,7 @@ export class FakeGraph implements Graph {
     let m: RegExpMatchArray | null;
 
     if (method === "GET" && path === "/me") return { displayName: "Demo User", mail: "demo@example.com" };
+    if (path.startsWith("/me/calendarView") || path.startsWith("/me/events")) return this.calendar(method, path, q, body);
     if (method === "GET" && (m = path.match(/^\/me\/drive\/root:\/(.+)$/))) {
       const folder = m[1];
       if (!(this.state.files || []).some((f) => f.path.startsWith(folder + "/"))) throw new GraphError(404, "Item not found");

@@ -13,6 +13,7 @@ import { SelectField } from "./Editors";
 import { recordsRule } from "../lib/chase";
 import { CompaniesHouseSettings } from "./CompaniesHouse";
 import { BackupSettings } from "./Backups";
+import { CalendarSettings } from "./Calendar";
 import { ThemeChoice, useTheme } from "./theme";
 import { signOut } from "../lib/auth";
 
@@ -20,7 +21,7 @@ declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
 const TABS: [string, string][] = [
-  ["week", "Your week"], ["work", "Types of work"], ["companies-house", "Companies House"], ["backups", "Backups"],
+  ["week", "Your week"], ["work", "Types of work"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["backups", "Backups"],
 ];
 
 export function SettingsPage() {
@@ -39,6 +40,7 @@ export function SettingsPage() {
       {tab === "work" && <TypesOfWork />}
       {tab === "companies-house" && <CompaniesHouseSettings />}
       {tab === "backups" && <BackupSettings />}
+      {tab === "calendar" && <CalendarSettings />}
     </div>
   );
 }
