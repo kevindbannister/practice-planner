@@ -6,6 +6,8 @@ An internal practice manager for a single accounting and advisory practice, buil
 - **Data:** SharePoint Lists on a dedicated site, read and written through Microsoft Graph; every edit saves immediately, with version history
 - **Backups:** an Excel copy of every list saved to OneDrive the first time the planner opens each day, plus "Export now" and "Download a copy" (Settings › Backups)
 - **Planning views:** the week board (drag with mouse or finger), months ahead (hours due against capacity, including next periods of recurring work) and a printable deadlines list
+- **Suggest a plan:** fills the rest of the week from unplanned work by fixed rules (late, urgent, nearest deadline; skips work waiting for records; fills each day to a set level)
+- **Outlook calendar:** meetings reduce each day's hours; planned work is kept in the calendar as time blocks
 - **Chasing records:** clients whose records are due or late, with an email from a template and a log of each chase
 - **Companies House:** each company checked daily through a server-side function (`api/`) that holds the API key; changes are reviewed in Settings before anything is updated
 

@@ -67,3 +67,14 @@ The Companies House checks run through a small server-side function in the same 
 4. In the planner, open **Settings › Companies House** and select **Test connection**.
 
 To change the key later (for example to replace one that's been shared), create a new key in the developer hub, update `CH_API_KEY`, and delete the old key there.
+
+## Step 7: Outlook calendar (optional)
+
+The planner can read your meetings and put planned work in your calendar. It needs the delegated Microsoft Graph permission **Calendars.ReadWrite**.
+
+1. In the planner, open **Settings › Calendar** and select **Connect Outlook calendar**.
+2. Microsoft asks you to allow calendar access. Accept it (as the admin you can also tick "Consent on behalf of your organisation").
+
+If Microsoft says you need admin approval instead, add it in Entra first: **entra.microsoft.com** → App registrations → **Practice Planner** → **API permissions** → **Add a permission** → Microsoft Graph → Delegated → **Calendars.ReadWrite** → Add, then **Grant admin consent**. Then connect again.
+
+The planner only changes events it created (category "Practice Planner"). Turning the link off in Settings removes its blocks from the next four weeks.
