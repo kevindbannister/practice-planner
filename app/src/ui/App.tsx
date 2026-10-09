@@ -13,6 +13,7 @@ import { EditorProvider, useEditor } from "./Editors";
 import { PlanPage } from "./PlanPage";
 import { SettingsPage } from "./SettingsPage";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
+import { BackupProvider, useBackupAlert } from "./Backups";
 
 export function App({ demo }: { demo: boolean }) {
   const { status, error, reload } = useData();
@@ -53,12 +54,14 @@ export function App({ demo }: { demo: boolean }) {
   }
 
   return (
-    <CompaniesHouseProvider demo={demo}>
-      <EditorProvider>
-        <TopBar section={section} demo={demo} ready={status === "ready"} />
-        {body}
-      </EditorProvider>
-    </CompaniesHouseProvider>
+    <BackupProvider>
+      <CompaniesHouseProvider demo={demo}>
+        <EditorProvider>
+          <TopBar section={section} demo={demo} ready={status === "ready"} />
+          {body}
+        </EditorProvider>
+      </CompaniesHouseProvider>
+    </BackupProvider>
   );
 }
 
@@ -169,7 +172,7 @@ function GroupsPage() {
   );
 }
 
-type Alert = { key: string; kind: "job" | "task" | "ch"; level: "red" | "amber"; title: string; detail: string };
+type Alert = { key: string; kind: "job" | "task" | "ch" | "backup"; level: "red" | "amber"; title: string; detail: string };
 
 /** The bell: late work, work due within a week that isn't planned, and Companies House changes to review. */
 function Alerts() {
@@ -178,6 +181,7 @@ function Alerts() {
   const { open } = useEditor();
   const ch = useCompaniesHouse();
   const chAlerts = useChAlerts();
+  const backupAlert = useBackupAlert();
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const today = todayIso();
@@ -221,8 +225,9 @@ function Alerts() {
     }
   }
   for (const a of chAlerts) alerts.push({ ...a, key: "ch:" + a.key, kind: "ch" });
+  if (backupAlert) alerts.push({ ...backupAlert, key: "backup", kind: "backup" });
   // Companies House changes first (they need a decision), then late work, then unplanned
-  const rank = (a: Alert) => (a.kind === "ch" ? 0 : 2) + (a.level === "red" ? 0 : 1);
+  const rank = (a: Alert) => (a.kind === "backup" ? -2 : a.kind === "ch" ? 0 : 2) + (a.level === "red" ? 0 : 1);
   alerts.sort((a, b) => rank(a) - rank(b));
   const red = alerts.filter((a) => a.level === "red").length;
   const chCount = chAlerts.length;
@@ -247,8 +252,8 @@ function Alerts() {
             <strong>Needs attention</strong>
             <span className="muted" style={{ fontSize: 12 }}>
               {[
-                `${alerts.filter((a) => a.kind !== "ch" && !a.detail.startsWith("On hold") && a.level === "red").length} late`,
-                `${alerts.filter((a) => a.kind !== "ch" && !a.detail.startsWith("On hold") && a.level === "amber").length} due this week, unplanned`,
+                `${alerts.filter((a) => (a.kind === "job" || a.kind === "task") && !a.detail.startsWith("On hold") && a.level === "red").length} late`,
+                `${alerts.filter((a) => (a.kind === "job" || a.kind === "task") && !a.detail.startsWith("On hold") && a.level === "amber").length} due this week, unplanned`,
                 ...(alerts.some((a) => a.detail.startsWith("On hold")) ? [`${alerts.filter((a) => a.detail.startsWith("On hold")).length} on hold to look at`] : []),
                 ...(chCount ? [`${chCount} from Companies House`] : []),
               ].join(" · ")}
@@ -261,6 +266,7 @@ function Alerts() {
                   <button type="button" onClick={() => {
                     setShown(false);
                     if (a.kind === "ch") window.location.hash = "#/settings/companies-house";
+                    else if (a.kind === "backup") window.location.hash = "#/settings/backups";
                     else open(a.kind === "job" ? { kind: "job", key: a.key } : { kind: "task", key: a.key });
                   }}>
                     <span className={`dot ${a.level}`} aria-hidden="true" />

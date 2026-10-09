@@ -251,3 +251,14 @@ export function useIndex() {
     };
   }, [data]);
 }
+
+/** A JSON value saved in the Settings list, or undefined. */
+export function readSetting<T>(settings: Row[], key: string): T | undefined {
+  const row = settings.find((s) => s.Key === key);
+  if (!row?.Value) return undefined;
+  try {
+    return JSON.parse(String(row.Value)) as T;
+  } catch {
+    return undefined;
+  }
+}

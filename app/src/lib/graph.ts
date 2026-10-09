@@ -16,6 +16,8 @@ export interface Graph {
   post<T = any>(path: string, body: unknown): Promise<T>;
   patch<T = any>(path: string, body: unknown): Promise<T>;
   delete(path: string): Promise<void>;
+  /** Upload a file's bytes (PUT), e.g. to OneDrive. */
+  put<T = any>(path: string, data: Uint8Array, contentType: string): Promise<T>;
   getAll<T = any>(path: string): Promise<T[]>;
   batch(requests: BatchRequest[], onProgress?: (done: number) => void): Promise<BatchResponse[]>;
 }
@@ -39,18 +41,19 @@ export class HttpGraph implements Graph {
     private sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
   ) {}
 
-  private async request(method: string, path: string, body?: unknown, attempt = 0): Promise<any> {
+  private async request(method: string, path: string, body?: unknown, attempt = 0, raw?: { data: Uint8Array; type: string }): Promise<any> {
     const url = path.startsWith("https://") ? path : GRAPH + path;
     const headers: Record<string, string> = { Authorization: `Bearer ${await this.token()}` };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (raw) headers["Content-Type"] = raw.type;
+    else if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await this.fetchImpl(url, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: raw ? (raw.data as unknown as BodyInit) : body === undefined ? undefined : JSON.stringify(body),
     });
     if (RETRYABLE.has(res.status) && attempt < MAX_ATTEMPTS) {
       await this.sleep(retryDelay(res.headers.get("Retry-After"), attempt));
-      return this.request(method, path, body, attempt + 1);
+      return this.request(method, path, body, attempt + 1, raw);
     }
     if (res.status === 204) return undefined;
     const json = await res.json().catch(() => ({}));
@@ -69,6 +72,9 @@ export class HttpGraph implements Graph {
   }
   async delete(path: string): Promise<void> {
     await this.request("DELETE", path);
+  }
+  put<T = any>(path: string, data: Uint8Array, contentType: string): Promise<T> {
+    return this.request("PUT", path, undefined, 0, { data, type: contentType });
   }
 
   async getAll<T = any>(path: string): Promise<T[]> {

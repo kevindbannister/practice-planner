@@ -11,7 +11,7 @@ export class SharePointStore {
   siteUrl = "";
   private listIds = new Map<ListKey, string>();
 
-  constructor(private graph: Graph) {}
+  constructor(public readonly graph: Graph) {}
 
   async connect(): Promise<void> {
     const site = await this.graph.get(`/sites/${SITE_HOST}:${SITE_PATH}`);

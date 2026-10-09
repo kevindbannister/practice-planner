@@ -4,7 +4,8 @@ import { BatchRequest, BatchResponse, Graph, GraphError } from "./graph";
 
 type Item = { id: string; fields: Record<string, unknown> };
 type List = { id: string; displayName: string; description?: string; columns: { name: string }[]; items: Item[]; nextItem: number };
-type State = { lists: List[]; nextList: number };
+type DriveFile = { id: string; name: string; path: string; size: number; at: string };
+type State = { lists: List[]; nextList: number; files?: DriveFile[] };
 
 const BUILT_IN = ["Title", "Created", "Modified", "ID"];
 
@@ -40,6 +41,21 @@ export class FakeGraph implements Graph {
   async delete(path: string): Promise<void> {
     this.route("DELETE", path);
   }
+  /** OneDrive uploads: keeps the name and size (not the bytes), like a drive listing would. */
+  async put<T = any>(path: string, data: Uint8Array, _contentType: string): Promise<T> {
+    const m = decodeURIComponent(path).match(/^\/me\/drive\/root:\/(.+):\/content$/);
+    if (!m) throw new GraphError(400, `FakeGraph doesn't handle PUT ${path}`);
+    const full = m[1];
+    const name = full.split("/").pop()!;
+    const files = (this.state.files ||= []);
+    const file: DriveFile = { id: `file-${files.length + 1}`, name, path: full, size: data.byteLength, at: new Date().toISOString() };
+    files.push(file);
+    this.lastUpload = data;
+    this.save();
+    return { id: file.id, name, size: file.size, webUrl: `https://example-my.sharepoint.com/personal/demo/Documents/${encodeURI(full)}` } as T;
+  }
+  /** The bytes of the most recent upload (not saved between visits). */
+  lastUpload?: Uint8Array;
   async getAll<T = any>(path: string): Promise<T[]> {
     const out: T[] = [];
     let next: string | undefined = path;
@@ -90,6 +106,11 @@ export class FakeGraph implements Graph {
     let m: RegExpMatchArray | null;
 
     if (method === "GET" && path === "/me") return { displayName: "Demo User", mail: "demo@example.com" };
+    if (method === "GET" && (m = path.match(/^\/me\/drive\/root:\/(.+)$/))) {
+      const folder = m[1];
+      if (!(this.state.files || []).some((f) => f.path.startsWith(folder + "/"))) throw new GraphError(404, "Item not found");
+      return { name: folder, webUrl: `https://example-my.sharepoint.com/personal/demo/Documents/${encodeURI(folder)}`, folder: {} };
+    }
     if (method === "GET" && /^\/sites\/[^/]+:\/sites\/[^/]+$/.test(path)) {
       return { id: "site-1", webUrl: "https://example.sharepoint.com/sites/PracticePlanner" };
     }
