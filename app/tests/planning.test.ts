@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  DEFAULT_SETTINGS, addMonths, jobHours, mondayOf, nextPeriod, readSettings, rollForward, weekday, workingDay,
+  BUILT_IN_RULES, DEFAULT_SETTINGS, addMonths, describeRule, jobHours, mondayOf, nextPeriod as nextByRule, readSettings,
+  rollForward as rollByRule, ruleFields, ruleFor, weekday, workingDay,
 } from "../src/lib/planning";
+
+const nextPeriod = (svc: string, pe?: string, dl?: string) => {
+  const n = nextByRule(ruleFor(svc), pe, dl);
+  return n && { PeriodEnd: n.PeriodEnd, Deadline: n.Deadline };
+};
+const rollForward = (job: any, on: string, key: string) => rollByRule(job, ruleFor(job.ServiceKey), on, key);
 
 test("month arithmetic keeps month ends", () => {
   assert.equal(addMonths("2026-02-28", 12), "2027-02-28");
@@ -25,11 +32,13 @@ test("next periods follow the statutory rules", () => {
   assert.deepEqual(nextPeriod("ACCS_LTD", "2025-10-31")!.Deadline, "2027-07-31");
   assert.equal(nextPeriod("ACCS_LTD", "2025-10-31")!.PeriodEnd, "2026-10-31");
   assert.equal(nextPeriod("ACCS_LTD", "2026-03-29")!.Deadline, "2027-12-29");
-  assert.deepEqual(nextPeriod("CT600", "2025-10-31"), { PeriodEnd: "2026-10-31", Deadline: "2027-10-31", rule: "Year end + 12 months" });
-  assert.deepEqual(nextPeriod("CS01", "2026-05-08"), { PeriodEnd: "2027-05-08", Deadline: "2027-05-22", rule: "Made-up date + 14 days" });
-  assert.deepEqual(nextPeriod("SA100", "2026-04-05"), { PeriodEnd: "2027-04-05", Deadline: "2028-01-31", rule: "31 January after the tax year" });
-  assert.deepEqual(nextPeriod("VAT", "2026-09-30"), { PeriodEnd: "2026-12-31", Deadline: "2027-02-07", rule: "Quarter end + 1 month + 7 days" });
-  assert.deepEqual(nextPeriod("PAYROLL", "2026-10-31", "2026-10-31"), { PeriodEnd: "2026-11-30", Deadline: "2026-11-30", rule: "Monthly" });
+  assert.deepEqual(nextPeriod("CT600", "2025-10-31"), { PeriodEnd: "2026-10-31", Deadline: "2027-10-31" });
+  assert.deepEqual(nextPeriod("CS01", "2026-05-08"), { PeriodEnd: "2027-05-08", Deadline: "2027-05-22" });
+  assert.deepEqual(nextPeriod("CS01", "2027-02-28"), { PeriodEnd: "2028-02-28", Deadline: "2028-03-13" }, "CS01 keeps the exact day");
+  assert.deepEqual(nextPeriod("SA100", "2026-04-05"), { PeriodEnd: "2027-04-05", Deadline: "2028-01-31" });
+  assert.deepEqual(nextPeriod("VAT", "2026-09-30"), { PeriodEnd: "2026-12-31", Deadline: "2027-02-07" });
+  assert.deepEqual(nextPeriod("PAYROLL", "2026-10-31", "2026-10-31"), { PeriodEnd: "2026-11-30", Deadline: "2026-11-30" });
+  assert.deepEqual(nextPeriod("MGMT_ACCOUNTS", "2026-10-14", "2026-10-20"), { PeriodEnd: "2026-11-14", Deadline: "2026-11-20" });
   assert.equal(nextPeriod("ONBOARDING", "2026-07-31"), null);
   assert.equal(nextPeriod("ACCS_LTD", undefined), null);
 });
@@ -66,9 +75,24 @@ test("hours per job and settings", () => {
 
 test("deadlines for new jobs", async () => {
   const { deadlineFor } = await import("../src/lib/planning");
-  assert.equal(deadlineFor("ACCS_LTD", "2026-03-31"), "2026-12-31");
-  assert.equal(deadlineFor("CS01", "2027-05-08"), "2027-05-22");
-  assert.equal(deadlineFor("SA100", "2026-04-05"), "2027-01-31");
-  assert.equal(deadlineFor("VAT", "2026-12-31"), "2027-02-07");
-  assert.equal(deadlineFor("MGMT_ACCOUNTS", "2026-10-14"), "2026-10-14");
+  const d = (svc: string, pe: string) => deadlineFor(ruleFor(svc), pe);
+  assert.equal(d("ACCS_LTD", "2026-03-31"), "2026-12-31");
+  assert.equal(d("ACCS_LTD", "2026-03-29"), "2026-12-29");
+  assert.equal(d("CS01", "2027-05-08"), "2027-05-22");
+  assert.equal(d("SA100", "2026-04-05"), "2027-01-31");
+  assert.equal(d("VAT", "2026-12-31"), "2027-02-07");
+  assert.equal(d("MGMT_ACCOUNTS", "2026-10-14"), "2026-10-14");
+});
+
+test("rules saved in Settings override the built-in ones", () => {
+  const services = [{ Key: "ACCS_LTD", ...ruleFields({ ...BUILT_IN_RULES.ACCS_LTD, months: 6 }) }];
+  assert.equal(nextByRule(ruleFor("ACCS_LTD", services), "2025-12-31")!.Deadline, "2027-06-30");
+  const custom = [{ Key: "PAYE_AE", RepeatMonths: 36, DeadlineMode: "after", DeadlineMonths: 5, DeadlineDays: 0, KeepMonthEnd: true }];
+  const n = nextByRule(ruleFor("PAYE_AE", custom), "2026-01-31")!;
+  assert.deepEqual([n.PeriodEnd, n.Deadline], ["2029-01-31", "2029-06-30"]);
+  assert.equal(ruleFor("UNKNOWN").repeatMonths, 0, "unknown types are one-off");
+  assert.equal(describeRule(BUILT_IN_RULES.ACCS_LTD), "Yearly · due 9 months after period end");
+  assert.equal(describeRule(BUILT_IN_RULES.SA100), "Yearly · due 31 Jan after period end");
+  assert.equal(describeRule(BUILT_IN_RULES.VAT), "Quarterly · due 1 month and 7 days after period end");
+  assert.equal(describeRule(BUILT_IN_RULES.PAYROLL), "Monthly · due the same time after period end as last time");
 });

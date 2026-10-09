@@ -3,7 +3,7 @@
 // soon as it's changed.
 import { createContext, ReactNode, useContext, useEffect, useId, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, isOpen, jobState, todayIso } from "../lib/domain";
-import { deadlineFor, jobHours, newKey, nextPeriod, rollForward } from "../lib/planning";
+import { deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
 import { DeadlineChip, Icon, href } from "./bits";
 import { useData, useIndex } from "./data";
@@ -143,7 +143,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const save = (patch: Row) => update("Jobs", job, patch);
   const num = (v: string) => (v === "" ? "" : Number(v));
   const setStage = (n: number) => save({ StageNo: n, StageName: (stages[n - 1]?.Title as string) || "" });
-  const preview = nextPeriod(job.ServiceKey || "", job.PeriodEnd, job.Deadline);
+  const rule = ruleFor(job.ServiceKey, data.services);
+  const preview = nextPeriod(rule, job.PeriodEnd, job.Deadline);
 
   const complete = async () => {
     setBusy(true);
@@ -151,7 +152,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     try {
       const hours = actual ? Number(actual) : undefined;
       const finished = { ...job, ActualHours: hours ?? job.ActualHours } as Job;
-      const nextRow = rollForward(finished, today, newKey("J"));
+      const nextRow = rollForward(finished, rule, today, newKey("J"));
       // create the next job first, so nothing is lost if the second step fails
       if (nextRow) {
         nextRow.StageName = (stages[0]?.Title as string) || "";
@@ -257,8 +258,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
             <>
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>
                 {preview
-                  ? `Completing it creates the next one: period to ${fmtDate(preview.PeriodEnd)}, due ${fmtDate(preview.Deadline)}.`
-                  : "One-off work: nothing is created after it."}
+                  ? `Completing it creates the next one: period to ${fmtDate(preview.PeriodEnd)}, due ${fmtDate(preview.Deadline)} (${describeRule(rule).toLowerCase()}).`
+                  : "One-off work: nothing is created after it. You can change this in Settings › Types of work."}
               </p>
               <div><button type="button" className="btn" onClick={() => setCompleting(true)}>Mark complete…</button></div>
             </>
@@ -297,7 +298,7 @@ function NewJobPanel({ clientKey, onClose }: { clientKey: string; onClose: () =>
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    if (!deadlineTouched && service && periodEnd) setDeadline(deadlineFor(service, periodEnd));
+    if (!deadlineTouched && service && periodEnd) setDeadline(deadlineFor(ruleFor(service, data.services), periodEnd));
   }, [service, periodEnd]);
 
   const submit = async () => {

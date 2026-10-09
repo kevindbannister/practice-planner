@@ -1,5 +1,7 @@
 // App shell: top bar, save indicator, and routing between pages.
+import { useEffect, useRef, useState } from "react";
 import { fmtDate, jobState, todayIso } from "../lib/domain";
+import { addDays } from "../lib/planning";
 import { signOut } from "../lib/auth";
 import { Brand, ClientBadge, Icon, href, useRoute } from "./bits";
 import { ClientPage } from "./ClientPage";
@@ -80,6 +82,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
         {save.state === "error" && (
           <span className="save error" role="alert"><Icon name="alert" size={14} />Not saved: {save.error}</span>
         )}
+        {ready && <Alerts />}
         {ready && <button type="button" className="btn small primary" onClick={() => open({ kind: "task" })}>+ New task</button>}
         {user && <span className="muted">{user}</span>}
         {!demo && <button type="button" className="linkbtn" onClick={signOut}>Sign out</button>}
@@ -128,6 +131,92 @@ function GroupsPage() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+type Alert = { key: string; kind: "job" | "task"; level: "red" | "amber"; title: string; detail: string };
+
+/** The bell: late work and work due within a week that isn't planned. Companies House changes join it in stage 4. */
+function Alerts() {
+  const { data } = useData();
+  const idx = useIndex();
+  const { open } = useEditor();
+  const [shown, setShown] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const today = todayIso();
+  const soon = addDays(today, 7);
+
+  useEffect(() => {
+    if (!shown) return;
+    const onDoc = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setShown(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setShown(false);
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [shown]);
+
+  const name = (k?: string) => (k && idx.clientByKey.get(k)?.Title) || "";
+  const alerts: Alert[] = [];
+  for (const j of idx.openJobs) {
+    if (!j.Deadline) continue;
+    if (jobState(j, today).state === "overdue") {
+      alerts.push({ key: j.Key, kind: "job", level: "red", title: `${name(j.ClientKey) || j.ClientName}: ${j.Title}`, detail: `Was due ${fmtDate(j.Deadline)}` });
+    } else if (!j.PlannedDate && j.Deadline <= soon) {
+      alerts.push({ key: j.Key, kind: "job", level: "amber", title: `${name(j.ClientKey) || j.ClientName}: ${j.Title}`, detail: `Due ${fmtDate(j.Deadline, { weekday: true, year: false })}, not planned` });
+    }
+  }
+  for (const t of idx.openTasks) {
+    if (t.DueDate && t.DueDate < today) {
+      alerts.push({ key: t.Key, kind: "task", level: "red", title: t.ClientKey ? `${name(t.ClientKey)}: ${t.Title}` : t.Title, detail: `Task was due ${fmtDate(t.DueDate)}` });
+    }
+  }
+  alerts.sort((a, b) => (a.level === b.level ? 0 : a.level === "red" ? -1 : 1));
+  const red = alerts.filter((a) => a.level === "red").length;
+
+  return (
+    <div className="alerts-wrap" ref={ref}>
+      <button
+        type="button"
+        className={`bell${alerts.length ? " has" : ""}`}
+        aria-expanded={shown}
+        aria-label={`${alerts.length} alert${alerts.length === 1 ? "" : "s"}`}
+        onClick={() => setShown(!shown)}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <path d="M4.5 7.5a4.5 4.5 0 019 0c0 4 1.5 5.25 1.5 5.25H3s1.5-1.25 1.5-5.25zM7.5 15a1.5 1.5 0 003 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {alerts.length > 0 && <span className={`bell-count${red ? " red" : ""}`}>{alerts.length}</span>}
+      </button>
+      {shown && (
+        <div className="alerts-panel" role="region" aria-label="Alerts">
+          <div className="alerts-head">
+            <strong>Needs attention</strong>
+            <span className="muted" style={{ fontSize: 12 }}>{red} late · {alerts.length - red} due this week, unplanned</span>
+          </div>
+          {alerts.length ? (
+            <ul>
+              {alerts.slice(0, 30).map((a) => (
+                <li key={a.key}>
+                  <button type="button" onClick={() => { setShown(false); open(a.kind === "job" ? { kind: "job", key: a.key } : { kind: "task", key: a.key }); }}>
+                    <span className={`dot ${a.level}`} aria-hidden="true" />
+                    <span className="stack" style={{ gap: 2 }}>
+                      <span style={{ fontWeight: 600 }}>{a.title}</span>
+                      <span className="muted" style={{ fontSize: 12 }}>{a.detail}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted" style={{ margin: 0, padding: 14 }}>Nothing late, and everything due this week is planned.</p>
+          )}
+          <p className="muted alerts-foot">Companies House changes will appear here too once they're switched on.</p>
+        </div>
+      )}
     </div>
   );
 }

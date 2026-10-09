@@ -246,3 +246,32 @@ details summary { cursor: pointer; color: var(--blue); font-weight: 600; font-si
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field > label { font-size: 12px; color: var(--muted); }
 .form label .input, .field .input { font-size: 14px; color: var(--ink); }
+
+/* ---------- alerts bell ---------- */
+.alerts-wrap { position: relative; }
+.bell { position: relative; width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.bell.has { color: var(--ink); }
+.bell-count { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--amber-ink); color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.bell-count.red { background: #A1271B; }
+.alerts-panel { position: absolute; right: 0; top: 48px; width: min(400px, calc(100vw - 32px)); max-height: 70vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(23, 25, 28, 0.14); z-index: 40; }
+.alerts-head { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.alerts-panel ul { list-style: none; margin: 0; padding: 4px; }
+.alerts-panel li button { width: 100%; display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 10px; border: 0; border-radius: 8px; background: none; cursor: pointer; }
+.alerts-panel li button:hover { background: var(--surface-2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex: 0 0 auto; }
+.dot.red { background: #A1271B; }
+.dot.amber { background: #C27A1E; }
+.alerts-foot { margin: 0; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 12px; }
+
+/* ---------- settings: types of work ---------- */
+.type-list { list-style: none; margin: 0; padding: 6px; max-height: 70vh; overflow-y: auto; }
+.type-list a { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; text-decoration: none; color: var(--ink); }
+.type-list a:hover { background: var(--surface-2); }
+.type-list a[aria-current="true"] { background: var(--blue-soft); box-shadow: inset 3px 0 0 var(--blue); }
+.fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.fieldset legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
+.radio { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.radio input { width: 18px; height: 18px; margin-top: 1px; flex: 0 0 auto; }
+.inline-num { display: inline-flex; align-items: center; gap: 8px; }
+.inline-num .input { width: 84px; }
+.example { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line-2); font-size: 13px; }

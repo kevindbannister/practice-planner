@@ -84,65 +84,112 @@ export function workingDay(iso: string): string {
   return w > 5 ? addDays(iso, 5 - w) : iso;
 }
 
-// ---------- roll-forward ----------
+// ---------- repeat rules ----------
 
-const MONTHLY = new Set(["PAYROLL", "MGMT_ACCOUNTS", "BOOKKEEPING", "CIS", "MYS"]);
-const ONE_OFF = new Set(["ONBOARDING", "CGT", "NCSU", "DS01", "STRIKE_OFF", "TASK", "PAE"]);
+/**
+ * How a type of work repeats and when it's due. Stored on each row of the Services list
+ * and edited in Settings; types without a saved rule use the built-in one below.
+ *   repeatMonths  0 = one-off, 1 = monthly, 3 = quarterly, 12 = yearly
+ *   deadline      "after": period end + months + days
+ *                 "fixed": the next given day and month after the period end (e.g. 31 Jan)
+ *                 "gap":   same gap between period end and deadline as last time
+ *   keepMonthEnd  a period ending on the last day of a month stays at month end
+ */
+export type Rule = {
+  repeatMonths: number;
+  deadline: "after" | "fixed" | "gap";
+  months: number;
+  days: number;
+  fixed?: string; // "MM-DD"
+  keepMonthEnd: boolean;
+};
+
+const after = (repeatMonths: number, months: number, days = 0, keepMonthEnd = true): Rule =>
+  ({ repeatMonths, deadline: "after", months, days, keepMonthEnd });
+const gap = (repeatMonths: number): Rule => ({ repeatMonths, deadline: "gap", months: 0, days: 0, keepMonthEnd: true });
+
+export const BUILT_IN_RULES: Record<string, Rule> = {
+  ACCS_LTD: after(12, 9),
+  ACCS_LLP: after(12, 9),
+  CT600: after(12, 12),
+  CS01: after(12, 0, 14, false),
+  SA100: { repeatMonths: 12, deadline: "fixed", months: 0, days: 0, fixed: "01-31", keepMonthEnd: false },
+  SA800: { repeatMonths: 12, deadline: "fixed", months: 0, days: 0, fixed: "01-31", keepMonthEnd: false },
+  VAT: after(3, 1, 7),
+  PAYROLL: gap(1), MGMT_ACCOUNTS: gap(1), BOOKKEEPING: gap(1), CIS: gap(1), MYS: gap(1),
+  SOFTWARE: gap(12),
+};
+const ONE_OFF: Rule = { repeatMonths: 0, deadline: "gap", months: 0, days: 0, keepMonthEnd: true };
+
+/** The rule for a type of work: what's saved in Settings, else the built-in one. */
+export function ruleFor(serviceKey: string | undefined, services: Row[] = []): Rule {
+  const row = services.find((s) => s.Key === serviceKey);
+  if (row && row.RepeatMonths !== undefined && row.RepeatMonths !== null) {
+    return {
+      repeatMonths: Number(row.RepeatMonths) || 0,
+      deadline: (["after", "fixed", "gap"].includes(row.DeadlineMode as string) ? row.DeadlineMode : "after") as Rule["deadline"],
+      months: Number(row.DeadlineMonths) || 0,
+      days: Number(row.DeadlineDays) || 0,
+      fixed: (row.DeadlineFixed as string) || undefined,
+      keepMonthEnd: row.KeepMonthEnd !== false,
+    };
+  }
+  return BUILT_IN_RULES[serviceKey || ""] || ONE_OFF;
+}
+
+/** The rule's fields as they're saved on a Services row. */
+export function ruleFields(r: Rule): Row {
+  return {
+    RepeatMonths: r.repeatMonths, DeadlineMode: r.deadline, DeadlineMonths: r.months, DeadlineDays: r.days,
+    DeadlineFixed: r.fixed || "", KeepMonthEnd: r.keepMonthEnd,
+  };
+}
+
+/** Plain-English description, e.g. "Yearly · due 9 months after period end". */
+export function describeRule(r: Rule): string {
+  const every = { 0: "One-off", 1: "Monthly", 3: "Quarterly", 6: "Every 6 months", 12: "Yearly" }[r.repeatMonths] ||
+    `Every ${r.repeatMonths} months`;
+  let due: string;
+  if (r.deadline === "fixed" && r.fixed) {
+    const [m, d] = r.fixed.split("-").map(Number);
+    due = `due ${d} ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m - 1]} after period end`;
+  } else if (r.deadline === "gap") {
+    due = "due the same time after period end as last time";
+  } else {
+    const parts = [r.months ? `${r.months} month${r.months === 1 ? "" : "s"}` : "", r.days ? `${r.days} day${r.days === 1 ? "" : "s"}` : ""].filter(Boolean);
+    due = parts.length ? `due ${parts.join(" and ")} after period end` : "due on the period end";
+  }
+  return `${every} · ${due}`;
+}
+
+/** Deadline for a period end under a rule. `previousGap` (days) is used by "gap" rules. */
+export function deadlineByRule(r: Rule, periodEnd: string, previousGap = 0): string {
+  if (r.deadline === "fixed" && r.fixed) {
+    const year = parseIso(periodEnd).getUTCFullYear();
+    let d = `${year}-${r.fixed}`;
+    if (d <= periodEnd) d = `${year + 1}-${r.fixed}`;
+    return d;
+  }
+  if (r.deadline === "gap") return addDays(periodEnd, previousGap);
+  return addDays(addMonths(periodEnd, r.months, r.keepMonthEnd && isMonthEnd(periodEnd)), r.days);
+}
 
 export type NextPeriod = { PeriodEnd: string; Deadline: string; rule: string };
 
-/** Next period and deadline for a job type, or null if the work doesn't recur. */
-export function nextPeriod(service: string, periodEnd?: string, deadline?: string): NextPeriod | null {
-  if (ONE_OFF.has(service) || !periodEnd) return null;
-  switch (service) {
-    case "ACCS_LTD":
-    case "ACCS_LLP": {
-      const pe = addMonths(periodEnd, 12);
-      return { PeriodEnd: pe, Deadline: addMonths(pe, 9), rule: "Year end + 9 months" };
-    }
-    case "CT600": {
-      const pe = addMonths(periodEnd, 12);
-      return { PeriodEnd: pe, Deadline: addMonths(pe, 12), rule: "Year end + 12 months" };
-    }
-    case "CS01": {
-      const pe = addMonths(periodEnd, 12, false);
-      return { PeriodEnd: pe, Deadline: addDays(pe, 14), rule: "Made-up date + 14 days" };
-    }
-    case "SA100":
-    case "SA800": {
-      const year = parseIso(periodEnd).getUTCFullYear() + 1;
-      return { PeriodEnd: `${year}-04-05`, Deadline: `${year + 1}-01-31`, rule: "31 January after the tax year" };
-    }
-    case "VAT": {
-      const pe = addMonths(periodEnd, 3);
-      return { PeriodEnd: pe, Deadline: addDays(addMonths(pe, 1), 7), rule: "Quarter end + 1 month + 7 days" };
-    }
-    case "SOFTWARE": {
-      const pe = addMonths(periodEnd, 12);
-      return { PeriodEnd: pe, Deadline: deadline ? addMonths(deadline, 12) : pe, rule: "Renews yearly" };
-    }
-    default: {
-      if (!MONTHLY.has(service)) {
-        // annual by default for anything else that recurs
-        const pe = addMonths(periodEnd, 12);
-        return { PeriodEnd: pe, Deadline: deadline ? addMonths(deadline, 12) : pe, rule: "Same time next year" };
-      }
-      const pe = addMonths(periodEnd, 1);
-      const gap = deadline ? Math.round((parseIso(deadline).getTime() - parseIso(periodEnd).getTime()) / 86400000) : 0;
-      return { PeriodEnd: pe, Deadline: addDays(pe, gap), rule: "Monthly" };
-    }
-  }
+/** Next period and deadline under a rule, or null if the work doesn't repeat. */
+export function nextPeriod(r: Rule, periodEnd?: string, deadline?: string): NextPeriod | null {
+  if (!r.repeatMonths || !periodEnd) return null;
+  const pe = addMonths(periodEnd, r.repeatMonths, r.keepMonthEnd && isMonthEnd(periodEnd));
+  const previousGap = deadline ? Math.round((parseIso(deadline).getTime() - parseIso(periodEnd).getTime()) / 86400000) : 0;
+  return { PeriodEnd: pe, Deadline: deadlineByRule(r, pe, previousGap), rule: describeRule(r) };
 }
 
 /** The next job to create when one is completed, or null for one-off work. */
-export function rollForward(job: Job, completedOn: string, newKey: string): Row | null {
-  const next = nextPeriod(job.ServiceKey || "", job.PeriodEnd, job.Deadline);
+export function rollForward(job: Job, r: Rule, completedOn: string, newKey: string): Row | null {
+  const next = nextPeriod(r, job.PeriodEnd, job.Deadline);
   if (!next) return null;
-  const yearly = !MONTHLY.has(job.ServiceKey || "") && job.ServiceKey !== "VAT";
-  const shift = (iso?: string) => {
-    if (!iso) return undefined;
-    return yearly ? addMonths(iso, 12, false) : addDays(iso, Math.round((parseIso(next.PeriodEnd).getTime() - parseIso(job.PeriodEnd!).getTime()) / 86400000));
-  };
+  // dates like "when the records came in" move on by the same amount as the period
+  const shift = (iso?: string) => (iso ? addMonths(iso, r.repeatMonths, false) : undefined);
   const slot = shift(job.PlannedDate || completedOn);
   return {
     Key: newKey,
@@ -169,22 +216,7 @@ export function newKey(prefix: string): string {
   return prefix + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 }
 
-/** A sensible deadline for a new job, from its type and period end. */
-export function deadlineFor(service: string, periodEnd: string): string {
-  switch (service) {
-    case "ACCS_LTD":
-    case "ACCS_LLP":
-      return addMonths(periodEnd, 9);
-    case "CT600":
-      return addMonths(periodEnd, 12);
-    case "CS01":
-      return addDays(periodEnd, 14);
-    case "SA100":
-    case "SA800":
-      return `${parseIso(periodEnd).getUTCFullYear() + 1}-01-31`;
-    case "VAT":
-      return addDays(addMonths(periodEnd, 1), 7);
-    default:
-      return periodEnd;
-  }
+/** A sensible deadline for a new job, from its type's rule and period end. */
+export function deadlineFor(r: Rule, periodEnd: string): string {
+  return deadlineByRule(r, periodEnd, 0);
 }

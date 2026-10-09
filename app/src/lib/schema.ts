@@ -47,7 +47,10 @@ export const LISTS: ListDef[] = [
   },
   {
     key: "Services", displayName: "PP Services", description: "Practice Planner: types of work",
-    columns: [t("Key", true), t("Recurrence"), t("DeadlineRule"), n("DefaultHours")],
+    columns: [
+      t("Key", true), t("Recurrence"), t("DeadlineRule"), n("DefaultHours"), n("RepeatMonths"), t("DeadlineMode"),
+      n("DeadlineMonths"), n("DeadlineDays"), t("DeadlineFixed"), b("KeepMonthEnd"),
+    ],
   },
   {
     key: "StageTemplates", displayName: "PP Stage Templates", description: "Practice Planner: default stages per type of work",
