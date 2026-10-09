@@ -11,6 +11,7 @@ import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 import { useBoardDrag } from "./useBoardDrag";
 import { useCalendar } from "./Calendar";
+import { svcClass } from "../lib/serviceColour";
 import { readSetting } from "./data";
 import { Candidate, DEFAULT_FILL, LOOK_AHEAD_DAYS, Skipped, Suggestion, suggestPlan } from "../lib/autoplan";
 import { waitingForRecords } from "../lib/chase";
@@ -445,7 +446,7 @@ function PlanCard({
   return (
     <button
       type="button"
-      className={`pcard${i.compliance ? "" : " task"}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}`}
+      className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}`}
       {...(dragProps || {})}
       onClick={onOpen}
       aria-label={`${suggested !== undefined ? "Suggested: " : ""}${i.title}${i.client ? ", " + i.client : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}. Open to edit.`}

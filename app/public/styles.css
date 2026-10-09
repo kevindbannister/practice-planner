@@ -633,3 +633,29 @@ table.grid th.num, table.grid td.num { text-align: right; }
 }
 .home-list li { min-width: 0; }
 .home-list li > button > .stack { flex: 1 1 auto; }
+
+/* ---------- colours for types of work (validated categorical order) ---------- */
+:root { --svc-0: #9a9890; --svc-1: #2a78d6; --svc-2: #eb6834; --svc-3: #1baf7a; --svc-4: #eda100; --svc-5: #e87ba4; --svc-6: #008300; --svc-7: #6250d6; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --svc-0: #6e6d68; --svc-1: #3987e5; --svc-2: #d95926; --svc-3: #199e70; --svc-4: #c98500; --svc-5: #d55181; --svc-6: #008300; --svc-7: #9085e9; }
+}
+:root[data-theme="dark"] { --svc-0: #6e6d68; --svc-1: #3987e5; --svc-2: #d95926; --svc-3: #199e70; --svc-4: #c98500; --svc-5: #d55181; --svc-6: #008300; --svc-7: #9085e9; }
+.svc-0 { --svc: var(--svc-0); } .svc-1 { --svc: var(--svc-1); } .svc-2 { --svc: var(--svc-2); } .svc-3 { --svc: var(--svc-3); }
+.svc-4 { --svc: var(--svc-4); } .svc-5 { --svc: var(--svc-5); } .svc-6 { --svc: var(--svc-6); } .svc-7 { --svc: var(--svc-7); }
+.svc-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--svc, var(--svc-0)); flex: 0 0 auto; }
+.pcard[class*="svc-"] { box-shadow: inset 4px 0 0 var(--svc); padding-left: 15px; }
+.pcard[class*="svc-"]:hover { box-shadow: inset 4px 0 0 var(--svc), 0 1px 4px var(--shadow); }
+.pcard.task[class*="svc-"] { box-shadow: none; padding-left: 12px; }
+
+/* home: next 14 days, grouped by type of work within each day */
+.svc-group { border-left: 3px solid var(--svc); margin: 6px 16px 6px 8px; border-radius: 0 8px 8px 0; background: color-mix(in srgb, var(--svc) 7%, var(--surface)); }
+.svc-group > summary, .svc-group > .svc-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; list-style: none; color: var(--ink); font-size: 14px; font-weight: 600; }
+.svc-group > .svc-head { cursor: default; }
+.svc-group > summary::-webkit-details-marker { display: none; }
+.svc-group > summary::after { content: "▸"; margin-left: 4px; color: var(--muted); font-size: 12px; }
+.svc-group[open] > summary::after { content: "▾"; }
+.svc-head .svc-meta, .svc-group > summary .svc-meta { margin-left: auto; display: inline-flex; gap: 8px; align-items: center; font-weight: 400; font-size: 12.5px; color: var(--muted); }
+.svc-preview { font-weight: 400; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 0; }
+.svc-group .home-list { padding: 0 0 4px; }
+.svc-group .home-list li > button { padding: 6px 12px; }
+.home-day .svc-groups { padding: 4px 0; }

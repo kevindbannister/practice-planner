@@ -10,10 +10,11 @@ import { useCalendar } from "./Calendar";
 import { fmtWhen, useCompaniesHouse } from "./CompaniesHouse";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
+import { svcClass } from "../lib/serviceColour";
 
 type Work = {
   key: string; kind: "job" | "task"; row: Job | Task; title: string; client: string; serviceKey?: string;
-  hours: number; deadline?: string; planned?: string; urgent: boolean; held: boolean; records?: string;
+  hours: number; deadline?: string; planned?: string; urgent: boolean; held: boolean; records?: string; periodEnd?: string; typeName: string;
 };
 
 const greeting = (h: number) => (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
@@ -37,11 +38,11 @@ export function HomePage() {
       ...idx.openJobs.map((j): Work => ({
         key: j.Key, kind: "job", row: j, title: j.Title, client: name(j.ClientKey) || (j.ClientName as string) || "", serviceKey: j.ServiceKey,
         hours: jobHours(j, data.services), deadline: j.Deadline, planned: j.PlannedDate, urgent: j.Priority === "urgent", held: isOnHold(j),
-        records: j.RecordsReceived,
+        records: j.RecordsReceived, periodEnd: j.PeriodEnd, typeName: idx.serviceName.get(j.ServiceKey || "") || j.Title,
       })),
       ...idx.openTasks.map((t): Work => ({
         key: t.Key, kind: "task", row: t, title: t.Title, client: name(t.ClientKey), hours: t.EstimateHours || 1, deadline: t.DueDate,
-        planned: t.PlannedDate, urgent: false, held: isOnHold(t),
+        planned: t.PlannedDate, urgent: false, held: isOnHold(t), serviceKey: "TASK", typeName: "Tasks",
       })),
     ];
   }, [idx, data.services]);
@@ -162,12 +163,9 @@ export function HomePage() {
                       <strong>{fmtDate(d, { weekday: true, year: false })}</strong>
                       <span className="muted">{d === today ? "today" : `in ${Math.round((Date.parse(d) - Date.parse(today)) / 86400000)}d`}</span>
                     </div>
-                    <ul className="home-list">
-                      {list.slice(0, 6).map((w) => <WorkRow key={w.key} w={w} today={today} onOpen={() => openWork(w)} show="planned" />)}
-                      {list.length > 6 && (
-                        <li className="muted more" style={{ paddingLeft: 8 }}><a href="#/plan/deadlines">{list.length - 6} more due {fmtDate(d, { weekday: true, year: false })}</a></li>
-                      )}
-                    </ul>
+                    <div className="svc-groups">
+                      {groupByType(list).map((g) => <TypeGroup key={g.key} group={g} today={today} onOpen={openWork} />)}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -299,15 +297,65 @@ function Tile({ href: to, tone, label, value, sub }: { href: string; tone: strin
   );
 }
 
-function WorkRow({ w, today, onOpen, show }: { w: Work; today: string; onOpen: () => void; show: "deadline" | "planned" }) {
+type Group = { key: string; name: string; items: Work[]; hours: number; planned: number };
+
+/** A day's deadlines grouped by type of work, biggest group first. */
+function groupByType(list: Work[]): Group[] {
+  const m = new Map<string, Group>();
+  for (const w of list) {
+    const k = w.kind === "task" ? "TASK" : w.serviceKey || w.title;
+    const g = m.get(k) || { key: k, name: w.typeName, items: [], hours: 0, planned: 0 };
+    g.items.push(w);
+    g.hours += w.hours;
+    if (w.planned && w.planned >= todayIso()) g.planned++;
+    m.set(k, g);
+  }
+  return [...m.values()].sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
+}
+
+function TypeGroup({ group: g, today, onOpen }: { group: Group; today: string; onOpen: (w: Work) => void }) {
+  const meta = (
+    <span className="svc-meta">
+      <span className="mono">{fmtHours(g.hours)}</span>
+      <span className={`chip ${g.planned === g.items.length ? "blue" : g.planned ? "" : "amber"}`}>
+        {g.planned === g.items.length ? "All planned" : `${g.planned} of ${g.items.length} planned`}
+      </span>
+    </span>
+  );
+  const rows = (
+    <ul className="home-list">
+      {g.items.map((w) => <WorkRow key={w.key} w={w} today={today} onOpen={() => onOpen(w)} show="planned" inGroup />)}
+    </ul>
+  );
+  const title = <><span className="svc-dot" aria-hidden="true" /><span>{g.name}{g.items.length > 1 ? ` × ${g.items.length}` : ""}</span></>;
+  if (g.items.length <= 2) {
+    return <div className={`svc-group ${svcClass(g.key)}`}><div className="svc-head">{title}{meta}</div>{rows}</div>;
+  }
+  return (
+    <details className={`svc-group ${svcClass(g.key)}`}>
+      <summary>
+        {title}
+        <span className="svc-preview">{g.items.map((w) => w.client).filter(Boolean).join(", ")}</span>
+        {meta}
+      </summary>
+      {rows}
+    </details>
+  );
+}
+
+function WorkRow({ w, today, onOpen, show, inGroup }: { w: Work; today: string; onOpen: () => void; show: "deadline" | "planned"; inGroup?: boolean }) {
   const st = jobState(w.kind === "task" ? taskAsJob(w.row as Task) : (w.row as Job), today);
   const plannedOk = w.planned && w.planned >= today;
+  const sub = inGroup
+    ? (w.kind === "task" ? w.title : w.periodEnd ? `Period to ${fmtDate(w.periodEnd, { year: false })}` : "")
+    : (w.client ? w.title : w.kind === "task" ? "Task" : "");
   return (
     <li>
       <button type="button" onClick={onOpen}>
+        {!inGroup && <span className={`svc-dot ${svcClass(w.serviceKey)}`} aria-hidden="true" style={{ alignSelf: "center" }} />}
         <span className="stack" style={{ gap: 1, minWidth: 0 }}>
           <strong className="ellipsis">{w.client || w.title}</strong>
-          <span className="muted ellipsis">{w.client ? w.title : w.kind === "task" ? "Task" : ""}</span>
+          {sub && <span className="muted ellipsis">{sub}</span>}
         </span>
         <span className="row-wrap" style={{ gap: 6, justifyContent: "flex-end", flexWrap: "nowrap" }}>
           {w.urgent && <span className="chip red">Urgent</span>}

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Job, Task, fmtDate, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { Icon, PlanTabs } from "./bits";
+import { svcClass } from "../lib/serviceColour";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 
@@ -97,7 +98,7 @@ export function DeadlinesView() {
             <td className="c-date mono" style={{ whiteSpace: "nowrap" }}>{fmtDate(l.deadline, { weekday: true, year: l.deadline.slice(0, 4) !== today.slice(0, 4) })}</td>
             <td className="c-client cell-title">{l.client || "—"}</td>
             <td className="c-work">
-              {l.work}
+              <span className={`svc-dot ${svcClass(l.type)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />{l.work}
               {l.periodEnd && <div className="cell-sub">Period to {fmtDate(l.periodEnd)}</div>}
             </td>
             <td className="c-stage">{l.stage || "—"}</td>
