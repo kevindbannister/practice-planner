@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtMoney, isOnHold, jobState, loeLabel, recordGaps, todayIso } from "../lib/domain";
 import { ClientBadge, DeadlineChip, Icon, companiesHouseUrl, go, href, useRoute } from "./bits";
 import { useData, useIndex } from "./data";
+import { svcClass } from "../lib/serviceColour";
 
 type KindFilter = "all" | "companies" | "individuals";
 
@@ -131,7 +132,7 @@ export function ClientsPage() {
                     <td>
                       {next ? (
                         <>
-                          {next.Title}
+                          <span className={`svc-dot ${svcClass(next.ServiceKey)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />{next.Title}
                           <div className="cell-sub">
                             {next.PlannedDate ? (
                               <span style={{ color: "var(--blue-ink)" }}>Planned {fmtDate(next.PlannedDate, { weekday: true, year: false })}</span>
@@ -229,7 +230,7 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
             {jobs.slice(0, 6).map((j) => (
               <div key={j.Key}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{j.Title}</div>
+                  <div style={{ fontWeight: 600 }}><span className={`svc-dot ${svcClass(j.ServiceKey)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />{j.Title}</div>
                   <div className="muted" style={{ fontSize: 12 }}>
                     {j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)} · ` : ""}
                     {isOnHold(j) ? "on hold" : j.PlannedDate ? `planned ${fmtDate(j.PlannedDate, { year: false })}` : "not planned"}

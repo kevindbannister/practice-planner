@@ -11,6 +11,7 @@ import { fmtWhen, useCompaniesHouse } from "./CompaniesHouse";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 import { svcClass } from "../lib/serviceColour";
+import { Icon, IconName } from "./bits";
 
 type Work = {
   key: string; kind: "job" | "task"; row: Job | Task; title: string; client: string; serviceKey?: string;
@@ -115,19 +116,19 @@ export function HomePage() {
       </div>
 
       <div className="home-tiles">
-        <Tile href="#/plan/deadlines" tone={late.length ? "red" : ""} label="Late" value={String(late.length)} sub={late.length ? `${fmtHours(late.reduce((t, w) => t + w.hours, 0))} of work` : "All on time"} />
-        <Tile href="#/plan/deadlines" tone={next7Unplanned.length ? "amber" : ""} label="Due in 7 days" value={String(next7.length)} sub={next7Unplanned.length ? `${next7Unplanned.length} not planned` : next7.length ? "All planned" : "Nothing due"} />
-        <Tile href="#/plan" tone={due30Unplanned.length ? "amber" : ""} label="Due in 30 days, not planned" value={String(due30Unplanned.length)} sub={`${fmtHours(due30Unplanned.reduce((t, w) => t + w.hours, 0)) || "0h"} to fit in`} />
-        <Tile href="#/chase" tone={chase.some((g) => g.status === "late") ? "amber" : ""} label="Records to chase" value={String(chase.length)} sub={chase.length ? `${chase.filter((g) => g.status === "late").length} late` : "Nobody to chase"} />
-        <Tile href="#/settings/companies-house" tone={ch.openFlags.length ? "amber" : ""} label="Companies House" value={String(ch.openFlags.length)} sub={ch.openFlags.length ? "changes to review" : ch.lastRun ? "No changes" : "Not checked yet"} />
-        <Tile href="#/plan" tone={doneThisWeek ? "green" : ""} label="Done this week" value={String(doneThisWeek)} sub="jobs and tasks completed" />
+        <Tile href="#/plan/deadlines" tone={late.length ? "red" : ""} label="Late" icon="alert" hue="hue-red" value={String(late.length)} sub={late.length ? `${fmtHours(late.reduce((t, w) => t + w.hours, 0))} of work` : "All on time"} />
+        <Tile href="#/plan/deadlines" tone={next7Unplanned.length ? "amber" : ""} label="Due in 7 days" icon="plan" hue="hue-blue" value={String(next7.length)} sub={next7Unplanned.length ? `${next7Unplanned.length} not planned` : next7.length ? "All planned" : "Nothing due"} />
+        <Tile href="#/plan" tone={due30Unplanned.length ? "amber" : ""} label="Due in 30 days, not planned" icon="clock" hue="hue-amber" value={String(due30Unplanned.length)} sub={`${fmtHours(due30Unplanned.reduce((t, w) => t + w.hours, 0)) || "0h"} to fit in`} />
+        <Tile href="#/chase" tone={chase.some((g) => g.status === "late") ? "amber" : ""} label="Records to chase" icon="mail" hue="hue-pink" value={String(chase.length)} sub={chase.length ? `${chase.filter((g) => g.status === "late").length} late` : "Nobody to chase"} />
+        <Tile href="#/settings/companies-house" tone={ch.openFlags.length ? "amber" : ""} label="Companies House" icon="building" hue="hue-aqua" value={String(ch.openFlags.length)} sub={ch.openFlags.length ? "changes to review" : ch.lastRun ? "No changes" : "Not checked yet"} />
+        <Tile href="#/plan" tone={doneThisWeek ? "green" : ""} label="Done this week" icon="check" hue="hue-green" value={String(doneThisWeek)} sub="jobs and tasks completed" />
       </div>
 
       <div className="home-grid">
         <div className="home-col">
           <section className="card" aria-labelledby="today-h">
             <div className="card-head">
-              <h2 id="today-h">Today</h2>
+              <h2 className="with-icon" id="today-h"><span className="h-icon hue-blue" aria-hidden="true"><Icon name="plan" size={15} /></span>Today</h2>
               <span className="muted" style={{ fontSize: 13 }}>
                 {todayCap ? `${fmtHours(todayHours) || "0h"} of ${fmtHours(todayCap)}` : "Not a working day"}
                 {cal.meetingsOn(today) ? ` · meetings ${fmtHours(cal.meetingsOn(today))}` : ""}
@@ -152,7 +153,7 @@ export function HomePage() {
 
           <section className="card" aria-labelledby="soon-h">
             <div className="card-head">
-              <h2 id="soon-h">Due in the next 14 days</h2>
+              <h2 className="with-icon" id="soon-h"><span className="h-icon hue-amber" aria-hidden="true"><Icon name="clock" size={15} /></span>Due in the next 14 days</h2>
               <a href="#/plan/deadlines" style={{ fontSize: 13 }}>All deadlines</a>
             </div>
             {byDay.size ? (
@@ -176,7 +177,7 @@ export function HomePage() {
         <div className="home-col">
           <section className="card pad stack" aria-labelledby="week-h">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-              <h2 id="week-h">This week</h2>
+              <h2 className="with-icon" id="week-h"><span className="h-icon hue-violet" aria-hidden="true"><Icon name="chart" size={15} /></span>This week</h2>
               <a href="#/plan" style={{ fontSize: 13 }}>Plan</a>
             </div>
             <div className="weekbars" role="list" aria-label="Hours planned each day this week">
@@ -201,7 +202,7 @@ export function HomePage() {
           </section>
 
           <section className="card" aria-labelledby="att-h">
-            <div className="card-head"><h2 id="att-h">Needs a decision</h2></div>
+            <div className="card-head"><h2 className="with-icon" id="att-h"><span className="h-icon hue-red" aria-hidden="true"><Icon name="flag" size={15} /></span>Needs a decision</h2></div>
             <ul className="home-list attention">
               {late.slice(0, 4).map((w) => (
                 <li key={w.key}><button type="button" onClick={() => openWork(w)}>
@@ -236,7 +237,7 @@ export function HomePage() {
 
           <section className="card pad stack" aria-labelledby="mon-h">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-              <h2 id="mon-h">Next 6 months</h2>
+              <h2 className="with-icon" id="mon-h"><span className="h-icon hue-aqua" aria-hidden="true"><Icon name="chart" size={15} /></span>Next 6 months</h2>
               <a href="#/plan/months" style={{ fontSize: 13 }}>Months ahead</a>
             </div>
             <ul className="minimonths">
@@ -259,7 +260,7 @@ export function HomePage() {
           </section>
 
           <section className="card" aria-labelledby="type-h">
-            <div className="card-head"><h2 id="type-h">Open work by type</h2><span className="muted" style={{ fontSize: 13 }}>{active.length} open</span></div>
+            <div className="card-head"><h2 className="with-icon" id="type-h"><span className="h-icon hue-green" aria-hidden="true"><Icon name="list" size={15} /></span>Open work by type</h2><span className="muted" style={{ fontSize: 13 }}>{active.length} open</span></div>
             <div className="table-wrap">
               <table className="grid">
                 <thead><tr><th scope="col">Type of work</th><th scope="col" className="num">Open</th><th scope="col" className="num">Due in 30 days</th><th scope="col" className="num">Late</th></tr></thead>
@@ -287,9 +288,10 @@ export function HomePage() {
   );
 }
 
-function Tile({ href: to, tone, label, value, sub }: { href: string; tone: string; label: string; value: string; sub: string }) {
+function Tile({ href: to, tone, label, value, sub, icon, hue }: { href: string; tone: string; label: string; value: string; sub: string; icon: IconName; hue: string }) {
   return (
     <a className={`tile home-tile${tone ? ` ${tone}` : ""}`} href={to}>
+      <span className={`h-icon ${hue}`} aria-hidden="true"><Icon name={icon} size={16} /></span>
       <span className="label">{label}</span>
       <span className="value">{value}</span>
       <span className="sub">{sub}</span>

@@ -659,3 +659,25 @@ table.grid th.num, table.grid td.num { text-align: right; }
 .svc-group .home-list { padding: 0 0 4px; }
 .svc-group .home-list li > button { padding: 6px 12px; }
 .home-day .svc-groups { padding: 4px 0; }
+
+/* ---------- more colour ---------- */
+.nav a svg { display: inline-block; opacity: 0.85; }
+.nav a[aria-current="page"] { background: var(--blue-soft); color: var(--blue-ink); }
+.nav a[aria-current="page"] svg { color: var(--blue); opacity: 1; }
+.nav a:hover:not([aria-current]) { background: var(--surface-2); }
+@media (min-width: 721px) and (max-width: 1599px) { .nav a svg { display: none; } }
+.h-icon { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; flex: 0 0 auto; color: var(--hue); background: color-mix(in srgb, var(--hue) 14%, var(--surface)); }
+.hue-blue { --hue: var(--svc-1); } .hue-violet { --hue: var(--svc-7); } .hue-aqua { --hue: var(--svc-3); } .hue-green { --hue: var(--svc-6); }
+.hue-pink { --hue: var(--svc-5); } .hue-red { --hue: var(--red-solid); } .hue-amber { --hue: var(--amber-solid); }
+h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
+.home-tile { position: relative; padding-top: 12px; }
+.home-tile .h-icon { position: absolute; top: 10px; right: 10px; }
+.home-tile .label { padding-right: 32px; }
+.drawer.accent { border-top: 4px solid var(--svc); }
+.job[class*="svc-"] { box-shadow: inset 4px 0 0 var(--svc); }
+.day.today .day-head { background: color-mix(in srgb, var(--blue) 8%, var(--surface)); }
+.seg-type { background: var(--svc); }
+.seg-type + .seg-type { box-shadow: inset 2px 0 0 var(--surface); }
+.seg-type.faded { opacity: 0.45; }
+.months-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 16px; border-bottom: 1px solid var(--line-2); }
+.legend-key .k-faded { background: var(--svc-1); opacity: 0.45; }

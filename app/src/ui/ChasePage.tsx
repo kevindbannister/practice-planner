@@ -10,6 +10,7 @@ import { Client, Job, contactName, fmtDate, todayIso } from "../lib/domain";
 import { ClientBadge, href } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
 import { useEditor } from "./Editors";
+import { svcClass } from "../lib/serviceColour";
 
 type Toast = { text: string; undo?: () => Promise<void> };
 
@@ -180,7 +181,7 @@ function ChaseCard({ group: g, template, me, today, onLog, onRecordsIn }: {
             <div className="stack" style={{ gap: 2, minWidth: 0 }}>
               <button type="button" className="linkbtn" style={{ padding: 0, minHeight: 0, textAlign: "left", color: "var(--ink)" }}
                 onClick={() => open({ kind: "job", key: i.job.Key })}>
-                {i.job.Title}{i.job.PeriodEnd ? <span className="muted" style={{ fontWeight: 400 }}> · period to {fmtDate(i.job.PeriodEnd)}</span> : null}
+                <span className={`svc-dot ${svcClass(i.job.ServiceKey)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />{i.job.Title}{i.job.PeriodEnd ? <span className="muted" style={{ fontWeight: 400 }}> · period to {fmtDate(i.job.PeriodEnd)}</span> : null}
               </button>
               <span style={{ fontSize: 13 }}>
                 <span style={{ color: i.neededBy < today ? "var(--red-ink)" : "var(--amber-ink)", fontWeight: 600 }}>

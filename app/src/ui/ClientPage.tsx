@@ -8,6 +8,7 @@ import { jobHours } from "../lib/planning";
 import { ClientBadge, DeadlineChip, companiesHouseUrl, href } from "./bits";
 import { useData, useIndex } from "./data";
 import { chaseSummary } from "../lib/chase";
+import { svcClass } from "../lib/serviceColour";
 import { useEditor } from "./Editors";
 
 export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" }) {
@@ -414,7 +415,7 @@ function JobCard({ job: j }: { job: Job }) {
   const budget = jobHours(j, data.services);
 
   return (
-    <article className={`job${isOnHold(j) ? " held" : st.state === "overdue" ? " late" : st.state === "tight" ? " warn" : ""}`} aria-label={j.Title}>
+    <article className={`job ${svcClass(j.ServiceKey)}${isOnHold(j) ? " held" : st.state === "overdue" ? " late" : st.state === "tight" ? " warn" : ""}`} aria-label={j.Title}>
       <div className="job-head">
         <div className="stack" style={{ gap: 4 }}>
           <div className="row-wrap">

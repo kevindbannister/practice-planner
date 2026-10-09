@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { fmtDate, fmtHours, todayIso } from "../lib/domain";
 import { ForecastItem, Month, forecast } from "../lib/forecast";
 import { PlanTabs } from "./bits";
+import { FAMILY_NAMES, FAMILY_ORDER, serviceSlot, svcClass } from "../lib/serviceColour";
 import { useData, useIndex } from "./data";
 import { useEditor } from "./Editors";
 
@@ -15,6 +16,7 @@ export function MonthsView() {
   const idx = useIndex();
   const today = todayIso();
   const [count, setCount] = useState(12);
+  const [byType, setByType] = useState(true);
   const [openKey, setOpenKey] = useState<string>();
   const f = useMemo(() => forecast(data.jobs, data.tasks, data.services, settings.hours, today, count), [data.jobs, data.tasks, data.services, settings.hours, today, count]);
 
@@ -65,10 +67,10 @@ export function MonthsView() {
         <div className="card-head">
           <h2 id="months-h">Hours due each month</h2>
           <div className="row-wrap" style={{ gap: 12 }}>
-            <span className="legend-key"><i className="k-planned" />Planned</span>
-            <span className="legend-key"><i className="k-due" />Not planned yet</span>
-            <span className="legend-key"><i className="k-expected" />Next periods (not created yet)</span>
-            <span className="legend-key"><i className="k-cap" />Your hours</span>
+            <div className="seg" role="group" aria-label="Colour by">
+              <button type="button" aria-pressed={byType} onClick={() => setByType(true)} style={{ minHeight: 34 }}>Type of work</button>
+              <button type="button" aria-pressed={!byType} onClick={() => setByType(false)} style={{ minHeight: 34 }}>Planned or not</button>
+            </div>
             <label>
               <span className="sr-only">How far ahead</span>
               <select className="input" value={count} onChange={(e) => setCount(Number(e.target.value))} style={{ minHeight: 36, padding: "4px 8px", width: "auto", fontSize: 13 }}>
@@ -79,17 +81,34 @@ export function MonthsView() {
             </label>
           </div>
         </div>
+        <div className="months-legend">
+          {byType ? (
+            <>
+              {FAMILY_ORDER.filter((n) => f.months.some((m) => m.items.some((i) => !i.held && serviceSlot(i.serviceKey) === n))).map((n) => (
+                <span key={n} className={`legend-key svc-${n}`}><i style={{ background: "var(--svc)" }} />{FAMILY_NAMES[n]}</span>
+              ))}
+              <span className="legend-key"><i className="k-faded" />Paler: next periods, not created yet</span>
+            </>
+          ) : (
+            <>
+              <span className="legend-key"><i className="k-planned" />Planned</span>
+              <span className="legend-key"><i className="k-due" />Not planned yet</span>
+              <span className="legend-key"><i className="k-expected" />Next periods (not created yet)</span>
+            </>
+          )}
+          <span className="legend-key"><i className="k-cap" />Your hours</span>
+        </div>
         <ul className="months">
           {f.late.length > 0 && (
             <MonthRow
               label="Already late" sub={`before ${fmtDate(today, { year: false })}`} month={null} items={f.late} due={f.lateHours} planned={f.late.filter((i) => i.planned && !i.held).reduce((t, i) => t + i.hours, 0)}
-              expected={0} capacity={0} scale={scale} open={openKey === "late"} onToggle={() => setOpenKey(openKey === "late" ? undefined : "late")} clientName={(k) => idx.clientByKey.get(k || "")?.Title || ""}
+              expected={0} capacity={0} scale={scale} byType={byType} open={openKey === "late"} onToggle={() => setOpenKey(openKey === "late" ? undefined : "late")} clientName={(k) => idx.clientByKey.get(k || "")?.Title || ""}
             />
           )}
           {f.months.map((m) => (
             <MonthRow
               key={m.key} label={monthName(m.key)} sub={m.start !== `${m.key}-01` ? `from ${fmtDate(m.start, { year: false })}` : ""} month={m} items={m.items}
-              due={m.due} planned={m.planned} expected={m.expected} capacity={m.capacity} scale={scale}
+              due={m.due} planned={m.planned} expected={m.expected} capacity={m.capacity} scale={scale} byType={byType}
               open={openKey === m.key} onToggle={() => setOpenKey(openKey === m.key ? undefined : m.key)} clientName={(k) => idx.clientByKey.get(k || "")?.Title || ""}
             />
           ))}
@@ -105,7 +124,7 @@ export function MonthsView() {
 
 function MonthRow(p: {
   label: string; sub: string; month: Month | null; items: ForecastItem[]; due: number; planned: number; expected: number;
-  capacity: number; scale: number; open: boolean; onToggle: () => void; clientName: (k?: string) => string;
+  capacity: number; scale: number; open: boolean; onToggle: () => void; clientName: (k?: string) => string; byType: boolean;
 }) {
   const { open } = useEditor();
   const over = p.month ? p.due > p.capacity : p.due > 0;
@@ -120,9 +139,23 @@ function MonthRow(p: {
           {p.sub && <span className="muted" style={{ fontSize: 12 }}>{p.sub}</span>}
         </span>
         <span className="month-bar" aria-hidden="true">
-          <span className="seg-planned" style={{ width: pct(p.planned) }} />
-          <span className="seg-due" style={{ width: pct(notPlanned) }} />
-          <span className="seg-expected" style={{ width: pct(p.expected) }} />
+          {p.byType ? (
+            FAMILY_ORDER.flatMap((n) => {
+              const mine = p.items.filter((i) => !i.held && serviceSlot(i.serviceKey) === n);
+              const now = mine.filter((i) => i.kind !== "expected").reduce((t, i) => t + i.hours, 0);
+              const later = mine.filter((i) => i.kind === "expected").reduce((t, i) => t + i.hours, 0);
+              return [
+                now > 0 && <span key={`${n}a`} className={`seg-type svc-${n}`} style={{ width: pct(now) }} />,
+                later > 0 && <span key={`${n}b`} className={`seg-type faded svc-${n}`} style={{ width: pct(later) }} />,
+              ].filter(Boolean);
+            })
+          ) : (
+            <>
+              <span className="seg-planned" style={{ width: pct(p.planned) }} />
+              <span className="seg-due" style={{ width: pct(notPlanned) }} />
+              <span className="seg-expected" style={{ width: pct(p.expected) }} />
+            </>
+          )}
           {p.month && <span className="cap-mark" style={{ left: pct(p.capacity) }} />}
         </span>
         <span className="month-nums">
@@ -144,6 +177,7 @@ function MonthRow(p: {
                     <td className="mono">{fmtDate(i.deadline, { year: false })}</td>
                     <td>{p.clientName(i.clientKey) || "—"}</td>
                     <td>
+                      <span className={`svc-dot ${svcClass(i.serviceKey)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />
                       {i.kind === "expected" ? <span className="muted">Next: </span> : null}
                       {i.title}{i.periodEnd ? <span className="muted"> · to {fmtDate(i.periodEnd, { year: false })}</span> : null}
                       {i.held && <span className="chip hold" style={{ marginLeft: 6 }}>On hold</span>}

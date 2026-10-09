@@ -11,6 +11,7 @@ import { readSetting, useData, useIndex } from "./data";
 import { DEFAULT_FILL } from "../lib/autoplan";
 import { SelectField } from "./Editors";
 import { recordsRule } from "../lib/chase";
+import { svcClass } from "../lib/serviceColour";
 import { CompaniesHouseSettings } from "./CompaniesHouse";
 import { BackupSettings } from "./Backups";
 import { CalendarSettings } from "./Calendar";
@@ -157,7 +158,7 @@ function TypesOfWork() {
             return (
               <li key={s.Key as string}>
                 <a href={`#/settings/work?type=${encodeURIComponent(s.Key as string)}`} aria-current={s.Key === selectedKey ? "true" : undefined}>
-                  <span style={{ fontWeight: 600 }}>{s.Title as string}</span>
+                  <span style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}><span className={`svc-dot ${svcClass(s.Key as string)}`} aria-hidden="true" />{s.Title as string}</span>
                   <span className="muted" style={{ fontSize: 12 }}>
                     {describeRule(ruleFor(s.Key as string, data.services)).split(" · ")[0]}
                     {open ? ` · ${open} open` : ""}

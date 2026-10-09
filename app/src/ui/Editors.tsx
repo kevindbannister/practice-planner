@@ -8,6 +8,7 @@ import {
 import { deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
 import { chaseSummary } from "../lib/chase";
+import { svcClass } from "../lib/serviceColour";
 import { DeadlineChip, Icon, href } from "./bits";
 import { useData, useIndex } from "./data";
 
@@ -39,7 +40,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function Drawer({ title, eyebrow, onClose, children }: { title: string; eyebrow: string; onClose: () => void; children: ReactNode }) {
+function Drawer({ title, eyebrow, onClose, children, accent }: { title: string; eyebrow: string; onClose: () => void; children: ReactNode; accent?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -54,10 +55,10 @@ function Drawer({ title, eyebrow, onClose, children }: { title: string; eyebrow:
   return (
     <div className="drawer-wrap">
       <button type="button" className="drawer-scrim" aria-label="Close" onClick={onClose} tabIndex={-1} />
-      <div className="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" ref={ref}>
+      <div className={`drawer${accent ? ` accent ${accent}` : ""}`} role="dialog" aria-modal="true" aria-labelledby="drawer-title" ref={ref}>
         <div className="drawer-head">
           <div className="stack" style={{ gap: 4 }}>
-            <span className="eyebrow">{eyebrow}</span>
+            <span className="eyebrow">{accent && <span className="svc-dot" aria-hidden="true" style={{ marginRight: 6, verticalAlign: "-1px" }} />}{eyebrow}</span>
             <h2 id="drawer-title" tabIndex={-1}>{title}</h2>
           </div>
           <button type="button" className="iconbtn" aria-label="Close" onClick={onClose}><Icon name="close" /></button>
@@ -197,7 +198,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   }
 
   return (
-    <Drawer title={job.Title} eyebrow="Job" onClose={onClose}>
+    <Drawer title={job.Title} eyebrow={idx.serviceName.get(job.ServiceKey || "") && idx.serviceName.get(job.ServiceKey || "") !== job.Title ? `Job · ${idx.serviceName.get(job.ServiceKey || "")}` : "Job"} onClose={onClose} accent={svcClass(job.ServiceKey)}>
       <div className="row-wrap" style={{ gap: 6 }}>
         {client && <a href={href("clients", client.Key, "work")} onClick={onClose} style={{ fontWeight: 600 }}>{client.Title}</a>}
         {job.PeriodEnd && <span className="muted">· period to {fmtDate(job.PeriodEnd)}</span>}

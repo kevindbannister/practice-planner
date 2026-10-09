@@ -47,7 +47,7 @@ export function DeadlineChip({ job, today = todayIso() }: { job: Job; today?: st
 
 export type IconName =
   | "check" | "close" | "search" | "left" | "right" | "alert" | "plan" | "clients" | "groups" | "settings" | "sun" | "moon"
-  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home";
+  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag";
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", "aria-hidden": true } as const;
@@ -83,6 +83,16 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       return <svg {...common}><path d="M4 6V1.5h8V6M4 12H2.5a1 1 0 01-1-1V7a1 1 0 011-1h11a1 1 0 011 1v4a1 1 0 01-1 1H12" {...stroke} /><rect x="4" y="9.5" width="8" height="5" rx="0.5" {...stroke} /></svg>;
     case "download":
       return <svg {...common}><path d="M8 2v8M4.5 7L8 10.5 11.5 7M2.5 13.5h11" {...stroke} /></svg>;
+    case "clock":
+      return <svg {...common}><circle cx="8" cy="8" r="6" {...stroke} /><path d="M8 4.5V8l2.5 1.5" {...stroke} /></svg>;
+    case "chart":
+      return <svg {...common}><path d="M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5" {...stroke} /></svg>;
+    case "building":
+      return <svg {...common}><path d="M3 14V3.5l5-2 5 2V14M1.5 14h13M6 6h1M9 6h1M6 9h1M9 9h1M7 14v-2.5h2V14" {...stroke} /></svg>;
+    case "list":
+      return <svg {...common}><path d="M6 4h7.5M6 8h7.5M6 12h7.5M2.5 4h.01M2.5 8h.01M2.5 12h.01" {...stroke} /></svg>;
+    case "flag":
+      return <svg {...common}><path d="M3.5 14.5V2M3.5 2.5h8l-1.5 3 1.5 3h-8" {...stroke} /></svg>;
     case "home":
       return <svg {...common}><path d="M2 7.5L8 2.5l6 5M3.5 6.5V13.5h3.5v-4h2v4h3.5V6.5" {...stroke} /></svg>;
     case "spark":
@@ -98,8 +108,14 @@ export function Brand() {
   return (
     <a className="brand" href="#/home">
       <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-        <rect x="1" y="1" width="24" height="24" rx="6" style={{ fill: "var(--ink)" }} />
-        <path d="M7 9h12M7 13h8M7 17h5" style={{ stroke: "var(--ground)" }} strokeWidth="2" strokeLinecap="round" />
+        <defs>
+          <linearGradient id="pp-mark" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#2a78d6" />
+            <stop offset="1" stopColor="#6250d6" />
+          </linearGradient>
+        </defs>
+        <rect x="1" y="1" width="24" height="24" rx="6" fill="url(#pp-mark)" />
+        <path d="M7 9h12M7 13h8M7 17h5" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
       </svg>
       <span className="brand-name">Practice Planner</span>
     </a>

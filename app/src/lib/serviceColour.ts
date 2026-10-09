@@ -16,5 +16,12 @@ export function serviceSlot(serviceKey?: string): number {
   return FAMILY[serviceKey || ""] || 0;
 }
 
+/** Names for each colour, for legends. */
+export const FAMILY_NAMES: Record<number, string> = {
+  1: "Accounts", 2: "Personal tax", 3: "Companies House", 4: "Management and bookkeeping", 5: "VAT", 6: "Payroll and CIS",
+  7: "Corporation tax", 0: "Other work and tasks",
+};
+export const FAMILY_ORDER = [1, 2, 3, 4, 5, 6, 7, 0];
+
 /** Class name that sets --svc to the family's colour. */
 export const svcClass = (serviceKey?: string) => `svc-${serviceSlot(serviceKey)}`;
