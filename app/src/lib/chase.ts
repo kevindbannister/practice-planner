@@ -166,3 +166,9 @@ export function chaseSummary(job: Job): string {
   if (!n) return "Not chased yet";
   return `Chased ${n === 1 ? "once" : `${n} times`}, last ${fmtDate(job.LastChased as string, { year: false })}`;
 }
+
+/** Work that can't start yet because the client's records aren't in. */
+export function waitingForRecords(job: Job, services: Row[], stageTemplates: Row[]): boolean {
+  if (job.RecordsReceived || pastRecordsStage(job, stageTemplates)) return false;
+  return recordsRule(job.ServiceKey, services).needs;
+}

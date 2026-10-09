@@ -7,7 +7,8 @@ import {
 } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
-import { useData, useIndex } from "./data";
+import { readSetting, useData, useIndex } from "./data";
+import { DEFAULT_FILL } from "../lib/autoplan";
 import { SelectField } from "./Editors";
 import { recordsRule } from "../lib/chase";
 import { CompaniesHouseSettings } from "./CompaniesHouse";
@@ -45,17 +46,20 @@ export function SettingsPage() {
 // ------------------------------------------------------------------ your week
 
 function HoursCard() {
-  const { settings, saveSetting } = useData();
+  const { settings, saveSetting, data } = useData();
   const [hours, setHours] = useState<Hours>(settings.hours);
   const [tight, setTight] = useState(String(settings.tightDays));
+  const savedFill = readSetting<number>(data.settings, "planFill") ?? DEFAULT_FILL;
+  const [fill, setFill] = useState(String(savedFill));
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const changed = JSON.stringify(hours) !== JSON.stringify(settings.hours) || Number(tight) !== settings.tightDays;
+  const changed = JSON.stringify(hours) !== JSON.stringify(settings.hours) || Number(tight) !== settings.tightDays || Number(fill) !== savedFill;
 
   const save = async () => {
     setState("saving");
     try {
       await saveSetting("hours", hours);
       await saveSetting("tightDays", Math.max(1, Math.round(Number(tight) || 21)));
+      if (Number(fill) !== savedFill) await saveSetting("planFill", Math.min(100, Math.max(20, Math.round(Number(fill) || DEFAULT_FILL))));
       setState("saved");
     } catch {
       setState("error");
@@ -79,6 +83,10 @@ function HoursCard() {
         <label>
           "Tight" means planned within (days)
           <input className="input" type="number" min="1" max="120" value={tight} onChange={(e) => setTight(e.target.value)} />
+        </label>
+        <label>
+          "Suggest a plan" fills each day to (%)
+          <input className="input" type="number" min="20" max="100" step="5" value={fill} onChange={(e) => setFill(e.target.value)} />
         </label>
       </div>
       <div className="form-actions" style={{ alignItems: "center" }}>

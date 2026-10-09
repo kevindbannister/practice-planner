@@ -47,7 +47,7 @@ export function DeadlineChip({ job, today = todayIso() }: { job: Job; today?: st
 
 export type IconName =
   | "check" | "close" | "search" | "left" | "right" | "alert" | "plan" | "clients" | "groups" | "settings" | "sun" | "moon"
-  | "plus" | "grip" | "mail" | "print" | "download";
+  | "plus" | "grip" | "mail" | "print" | "download" | "spark";
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", "aria-hidden": true } as const;
@@ -83,6 +83,8 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       return <svg {...common}><path d="M4 6V1.5h8V6M4 12H2.5a1 1 0 01-1-1V7a1 1 0 011-1h11a1 1 0 011 1v4a1 1 0 01-1 1H12" {...stroke} /><rect x="4" y="9.5" width="8" height="5" rx="0.5" {...stroke} /></svg>;
     case "download":
       return <svg {...common}><path d="M8 2v8M4.5 7L8 10.5 11.5 7M2.5 13.5h11" {...stroke} /></svg>;
+    case "spark":
+      return <svg {...common}><path d="M8 1.5l1.4 4.1 4.1 1.4-4.1 1.4L8 12.5l-1.4-4.1L2.5 7l4.1-1.4L8 1.5zM13 11l.6 1.4L15 13l-1.4.6L13 15l-.6-1.4L11 13l1.4-.6L13 11z" {...stroke} /></svg>;
     case "plus":
       return <svg {...common}><path d="M8 3v10M3 8h10" {...stroke} /></svg>;
     case "grip":

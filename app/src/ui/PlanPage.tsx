@@ -10,6 +10,9 @@ import { MonthsView } from "./MonthsView";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 import { useBoardDrag } from "./useBoardDrag";
+import { readSetting } from "./data";
+import { Candidate, DEFAULT_FILL, LOOK_AHEAD_DAYS, Skipped, Suggestion, suggestPlan } from "../lib/autoplan";
+import { waitingForRecords } from "../lib/chase";
 
 function useNarrow(query = "(max-width: 720px)"): boolean {
   const get = () => typeof matchMedia === "function" && matchMedia(query).matches;
@@ -61,6 +64,9 @@ function WeekView() {
   const [toast, setToast] = useState<{ text: string; undo?: () => void }>();
   const toastTimer = useRef(0);
   const narrow = useNarrow();
+  const [plan, setPlan] = useState<{ week: string; suggestions: Suggestion[]; skipped: Skipped[]; includeWaiting: boolean } | null>(null);
+  const [accepting, setAccepting] = useState(false);
+  const fillPct = (readSetting<number>(data.settings, "planFill") ?? DEFAULT_FILL) / 100;
 
   const days = [0, 1, 2, 3, 4].map((i) => addDays(week, i));
   const [picked, setPicked] = useState<string>();
@@ -89,7 +95,12 @@ function WeekView() {
     .filter((i) => i.held)
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
   const byDay = new Map(days.map((d) => [d, visible.filter((i) => i.planned === d)]));
+  const activePlan = plan && plan.week === week ? plan : null;
+  const suggestedKeys = new Set(activePlan?.suggestions.map((s) => s.key));
+  const suggestedOn = (d: string) =>
+    (activePlan?.suggestions || []).filter((s) => s.day === d).map((s) => ({ s, item: items.find((i) => i.key === s.key)! })).filter((x) => x.item);
   const unplanned = visible
+    .filter((i) => !suggestedKeys.has(i.key))
     .filter((i) => !i.planned || (i.planned < today && !days.includes(i.planned)))
     .filter((i) => horizon === "all" || !i.deadline || i.deadline <= addDays(today, Number(horizon)))
     .filter((i) => !search || `${i.title} ${i.client}`.toLowerCase().includes(search.toLowerCase()))
@@ -98,6 +109,7 @@ function WeekView() {
 
   const capacity = (d: string) => settings.hours[String(weekday(d)) as keyof typeof settings.hours] ?? 0;
   const load = (d: string) => (byDay.get(d) || []).reduce((t, i) => t + i.hours, 0);
+  const suggestedLoad = (d: string) => suggestedOn(d).reduce((t, x) => t + x.item.hours, 0);
   const weekHours = days.reduce((t, d) => t + load(d), 0);
   const weekCapacity = days.reduce((t, d) => t + capacity(d), 0);
   const overDays = days.filter((d) => load(d) > capacity(d)).length;
@@ -142,6 +154,52 @@ function WeekView() {
 
   const { dragKey, target: dropTarget, cardProps } = useBoardDrag((key, t) => move(key, t === "tray" ? undefined : t));
 
+  const runSuggest = (includeWaiting = plan?.includeWaiting ?? false) => {
+    const cands: Candidate[] = shownKind.map((i) => ({
+      key: i.key, kind: i.kind, hours: i.hours, deadline: i.deadline, urgent: i.urgent, held: i.held,
+      planned: i.planned, suggestedSlot: i.kind === "job" ? ((i.row as Job).SuggestedSlot as string | undefined) : undefined,
+      waitingForRecords: !includeWaiting && i.kind === "job" && waitingForRecords(i.row as Job, data.services, data.stageTemplates),
+    }));
+    const r = suggestPlan(cands, {
+      today, days, capacity: Object.fromEntries(days.map((d) => [d, capacity(d)])), load: Object.fromEntries(days.map((d) => [d, load(d)])),
+      fillPct, lookAheadDays: LOOK_AHEAD_DAYS,
+    });
+    setPlan({ week, ...r, includeWaiting });
+  };
+
+  const removeSuggestion = (key: string) =>
+    setPlan((p) => (p ? { ...p, suggestions: p.suggestions.filter((s) => s.key !== key) } : p));
+
+  const acceptPlan = async () => {
+    if (!activePlan) return;
+    setAccepting(true);
+    setError(undefined);
+    const done: { item: Item; before?: string }[] = [];
+    try {
+      for (const s of activePlan.suggestions) {
+        const item = items.find((i) => i.key === s.key);
+        if (!item) continue;
+        await update(item.kind === "job" ? "Jobs" : "Tasks", item.row, { PlannedDate: s.day });
+        done.push({ item, before: item.planned });
+      }
+      setPlan(null);
+      const hours = done.reduce((t, d) => t + d.item.hours, 0);
+      say(`Planned ${done.length} item${done.length === 1 ? "" : "s"} (${fmtHours(hours)})`, () => {
+        (async () => {
+          for (const d of done) await update(d.item.kind === "job" ? "Jobs" : "Tasks", d.item.row, { PlannedDate: d.before || "" });
+          setToast(undefined);
+        })();
+      });
+    } catch {
+      setError(`Saved ${done.length} of ${activePlan.suggestions.length}. The rest weren't planned; try again.`);
+    } finally {
+      setAccepting(false);
+    }
+  };
+  const canSuggest = days.some((d) => d >= today);
+  const waitingCount = activePlan?.skipped.filter((s) => s.reason === "Waiting for records").length || 0;
+  const noRoomCount = activePlan?.skipped.filter((s) => s.reason !== "Waiting for records").length || 0;
+
   const card = (i: Item) => (
     <PlanCard
       key={i.key}
@@ -172,8 +230,14 @@ function WeekView() {
                 </button>
               ))}
             </div>
+            {canSuggest && (
+              <button type="button" className="btn" onClick={() => runSuggest()} aria-describedby="suggest-help">
+                <Icon name="spark" />Suggest a plan
+              </button>
+            )}
             <button type="button" className="btn primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
           </div>
+          <span id="suggest-help" className="sr-only">Fills the days left this week from unplanned work. Nothing is saved until you accept.</span>
         </div>
         <div className="tiles" style={{ flex: "1 1 320px", minWidth: 0, maxWidth: 680 }}>
           <div className="tile"><div className="label">Planned this week</div><div className="value">{fmtHours(weekHours) || "0h"} <span className="muted" style={{ fontSize: 13 }}>/ {fmtHours(weekCapacity)}</span></div></div>
@@ -183,6 +247,36 @@ function WeekView() {
         </div>
       </section>
       {error && <p className="error-text" role="alert" style={{ padding: "0 24px" }}>{error}</p>}
+      {activePlan && (
+        <section className="suggest-bar" aria-label="Suggested plan">
+          <div className="stack" style={{ gap: 2 }}>
+            <strong>
+              {activePlan.suggestions.length
+                ? `Suggested ${activePlan.suggestions.length} item${activePlan.suggestions.length === 1 ? "" : "s"} (${fmtHours(activePlan.suggestions.reduce((t, s) => t + (items.find((i) => i.key === s.key)?.hours || 0), 0))}) for the rest of this week`
+                : "Nothing to suggest for the rest of this week"}
+            </strong>
+            <span style={{ fontSize: 13 }}>
+              Late work first, then urgent, then the nearest deadline; each day filled to {Math.round(fillPct * 100)}% of your hours.
+              Remove any you don't want, then accept.
+              {noRoomCount ? ` ${noRoomCount} didn't fit.` : ""}
+            </span>
+            {(waitingCount > 0 || activePlan.includeWaiting) && (
+              <span style={{ fontSize: 13 }}>
+                {activePlan.includeWaiting ? "Including work still waiting for records. " : `${waitingCount} left out because the records aren't in yet. `}
+                <button type="button" className="linkbtn" style={{ minHeight: 0, padding: 0 }} onClick={() => runSuggest(!activePlan.includeWaiting)}>
+                  {activePlan.includeWaiting ? "Leave them out" : "Include them"}
+                </button>
+              </span>
+            )}
+          </div>
+          <div className="row-wrap">
+            <button type="button" className="btn small" onClick={() => setPlan(null)} disabled={accepting}>Clear</button>
+            {activePlan.suggestions.length > 0 && (
+              <button type="button" className="btn small primary" onClick={acceptPlan} disabled={accepting}>{accepting ? "Planning…" : "Accept all"}</button>
+            )}
+          </div>
+        </section>
+      )}
 
       <div className="daystrip" role="group" aria-label="Days this week">
         {days.map((d) => {
@@ -195,13 +289,13 @@ function WeekView() {
               data-drop={d}
               className={`daypill${d === today ? " today" : ""}${dropTarget === d ? " drop" : ""}`}
               aria-pressed={shownDay === d}
-              aria-label={`${fmtDate(d, { weekday: true, year: false })}, ${fmtHours(used) || "0h"} of ${fmtHours(cap)} planned`}
+              aria-label={`${fmtDate(d, { weekday: true, year: false })}, ${fmtHours(used) || "0h"} of ${fmtHours(cap)} planned${suggestedLoad(d) ? `, ${fmtHours(suggestedLoad(d))} suggested` : ""}`}
               onClick={() => setPicked(d)}
             >
               <span className="dw">{fmtDate(d, { weekday: true, year: false }).split(" ")[0]}</span>
               <span className="dn">{Number(d.slice(8))}</span>
               <span className="cap" aria-hidden="true"><span className={over ? "over" : ""} style={{ width: `${cap ? Math.min(100, Math.round((used / cap) * 100)) : 100}%` }} /></span>
-              <span className={`dh${over ? " over" : ""}`}>{fmtHours(used) || "0h"}</span>
+              <span className={`dh${over ? " over" : ""}`}>{fmtHours(used) || "0h"}{suggestedLoad(d) ? `+${fmtHours(suggestedLoad(d))}` : ""}</span>
             </button>
           );
         })}
@@ -260,6 +354,9 @@ function WeekView() {
             const used = load(d), cap = capacity(d);
             const over = used > cap;
             const pct = cap ? Math.min(100, Math.round((used / cap) * 100)) : 100;
+            const sugg = suggestedOn(d);
+            const sHours = suggestedLoad(d);
+            const sPct = cap ? Math.max(0, Math.min(100 - pct, Math.round((sHours / cap) * 100))) : 0;
             return (
               <div
                 key={d}
@@ -280,11 +377,29 @@ function WeekView() {
                       {fmtHours(used) || "0h"} / {fmtHours(cap)}
                     </span>
                   </div>
-                  <div className="cap" aria-hidden="true"><span className={over ? "over" : ""} style={{ width: `${pct}%` }} /></div>
+                  <div className="cap" aria-hidden="true" style={{ display: "flex" }}>
+                    <span className={over ? "over" : ""} style={{ width: `${pct}%` }} />
+                    {sPct > 0 && <span className="sugg" style={{ width: `${sPct}%` }} />}
+                  </div>
                   {over && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red-ink)" }}>{fmtHours(used - cap)} over</span>}
+                  {sHours > 0 && <span style={{ fontSize: 12, color: "var(--blue-ink)" }}>+{fmtHours(sHours)} suggested</span>}
                 </div>
                 {list.map(card)}
-                {!list.length && narrow && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing planned yet.</p>}
+                {sugg.map(({ s, item }) => (
+                  <div key={item.key} className="suggest-wrap">
+                    <PlanCard
+                      item={item}
+                      today={today}
+                      dragging={false}
+                      suggested={s.reason}
+                      onOpen={() => open(item.kind === "job" ? { kind: "job", key: item.key } : { kind: "task", key: item.key })}
+                    />
+                    <button type="button" className="suggest-remove" aria-label={`Don't suggest ${item.client || item.title}`} onClick={() => removeSuggestion(item.key)}>
+                      <Icon name="close" size={14} />
+                    </button>
+                  </div>
+                ))}
+                {!list.length && !sugg.length && narrow && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing planned yet.</p>}
                 <button type="button" className="day-add" onClick={() => open({ kind: "task", plannedDate: d })}>+ Task</button>
               </div>
             );
@@ -317,25 +432,25 @@ type DragProps = {
 };
 
 function PlanCard({
-  item: i, today, dragging, onOpen, dragProps,
+  item: i, today, dragging, onOpen, dragProps, suggested,
 }: {
-  item: Item; today: string; dragging: boolean; onOpen: () => void; dragProps: DragProps;
+  item: Item; today: string; dragging: boolean; onOpen: () => void; dragProps?: DragProps; suggested?: string;
 }) {
   const st = jobState(i.kind === "task" ? taskAsJob(i.row as Task) : (i.row as Job), today);
   const job = i.kind === "job" ? (i.row as Job) : undefined;
   return (
     <button
       type="button"
-      className={`pcard${i.compliance ? "" : " task"}${i.held ? " held" : ""}${dragging ? " dragging" : ""}`}
-      {...dragProps}
+      className={`pcard${i.compliance ? "" : " task"}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}`}
+      {...(dragProps || {})}
       onClick={onOpen}
-      aria-label={`${i.title}${i.client ? ", " + i.client : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}. Open to edit.`}
+      aria-label={`${suggested !== undefined ? "Suggested: " : ""}${i.title}${i.client ? ", " + i.client : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}. Open to edit.`}
     >
       <span className="pcard-top">
         <span className="pcard-tag">{i.tag}</span>
         <span className="row-wrap" style={{ gap: 6, flexWrap: "nowrap" }}>
           <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{fmtHours(i.hours)}</span>
-          <span className="pcard-grip" aria-hidden="true" title="Drag to plan"><Icon name="grip" /></span>
+          {dragProps && <span className="pcard-grip" aria-hidden="true" title="Drag to plan"><Icon name="grip" /></span>}
         </span>
       </span>
       <span className="pcard-client">{i.client || i.title}</span>
@@ -344,6 +459,9 @@ function PlanCard({
         {job?.PeriodEnd ? ` · to ${fmtDate(job.PeriodEnd, { year: false })}` : ""}
         {job?.StageNo ? ` · stage ${job.StageNo}` : ""}
       </span>
+      {suggested !== undefined && (
+        <span className="pcard-suggest"><span className="chip blue">Suggested</span>{suggested && <span>{suggested}</span>}</span>
+      )}
       {i.held && (
         <span className="pcard-foot">
           <span className="chip hold">On hold</span>

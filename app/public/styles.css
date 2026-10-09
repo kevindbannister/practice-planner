@@ -558,3 +558,13 @@ table.deadlines td { vertical-align: middle; }
   table.deadlines .c-stage, table.deadlines .c-records { display: none; }
   .deadline-group .table-wrap { overflow: visible; }
 }
+
+/* ---------- suggested plan ---------- */
+.suggest-bar { margin: 0 24px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--blue-line); background: var(--blue-soft); color: var(--ink); }
+.suggest-wrap { position: relative; }
+.pcard.suggested { border: 1.5px dashed var(--blue); background: var(--blue-soft); cursor: pointer; padding-right: 40px; }
+.pcard-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--blue-ink); }
+.suggest-remove { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 3px var(--shadow); }
+.suggest-remove:hover { color: var(--red-ink); border-color: var(--red-line); }
+.cap span.sugg { background: repeating-linear-gradient(135deg, var(--blue) 0 3px, transparent 3px 6px); opacity: 0.7; border-radius: 0 3px 3px 0; }
+@media (max-width: 720px) { .suggest-bar { margin: 0 16px; } }
