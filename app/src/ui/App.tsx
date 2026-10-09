@@ -11,6 +11,7 @@ import { useData, useIndex } from "./data";
 import { SetupPage } from "./SetupPage";
 import { EditorProvider, useEditor } from "./Editors";
 import { PlanPage } from "./PlanPage";
+import { HomePage } from "./HomePage";
 import { ChasePage, useChaseCount } from "./ChasePage";
 import { SettingsPage } from "./SettingsPage";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
@@ -20,7 +21,7 @@ import { CalendarProvider } from "./Calendar";
 export function App({ demo }: { demo: boolean }) {
   const { status, error, reload } = useData();
   const { parts } = useRoute();
-  const section = parts[0] || "plan";
+  const section = parts[0] || "home";
   const path = parts.join("/");
   useEffect(() => window.scrollTo(0, 0), [path]); // a new screen starts at the top
 
@@ -47,6 +48,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <ClientPage clientKey={parts[1]} tab={parts[2] === "work" ? "work" : "overview"} />;
   } else if (section === "groups") {
     body = <GroupsPage />;
+  } else if (section === "home") {
+    body = <HomePage />;
   } else if (section === "plan") {
     body = <PlanPage />;
   } else if (section === "settings") {
@@ -76,7 +79,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const { open } = useEditor();
   const chase = useChaseCount();
   const nav: [string, string, IconName][] = [
-    ["plan", "Plan", "plan"], ["chase", "Chase", "mail"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["chase", "Chase", "mail"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"],
     ["settings", "Settings", "settings"],
   ];
   return (
