@@ -478,3 +478,83 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; -webkit-user
   .nav .nav-count { position: absolute; top: 2px; left: calc(50% + 6px); }
   .chase-actions { width: 100%; justify-content: flex-start; }
 }
+
+/* ---------- plan views ---------- */
+.plan-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+.plan-title h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.subtabs { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--line-2); }
+.subtabs a { padding: 6px 12px; border-radius: 7px; text-decoration: none; color: var(--ink-2); font-weight: 500; font-size: 13.5px; white-space: nowrap; }
+.subtabs a[aria-current="page"] { background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 2px var(--shadow); }
+
+.months { list-style: none; margin: 0; padding: 0; }
+.month { border-top: 1px solid var(--line-2); }
+.month:first-child { border-top: 0; }
+.month-row { width: 100%; display: grid; grid-template-columns: 130px minmax(0, 1fr) 170px; align-items: center; gap: 16px; padding: 12px 16px; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink); }
+.month-row:hover { background: var(--surface-2); }
+.month-label { display: flex; flex-direction: column; gap: 1px; }
+.month-bar { position: relative; height: 18px; border-radius: 5px; background: var(--line-2); display: flex; overflow: visible; }
+.month-bar > span:not(.cap-mark) { height: 100%; }
+.month-bar > span:first-child { border-radius: 5px 0 0 5px; }
+.seg-planned { background: var(--blue); }
+.seg-due { background: var(--amber-solid); opacity: 0.85; }
+.seg-expected { background: repeating-linear-gradient(135deg, var(--line-strong) 0 4px, var(--line) 4px 8px); }
+.cap-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink); border-radius: 1px; }
+.month.over .month-bar { box-shadow: inset 0 0 0 1.5px var(--red-solid); }
+.month-nums { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 13px; }
+.month-items { padding: 0 16px 14px; overflow-x: auto; }
+.month-items table.grid { border: 1px solid var(--line-2); border-radius: 8px; }
+table.grid tr.expected td { color: var(--muted); }
+.legend-key { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.legend-key i { display: inline-block; width: 14px; height: 10px; border-radius: 3px; }
+.legend-key .k-planned { background: var(--blue); }
+.legend-key .k-due { background: var(--amber-solid); opacity: 0.85; }
+.legend-key .k-expected { background: repeating-linear-gradient(135deg, var(--line-strong) 0 3px, var(--line) 3px 6px); }
+.legend-key .k-cap { width: 2px; height: 14px; background: var(--ink); border-radius: 1px; }
+table.deadlines td { vertical-align: middle; }
+.print-only { display: none; }
+@media (max-width: 720px) {
+  .plan-title h1 { font-size: 24px; }
+  .month-row { grid-template-columns: 1fr auto; grid-template-areas: "label nums" "bar bar"; gap: 6px 12px; }
+  .month-label { grid-area: label; flex-direction: row; gap: 8px; align-items: baseline; }
+  .month-bar { grid-area: bar; }
+  .month-nums { grid-area: nums; flex-direction: row; align-items: center; gap: 8px; }
+}
+
+/* ---------- printing (the deadlines list) ---------- */
+@media print {
+  :root, :root[data-theme="dark"] {
+    --ground: #fff; --surface: #fff; --surface-2: #fff; --ink: #000; --ink-2: #222; --muted: #555; --line: #bbb; --line-2: #ddd;
+    --line-strong: #999; color-scheme: light;
+  }
+  @page { margin: 12mm; }
+  body { background: #fff; padding: 0 !important; font-size: 11px; }
+  .topbar, .nav, .plan-title, .no-print, .toast, .drawer-wrap, .alerts-panel { display: none !important; }
+  .print-only { display: flex; }
+  .print-head { flex-direction: column; gap: 2px; margin-bottom: 8px; font-size: 13px; }
+  .page { padding: 0; max-width: none; gap: 10px; }
+  .card { border: 0; border-radius: 0; break-inside: auto; }
+  .card-head { padding: 6px 0; border-bottom: 1.5px solid #000; }
+  .card-head h2 { font-size: 14px; }
+  .table-wrap { overflow: visible; }
+  table.grid { font-size: 10.5px; }
+  table.grid th { background: #fff; padding: 4px 6px; border-bottom: 1px solid #000; }
+  table.grid td { padding: 4px 6px; }
+  table.grid tr { break-inside: avoid; }
+  table.grid th:first-child, table.grid td:first-child { padding-left: 0; }
+  .chip { border: 1px solid #999 !important; background: #fff !important; color: #000 !important; font-weight: 600; padding: 0 5px; }
+  a { color: inherit; text-decoration: none; }
+  .deadline-group { break-before: auto; }
+}
+@media (max-width: 720px) {
+  table.deadlines thead { display: none; }
+  table.deadlines tbody tr { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "date status" "client client" "work work" "planned planned"; gap: 2px 8px; padding: 10px 14px; border-bottom: 1px solid var(--line-2); }
+  table.deadlines tbody tr:last-child { border-bottom: 0; }
+  table.deadlines td { padding: 0 !important; border: 0 !important; }
+  table.deadlines .c-date { grid-area: date; font-size: 12.5px; }
+  table.deadlines .c-status { grid-area: status; }
+  table.deadlines .c-client { grid-area: client; }
+  table.deadlines .c-work { grid-area: work; }
+  table.deadlines .c-planned { grid-area: planned; font-size: 12.5px; }
+  table.deadlines .c-stage, table.deadlines .c-records { display: none; }
+  .deadline-group .table-wrap { overflow: visible; }
+}

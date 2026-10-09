@@ -4,7 +4,9 @@
 import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
 import { addDays, jobHours, mondayOf, weekday } from "../lib/planning";
-import { Icon } from "./bits";
+import { Icon, PlanTabs, useRoute } from "./bits";
+import { DeadlinesView } from "./DeadlinesView";
+import { MonthsView } from "./MonthsView";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 import { useBoardDrag } from "./useBoardDrag";
@@ -40,6 +42,13 @@ type Show = "all" | "compliance" | "other";
 type Horizon = "30" | "90" | "all";
 
 export function PlanPage() {
+  const { parts } = useRoute();
+  if (parts[1] === "months") return <MonthsView />;
+  if (parts[1] === "deadlines") return <DeadlinesView />;
+  return <WeekView />;
+}
+
+function WeekView() {
   const { data, settings, update } = useData();
   const idx = useIndex();
   const { open } = useEditor();
@@ -148,7 +157,7 @@ export function PlanPage() {
     <div className="plan">
       <section className="plan-head">
         <div className="stack" style={{ gap: 10 }}>
-          <h1 style={{ margin: 0, fontSize: 28, letterSpacing: "-0.02em" }}>Plan</h1>
+          <PlanTabs current="week" />
           <div className="row-wrap">
             <button type="button" className="iconbtn" aria-label="Previous week" onClick={() => setWeek(addDays(week, -7))}><Icon name="left" /></button>
             <span style={{ fontWeight: 600, fontSize: 16, padding: "0 4px", minWidth: 180, textAlign: "center" }}>

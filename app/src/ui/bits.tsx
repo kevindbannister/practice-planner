@@ -105,3 +105,18 @@ export function Brand() {
 export function companiesHouseUrl(number?: string): string | undefined {
   return number ? `https://find-and-update.company-information.service.gov.uk/company/${encodeURIComponent(number)}` : undefined;
 }
+
+/** The Plan section's heading and its three views. */
+export function PlanTabs({ current }: { current: "week" | "months" | "deadlines" }) {
+  const tabs: [string, string, string][] = [["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"]];
+  return (
+    <div className="plan-title">
+      <h1>Plan</h1>
+      <nav className="subtabs" aria-label="Plan views">
+        {tabs.map(([k, label, to]) => (
+          <a key={k} href={to} aria-current={current === k ? "page" : undefined}>{label}</a>
+        ))}
+      </nav>
+    </div>
+  );
+}
