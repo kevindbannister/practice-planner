@@ -19,6 +19,7 @@ export type Data = {
   history: Row[];
   tasks: Task[];
   settings: Row[];
+  chFlags: Row[];
 };
 
 type Status = "connecting" | "needs-setup" | "loading" | "ready" | "error";
@@ -41,7 +42,7 @@ type Ctx = {
 
 const EMPTY: Data = {
   clients: [], contacts: [], groups: [], members: [], services: [], stageTemplates: [],
-  clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [],
+  clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [],
 };
 
 const DataContext = createContext<Ctx | null>(null);
@@ -50,7 +51,7 @@ export const SOURCE: [keyof Data, ListKey][] = [
   ["clients", "Clients"], ["contacts", "Contacts"], ["groups", "Groups"], ["members", "GroupMembers"],
   ["services", "Services"], ["stageTemplates", "StageTemplates"], ["clientServices", "ClientServices"],
   ["clientStages", "ClientServiceStages"], ["jobs", "Jobs"], ["history", "JobHistory"], ["tasks", "Tasks"],
-  ["settings", "Settings"],
+  ["settings", "Settings"], ["chFlags", "CHFlags"],
 ];
 const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 
@@ -65,12 +66,12 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       setStatus("connecting");
       await store.connect();
       const schema = await store.checkSchema();
-      if (schema.some((s) => !s.exists)) {
+      if (!schema.find((s) => s.list.key === "Clients")?.exists) {
         setStatus("needs-setup");
         return;
       }
-      // New versions of the app may add columns; add them quietly (no data changes).
-      if (schema.some((s) => s.missingColumns.length)) await store.ensureSchema();
+      // New versions of the app may add lists or columns; add them quietly (no data changes).
+      if (schema.some((s) => !s.exists || s.missingColumns.length)) await store.ensureSchema();
       setStatus("loading");
       const loaded = await Promise.all(SOURCE.map(([, list]) => store.readAll(list)));
       const next = { ...EMPTY };

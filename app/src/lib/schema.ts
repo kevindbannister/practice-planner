@@ -15,7 +15,7 @@ const note = (name: string): Column => ({ name, type: "note" });
 export type ListKey =
   | "Clients" | "Contacts" | "Groups" | "GroupMembers" | "Services" | "StageTemplates"
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
-  | "Authorisations" | "Settings";
+  | "Authorisations" | "Settings" | "CHFlags";
 
 export const LISTS: ListDef[] = [
   {
@@ -100,6 +100,15 @@ export const LISTS: ListDef[] = [
   {
     key: "Settings", displayName: "PP Settings", description: "Practice Planner: settings",
     columns: [t("Key", true), note("Value")],
+  },
+  {
+    // One row per thing Companies House disagrees with the planner about. Status is Open until
+    // you apply or ignore it; it's Resolved if the difference goes away by itself.
+    key: "CHFlags", displayName: "PP Companies House Changes", description: "Practice Planner: changes found at Companies House",
+    columns: [
+      t("Key", true), t("ClientKey", true), t("JobKey"), t("Type"), t("Severity"), note("Detail"), note("Current"),
+      note("Proposed"), t("Status", true), t("Found"), t("Resolved"),
+    ],
   },
 ];
 

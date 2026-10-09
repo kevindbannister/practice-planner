@@ -1,0 +1,9 @@
+{
+  "name": "practice-planner-api",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Server-side bridge to Companies House for Practice Planner. No dependencies.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

@@ -9,6 +9,7 @@ import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
 import { useData, useIndex } from "./data";
 import { SelectField } from "./Editors";
+import { CompaniesHouseSettings } from "./CompaniesHouse";
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
 const TABS: [string, string][] = [["week", "Your week"], ["work", "Types of work"], ["companies-house", "Companies House"]];
@@ -26,7 +27,7 @@ export function SettingsPage() {
       </nav>
       {tab === "week" && <HoursCard />}
       {tab === "work" && <TypesOfWork />}
-      {tab === "companies-house" && <CompaniesHouseCard />}
+      {tab === "companies-house" && <CompaniesHouseSettings />}
     </div>
   );
 }
@@ -364,33 +365,5 @@ function StageName({ stage, onSave }: { stage: Row; onSave: (v: string) => Promi
     <input className="input" value={v} onChange={(e) => setV(e.target.value)} onBlur={commit}
       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
       aria-label={`Stage ${stage.StageNo} name`} />
-  );
-}
-
-// ------------------------------------------------------------------ companies house
-
-function CompaniesHouseCard() {
-  const { data } = useData();
-  const companies = data.clients.filter((c) => c.Kind === "Ltd" || c.Kind === "LLP");
-  const checked = companies.filter((c) => c.CHChecked).length;
-  return (
-    <section className="card pad stack" aria-labelledby="ch-h" style={{ maxWidth: 720 }}>
-      <h2 id="ch-h">Companies House checks</h2>
-      <p style={{ margin: 0 }}>
-        <span className="chip">Coming next</span>{" "}
-        <span className="muted">Not switched on yet. {checked} of {companies.length} companies were checked by hand during the import on 8 Oct 2026.</span>
-      </p>
-      <p style={{ margin: 0 }}>Once connected, every company is checked against Companies House each day for:</p>
-      <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
-        <li>accounts and confirmation statement due dates that differ from the planner</li>
-        <li>accounts or confirmation statements filed, so the job can be ticked off</li>
-        <li>overdue filings, strike-off notices and status changes</li>
-        <li>changes to directors, PSCs and the registered office</li>
-      </ul>
-      <p style={{ margin: 0 }}>
-        Anything found appears under the bell in the top bar. You review each change here and choose to apply it or ignore it;
-        nothing in your records changes without your say-so.
-      </p>
-    </section>
   );
 }

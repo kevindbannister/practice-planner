@@ -57,6 +57,13 @@ Do this once the code is in the GitHub repository.
 5. Back in **entra.microsoft.com** → your **Practice Planner** app registration → **Authentication** → under *Single-page application*, **Add URI**: the URL from step 4 with a `/` on the end. Save.
 6. Open the URL, sign in, and follow the Setup page: **Create the lists**, then **Choose import file**.
 
-## Later
+## Step 6: Companies House key
 
-- **Companies House API key** (stage 4): free from the Companies House developer hub; stored server-side only, never in the app.
+The Companies House checks run through a small server-side function in the same Static Web App (`api/`). It holds the key, so the key never reaches the browser or this repository.
+
+1. Get a **REST API key** from the Companies House developer hub (developer.company-information.service.gov.uk → Your applications → create an application → Create new key → REST).
+2. In **portal.azure.com**, open the **practice-planner** Static Web App → **Settings** → **Environment variables**.
+3. Under **Production**, **Add**: name `CH_API_KEY`, value the key. **Apply**, then **Confirm**.
+4. In the planner, open **Settings › Companies House** and select **Test connection**.
+
+To change the key later (for example to replace one that's been shared), create a new key in the developer hub, update `CH_API_KEY`, and delete the old key there.

@@ -29,6 +29,9 @@ jobs:
           npm install --no-audit --no-fund
           npm test
           npm run build
+      - name: Test the Companies House bridge
+        working-directory: api
+        run: npm test
       - name: Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -37,7 +40,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
           action: "upload"
           app_location: "app/dist" # already built above
-          api_location: ""
+          api_location: "api" # Companies House bridge (Azure Functions)
           output_location: ""
           skip_app_build: true
 

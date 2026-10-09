@@ -1,7 +1,11 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/app.js", "/styles.css"]
+    "exclude": [
+      "/app.js",
+      "/styles.css",
+      "/api/*"
+    ]
   },
   "globalHeaders": {
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://login.microsoftonline.com",
@@ -10,7 +14,20 @@
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
   },
   "routes": [
-    { "route": "/index.html", "headers": { "Cache-Control": "no-cache" } },
-    { "route": "/app.js", "headers": { "Cache-Control": "no-cache" } }
-  ]
+    {
+      "route": "/index.html",
+      "headers": {
+        "Cache-Control": "no-cache"
+      }
+    },
+    {
+      "route": "/app.js",
+      "headers": {
+        "Cache-Control": "no-cache"
+      }
+    }
+  ],
+  "platform": {
+    "apiRuntime": "node:20"
+  }
 }

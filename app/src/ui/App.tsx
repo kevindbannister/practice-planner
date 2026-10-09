@@ -11,6 +11,7 @@ import { SetupPage } from "./SetupPage";
 import { EditorProvider, useEditor } from "./Editors";
 import { PlanPage } from "./PlanPage";
 import { SettingsPage } from "./SettingsPage";
+import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 
 export function App({ demo }: { demo: boolean }) {
   const { status, error, reload } = useData();
@@ -49,10 +50,12 @@ export function App({ demo }: { demo: boolean }) {
   }
 
   return (
-    <EditorProvider>
-      <TopBar section={section} demo={demo} ready={status === "ready"} />
-      {body}
-    </EditorProvider>
+    <CompaniesHouseProvider demo={demo}>
+      <EditorProvider>
+        <TopBar section={section} demo={demo} ready={status === "ready"} />
+        {body}
+      </EditorProvider>
+    </CompaniesHouseProvider>
   );
 }
 
@@ -135,13 +138,15 @@ function GroupsPage() {
   );
 }
 
-type Alert = { key: string; kind: "job" | "task"; level: "red" | "amber"; title: string; detail: string };
+type Alert = { key: string; kind: "job" | "task" | "ch"; level: "red" | "amber"; title: string; detail: string };
 
-/** The bell: late work and work due within a week that isn't planned. Companies House changes join it in stage 4. */
+/** The bell: late work, work due within a week that isn't planned, and Companies House changes to review. */
 function Alerts() {
   const { data } = useData();
   const idx = useIndex();
   const { open } = useEditor();
+  const ch = useCompaniesHouse();
+  const chAlerts = useChAlerts();
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const today = todayIso();
@@ -174,8 +179,12 @@ function Alerts() {
       alerts.push({ key: t.Key, kind: "task", level: "red", title: t.ClientKey ? `${name(t.ClientKey)}: ${t.Title}` : t.Title, detail: `Task was due ${fmtDate(t.DueDate)}` });
     }
   }
-  alerts.sort((a, b) => (a.level === b.level ? 0 : a.level === "red" ? -1 : 1));
+  for (const a of chAlerts) alerts.push({ ...a, key: "ch:" + a.key, kind: "ch" });
+  // Companies House changes first (they need a decision), then late work, then unplanned
+  const rank = (a: Alert) => (a.kind === "ch" ? 0 : 2) + (a.level === "red" ? 0 : 1);
+  alerts.sort((a, b) => rank(a) - rank(b));
   const red = alerts.filter((a) => a.level === "red").length;
+  const chCount = chAlerts.length;
 
   return (
     <div className="alerts-wrap" ref={ref}>
@@ -195,13 +204,23 @@ function Alerts() {
         <div className="alerts-panel" role="region" aria-label="Alerts">
           <div className="alerts-head">
             <strong>Needs attention</strong>
-            <span className="muted" style={{ fontSize: 12 }}>{red} late · {alerts.length - red} due this week, unplanned</span>
+            <span className="muted" style={{ fontSize: 12 }}>
+              {[
+                `${alerts.filter((a) => a.kind !== "ch" && a.level === "red").length} late`,
+                `${alerts.filter((a) => a.kind !== "ch" && a.level === "amber").length} due this week, unplanned`,
+                ...(chCount ? [`${chCount} from Companies House`] : []),
+              ].join(" · ")}
+            </span>
           </div>
           {alerts.length ? (
             <ul>
               {alerts.slice(0, 30).map((a) => (
                 <li key={a.key}>
-                  <button type="button" onClick={() => { setShown(false); open(a.kind === "job" ? { kind: "job", key: a.key } : { kind: "task", key: a.key }); }}>
+                  <button type="button" onClick={() => {
+                    setShown(false);
+                    if (a.kind === "ch") window.location.hash = "#/settings/companies-house";
+                    else open(a.kind === "job" ? { kind: "job", key: a.key } : { kind: "task", key: a.key });
+                  }}>
                     <span className={`dot ${a.level}`} aria-hidden="true" />
                     <span className="stack" style={{ gap: 2 }}>
                       <span style={{ fontWeight: 600 }}>{a.title}</span>
@@ -214,7 +233,12 @@ function Alerts() {
           ) : (
             <p className="muted" style={{ margin: 0, padding: 14 }}>Nothing late, and everything due this week is planned.</p>
           )}
-          <p className="muted alerts-foot">Companies House changes will appear here too once they're switched on.</p>
+          <p className="muted alerts-foot">
+            {ch.progress.running
+              ? `Checking Companies House: ${ch.progress.done} of ${ch.progress.total}`
+              : `Companies House last checked ${fmtWhen(ch.lastRun?.at)}. `}
+            {!ch.progress.running && <a href="#/settings/companies-house" onClick={() => setShown(false)}>Companies House settings</a>}
+          </p>
         </div>
       )}
     </div>
