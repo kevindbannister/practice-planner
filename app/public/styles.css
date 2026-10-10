@@ -681,3 +681,10 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
 .seg-type.faded { opacity: 0.45; }
 .months-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 16px; border-bottom: 1px solid var(--line-2); }
 .legend-key .k-faded { background: var(--svc-1); opacity: 0.45; }
+
+/* ---------- client logo upload ---------- */
+.logo-picker { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 4px; border-radius: 10px; border: 1.5px dashed transparent; }
+.logo-picker.over { border-color: var(--blue); background: var(--blue-soft); }
+.logo-actions { display: inline-flex; gap: 12px; }
+.logo-actions .linkbtn { min-height: 32px; padding: 4px 0; font-size: 13px; }
+.muted-link { color: var(--muted) !important; }

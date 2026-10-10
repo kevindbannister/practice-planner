@@ -1,5 +1,5 @@
 // The full client page: overview and work tabs, with editable contact and references.
-import { ReactNode, useState } from "react";
+import { ReactNode, useRef, useState } from "react";
 import {
   Client, Job, KIND_LABEL, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
 } from "../lib/domain";
@@ -8,6 +8,7 @@ import { jobHours } from "../lib/planning";
 import { ClientBadge, DeadlineChip, companiesHouseUrl, href } from "./bits";
 import { useData, useIndex } from "./data";
 import { chaseSummary } from "../lib/chase";
+import { LogoError, logoSrc, prepareLogo } from "../lib/logo";
 import { svcClass } from "../lib/serviceColour";
 import { useEditor } from "./Editors";
 
@@ -37,11 +38,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
           <a className="crumb" href="#/clients">Clients</a>
           <div className="row-wrap" style={{ gap: "8px 14px" }}>
             <h1>{c.Title}</h1>
-            {c.LogoUrl ? (
-              <span className="logo-box"><img src={c.LogoUrl} alt={`${c.Title} logo`} /></span>
-            ) : (
-              <ClientBadge client={c} size="lg" />
-            )}
+            <LogoPicker client={c} />
           </div>
           <div className="row-wrap" style={{ gap: 6 }}>
             <span className="chip green">{c.Status === "active" || !c.Status ? "Active" : String(c.Status)}</span>
@@ -487,5 +484,65 @@ function JobCard({ job: j }: { job: Job }) {
         </div>
       )}
     </article>
+  );
+}
+
+/** The client's logo, with Add / Change / Remove. Drop an image on it, or pick a file. */
+function LogoPicker({ client: c }: { client: Client }) {
+  const { update } = useData();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const [over, setOver] = useState(false);
+  const logo = logoSrc(c);
+
+  const use = async (file?: File) => {
+    if (!file) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const data = await prepareLogo(file);
+      await update("Clients", c, { LogoData: data });
+    } catch (e) {
+      setError(e instanceof LogoError ? e.message : "Couldn't save the logo. Try again.");
+    } finally {
+      setBusy(false);
+      if (input.current) input.current.value = "";
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await update("Clients", c, { LogoData: "", LogoUrl: "" });
+    } catch {
+      setError("Couldn't remove the logo. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className={`logo-picker${over ? " over" : ""}`}
+      onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => { e.preventDefault(); setOver(false); void use(e.dataTransfer.files?.[0]); }}
+    >
+      {logo ? (
+        <span className="logo-box"><img src={logo} alt={`${c.Title} logo`} /></span>
+      ) : (
+        <ClientBadge client={c} size="lg" />
+      )}
+      <span className="logo-actions">
+        <button type="button" className="linkbtn" disabled={busy} onClick={() => input.current?.click()}>
+          {busy ? "Saving…" : logo ? "Change logo" : "Add logo"}
+        </button>
+        {logo && !busy && <button type="button" className="linkbtn muted-link" onClick={remove}>Remove</button>}
+      </span>
+      <input ref={input} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" hidden
+        aria-label={`Choose a logo for ${c.Title}`} onChange={(e) => void use(e.target.files?.[0])} />
+      {error && <span className="error-text" role="alert" style={{ flexBasis: "100%" }}>{error}</span>}
+    </div>
   );
 }

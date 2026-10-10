@@ -143,3 +143,14 @@ test("date and flag helpers", () => {
     "Company number", "Companies House auth code", "Corporation tax UTR", "VAT number",
   ]);
 });
+
+import { fitWithin, logoSrc } from "../src/lib/logo";
+
+test("logos: shrink to fit without stretching or enlarging, uploaded logo wins", () => {
+  assert.deepEqual(fitWithin(1200, 400), { w: 360, h: 120 });
+  assert.deepEqual(fitWithin(500, 500), { w: 144, h: 144 });
+  assert.deepEqual(fitWithin(100, 40), { w: 100, h: 40 });
+  assert.equal(logoSrc({ LogoData: "data:image/png;base64,AAA", LogoUrl: "https://x/logo.png" }), "data:image/png;base64,AAA");
+  assert.equal(logoSrc({ LogoUrl: "https://x/logo.png" }), "https://x/logo.png");
+  assert.equal(logoSrc({}), undefined);
+});

@@ -1,5 +1,6 @@
 // Small shared pieces: routing, client badge, deadline chips, icons.
 import { CSSProperties, useEffect, useState } from "react";
+import { logoSrc } from "../lib/logo";
 import { Client, Job, badgeColours, deadlineLabel, initials, jobState, todayIso } from "../lib/domain";
 
 /** The current hash route, split into path parts and query. "#/clients/C1?x=1" -> ["clients","C1"], {x:"1"} */
@@ -25,8 +26,9 @@ export function go(path: string): void {
 }
 
 export function ClientBadge({ client, size }: { client: Client; size?: "lg" }) {
-  if (client.LogoUrl) {
-    return <img className="logo" src={client.LogoUrl} alt="" />;
+  const logo = logoSrc(client);
+  if (logo) {
+    return <img className="logo" src={logo} alt="" />;
   }
   const [bg, fg] = badgeColours(client.Key);
   return (

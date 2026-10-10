@@ -30,7 +30,7 @@ export const LISTS: ListDef[] = [
       t("MTDServices"), t("PAYERef"), t("AccountsOfficeRef"), t("XeroId"), t("XamaId"), t("XamaStatus"),
       t("AMLReview"), t("LoEStatus"), t("LoESent"), t("LoEDecided"),
       n("AnnualFees"), n("PaymentDays"), n("LatePaymentPct"), n("RetentionYears"),
-      t("EngagerId"), t("LogoUrl"), t("Website"), b("CHChecked"), t("CHStatus"), note("Notes"),
+      t("EngagerId"), t("LogoUrl"), t("Website"), b("CHChecked"), t("CHStatus"), note("Notes"), note("LogoData"),
     ],
   },
   {
