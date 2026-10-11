@@ -699,3 +699,25 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
 .iconbtn.small { width: 32px; height: 32px; }
 .iconbtn[disabled] { opacity: 0.4; cursor: not-allowed; }
 .problem-text { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ---------- type of work filter ---------- */
+.typefilter { position: relative; }
+.typefilter-btn { width: 100%; justify-content: flex-start; gap: 8px; }
+.typefilter-btn .typefilter-label { flex: 1 1 auto; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.typefilter-btn.on { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-ink); }
+.typefilter-dots { display: inline-flex; gap: 3px; }
+.typefilter-pop { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 260px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px var(--shadow); }
+.typefilter-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line-2); }
+.typefilter-pop ul { list-style: none; margin: 0; padding: 4px; max-height: 50vh; overflow-y: auto; }
+.typefilter-pop label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.typefilter-pop label:hover { background: var(--surface-2); }
+.typefilter-pop input { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; }
+.typefilter-name { flex: 1 1 auto; }
+
+/* ---------- swipe between weeks (phone) ---------- */
+@keyframes slide-from-right { from { transform: translateX(28px); opacity: 0.3; } to { transform: none; opacity: 1; } }
+@keyframes slide-from-left { from { transform: translateX(-28px); opacity: 0.3; } to { transform: none; opacity: 1; } }
+.slide-next { animation: slide-from-right 0.25s ease-out; }
+.slide-prev { animation: slide-from-left 0.25s ease-out; }
+.daystrip { touch-action: pan-y; }
+@media (prefers-reduced-motion: reduce) { .slide-next, .slide-prev { animation: none; } }

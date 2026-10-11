@@ -1,7 +1,7 @@
 // The planning board: a working week of days with capacity, and a tray of unplanned
 // work. Drag cards between days (or back to the tray); click a card to edit it.
 // On a phone the week becomes a strip of days: tap one to see it, or drag a card onto it.
-import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
 import { addDays, jobHours, mondayOf, weekday } from "../lib/planning";
 import { Icon, PlanTabs, useRoute } from "./bits";
@@ -10,6 +10,7 @@ import { MonthsView } from "./MonthsView";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 import { useBoardDrag } from "./useBoardDrag";
+import { TypeFilter, TypeOption, useRememberedTypes } from "./TypeFilter";
 import { useCalendar } from "./Calendar";
 import { svcClass } from "../lib/serviceColour";
 import { readSetting } from "./data";
@@ -72,6 +73,34 @@ function WeekView() {
 
   const days = [0, 1, 2, 3, 4].map((i) => addDays(week, i));
   const [picked, setPicked] = useState<string>();
+  const [types, setTypes] = useRememberedTypes("pp.plan.types");
+  const [slide, setSlide] = useState<"" | "next" | "prev">("");
+  const swipe = useRef<{ x: number; y: number; cancelled: boolean } | null>(null);
+  /** Move a week on or back; on a phone the same weekday stays selected. */
+  const changeWeek = (by: number) => {
+    setWeek((w) => addDays(w, 7 * by));
+    setPicked((p) => (p ? addDays(p, 7 * by) : undefined));
+    setSlide(by > 0 ? "next" : "prev");
+    window.setTimeout(() => setSlide(""), 260);
+  };
+  // swipe left or right across the days on a phone to change week
+  const swipeProps = {
+    onTouchStart: (e: React.TouchEvent) => {
+      const t = e.touches[0];
+      swipe.current = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, cancelled: false } : null;
+    },
+    onTouchMove: () => {
+      if (swipe.current && document.body.classList.contains("is-dragging")) swipe.current.cancelled = true;
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      const s = swipe.current;
+      swipe.current = null;
+      if (!s || s.cancelled || document.body.classList.contains("is-dragging")) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - s.x, dy = t.clientY - s.y;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) changeWeek(dx < 0 ? 1 : -1);
+    },
+  };
   const shownDay = picked && days.includes(picked) ? picked : days.includes(today) ? today : days[0];
 
   const items: Item[] = useMemo(() => {
@@ -101,11 +130,21 @@ function WeekView() {
   const suggestedKeys = new Set(activePlan?.suggestions.map((s) => s.key));
   const suggestedOn = (d: string) =>
     (activePlan?.suggestions || []).filter((s) => s.day === d).map((s) => ({ s, item: items.find((i) => i.key === s.key)! })).filter((x) => x.item);
-  const unplanned = visible
+  const typeKey = (i: Item) => (i.kind === "task" ? "TASK" : (i.row as Job).ServiceKey || "OTHER");
+  const trayAll = visible
     .filter((i) => !suggestedKeys.has(i.key))
     .filter((i) => !i.planned || (i.planned < today && !days.includes(i.planned)))
     .filter((i) => horizon === "all" || !i.deadline || i.deadline <= addDays(today, Number(horizon)))
-    .filter((i) => !search || `${i.title} ${i.client}`.toLowerCase().includes(search.toLowerCase()))
+    .filter((i) => !search || `${i.title} ${i.client}`.toLowerCase().includes(search.toLowerCase()));
+  const typeOptions: TypeOption[] = [...trayAll.reduce((m, i) => {
+    const k = typeKey(i);
+    const o = m.get(k) || { key: k, name: k === "TASK" ? "Tasks" : idx.serviceName.get(k) || i.title, count: 0 };
+    o.count++;
+    return m.set(k, o);
+  }, new Map<string, TypeOption>()).values()].sort((a, b) => a.name.localeCompare(b.name));
+  const activeTypes = types.filter((k) => typeOptions.some((o) => o.key === k));
+  const unplanned = trayAll
+    .filter((i) => !activeTypes.length || activeTypes.includes(typeKey(i)))
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
   const missed = unplanned.filter((i) => i.planned && i.planned < today);
 
@@ -221,11 +260,11 @@ function WeekView() {
         <div className="stack" style={{ gap: 10 }}>
           <PlanTabs current="week" />
           <div className="row-wrap">
-            <button type="button" className="iconbtn" aria-label="Previous week" onClick={() => setWeek(addDays(week, -7))}><Icon name="left" /></button>
+            <button type="button" className="iconbtn" aria-label="Previous week" onClick={() => changeWeek(-1)}><Icon name="left" /></button>
             <span style={{ fontWeight: 600, fontSize: 16, padding: "0 4px", minWidth: 180, textAlign: "center" }}>
               {fmtDate(week, { year: false })} – {fmtDate(addDays(week, 4))}
             </span>
-            <button type="button" className="iconbtn" aria-label="Next week" onClick={() => setWeek(addDays(week, 7))}><Icon name="right" /></button>
+            <button type="button" className="iconbtn" aria-label="Next week" onClick={() => changeWeek(1)}><Icon name="right" /></button>
             {week !== mondayOf(today) && <button type="button" className="btn small" onClick={() => setWeek(mondayOf(today))}>This week</button>}
             <div className="seg" role="group" aria-label="Show">
               {(["all", "compliance", "other"] as Show[]).map((s) => (
@@ -282,7 +321,7 @@ function WeekView() {
         </section>
       )}
 
-      <div className="daystrip" role="group" aria-label="Days this week">
+      <div className={`daystrip${slide ? ` slide-${slide}` : ""}`} role="group" aria-label="Days this week" {...swipeProps}>
         {days.map((d) => {
           const used = load(d), cap = capacity(d);
           const over = used > cap;
@@ -323,9 +362,10 @@ function WeekView() {
             <span className="sr-only">Search unplanned work</span>
             <input type="search" placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
           </label>
+          <TypeFilter options={typeOptions} selected={types} onChange={setTypes} />
           <p className="muted" style={{ margin: 0, fontSize: 12 }}>
             {narrow
-              ? "Hold a card, or drag its handle, onto a day above to plan it. Tap a card to open it."
+              ? "Hold a card, or drag its handle, onto a day above to plan it. Tap a card to open it. Swipe the days left or right to change week."
               : "Drag onto a day to plan it, or open a card to pick a date."}
           </p>
           {missed.length > 0 && (
@@ -352,7 +392,7 @@ function WeekView() {
           </div>
         </aside>
 
-        <div className="week" role="list" aria-label="Week">
+        <div className={`week${slide ? ` slide-${slide}` : ""}`} role="list" aria-label="Week" {...(narrow ? swipeProps : {})}>
           {days.map((d) => {
             const list = byDay.get(d) || [];
             const used = load(d), cap = capacity(d);
