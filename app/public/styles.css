@@ -688,3 +688,14 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
 .logo-actions { display: inline-flex; gap: 12px; }
 .logo-actions .linkbtn { min-height: 32px; padding: 4px 0; font-size: 13px; }
 .muted-link { color: var(--muted) !important; }
+
+/* ---------- stages: re-ordering ---------- */
+.stage-edit li { grid-template-columns: 28px 22px minmax(0, 1fr) auto; }
+.stage-grip { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 36px; border-radius: 6px; color: var(--muted); cursor: grab; touch-action: none; }
+.stage-grip:hover { background: var(--line-2); color: var(--ink); }
+.stage-edit li.dragging { background: var(--blue-soft); border-radius: 8px; box-shadow: 0 4px 12px var(--shadow); }
+.stage-edit li.dragging .stage-grip { cursor: grabbing; }
+.stage-buttons { display: inline-flex; gap: 4px; }
+.iconbtn.small { width: 32px; height: 32px; }
+.iconbtn[disabled] { opacity: 0.4; cursor: not-allowed; }
+.problem-text { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }

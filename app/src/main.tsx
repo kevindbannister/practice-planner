@@ -7,6 +7,11 @@ import { SharePointStore } from "./lib/sharepoint";
 import { App } from "./ui/App";
 import { Brand } from "./ui/bits";
 import { DataProvider } from "./ui/data";
+import { PageBoundary, recordProblem } from "./ui/ErrorBoundary";
+
+// problems outside a screen (a failed background save, say) are noted too
+window.addEventListener("error", (e) => recordProblem(e.error || e.message, "window"));
+window.addEventListener("unhandledrejection", (e) => recordProblem(e.reason, "background task"));
 
 declare const __DEMO__: boolean;
 
@@ -59,9 +64,11 @@ async function start() {
   }
 
   root.render(
-    <DataProvider store={new SharePointStore(graph)} user={user}>
-      <App demo={__DEMO__} />
-    </DataProvider>,
+    <PageBoundary resetKey="app">
+      <DataProvider store={new SharePointStore(graph)} user={user}>
+        <App demo={__DEMO__} />
+      </DataProvider>
+    </PageBoundary>,
   );
 }
 

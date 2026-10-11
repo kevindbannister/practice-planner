@@ -108,6 +108,26 @@ export class SharePointStore {
     await this.graph.delete(`${this.listPath(key)}/items/${itemId}`);
   }
 
+  /** Change many rows in batches of 20. Throws if any change was refused. */
+  async updateMany(key: ListKey, changes: { itemId: string; patch: Row }[]): Promise<void> {
+    if (!changes.length) return;
+    const list = LIST_BY_KEY[key];
+    const path = this.listPath(key);
+    const res = await this.graph.batch(
+      changes.map((c) => {
+        const fields: Record<string, unknown> = toFields(list, c.patch);
+        for (const [k, v] of Object.entries(c.patch)) {
+          if (v !== "") continue;
+          const col = list.columns.find((x) => x.name === k);
+          if (k === "Title" || col) fields[k] = col?.type === "number" ? null : "";
+        }
+        return { method: "PATCH" as const, url: `${path}/items/${c.itemId}/fields`, body: fields };
+      }),
+    );
+    const bad = res.filter((r) => !r || r.status >= 300);
+    if (bad.length) throw new Error(bad[0]?.body?.error?.message || `${bad.length} change(s) weren't saved`);
+  }
+
   /** Create many rows in batches. Returns how many failed, with the first error. */
   async createMany(key: ListKey, rows: Row[], onProgress?: (done: number) => void): Promise<{ failed: number; error?: string }> {
     const list = LIST_BY_KEY[key];

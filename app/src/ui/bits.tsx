@@ -49,7 +49,7 @@ export function DeadlineChip({ job, today = todayIso() }: { job: Job; today?: st
 
 export type IconName =
   | "check" | "close" | "search" | "left" | "right" | "alert" | "plan" | "clients" | "groups" | "settings" | "sun" | "moon"
-  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag";
+  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag" | "up" | "down";
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", "aria-hidden": true } as const;
@@ -85,6 +85,10 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       return <svg {...common}><path d="M4 6V1.5h8V6M4 12H2.5a1 1 0 01-1-1V7a1 1 0 011-1h11a1 1 0 011 1v4a1 1 0 01-1 1H12" {...stroke} /><rect x="4" y="9.5" width="8" height="5" rx="0.5" {...stroke} /></svg>;
     case "download":
       return <svg {...common}><path d="M8 2v8M4.5 7L8 10.5 11.5 7M2.5 13.5h11" {...stroke} /></svg>;
+    case "up":
+      return <svg {...common}><path d="M3 10l5-5 5 5" {...stroke} /></svg>;
+    case "down":
+      return <svg {...common}><path d="M3 6l5 5 5-5" {...stroke} /></svg>;
     case "clock":
       return <svg {...common}><circle cx="8" cy="8" r="6" {...stroke} /><path d="M8 4.5V8l2.5 1.5" {...stroke} /></svg>;
     case "chart":

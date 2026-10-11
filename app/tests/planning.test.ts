@@ -117,3 +117,24 @@ test("on hold: putting on and taking off keeps a note of the hold", () => {
   assert.equal(back.Notes, "Called 3 Oct\nOn hold 9 Oct 2026 to 2 Nov 2026: Client abroad");
   assert.equal(resumePatch({ Status: "On hold" }, "2026-11-02").Notes, "On hold until 2 Nov 2026");
 });
+
+import { moveItem, renumberStages } from "../src/lib/stages";
+
+test("re-ordering stages keeps jobs and client stage details on the same stage", () => {
+  assert.deepEqual(moveItem(["a", "b", "c", "d"], 3, 1), ["a", "d", "b", "c"]);
+  assert.deepEqual(moveItem(["a", "b", "c"], 0, 2), ["b", "c", "a"]);
+  const st = [
+    { _id: "1", Title: "Request records", StageNo: 1 },
+    { _id: "2", Title: "Prepare", StageNo: 2 },
+    { _id: "3", Title: "Review", StageNo: 3 },
+  ];
+  // move "Review" to the front
+  const ordered = moveItem(st, 2, 0);
+  const r = renumberStages(ordered, [
+    { _id: "j1", StageNo: 3, StageName: "Review" },
+    { _id: "j2", StageNo: 1, StageName: "Request records" },
+  ], [{ _id: "c1", StageNo: 2, Who: "Kevin" }]);
+  assert.deepEqual(r.templates.map((t) => [t.row.Title, t.patch.StageNo]), [["Review", 1], ["Request records", 2], ["Prepare", 3]]);
+  assert.deepEqual(r.jobs.map((j) => [j.row._id, j.patch]), [["j1", { StageNo: 1, StageName: "Review" }], ["j2", { StageNo: 2, StageName: "Request records" }]]);
+  assert.deepEqual(r.clientStages.map((c) => [c.row._id, c.patch.StageNo]), [["c1", 3]]);
+});

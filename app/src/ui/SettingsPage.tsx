@@ -1,16 +1,18 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
 // due, default hours and its stages); and Companies House checks.
-import { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { fmtDate, fmtHours } from "../lib/domain";
 import {
   BUILT_IN_RULES, DEFAULT_HOURS, Hours, Rule, deadlineByRule, describeRule, newKey, nextPeriod, ruleFields, ruleFor,
 } from "../lib/planning";
 import { Row } from "../lib/schema";
-import { href, useRoute } from "./bits";
+import { Icon, href, useRoute } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
 import { DEFAULT_FILL } from "../lib/autoplan";
 import { SelectField } from "./Editors";
 import { recordsRule } from "../lib/chase";
+import { moveItem, renumberStages } from "../lib/stages";
+import { Problem, clearProblems, problemText, readProblems } from "./ErrorBoundary";
 import { svcClass } from "../lib/serviceColour";
 import { CompaniesHouseSettings } from "./CompaniesHouse";
 import { BackupSettings } from "./Backups";
@@ -118,6 +120,7 @@ function AppearanceCard() {
           ))}
         </div>
       </div>
+      <ProblemsList />
       {!__DEMO__ && (
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
           <span style={{ fontSize: 14 }}>Signed in{user ? ` as ${user}` : ""}</span>
@@ -125,6 +128,28 @@ function AppearanceCard() {
         </div>
       )}
     </section>
+  );
+}
+
+function ProblemsList() {
+  const [list, setList] = useState<Problem[]>(readProblems);
+  if (!list.length) return null;
+  return (
+    <details>
+      <summary>Problems ({list.length})</summary>
+      <p className="muted" style={{ margin: "6px 0", fontSize: 13 }}>Things that went wrong on this device. Copy them and send them over so they can be fixed.</p>
+      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+        {list.map((p) => (
+          <li key={p.at} style={{ fontSize: 13 }}>
+            <strong>{new Date(p.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</strong> · {p.path} · {p.message}
+          </li>
+        ))}
+      </ul>
+      <div className="row-wrap" style={{ marginTop: 8 }}>
+        <button type="button" className="btn small" onClick={() => navigator.clipboard?.writeText(list.map(problemText).join("\n\n---\n\n")).catch(() => undefined)}>Copy details</button>
+        <button type="button" className="btn small" onClick={() => { clearProblems(); setList([]); }}>Clear</button>
+      </div>
+    </details>
   );
 }
 
@@ -357,12 +382,81 @@ function RuleCard({ service: s }: { service: Row }) {
 }
 
 function StagesCard({ service }: { service: string }) {
-  const { update, create, remove } = useData();
+  const { data, update, updateMany, create, remove } = useData();
   const idx = useIndex();
   const stages = idx.stagesByService.get(service) || [];
   const inUse = idx.openJobs.filter((j) => j.ServiceKey === service);
   const [newName, setNewName] = useState("");
   const [error, setError] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const [order, setOrder] = useState<Row[] | null>(null); // while dragging: the order being shown
+  const [dragKey, setDragKey] = useState<string>();
+  const listRef = useRef<HTMLOListElement>(null);
+  const shown = order || stages;
+
+  /** Save a new order: stage numbers, the jobs on each stage, and each client's stage details. */
+  const saveOrder = async (ordered: Row[]) => {
+    const r = renumberStages(
+      ordered,
+      inUse,
+      data.clientStages.filter((cs) => cs.ServiceKey === service),
+    );
+    if (!r.templates.length) return;
+    setSaving(true);
+    setError(undefined);
+    try {
+      await updateMany("StageTemplates", r.templates);
+      await updateMany("Jobs", r.jobs);
+      await updateMany("ClientServiceStages", r.clientStages);
+    } catch {
+      setError("Couldn't save the new order. It's been put back; try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= stages.length || from === to) return;
+    void saveOrder(moveItem(stages, from, to));
+  };
+
+  // drag by the handle (mouse, pen or finger): the list re-orders as you move, and saves on release
+  const startDrag = (e: React.PointerEvent, key: string) => {
+    if (saving) return;
+    e.preventDefault();
+    const list = listRef.current;
+    if (!list) return;
+    let current = [...stages];
+    document.body.classList.add("is-dragging");
+    setDragKey(key);
+    setOrder(current);
+    const onMove = (ev: PointerEvent) => {
+      const items = [...list.querySelectorAll<HTMLElement>("li[data-key]")];
+      const from = current.findIndex((st) => st.Key === key);
+      let to = items.findIndex((el) => {
+        const r = el.getBoundingClientRect();
+        return ev.clientY < r.top + r.height / 2;
+      });
+      if (to === -1) to = items.length - 1;
+      else if (to > from) to -= 1;
+      if (to !== from) {
+        current = moveItem(current, from, to);
+        setOrder(current);
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      document.body.classList.remove("is-dragging");
+      setDragKey(undefined);
+      setOrder(null);
+      void saveOrder(current);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
 
   const add = async () => {
     const name = newName.trim();
@@ -375,36 +469,74 @@ function StagesCard({ service }: { service: string }) {
       setError("Couldn't add the stage.");
     }
   };
-  const removeLast = async () => {
-    const last = stages[stages.length - 1];
-    if (!last) return;
-    const lastNo = last.StageNo as number;
-    const onIt = inUse.filter((j) => (j.StageNo || 1) >= lastNo);
-    if (onIt.length && !window.confirm(`${onIt.length} open job(s) are at this stage. They'll move back to the stage before. Remove it?`)) return;
+  const removeStage = async (st: Row) => {
+    const no = Number(st.StageNo);
+    const onIt = inUse.filter((j) => (j.StageNo || 1) === no);
+    const msg = onIt.length
+      ? `${onIt.length} open job(s) are at "${st.Title}". They'll move to the stage before it. Remove the stage?`
+      : `Remove the stage "${st.Title}"?`;
+    if (!window.confirm(msg)) return;
+    setSaving(true);
     try {
-      await remove("StageTemplates", last);
-      const prev = stages[stages.length - 2];
-      for (const j of onIt) await update("Jobs", j, { StageNo: Math.max(1, lastNo - 1), StageName: (prev?.Title as string) || "" });
+      await remove("StageTemplates", st);
+      const rest = stages.filter((x) => x._id !== st._id);
+      // jobs on the removed stage go back one; everything after it closes the gap
+      const prevName = (rest[Math.max(0, no - 2)]?.Title as string) || "";
+      const jobChanges = inUse
+        .filter((j) => (j.StageNo || 1) >= no)
+        .map((j) => {
+          const n = (j.StageNo || 1) === no ? Math.max(1, no - 1) : (j.StageNo || 1) - 1;
+          return { row: j, patch: { StageNo: n, StageName: (j.StageNo || 1) === no ? prevName : String(rest[n - 1]?.Title || j.StageName || "") } };
+        });
+      await updateMany("StageTemplates", rest.map((x, i) => ({ row: x, patch: { StageNo: i + 1 } })).filter((c) => Number(c.row.StageNo) !== c.patch.StageNo));
+      await updateMany("Jobs", jobChanges);
+      await updateMany(
+        "ClientServiceStages",
+        data.clientStages
+          .filter((cs) => cs.ServiceKey === service && Number(cs.StageNo) > no)
+          .map((cs) => ({ row: cs, patch: { StageNo: Number(cs.StageNo) - 1 } })),
+      );
     } catch {
       setError("Couldn't remove the stage.");
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <section className="card pad stack" aria-labelledby="stages-h">
-      <h2 id="stages-h">Stages</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <h2 id="stages-h">Stages</h2>
+        {saving && <span className="muted" style={{ fontSize: 13 }} role="status">Saving…</span>}
+      </div>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-        The steps this work goes through, shown on every job. Rename a stage by editing it; it saves when you leave the box.
-        {inUse.length ? ` ${inUse.length} open job${inUse.length === 1 ? "" : "s"} use these stages.` : ""}
+        The steps this work goes through, shown on every job. Drag a stage by its handle to change the order, or use the arrows.
+        Rename a stage by editing it; it saves when you leave the box.
+        {inUse.length ? ` ${inUse.length} open job${inUse.length === 1 ? "" : "s"} use these stages and stay on the same stage when you re-order.` : ""}
       </p>
-      <ol className="stage-edit">
-        {stages.map((st) => (
-          <li key={st.Key as string}>
-            <span className="mono muted">{st.StageNo as number}</span>
+      <ol className="stage-edit" ref={listRef}>
+        {shown.map((st, i) => (
+          <li key={st.Key as string} data-key={st.Key as string} className={dragKey === st.Key ? "dragging" : undefined}>
+            <span className="stage-grip" aria-hidden="true" onPointerDown={(e) => startDrag(e, st.Key as string)} title="Drag to re-order">
+              <Icon name="grip" />
+            </span>
+            <span className="mono muted">{i + 1}</span>
             <StageName stage={st} onSave={async (v) => {
               await update("StageTemplates", st, { Title: v });
-              for (const j of inUse.filter((j) => j.StageNo === st.StageNo)) await update("Jobs", j, { StageName: v });
+              const jobs = inUse.filter((j) => j.StageNo === st.StageNo).map((j) => ({ row: j, patch: { StageName: v } }));
+              await updateMany("Jobs", jobs);
             }} />
+            <span className="stage-buttons">
+              <button type="button" className="iconbtn small" aria-label={`Move ${st.Title} up`} disabled={i === 0 || saving} onClick={() => move(i, i - 1)}>
+                <Icon name="up" size={14} />
+              </button>
+              <button type="button" className="iconbtn small" aria-label={`Move ${st.Title} down`} disabled={i === shown.length - 1 || saving} onClick={() => move(i, i + 1)}>
+                <Icon name="down" size={14} />
+              </button>
+              <button type="button" className="iconbtn small" aria-label={`Remove ${st.Title}`} disabled={saving} onClick={() => removeStage(st)}>
+                <Icon name="close" size={14} />
+              </button>
+            </span>
           </li>
         ))}
         {!stages.length && <li className="muted">No stages yet. Add the first one below.</li>}
@@ -415,8 +547,7 @@ function StagesCard({ service }: { service: string }) {
           <input className="input" placeholder="New stage name" value={newName} onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && add()} />
         </label>
-        <button type="button" className="btn" onClick={add} disabled={!newName.trim()}>Add stage at the end</button>
-        <button type="button" className="btn" onClick={removeLast} disabled={!stages.length}>Remove last stage</button>
+        <button type="button" className="btn" onClick={add} disabled={!newName.trim() || saving}>Add stage at the end</button>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
     </section>

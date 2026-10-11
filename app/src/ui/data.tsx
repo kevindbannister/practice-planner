@@ -35,6 +35,7 @@ type Ctx = {
   save: SaveState;
   reload: () => Promise<void>;
   update: (list: ListKey, row: Row, patch: Row) => Promise<void>;
+  updateMany: (list: ListKey, changes: { row: Row; patch: Row }[]) => Promise<void>;
   create: (list: ListKey, row: Row) => Promise<Row>;
   remove: (list: ListKey, row: Row) => Promise<void>;
   saveSetting: (key: string, value: unknown) => Promise<void>;
@@ -76,7 +77,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       const loaded = await Promise.all(SOURCE.map(([, list]) => store.readAll(list)));
       const next = { ...EMPTY };
       SOURCE.forEach(([k], i) => ((next as any)[k] = loaded[i]));
-      next.clients.sort((a, b) => a.Title.localeCompare(b.Title));
+      next.clients.sort((a, b) => String(a.Title || "").localeCompare(String(b.Title || "")));
       await migrate(store, next);
       setTightDays(readSettings(next.settings).tightDays);
       setData(next);
@@ -124,6 +125,24 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     [store, track],
   );
 
+  const updateMany = useCallback(
+    async (list: ListKey, changes: { row: Row; patch: Row }[]) => {
+      if (!changes.length) return;
+      const key = keyFor(list);
+      const byId = new Map(changes.map((c) => [c.row._id, c]));
+      const apply = (pick: (c: { row: Row; patch: Row }) => Row) =>
+        setData((d) => ({ ...d, [key]: (d[key] as Row[]).map((r) => (byId.has(r._id) ? { ...r, ...normalise(pick(byId.get(r._id)!)) } : r)) }));
+      apply((c) => c.patch);
+      try {
+        await track(() => store.updateMany(list, changes.map((c) => ({ itemId: c.row._id!, patch: c.patch }))));
+      } catch (e) {
+        apply((c) => Object.fromEntries(Object.keys(c.patch).map((k) => [k, c.row[k] ?? ""])));
+        throw e;
+      }
+    },
+    [store, track],
+  );
+
   const create = useCallback(
     async (list: ListKey, row: Row) => {
       const created = await track(() => store.create(list, row));
@@ -156,8 +175,8 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
   const settings = useMemo(() => readSettings(data.settings), [data.settings]);
 
   const value = useMemo(
-    () => ({ status, error, data, settings, store, user, save, reload, update, create, remove, saveSetting }),
-    [status, error, data, settings, store, user, save, reload, update, create, remove, saveSetting],
+    () => ({ status, error, data, settings, store, user, save, reload, update, updateMany, create, remove, saveSetting }),
+    [status, error, data, settings, store, user, save, reload, update, updateMany, create, remove, saveSetting],
   );
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

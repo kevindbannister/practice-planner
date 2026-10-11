@@ -39,7 +39,7 @@ export function HomePage() {
       ...idx.openJobs.map((j): Work => ({
         key: j.Key, kind: "job", row: j, title: j.Title, client: name(j.ClientKey) || (j.ClientName as string) || "", serviceKey: j.ServiceKey,
         hours: jobHours(j, data.services), deadline: j.Deadline, planned: j.PlannedDate, urgent: j.Priority === "urgent", held: isOnHold(j),
-        records: j.RecordsReceived, periodEnd: j.PeriodEnd, typeName: idx.serviceName.get(j.ServiceKey || "") || j.Title,
+        records: j.RecordsReceived, periodEnd: j.PeriodEnd, typeName: idx.serviceName.get(j.ServiceKey || "") || j.Title || "Job",
       })),
       ...idx.openTasks.map((t): Work => ({
         key: t.Key, kind: "task", row: t, title: t.Title, client: name(t.ClientKey), hours: t.EstimateHours || 1, deadline: t.DueDate,
@@ -63,7 +63,7 @@ export function HomePage() {
   // next fortnight's deadlines, by day
   const upcoming = active
     .filter((w) => w.deadline && w.deadline >= today && w.deadline <= addDays(today, 14))
-    .sort((a, b) => a.deadline!.localeCompare(b.deadline!) || a.client.localeCompare(b.client));
+    .sort((a, b) => a.deadline!.localeCompare(b.deadline!) || String(a.client).localeCompare(String(b.client)));
   const byDay = new Map<string, Work[]>();
   for (const w of upcoming) {
     if (!byDay.has(w.deadline!)) byDay.set(w.deadline!, []);
@@ -312,7 +312,7 @@ function groupByType(list: Work[]): Group[] {
     if (w.planned && w.planned >= todayIso()) g.planned++;
     m.set(k, g);
   }
-  return [...m.values()].sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
+  return [...m.values()].sort((a, b) => b.items.length - a.items.length || String(a.name || "").localeCompare(String(b.name || "")));
 }
 
 function TypeGroup({ group: g, today, onOpen }: { group: Group; today: string; onOpen: (w: Work) => void }) {

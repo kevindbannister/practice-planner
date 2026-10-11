@@ -17,13 +17,18 @@ import { SettingsPage } from "./SettingsPage";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
+import { PageBoundary } from "./ErrorBoundary";
 
 export function App({ demo }: { demo: boolean }) {
-  const { status, error, reload } = useData();
+  const { status, error, reload, saveSetting } = useData();
   const { parts } = useRoute();
   const section = parts[0] || "home";
   const path = parts.join("/");
-  useEffect(() => window.scrollTo(0, 0), [path]); // a new screen starts at the top
+  // a new screen starts at the top (after it has drawn)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => window.scrollTo(0, 0));
+    return () => cancelAnimationFrame(id);
+  }, [path]);
 
   let body;
   if (status === "connecting" || status === "loading") {
@@ -66,7 +71,9 @@ export function App({ demo }: { demo: boolean }) {
         <CalendarProvider demo={demo}>
           <EditorProvider>
             <TopBar section={section} demo={demo} ready={status === "ready"} />
-            {body}
+            <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
+              {body}
+            </PageBoundary>
           </EditorProvider>
         </CalendarProvider>
       </CompaniesHouseProvider>
