@@ -740,3 +740,15 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
   .cardopts { position: static; }
   .cardopts .typefilter-pop { left: 16px; right: 16px; width: auto; max-width: none; top: auto; margin-top: 6px; }
 }
+
+/* ---------- month label under the sticky day strip (phone) ---------- */
+.daystrip-month { display: none; }
+@media (max-width: 720px) {
+  .daystrip-month {
+    display: block; position: absolute; left: 50%; top: 100%; transform: translate(-50%, -4px); pointer-events: none;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-2); white-space: nowrap;
+    padding: 2px 10px 3px; background: var(--ground); border: 1px solid var(--line); border-top: 0; border-radius: 0 0 8px 8px;
+    opacity: 0; transition: opacity 0.15s, transform 0.15s;
+  }
+  .daystrip.stuck .daystrip-month { opacity: 1; transform: translate(-50%, 0); }
+}

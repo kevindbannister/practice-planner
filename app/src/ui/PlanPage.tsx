@@ -110,6 +110,25 @@ function WeekView() {
     },
   };
   const shownDay = picked && days.includes(picked) ? picked : days.includes(today) ? today : days[0];
+  // on a phone, once the day strip sticks under the top bar, a small month label hangs below it
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    if (!narrow) return setStuck(false);
+    const check = () => {
+      const el = stripRef.current;
+      if (!el) return;
+      const top = parseFloat(getComputedStyle(el).top) || 0;
+      setStuck(el.getBoundingClientRect().top <= top + 1 && window.scrollY > 0);
+    };
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    window.addEventListener("resize", check);
+    return () => {
+      window.removeEventListener("scroll", check);
+      window.removeEventListener("resize", check);
+    };
+  }, [narrow]);
 
   const items: Item[] = useMemo(() => {
     const jobs = idx.openJobs.map<Item>((j) => {
@@ -337,7 +356,8 @@ function WeekView() {
         </section>
       )}
 
-      <div className={`daystrip${slide ? ` slide-${slide}` : ""}`} role="group" aria-label="Days this week" {...swipeProps}>
+      <div ref={stripRef} className={`daystrip${slide ? ` slide-${slide}` : ""}${stuck ? " stuck" : ""}`} role="group" aria-label="Days this week" {...swipeProps}>
+        <span className="daystrip-month" aria-hidden="true">{monthSpan(days[0], days[days.length - 1])}</span>
         {days.map((d) => {
           const used = load(d), cap = capacity(d);
           const over = used > cap;
@@ -560,6 +580,14 @@ function PlanCard({
       )}
     </button>
   );
+}
+
+/** "October 2026", or "October – November 2026" for a week that crosses months. */
+export function monthSpan(from: string, to: string): string {
+  const name = (iso: string, year: boolean) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", ...(year ? { year: "numeric" } : {}), timeZone: "UTC" });
+  if (from.slice(0, 7) === to.slice(0, 7)) return name(from, true);
+  return from.slice(0, 4) === to.slice(0, 4) ? `${name(from, false)} – ${name(to, true)}` : `${name(from, true)} – ${name(to, true)}`;
 }
 
 function shortTag(service?: string, name?: string): string {
