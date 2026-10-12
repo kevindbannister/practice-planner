@@ -18,6 +18,7 @@ import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from 
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
 import { PageBoundary } from "./ErrorBoundary";
+import { CommsPage } from "./Comms";
 import { readSetting } from "./data";
 import { adoptWaitingJobs, initialWaitStages } from "../lib/waiting";
 
@@ -53,7 +54,7 @@ export function App({ demo }: { demo: boolean }) {
   } else if (status === "needs-setup" || section === "setup") {
     body = <SetupPage />;
   } else if (section === "clients" && parts[1]) {
-    body = <ClientPage clientKey={parts[1]} tab={parts[2] === "work" ? "work" : "overview"} />;
+    body = <ClientPage clientKey={parts[1]} tab={parts[2] === "work" ? "work" : parts[2] === "comms" ? "comms" : "overview"} />;
   } else if (section === "groups") {
     body = <GroupsPage />;
   } else if (section === "home") {
@@ -64,6 +65,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <SettingsPage />;
   } else if (section === "chase") {
     body = <ChasePage />;
+  } else if (section === "comms") {
+    body = <CommsPage />;
   } else {
     body = <ClientsPage />;
   }
@@ -89,7 +92,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const { open } = useEditor();
   const chase = useChaseCount();
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["chase", "Chase", "mail"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"],
     ["settings", "Settings", "settings"],
   ];
   return (

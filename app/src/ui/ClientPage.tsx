@@ -13,9 +13,12 @@ import { chaseSummary } from "../lib/chase";
 import { LogoError, logoSrc, prepareLogo } from "../lib/logo";
 import { svcClass } from "../lib/serviceColour";
 import { useEditor } from "./Editors";
+import { CommsList, NewButtons } from "./Comms";
 
-export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" }) {
+export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" }) {
   const idx = useIndex();
+  const { data: allData } = useData();
+  const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
   const c = idx.clientByKey.get(clientKey);
   if (!c) {
     return (
@@ -85,9 +88,20 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         <a href={href("clients", c.Key, "work")} aria-current={tab === "work" ? "page" : undefined}>
           Work <span className="chip" style={{ marginLeft: 4 }}>{jobs.length}</span>
         </a>
+        <a href={href("clients", c.Key, "comms")} aria-current={tab === "comms" ? "page" : undefined}>
+          Letters and emails{commsCount ? <span className="chip" style={{ marginLeft: 4 }}>{commsCount}</span> : null}
+        </a>
       </nav>
 
-      {tab === "overview" ? <Overview client={c} jobs={jobs} /> : <WorkTab client={c} jobs={jobs} />}
+      {tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
+        <div className="stack">
+          <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>
+            <NewButtons clientKey={c.Key} />
+          </div>
+          <CommsList clientKey={c.Key} />
+        </div>
+      )}
     </div>
   );
 }

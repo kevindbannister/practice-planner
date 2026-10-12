@@ -1,0 +1,239 @@
+// AI writing bridge for Practice Planner: drafts and amends letters and emails with OpenAI.
+//
+// The OpenAI key lives in the Azure setting OPENAI_API_KEY and never reaches the browser.
+// Only Kevin's Microsoft sign-in for this app can use it (see ../shared/signin.js).
+//
+//   GET  /api/ai/status  -> { configured, model, models }
+//   POST /api/ai/write   -> { subject, body, model }
+//        { kind: "letter" | "email", mode: "draft" | "amend", brief?, instruction?,
+//          current?: { subject, body }, context?: {...}, style?, model? }
+//
+// What's sent to OpenAI: the brief or the change asked for, the current text when amending,
+// and the client details the app passes in context (names, address, jobs and deadlines).
+
+const { createSignIn, reply } = require("../shared/signin.js");
+
+const OPENAI = "https://api.openai.com/v1";
+// tried in this order when no model is chosen in Settings or OPENAI_MODEL
+const PREFERRED = ["gpt-5-mini", "gpt-5.1-mini", "gpt-5", "gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini", "gpt-4o"];
+const NOT_TEXT = /audio|realtime|image|dall|tts|transcribe|whisper|embedding|search|moderation|codex|computer|instruct|vision|preview/i;
+const MODELS_FOR_MS = 60 * 60 * 1000;
+
+const LIMITS = { brief: 4000, instruction: 2000, style: 2000, subject: 300, body: 20000, context: 20000 };
+
+const SYSTEM = [
+  "You write letters and emails for a small UK accountancy and advisory practice, to send to its clients.",
+  "Use British English and UK accounting and tax terms (HMRC, Companies House, Self Assessment, corporation tax, year end).",
+  "Be clear, warm and professional; plain words, short paragraphs, no jargon the client wouldn't know.",
+  "Use only facts given to you. Never invent figures, fees, dates, deadlines, reference numbers or tax rules. Where something needed isn't given, write a placeholder in square brackets, such as [amount] or [date], for the accountant to fill in.",
+  "Format the body as plain text: paragraphs separated by a blank line; bullet points as lines starting with \"- \"; **bold** only for the odd key phrase. No headings, no markdown links, no tables.",
+  "For a letter, write only the body: no addresses, date, \"Dear ...\" line, subject line or sign-off. Those are added separately.",
+  "For an email, start with a greeting line (for example \"Hi Tristan,\" or \"Dear Mr Walters,\", matching the salutation given) and end with a short sign-off and the sender's first name; leave out any signature block.",
+  "When asked to change existing text, make that change and keep everything else as it was unless the change needs it.",
+  "Reply with a JSON object only: {\"subject\": \"...\", \"body\": \"...\"}. The subject is a short, specific subject line.",
+].join("\n");
+
+function clip(v, n) {
+  return typeof v === "string" ? v.slice(0, n) : "";
+}
+
+/** The prompt for one request, as the user message. */
+function userMessage(b) {
+  const parts = [`Type: ${b.kind === "email" ? "email" : "letter"}`];
+  if (b.style) parts.push(`The practice's house style and details:\n${clip(b.style, LIMITS.style)}`);
+  if (b.context && typeof b.context === "object") {
+    const ctx = JSON.stringify(b.context, null, 1);
+    parts.push(`Client details:\n${ctx.slice(0, LIMITS.context)}`);
+  }
+  if (b.mode === "amend") {
+    parts.push(`Current subject: ${clip(b.current && b.current.subject, LIMITS.subject)}`);
+    parts.push(`Current text:\n${clip(b.current && b.current.body, LIMITS.body)}`);
+    parts.push(`Change to make: ${clip(b.instruction, LIMITS.instruction)}`);
+  } else {
+    parts.push(`What it's about: ${clip(b.brief, LIMITS.brief)}`);
+  }
+  return parts.join("\n\n");
+}
+
+/** Pull {subject, body} out of the model's answer, even if it wrapped the JSON in other text. */
+function parseAnswer(text) {
+  if (typeof text !== "string") return null;
+  let obj = null;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try {
+        obj = JSON.parse(m[0]);
+      } catch {
+        obj = null;
+      }
+    }
+  }
+  if (!obj || typeof obj.body !== "string") return null;
+  return { subject: typeof obj.subject === "string" ? obj.subject.trim() : "", body: obj.body.replace(/\r\n/g, "\n").trim() };
+}
+
+function pickModel(models, asked, env) {
+  const usable = (m) => !models || models.includes(m);
+  if (asked && usable(asked)) return asked;
+  const set = (env.OPENAI_MODEL || "").trim();
+  if (set && usable(set)) return set;
+  if (models) {
+    const pref = PREFERRED.find((m) => models.includes(m));
+    if (pref) return pref;
+    if (models.length) return models[0];
+  }
+  return set || PREFERRED[0];
+}
+
+function createHandler({ fetch = globalThis.fetch, env = process.env, now = () => Date.now() } = {}) {
+  const signedIn = createSignIn({ fetch, now });
+  let modelCache = null; // { at, list }
+
+  async function listModels(key) {
+    if (modelCache && now() - modelCache.at < MODELS_FOR_MS) return modelCache.list;
+    try {
+      const res = await fetch(`${OPENAI}/models`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10000) });
+      if (!res.ok) return null;
+      const json = await res.json();
+      const list = (json.data || [])
+        .map((m) => String(m.id))
+        .filter((id) => /^(gpt-|o\d)/.test(id) && !NOT_TEXT.test(id))
+        .sort();
+      modelCache = { at: now(), list };
+      return list;
+    } catch {
+      return null;
+    }
+  }
+
+  async function complete(key, model, message) {
+    const base = {
+      model,
+      messages: [{ role: "system", content: SYSTEM }, { role: "user", content: message }],
+      response_format: { type: "json_object" },
+    };
+    // reasoning models answer faster with low effort; others don't take the option
+    const attempts = [{ ...base, reasoning_effort: "low" }, base, { model, messages: base.messages }];
+    let last;
+    for (const body of attempts) {
+      last = await fetch(`${OPENAI}/chat/completions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(40000),
+      });
+      if (last.status !== 400) return last;
+      const err = await last.clone().json().catch(() => ({}));
+      const msg = String((err.error && (err.error.param || err.error.message)) || "");
+      if (!/reasoning|response_format|json/i.test(msg)) return last;
+    }
+    return last;
+  }
+
+  return async function handler(context, req) {
+    const action = String((context.bindingData && context.bindingData.action) || (req.params && req.params.action) || "").toLowerCase();
+    const key = (env.OPENAI_API_KEY || "").trim();
+
+    let ok = false;
+    try {
+      ok = await signedIn(req);
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." });
+      return;
+    }
+
+    if (action === "status" && (req.method || "GET").toUpperCase() === "GET") {
+      if (!key) {
+        context.res = reply(200, { configured: false });
+        return;
+      }
+      const models = await listModels(key);
+      const asked = req.query && typeof req.query.model === "string" ? req.query.model : "";
+      context.res = reply(200, { configured: true, keyAccepted: models !== null, model: pickModel(models, asked, env), models: models || [] });
+      return;
+    }
+
+    if (action !== "write" || (req.method || "").toUpperCase() !== "POST") {
+      context.res = reply(400, { error: "bad-request", message: "That isn't something this app asks for." });
+      return;
+    }
+    if (!key) {
+      context.res = reply(503, { error: "not-configured", message: "The OpenAI key hasn't been added to Azure yet (setting OPENAI_API_KEY)." });
+      return;
+    }
+
+    const b = typeof req.body === "string" ? safeJson(req.body) : req.body || {};
+    if (!b || !["letter", "email"].includes(b.kind) || !["draft", "amend"].includes(b.mode)) {
+      context.res = reply(400, { error: "bad-request", message: "Say whether it's a letter or an email, and a draft or a change." });
+      return;
+    }
+    if (b.mode === "draft" && !clip(b.brief, LIMITS.brief).trim()) {
+      context.res = reply(400, { error: "bad-request", message: "Say what the letter or email is about." });
+      return;
+    }
+    if (b.mode === "amend" && (!clip(b.instruction, LIMITS.instruction).trim() || !clip(b.current && b.current.body, LIMITS.body).trim())) {
+      context.res = reply(400, { error: "bad-request", message: "Say what to change, with the text to change." });
+      return;
+    }
+    const asked = typeof b.model === "string" && /^[a-z0-9.\-:_]{1,64}$/i.test(b.model) ? b.model : "";
+    const model = pickModel(await listModels(key), asked, env);
+
+    let res;
+    try {
+      res = await complete(key, model, userMessage(b));
+    } catch (e) {
+      const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
+      context.res = reply(timeout ? 504 : 502, {
+        error: timeout ? "timeout" : "unreachable",
+        message: timeout ? "OpenAI took too long to answer. Try again, or choose a faster model in Settings." : "OpenAI didn't answer. Try again shortly.",
+      });
+      return;
+    }
+
+    if (res.ok) {
+      const json = await res.json();
+      const text = json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
+      const answer = parseAnswer(text);
+      if (!answer) {
+        context.res = reply(502, { error: "bad-answer", message: "OpenAI's answer couldn't be read. Try again." });
+        return;
+      }
+      context.res = reply(200, { ...answer, model });
+      return;
+    }
+    const err = await res.json().catch(() => ({}));
+    const code = (err.error && err.error.code) || "";
+    if (res.status === 401) {
+      context.res = reply(502, { error: "key-rejected", message: "OpenAI didn't accept the API key in Azure." });
+    } else if (res.status === 429 && code === "insufficient_quota") {
+      context.res = reply(402, { error: "no-credit", message: "The OpenAI account has run out of credit. Add credit at platform.openai.com › Billing." });
+    } else if (res.status === 429) {
+      context.res = reply(429, { error: "rate-limited", message: "OpenAI is busy. Try again in a minute." });
+    } else if (res.status === 404 || code === "model_not_found") {
+      context.res = reply(502, { error: "model", message: `OpenAI doesn't offer the model "${model}" to this account. Choose another in Settings › Letters and email.` });
+    } else {
+      const detail = String((err.error && err.error.message) || "").slice(0, 200);
+      context.res = reply(502, { error: "upstream", status: res.status, message: `OpenAI returned an error (${res.status})${detail ? `: ${detail}` : "."}` });
+    }
+  };
+}
+
+function safeJson(s) {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
+
+module.exports = createHandler();
+module.exports.createHandler = createHandler;
+module.exports.parseAnswer = parseAnswer;
+module.exports.userMessage = userMessage;
+module.exports.pickModel = pickModel;

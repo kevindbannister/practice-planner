@@ -15,7 +15,7 @@ const note = (name: string): Column => ({ name, type: "note" });
 export type ListKey =
   | "Clients" | "Contacts" | "Groups" | "GroupMembers" | "Services" | "StageTemplates"
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
-  | "Authorisations" | "Settings" | "CHFlags";
+  | "Authorisations" | "Settings" | "CHFlags" | "Communications";
 
 export const LISTS: ListDef[] = [
   {
@@ -110,6 +110,14 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("ClientKey", true), t("JobKey"), t("Type"), t("Severity"), note("Detail"), note("Current"),
       note("Proposed"), t("Status", true), t("Found"), t("Resolved"),
+    ],
+  },
+  {
+    key: "Communications", displayName: "PP Communications", description: "Practice Planner: letters and emails to clients",
+    columns: [
+      t("Key", true), t("ClientKey", true), t("JobKey"), t("Kind"), t("Status"), t("Subject"), note("Body"), note("Brief"),
+      t("ToEmail"), note("Address"), t("Salutation"), t("SignOff"), t("LetterDate"), t("Created"), t("Updated", true),
+      t("FileUrl"), t("FileName"), t("OutlookUrl"), t("SentOn"),
     ],
   },
 ];

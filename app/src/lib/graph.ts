@@ -19,6 +19,8 @@ export interface Graph {
   /** Upload a file's bytes (PUT), e.g. to OneDrive. */
   put<T = any>(path: string, data: Uint8Array, contentType: string): Promise<T>;
   getAll<T = any>(path: string): Promise<T[]>;
+  /** A OneDrive file's bytes, by its item path (e.g. /me/drive/root:/Folder/file.docx). */
+  download(itemPath: string): Promise<Uint8Array>;
   batch(requests: BatchRequest[], onProgress?: (done: number) => void): Promise<BatchResponse[]>;
 }
 
@@ -75,6 +77,16 @@ export class HttpGraph implements Graph {
   }
   put<T = any>(path: string, data: Uint8Array, contentType: string): Promise<T> {
     return this.request("PUT", path, undefined, 0, { data, type: contentType });
+  }
+
+  async download(itemPath: string): Promise<Uint8Array> {
+    // the item says where its bytes can be fetched from, without the sign-in token
+    const item = await this.get<Record<string, string>>(itemPath);
+    const url = item["@microsoft.graph.downloadUrl"];
+    if (!url) throw new GraphError(404, "That file can't be downloaded.");
+    const res = await this.fetchImpl(url, { method: "GET" });
+    if (!res.ok) throw new GraphError(res.status, "Couldn't download the file.");
+    return new Uint8Array(await res.arrayBuffer());
   }
 
   async getAll<T = any>(path: string): Promise<T[]> {

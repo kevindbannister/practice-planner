@@ -4,9 +4,17 @@ import { BatchRequest, BatchResponse, Graph, GraphError } from "./graph";
 
 type Item = { id: string; fields: Record<string, unknown> };
 type List = { id: string; displayName: string; description?: string; columns: { name: string }[]; items: Item[]; nextItem: number };
-type DriveFile = { id: string; name: string; path: string; size: number; at: string };
+type DriveFile = { id: string; name: string; path: string; size: number; at: string; data64?: string };
+type FakeMessage = { id: string; subject: string; to: string[]; html: string; attachments: { name: string; size: number }[] };
 type FakeEvent = { id: string; subject: string; start: string; end: string; showAs: string; isAllDay: boolean; categories: string[]; props: { id: string; value: string }[] };
-type State = { lists: List[]; nextList: number; files?: DriveFile[]; events?: FakeEvent[]; nextEvent?: number };
+type State = { lists: List[]; nextList: number; files?: DriveFile[]; events?: FakeEvent[]; nextEvent?: number; messages?: FakeMessage[] };
+
+const toB64 = (d: Uint8Array) => {
+  let s = "";
+  for (let i = 0; i < d.length; i += 0x8000) s += String.fromCharCode(...d.subarray(i, i + 0x8000));
+  return btoa(s);
+};
+const fromB64 = (b: string) => Uint8Array.from(atob(b), (c) => c.charCodeAt(0));
 
 const BUILT_IN = ["Title", "Created", "Modified", "ID"];
 
@@ -50,10 +58,41 @@ export class FakeGraph implements Graph {
     const name = full.split("/").pop()!;
     const files = (this.state.files ||= []);
     const file: DriveFile = { id: `file-${files.length + 1}`, name, path: full, size: data.byteLength, at: new Date().toISOString() };
-    files.push(file);
+    // letters and the letterhead keep their bytes, so they can be opened again
+    if (full.startsWith("Practice Planner Letters/") && data.byteLength < 1_500_000) file.data64 = toB64(data);
+    const same = files.findIndex((f) => f.path === full);
+    if (same >= 0) files.splice(same, 1, { ...file, id: files[same].id });
+    else files.push(file);
     this.lastUpload = data;
     this.save();
     return { id: file.id, name, size: file.size, webUrl: `https://example-my.sharepoint.com/personal/demo/Documents/${encodeURI(full)}` } as T;
+  }
+  async download(itemPath: string): Promise<Uint8Array> {
+    const m = decodeURIComponent(itemPath).match(/^\/me\/drive\/root:\/(.+?)(?::)?$/);
+    const f = m && (this.state.files || []).find((x) => x.path === m[1]);
+    if (!f || !f.data64) throw new GraphError(404, "Item not found");
+    return fromB64(f.data64);
+  }
+  /** Outlook drafts: kept without attachment bytes. */
+  private mail(method: string, path: string, body: any): any {
+    const messages = (this.state.messages ||= []);
+    if (method === "POST" && path === "/me/messages") {
+      const msg: FakeMessage = {
+        id: `msg-${messages.length + 1}`, subject: body.subject, html: body.body?.content || "",
+        to: (body.toRecipients || []).map((r: any) => r.emailAddress?.address), attachments: [],
+      };
+      messages.push(msg);
+      this.save();
+      return { id: msg.id, webLink: `https://outlook.office.com/mail/drafts/id/${msg.id}` };
+    }
+    const m = path.match(/^\/me\/messages\/([^/]+)\/attachments$/);
+    const msg = m && messages.find((x) => x.id === m[1]);
+    if (method === "POST" && msg) {
+      msg.attachments.push({ name: body.name, size: Math.round(((body.contentBytes as string) || "").length * 0.75) });
+      this.save();
+      return { id: `att-${msg.attachments.length}` };
+    }
+    throw new GraphError(404, "Message not found");
   }
   /** A small Outlook calendar for the demo, with a few meetings in the next fortnight. */
   private calendar(method: string, path: string, q: URLSearchParams, body: any): any {
@@ -170,8 +209,11 @@ export class FakeGraph implements Graph {
 
     if (method === "GET" && path === "/me") return { displayName: "Demo User", mail: "demo@example.com" };
     if (path.startsWith("/me/calendarView") || path.startsWith("/me/events")) return this.calendar(method, path, q, body);
+    if (path.startsWith("/me/messages")) return this.mail(method, path, body);
     if (method === "GET" && (m = path.match(/^\/me\/drive\/root:\/(.+)$/))) {
       const folder = m[1];
+      const file = (this.state.files || []).find((f) => f.path === folder);
+      if (file) return { id: file.id, name: file.name, size: file.size, webUrl: `https://example-my.sharepoint.com/personal/demo/Documents/${encodeURI(folder)}`, file: {} };
       if (!(this.state.files || []).some((f) => f.path.startsWith(folder + "/"))) throw new GraphError(404, "Item not found");
       return { name: folder, webUrl: `https://example-my.sharepoint.com/personal/demo/Documents/${encodeURI(folder)}`, folder: {} };
     }

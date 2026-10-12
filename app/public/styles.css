@@ -638,8 +638,8 @@ table.grid th.num, table.grid td.num { text-align: right; }
   .home-day { grid-template-columns: minmax(0, 1fr); }
   .home-date { flex-direction: row; gap: 8px; padding: 10px 16px 0; }
   .home-day .home-list li > button { padding-left: 16px; }
-  .nav { grid-template-columns: repeat(6, 1fr); }
-  .nav a { font-size: 10.5px; }
+  .nav { grid-template-columns: repeat(7, minmax(0, 1fr)); padding-left: 2px; padding-right: 2px; }
+  .nav a { font-size: 10px; letter-spacing: -0.01em; }
 }
 .home-list li { min-width: 0; }
 .home-list li > button > .stack { flex: 1 1 auto; }
@@ -776,3 +776,55 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
 .wait-box { border: 1px solid var(--wait); background: var(--wait-soft); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .wait-box h3 { margin: 0; font-size: 15px; color: var(--wait-ink); }
 @media (max-width: 720px) { .waitbtn span { display: none; } }
+
+/* ---------- letters and emails ---------- */
+.comms-filters { flex-wrap: wrap; gap: 12px; justify-content: flex-start; }
+.comms-list { list-style: none; margin: 0; padding: 0; }
+.comms-list li + li { border-top: 1px solid var(--line-2); }
+.comms-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; color: var(--ink); text-decoration: none; }
+.comms-row:hover { background: var(--surface-2); }
+.comms-kind { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; }
+.comms-kind.letter { background: var(--blue-soft); color: var(--blue-ink); }
+.comms-kind.email { background: var(--wait-soft); color: var(--wait-ink); }
+.comms-subject { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comms-meta { font-size: 12.5px; }
+.comms-snippet { font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comms-row .chip { flex: 0 0 auto; }
+
+.composer { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.composer-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: calc(var(--topbar-h, 64px) + 12px); }
+.composer-h { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+.ai-card { border-top: 3px solid var(--wait); }
+.starter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; cursor: pointer; min-height: 30px; text-align: left; }
+.chip-btn:hover:not([disabled]) { border-color: var(--wait); color: var(--wait-ink); background: var(--wait-soft); }
+.chip-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+.composer-doc { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.docpage { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 24px var(--shadow); padding: 28px 32px; display: flex; flex-direction: column; gap: 14px; }
+.docpage.letter { border-top: 4px solid var(--blue); }
+.docpage.email { border-top: 4px solid var(--wait); }
+.doc-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.doc-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.doc-field > span:first-child, .doc-toolbar > span:first-child { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.doc-field .input { color: var(--ink); font-size: 15px; }
+.doc-subject { font-weight: 700; }
+.doc-address { line-height: 1.45; resize: vertical; }
+.doc-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.doc-body { font-size: 15px; line-height: 1.6; resize: vertical; min-height: 240px; font-family: inherit; }
+.doc-signoff { display: flex; flex-direction: column; gap: 10px; }
+.doc-sign { font-size: 14px; line-height: 1.5; padding-top: 22px; }
+.composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.made-links { justify-content: flex-end; }
+.danger-link { color: var(--red-ink); }
+.alert.green-alert { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+@media (max-width: 960px) {
+  .composer { grid-template-columns: minmax(0, 1fr); }
+  .composer-side { position: static; }
+}
+@media (max-width: 720px) {
+  .docpage { padding: 16px; }
+  .composer-actions { flex-direction: column-reverse; align-items: stretch; }
+  .composer-actions .row-wrap { flex-direction: column; align-items: stretch; }
+  .comms-row { padding: 12px; }
+}
+.seg button svg { margin-right: 6px; vertical-align: -2px; }

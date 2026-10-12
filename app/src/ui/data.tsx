@@ -20,6 +20,7 @@ export type Data = {
   tasks: Task[];
   settings: Row[];
   chFlags: Row[];
+  comms: Row[];
 };
 
 type Status = "connecting" | "needs-setup" | "loading" | "ready" | "error";
@@ -43,7 +44,7 @@ type Ctx = {
 
 const EMPTY: Data = {
   clients: [], contacts: [], groups: [], members: [], services: [], stageTemplates: [],
-  clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [],
+  clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [], comms: [],
 };
 
 const DataContext = createContext<Ctx | null>(null);
@@ -52,7 +53,7 @@ export const SOURCE: [keyof Data, ListKey][] = [
   ["clients", "Clients"], ["contacts", "Contacts"], ["groups", "Groups"], ["members", "GroupMembers"],
   ["services", "Services"], ["stageTemplates", "StageTemplates"], ["clientServices", "ClientServices"],
   ["clientStages", "ClientServiceStages"], ["jobs", "Jobs"], ["history", "JobHistory"], ["tasks", "Tasks"],
-  ["settings", "Settings"], ["chFlags", "CHFlags"],
+  ["settings", "Settings"], ["chFlags", "CHFlags"], ["comms", "Communications"],
 ];
 const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 
