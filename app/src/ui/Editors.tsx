@@ -8,6 +8,7 @@ import {
 import { deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
 import { chaseSummary } from "../lib/chase";
+import { nextStagePatch } from "../lib/stages";
 import { svcClass } from "../lib/serviceColour";
 import { DeadlineChip, Icon, href } from "./bits";
 import { useData, useIndex } from "./data";
@@ -138,6 +139,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [done, setDone] = useState<Row | null | undefined>(undefined);
+  const completeRef = useRef<HTMLElement>(null);
   if (!job) return null;
 
   const client = idx.clientByKey.get(job.ClientKey);
@@ -151,6 +153,13 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     // reaching a "records received" stage means the records are in
     const records = /received/i.test(name) && !job.RecordsReceived ? { RecordsReceived: today } : {};
     return save({ StageNo: n, StageName: name, ...records });
+  };
+  /** The stage you're on is done: move on to the next one, or finish the job after the last. */
+  const stageDone = () => {
+    const patch = nextStagePatch(job, stages, today);
+    if (patch) return save(patch);
+    setCompleting(true);
+    window.requestAnimationFrame(() => completeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   };
   const rule = ruleFor(job.ServiceKey, data.services);
   const preview = nextPeriod(rule, job.PeriodEnd, job.Deadline);
@@ -212,6 +221,9 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       {isOpen(job) && <HoldSection item={job} deadline={job.Deadline} save={save} what="job" />}
 
       <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <Field label="Note on card" value={job.CardNote as string} placeholder="A short note shown on the planner card" onSave={(v) => save({ CardNote: v })} />
+        </div>
         <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v })} />
         <Field label="Deadline" type="date" value={job.Deadline} onSave={(v) => save({ Deadline: v, DeadlineSource: "Manual" })} />
         <Field label="Records expected" type="date" value={job.RecordsExpected as string} onSave={(v) => save({ RecordsExpected: v })} />
@@ -239,7 +251,11 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
             <h3 id="stages-h" style={{ margin: 0, fontSize: 15 }}>Stage {current} of {stages.length}</h3>
             <div className="row-wrap" style={{ gap: 6 }}>
               <button type="button" className="btn small" disabled={current <= 1} onClick={() => setStage(current - 1)}>Back</button>
-              <button type="button" className="btn small primary" disabled={current >= stages.length} onClick={() => setStage(current + 1)}>Next stage</button>
+              {isOpen(job) && (
+                <button type="button" className="btn small primary" onClick={stageDone}>
+                  <Icon name="check" size={14} />{current >= stages.length ? "Last stage done" : "Stage done"}
+                </button>
+              )}
             </div>
           </div>
           <ol className="stage-list">
@@ -248,16 +264,25 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
               const state = n < current ? "done" : n === current ? "now" : "todo";
               return (
                 <li key={s.Key as string}>
-                  <button type="button" className={`stage ${state}`} aria-current={state === "now" ? "step" : undefined} onClick={() => setStage(n)}>
+                  <button
+                    type="button"
+                    className={`stage ${state}`}
+                    aria-current={state === "now" ? "step" : undefined}
+                    onClick={() => (state === "now" && isOpen(job) ? stageDone() : setStage(n))}
+                    title={state === "now" ? "Mark this stage done" : state === "done" ? "Go back to this stage" : "Move the job to this stage"}
+                  >
                     <span className="stage-dot" aria-hidden="true">{state === "done" ? <Icon name="check" size={12} /> : n}</span>
                     <span>{s.Title as string}</span>
                     {state === "done" && <span className="sr-only">(done)</span>}
+                    {state === "now" && <span className="stage-now">In progress{isOpen(job) ? <span className="stage-done-hint"> · click when done</span> : null}</span>}
                   </button>
                 </li>
               );
             })}
           </ol>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Click a stage to move the job to it.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+            Click the stage you're on when it's done, and the next one starts. Click any other stage to move the job straight to it.
+          </p>
         </section>
       )}
 
@@ -270,7 +295,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       ) : null}
 
       {isOpen(job) && (
-        <section className="stack complete-box" aria-labelledby="complete-h">
+        <section className="stack complete-box" aria-labelledby="complete-h" ref={completeRef}>
           <h3 id="complete-h" style={{ margin: 0, fontSize: 15 }}>Finish this job</h3>
           {!completing ? (
             <>
@@ -542,6 +567,9 @@ function TaskFields({ value, clients, onChange, live }: { value: Row; clients: R
         <Field label="Planned for" type="date" value={value.PlannedDate as string} onSave={(v) => onChange({ PlannedDate: v })} />
         <Field label="Due" type="date" value={value.DueDate as string} onSave={(v) => onChange({ DueDate: v })} />
         <Field label="Hours" type="number" step="0.25" value={value.EstimateHours as number} onSave={(v) => onChange({ EstimateHours: num(v) })} />
+        <div style={{ gridColumn: "1 / -1" }}>
+          <Field label="Note on card" value={value.CardNote as string} placeholder="A short note shown on the planner card" onSave={(v) => onChange({ CardNote: v })} />
+        </div>
         <div style={{ gridColumn: "1 / -1" }}><Field label="Notes" multiline value={value.Notes as string} onSave={(v) => onChange({ Notes: v })} /></div>
       </div>
     );
@@ -560,6 +588,7 @@ function TaskFields({ value, clients, onChange, live }: { value: Row; clients: R
       <label>Planned for<input className="input" type="date" value={(value.PlannedDate as string) || ""} onChange={set("PlannedDate")} /></label>
       <label>Due<input className="input" type="date" value={(value.DueDate as string) || ""} onChange={set("DueDate")} /></label>
       <label>Hours<input className="input" type="number" step="0.25" value={(value.EstimateHours as any) ?? ""} onChange={(e) => onChange({ EstimateHours: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
+      <label style={{ gridColumn: "1 / -1" }}>Note on card<input className="input" placeholder="A short note shown on the planner card" value={(value.CardNote as string) || ""} onChange={set("CardNote")} /></label>
       <label style={{ gridColumn: "1 / -1" }}>Notes<textarea className="input" rows={3} value={(value.Notes as string) || ""} onChange={set("Notes")} /></label>
     </div>
   );

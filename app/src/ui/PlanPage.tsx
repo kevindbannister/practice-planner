@@ -16,6 +16,8 @@ import { svcClass } from "../lib/serviceColour";
 import { readSetting } from "./data";
 import { Candidate, DEFAULT_FILL, LOOK_AHEAD_DAYS, Skipped, Suggestion, suggestPlan } from "../lib/autoplan";
 import { waitingForRecords } from "../lib/chase";
+import { stageLabel } from "../lib/stages";
+import { CardField, CardOptions, useCardFields } from "./CardOptions";
 
 function useNarrow(query = "(max-width: 720px)"): boolean {
   const get = () => typeof matchMedia === "function" && matchMedia(query).matches;
@@ -42,6 +44,11 @@ type Item = {
   urgent: boolean;
   compliance: boolean;
   held: boolean;
+  stage?: string; // the stage's name, e.g. "Records received"
+  stageNo?: number;
+  stageCount?: number;
+  note?: string;
+  recordsIn?: boolean;
 };
 
 type Show = "all" | "compliance" | "other";
@@ -74,6 +81,7 @@ function WeekView() {
   const days = [0, 1, 2, 3, 4].map((i) => addDays(week, i));
   const [picked, setPicked] = useState<string>();
   const [types, setTypes] = useRememberedTypes("pp.plan.types");
+  const [fields, toggleField, resetFields] = useCardFields();
   const [slide, setSlide] = useState<"" | "next" | "prev">("");
   const swipe = useRef<{ x: number; y: number; cancelled: boolean } | null>(null);
   /** Move a week on or back; on a phone the same weekday stays selected. */
@@ -104,18 +112,24 @@ function WeekView() {
   const shownDay = picked && days.includes(picked) ? picked : days.includes(today) ? today : days[0];
 
   const items: Item[] = useMemo(() => {
-    const jobs = idx.openJobs.map<Item>((j) => ({
-      kind: "job", key: j.Key, row: j, title: j.Title,
-      client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "",
-      tag: shortTag(j.ServiceKey, idx.serviceName.get(j.ServiceKey || "")),
-      hours: jobHours(j, data.services), planned: j.PlannedDate, deadline: j.Deadline,
-      urgent: j.Priority === "urgent", compliance: true, held: isOnHold(j),
-    }));
+    const jobs = idx.openJobs.map<Item>((j) => {
+      const stages = idx.stagesByService.get(j.ServiceKey || "") || [];
+      return {
+        kind: "job", key: j.Key, row: j, title: j.Title,
+        client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "",
+        tag: shortTag(j.ServiceKey, idx.serviceName.get(j.ServiceKey || "")),
+        hours: jobHours(j, data.services), planned: j.PlannedDate, deadline: j.Deadline,
+        urgent: j.Priority === "urgent", compliance: true, held: isOnHold(j),
+        stage: stages.length || j.StageName ? stageLabel(j, stages) : undefined,
+        stageNo: Math.min(Number(j.StageNo || 1), Math.max(stages.length, 1)), stageCount: stages.length,
+        note: (j.CardNote as string) || "", recordsIn: !!j.RecordsReceived,
+      };
+    });
     const tasks = idx.openTasks.map<Item>((t) => ({
       kind: "task", key: t.Key, row: t, title: t.Title,
       client: (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "",
       tag: t.Type || "Task", hours: t.EstimateHours || 1, planned: t.PlannedDate, deadline: t.DueDate,
-      urgent: false, compliance: false, held: isOnHold(t),
+      urgent: false, compliance: false, held: isOnHold(t), note: (t.CardNote as string) || "",
     }));
     return [...jobs, ...tasks];
   }, [idx, data.services]);
@@ -248,6 +262,7 @@ function WeekView() {
       key={i.key}
       item={i}
       today={today}
+      fields={fields}
       dragging={dragKey === i.key}
       onOpen={() => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key })}
       dragProps={cardProps(i.key)}
@@ -278,6 +293,7 @@ function WeekView() {
                 <Icon name="spark" />Suggest a plan
               </button>
             )}
+            <CardOptions fields={fields} toggle={toggleField} reset={resetFields} />
             <button type="button" className="btn primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
           </div>
           <span id="suggest-help" className="sr-only">Fills the days left this week from unplanned work. Nothing is saved until you accept.</span>
@@ -435,6 +451,7 @@ function WeekView() {
                     <PlanCard
                       item={item}
                       today={today}
+                      fields={fields}
                       dragging={false}
                       suggested={s.reason}
                       onOpen={() => open(item.kind === "job" ? { kind: "job", key: item.key } : { kind: "task", key: item.key })}
@@ -477,33 +494,52 @@ type DragProps = {
 };
 
 function PlanCard({
-  item: i, today, dragging, onOpen, dragProps, suggested,
+  item: i, today, fields, dragging, onOpen, dragProps, suggested,
 }: {
-  item: Item; today: string; dragging: boolean; onOpen: () => void; dragProps?: DragProps; suggested?: string;
+  item: Item; today: string; fields: Set<CardField>; dragging: boolean; onOpen: () => void; dragProps?: DragProps; suggested?: string;
 }) {
   const st = jobState(i.kind === "task" ? taskAsJob(i.row as Task) : (i.row as Job), today);
   const job = i.kind === "job" ? (i.row as Job) : undefined;
+  const on = (f: CardField) => fields.has(f);
+  // the first line is the client, or the job when the client is hidden (or there isn't one)
+  const showClient = on("client") && !!i.client;
+  const head = showClient ? i.client : on("job") || !i.client ? i.title : i.client;
+  const sub = [
+    showClient && on("job") ? i.title : "",
+    on("period") && job?.PeriodEnd ? `to ${fmtDate(job.PeriodEnd, { year: false })}` : "",
+  ].filter(Boolean).join(" · ");
+  const flags = on("flags") && (i.urgent || (!i.held && (st.state === "overdue" || st.state === "tight")) || (i.planned && i.planned < today));
+  const showDeadline = on("deadline") && !!i.deadline;
   return (
     <button
       type="button"
       className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}`}
       {...(dragProps || {})}
       onClick={onOpen}
-      aria-label={`${suggested !== undefined ? "Suggested: " : ""}${i.title}${i.client ? ", " + i.client : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}. Open to edit.`}
+      aria-label={`${suggested !== undefined ? "Suggested: " : ""}${i.title}${i.client ? ", " + i.client : ""}${i.stage ? ", stage: " + i.stage : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}${i.note ? ". Note: " + i.note : ""}. Open to edit.`}
     >
-      <span className="pcard-top">
-        <span className="pcard-tag">{i.tag}</span>
-        <span className="row-wrap" style={{ gap: 6, flexWrap: "nowrap" }}>
-          <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{fmtHours(i.hours)}</span>
-          {dragProps && <span className="pcard-grip" aria-hidden="true" title="Drag to plan"><Icon name="grip" /></span>}
+      {(on("type") || on("hours") || dragProps) && (
+        <span className="pcard-top">
+          {on("type") ? <span className="pcard-tag">{i.tag}</span> : <span />}
+          <span className="row-wrap" style={{ gap: 6, flexWrap: "nowrap" }}>
+            {on("hours") && <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{fmtHours(i.hours)}</span>}
+            {dragProps && <span className="pcard-grip" aria-hidden="true" title="Drag to plan"><Icon name="grip" /></span>}
+          </span>
         </span>
-      </span>
-      <span className="pcard-client">{i.client || i.title}</span>
-      <span className="pcard-sub">
-        {i.client ? i.title : ""}
-        {job?.PeriodEnd ? ` · to ${fmtDate(job.PeriodEnd, { year: false })}` : ""}
-        {job?.StageNo ? ` · stage ${job.StageNo}` : ""}
-      </span>
+      )}
+      <span className="pcard-client">{head}</span>
+      {sub && <span className="pcard-sub">{sub}</span>}
+      {on("stage") && i.stage && (
+        <span className="pcard-stage">
+          <span className="pcard-stage-dot" aria-hidden="true" />
+          <span className="pcard-stage-name">{i.stage}</span>
+          {i.stageCount ? <span className="pcard-stage-of">{i.stageNo}/{i.stageCount}</span> : null}
+        </span>
+      )}
+      {on("records") && job && (
+        <span className={`pcard-records ${i.recordsIn ? "in" : "out"}`}>{i.recordsIn ? `Records in ${fmtDate(job.RecordsReceived!, { year: false })}` : "Records not in yet"}</span>
+      )}
+      {on("note") && i.note && <span className="pcard-note">{i.note}</span>}
       {suggested !== undefined && (
         <span className="pcard-suggest"><span className="chip blue">Suggested</span>{suggested && <span>{suggested}</span>}</span>
       )}
@@ -513,13 +549,13 @@ function PlanCard({
           {(i.row.HoldReason as string) && <span style={{ fontSize: 12 }}>{i.row.HoldReason as string}</span>}
         </span>
       )}
-      {(i.deadline || i.urgent) && (
+      {(showDeadline || flags) && (
         <span className="pcard-foot">
-          {i.deadline && <span className="mono" style={{ fontSize: 12 }}>Due {fmtDate(i.deadline, { year: i.deadline.slice(0, 4) !== today.slice(0, 4) })}</span>}
-          {i.urgent && <span className="chip red">Urgent</span>}
-          {!i.held && st.state === "overdue" && <span className="chip red">{-st.days!}d late</span>}
-          {!i.held && st.state === "tight" && <span className="chip amber">Tight · {st.days}d</span>}
-          {i.planned && i.planned < today && <span className="chip amber">Planned {fmtDate(i.planned, { year: false })}</span>}
+          {showDeadline && <span className="mono" style={{ fontSize: 12 }}>Due {fmtDate(i.deadline!, { year: i.deadline!.slice(0, 4) !== today.slice(0, 4) })}</span>}
+          {on("flags") && i.urgent && <span className="chip red">Urgent</span>}
+          {on("flags") && !i.held && st.state === "overdue" && <span className="chip red">{-st.days!}d late</span>}
+          {on("flags") && !i.held && st.state === "tight" && <span className="chip amber">Tight · {st.days}d</span>}
+          {on("flags") && i.planned && i.planned < today && <span className="chip amber">Planned {fmtDate(i.planned, { year: false })}</span>}
         </span>
       )}
     </button>

@@ -5,7 +5,8 @@ import {
 } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { jobHours } from "../lib/planning";
-import { ClientBadge, DeadlineChip, companiesHouseUrl, href } from "./bits";
+import { ClientBadge, DeadlineChip, Icon, companiesHouseUrl, href } from "./bits";
+import { nextStagePatch, stageLabel } from "../lib/stages";
 import { useData, useIndex } from "./data";
 import { chaseSummary } from "../lib/chase";
 import { LogoError, logoSrc, prepareLogo } from "../lib/logo";
@@ -398,7 +399,8 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
 }
 
 function JobCard({ job: j }: { job: Job }) {
-  const { data } = useData();
+  const { data, update } = useData();
+  const [saving, setSaving] = useState(false);
   const { open } = useEditor();
   const today = todayIso();
   const st = jobState(j, today);
@@ -408,7 +410,19 @@ function JobCard({ job: j }: { job: Job }) {
   const mine = new Map(
     data.clientStages.filter((s) => s.ClientKey === j.ClientKey && s.ServiceKey === j.ServiceKey).map((s) => [s.StageNo as number, s]),
   );
-  const current = j.StageNo || 1;
+  const current = Math.min(j.StageNo || 1, Math.max(templates.length, 1));
+  const last = current >= templates.length;
+  const stageDone = async () => {
+    if (last) return open({ kind: "job", key: j.Key }); // the last stage: finish the job in its panel
+    const patch = nextStagePatch(j, templates, today);
+    if (!patch) return;
+    setSaving(true);
+    try {
+      await update("Jobs", j, patch);
+    } finally {
+      setSaving(false);
+    }
+  };
   const budget = jobHours(j, data.services);
 
   return (
@@ -425,6 +439,7 @@ function JobCard({ job: j }: { job: Job }) {
             {j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)}` : ""}
             {j.DeadlineSource ? ` · deadline from ${j.DeadlineSource}` : ""}
           </span>
+          {(j.CardNote as string) && <span className="pcard-note" style={{ alignSelf: "flex-start" }}>{j.CardNote as string}</span>}
           {isOnHold(j) && (
             <span style={{ fontSize: 13 }}>
               {(j.HoldReason as string) || "On hold"}
@@ -454,8 +469,13 @@ function JobCard({ job: j }: { job: Job }) {
             ))}
           </div>
           <div className="row-wrap" style={{ justifyContent: "space-between", fontSize: 13 }}>
-            <span><strong>Stage {current} of {templates.length}:</strong> {j.StageName || templates[current - 1]?.Title}</span>
-            {j.SuggestedSlot && !j.PlannedDate && <span className="muted">Suggested slot: {fmtDate(j.SuggestedSlot, { weekday: true })}</span>}
+            <span><strong>Stage {current} of {templates.length}:</strong> {stageLabel(j, templates)}</span>
+            <span className="row-wrap" style={{ gap: 10 }}>
+              {j.SuggestedSlot && !j.PlannedDate && <span className="muted">Suggested slot: {fmtDate(j.SuggestedSlot, { weekday: true })}</span>}
+              <button type="button" className="btn small" onClick={stageDone} disabled={saving}>
+                <Icon name="check" size={14} />{last ? "Finish job…" : "Stage done"}
+              </button>
+            </span>
           </div>
           <details>
             <summary>All stages</summary>

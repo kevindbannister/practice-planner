@@ -721,3 +721,22 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
 .slide-prev { animation: slide-from-left 0.25s ease-out; }
 .daystrip { touch-action: pan-y; }
 @media (prefers-reduced-motion: reduce) { .slide-next, .slide-prev { animation: none; } }
+
+/* ---------- card details and card notes ---------- */
+.cardopts .typefilter-pop { right: auto; width: 260px; max-width: calc(100vw - 32px); }
+.pcard-stage { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); min-width: 0; }
+.pcard-stage-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--svc, var(--blue)); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--svc, var(--blue)); margin: 0 2px; }
+.pcard-stage-name { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcard-stage-of { font-family: var(--mono); font-size: 11px; color: var(--muted); flex: 0 0 auto; }
+.pcard-records { font-size: 12px; font-weight: 600; }
+.pcard-records.in { color: var(--green); }
+.pcard-records.out { color: var(--amber-ink); }
+.pcard-note { font-size: 12.5px; line-height: 1.35; color: var(--ink); background: var(--amber-soft); border-radius: 6px; padding: 4px 7px; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.stage-now { margin-left: auto; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.stage-done-hint { font-weight: 400; }
+@media (max-width: 720px) { .stage-done-hint { display: none; } }
+@media print { .cardopts { display: none; } }
+@media (max-width: 720px) {
+  .cardopts { position: static; }
+  .cardopts .typefilter-pop { left: 16px; right: 16px; width: auto; max-width: none; top: auto; margin-top: 6px; }
+}

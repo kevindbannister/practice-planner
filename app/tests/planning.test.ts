@@ -138,3 +138,16 @@ test("re-ordering stages keeps jobs and client stage details on the same stage",
   assert.deepEqual(r.jobs.map((j) => [j.row._id, j.patch]), [["j1", { StageNo: 1, StageName: "Review" }], ["j2", { StageNo: 2, StageName: "Request records" }]]);
   assert.deepEqual(r.clientStages.map((c) => [c.row._id, c.patch.StageNo]), [["c1", 3]]);
 });
+
+import { nextStagePatch, stageLabel } from "../src/lib/stages";
+
+test("finishing a stage moves the job to the next one", () => {
+  const stages = [
+    { StageNo: 1, Title: "Request records" }, { StageNo: 2, Title: "Records received" }, { StageNo: 3, Title: "Prepare" },
+  ];
+  assert.deepEqual(nextStagePatch({ StageNo: 1 }, stages, "2026-10-12"), { StageNo: 2, StageName: "Records received", RecordsReceived: "2026-10-12" });
+  assert.deepEqual(nextStagePatch({ StageNo: 2, RecordsReceived: "2026-10-01" }, stages, "2026-10-12"), { StageNo: 3, StageName: "Prepare" });
+  assert.equal(nextStagePatch({ StageNo: 3 }, stages, "2026-10-12"), null);
+  assert.equal(stageLabel({ StageNo: 2 }, stages), "Records received");
+  assert.equal(stageLabel({ StageNo: 5, StageName: "Old name" }, stages), "Old name");
+});

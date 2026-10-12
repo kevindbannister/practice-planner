@@ -40,3 +40,25 @@ export function renumberStages(ordered: Row[], jobs: Row[], clientStages: Row[])
   }
   return out;
 }
+
+/**
+ * Finish the job's current stage: the next one becomes current. Reaching a "received" stage
+ * also notes the records as in. Returns null on the last stage (the job itself is then done).
+ */
+export function nextStagePatch(job: Row, stages: Row[], today: string): Row | null {
+  const ordered = [...stages].sort((a, b) => Number(a.StageNo) - Number(b.StageNo));
+  const current = Math.min(Number(job.StageNo || 1), Math.max(ordered.length, 1));
+  if (current >= ordered.length) return null;
+  const next = ordered[current];
+  const name = String(next?.Title || "");
+  const patch: Row = { StageNo: current + 1, StageName: name };
+  if (/received/i.test(name) && !job.RecordsReceived) patch.RecordsReceived = today;
+  return patch;
+}
+
+/** The name of the stage a job is at. */
+export function stageLabel(job: Row, stages: Row[]): string {
+  const no = Number(job.StageNo || 1);
+  const t = stages.find((s) => Number(s.StageNo) === no);
+  return String((t?.Title as string) || job.StageName || `Stage ${no}`);
+}
