@@ -105,7 +105,7 @@ export function longDate(iso: string): string {
  */
 export function aiContext(o: {
   client: Client; jobs: Job[]; job?: Job; stageName: (j: Job) => string; serviceName: (k?: string) => string;
-  prefs: CommsPrefs; today: string; kind: CommKind; salutation: string;
+  prefs: CommsPrefs; today: string; kind: CommKind; salutation: string; payments?: unknown[];
 }): Record<string, unknown> {
   const { client: c } = o;
   const work = (j: Job) => ({
@@ -126,6 +126,7 @@ export function aiContext(o: {
     yearEnd: c.YearEnd || undefined,
     about: o.job ? work(o.job) : undefined,
     openWork: o.jobs.slice(0, 12).map(work),
+    taxPayments: o.payments && o.payments.length ? o.payments : undefined,
     sender: o.prefs.signName || undefined,
     practice: o.prefs.signTitle || undefined,
   };

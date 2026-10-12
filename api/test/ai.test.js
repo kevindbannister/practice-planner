@@ -97,3 +97,18 @@ test("reading answers and picking models", () => {
   assert.equal(pickModel(null, "", { OPENAI_MODEL: "gpt-x" }), "gpt-x");
   assert.match(userMessage({ kind: "email", mode: "draft", brief: "x", style: "Sign as Kevin" }), /Type: email[\s\S]*Sign as Kevin/);
 });
+
+test("tidies meeting notes into a summary, decisions and actions", async () => {
+  const { parseMeeting } = require("../ai/index.js");
+  const answer = { summary: "We went through the accounts.", decisions: ["Pay a dividend of £10,000", ""], actions: [{ text: "Send the bank letter", who: "client", due: "2026-10-31" }, { text: "File the accounts", due: "soon" }] };
+  const fetch = fakeFetch({ answers: [res(200, { choices: [{ message: { content: JSON.stringify(answer) } }] })] });
+  const r = await call({ fetch, body: { kind: "meeting", mode: "tidy", meeting: { title: "Year-end review", when: "2026-10-12", agenda: [{ item: "Results", notes: "profit up 10%" }] } } });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.decisions, ["Pay a dividend of £10,000"]);
+  assert.deepEqual(r.body.actions, [{ text: "Send the bank letter", who: "client", due: "2026-10-31" }, { text: "File the accounts", who: "me", due: "" }]);
+  const sent = r.fetch.calls.find((c) => c.url.endsWith("/chat/completions")).body;
+  assert.match(sent.messages[0].content, /rough notes from a meeting/);
+  assert.match(sent.messages[1].content, /## Results\nprofit up 10%/);
+  assert.equal((await call({ body: { kind: "meeting", mode: "tidy", meeting: { agenda: [{ item: "x", notes: " " }] } } })).status, 400);
+  assert.equal(parseMeeting("nope"), null);
+});

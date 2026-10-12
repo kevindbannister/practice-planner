@@ -34,3 +34,18 @@ test("settings read with defaults", () => {
   assert.equal(readCommsPrefs([]).signOff, "Yours sincerely,");
   assert.equal(readCommsPrefs([{ Key: "comms", Value: JSON.stringify({ signName: "Kevin" }) }]).signName, "Kevin");
 });
+
+test("search scores and meeting summary emails", async () => {
+  const { matchScore } = await import("../src/ui/searchScore");
+  assert.equal(matchScore(["acme"], "Acme Ltd", ""), 3);
+  assert.equal(matchScore(["ltd", "acme"], "Acme Ltd", ""), 6);
+  assert.equal(matchScore(["smith"], "Acme Ltd", "Tom Smith"), 1);
+  assert.equal(matchScore(["zzz"], "Acme Ltd", "Tom Smith"), 0);
+  const { summaryEmail } = await import("../src/lib/meetings");
+  const mail = summaryEmail({
+    greeting: "Hi Tom,", title: "Year-end accounts review", when: "2026-10-12T14:00", summary: "We went through the accounts.",
+    decisions: ["Pay a £10,000 dividend", " "], actions: [{ text: "Send bank letter", who: "Client", due: "2026-10-31" }, { text: "File accounts", who: "Me", due: "" }], sender: "Kevin",
+  });
+  assert.equal(mail.subject, "Notes from our meeting on 12 Oct 2026");
+  assert.match(mail.body, /\*\*What we agreed\*\*\n- Pay a £10,000 dividend\n\n\*\*What we need from you\*\*\n- Send bank letter \(by 31 Oct 2026\)\n\n\*\*What I'll do next\*\*\n- File accounts/);
+});

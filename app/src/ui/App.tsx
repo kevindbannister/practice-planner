@@ -19,6 +19,7 @@ import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
 import { PageBoundary } from "./ErrorBoundary";
 import { CommsPage } from "./Comms";
+import { SearchButton } from "./Search";
 import { readSetting } from "./data";
 import { adoptWaitingJobs, initialWaitStages } from "../lib/waiting";
 
@@ -54,7 +55,7 @@ export function App({ demo }: { demo: boolean }) {
   } else if (status === "needs-setup" || section === "setup") {
     body = <SetupPage />;
   } else if (section === "clients" && parts[1]) {
-    body = <ClientPage clientKey={parts[1]} tab={parts[2] === "work" ? "work" : parts[2] === "comms" ? "comms" : "overview"} />;
+    body = <ClientPage clientKey={parts[1]} tab={(["work", "comms", "meetings", "tax"].includes(parts[2]) ? parts[2] : "overview") as "overview"} />;
   } else if (section === "groups") {
     body = <GroupsPage />;
   } else if (section === "home") {
@@ -121,6 +122,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
         {save.state === "error" && (
           <span className="save error" role="alert"><Icon name="alert" size={14} /><span className="save-text">Not saved: {save.error}</span></span>
         )}
+        {ready && <SearchButton />}
         <ThemeToggle />
         {ready && <Alerts />}
         {ready && (
@@ -131,7 +133,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
             </button>
           </>
         )}
-        {user && <span className="muted hide-phone">{user}</span>}
+        {user && <span className="muted hide-phone topbar-user">{user}</span>}
         {!demo && <button type="button" className="linkbtn hide-phone" onClick={signOut}>Sign out</button>}
       </div>
     </header>

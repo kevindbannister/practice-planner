@@ -33,6 +33,52 @@ const SYSTEM = [
   "Reply with a JSON object only: {\"subject\": \"...\", \"body\": \"...\"}. The subject is a short, specific subject line.",
 ].join("\n");
 
+const SYSTEM_MEETING = [
+  "You tidy up an accountant's rough notes from a meeting or call with a client of a small UK accountancy and advisory practice.",
+  "Use British English. Use only what the notes say: never invent figures, dates, decisions or actions. Keep names, amounts and dates exactly as written.",
+  "Write a short summary in plain sentences (a few short paragraphs at most), addressed to nobody in particular, that the accountant could send to the client.",
+  "List the decisions made, each as one short sentence.",
+  "List the actions, each with who does it (\"me\" for the accountant, \"client\" for the client, or a name if the notes say someone else) and a due date as YYYY-MM-DD only if the notes give one or make it clear (otherwise leave it out).",
+  "Reply with a JSON object only: {\"summary\": \"...\", \"decisions\": [\"...\"], \"actions\": [{\"text\": \"...\", \"who\": \"me\", \"due\": \"YYYY-MM-DD\"}]}.",
+].join("\n");
+
+function meetingMessage(b) {
+  const parts = [];
+  if (b.style) parts.push(`The practice's house style and details:\n${clip(b.style, LIMITS.style)}`);
+  if (b.context && typeof b.context === "object") parts.push(`Client details:\n${JSON.stringify(b.context, null, 1).slice(0, LIMITS.context)}`);
+  const m = b.meeting || {};
+  parts.push(`Meeting: ${clip(m.title, 200)} on ${clip(m.when, 40)} (${clip(m.kind, 20)}). Present: ${clip(m.attendees, 300)}`);
+  const agenda = Array.isArray(m.agenda) ? m.agenda.slice(0, 30) : [];
+  if (agenda.length) parts.push("Notes under each agenda item:\n" + agenda.map((a) => `## ${clip(a && a.item, 200)}\n${clip(a && a.notes, 4000)}`).join("\n\n"));
+  if (m.notes) parts.push(`Other notes:\n${clip(m.notes, LIMITS.body)}`);
+  return parts.join("\n\n");
+}
+
+/** Pull {summary, decisions, actions} out of the model's answer. */
+function parseMeeting(text) {
+  let obj = null;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    const m = typeof text === "string" && text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try {
+        obj = JSON.parse(m[0]);
+      } catch {
+        obj = null;
+      }
+    }
+  }
+  if (!obj || typeof obj.summary !== "string") return null;
+  const decisions = Array.isArray(obj.decisions) ? obj.decisions.filter((d) => typeof d === "string" && d.trim()).map((d) => d.trim()) : [];
+  const actions = Array.isArray(obj.actions)
+    ? obj.actions
+        .filter((a) => a && typeof a.text === "string" && a.text.trim())
+        .map((a) => ({ text: a.text.trim(), who: typeof a.who === "string" && a.who.trim() ? a.who.trim() : "me", due: typeof a.due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(a.due) ? a.due : "" }))
+    : [];
+  return { summary: obj.summary.trim(), decisions, actions };
+}
+
 function clip(v, n) {
   return typeof v === "string" ? v.slice(0, n) : "";
 }
@@ -109,10 +155,10 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
   }
 
-  async function complete(key, model, message) {
+  async function complete(key, model, message, system = SYSTEM) {
     const base = {
       model,
-      messages: [{ role: "system", content: SYSTEM }, { role: "user", content: message }],
+      messages: [{ role: "system", content: system }, { role: "user", content: message }],
       response_format: { type: "json_object" },
     };
     // reasoning models answer faster with low effort; others don't take the option
@@ -169,7 +215,15 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
 
     const b = typeof req.body === "string" ? safeJson(req.body) : req.body || {};
-    if (!b || !["letter", "email"].includes(b.kind) || !["draft", "amend"].includes(b.mode)) {
+    const meeting = !!b && b.kind === "meeting" && b.mode === "tidy";
+    if (meeting) {
+      const m = b.meeting || {};
+      const hasNotes = (typeof m.notes === "string" && m.notes.trim()) || (Array.isArray(m.agenda) && m.agenda.some((a) => a && typeof a.notes === "string" && a.notes.trim()));
+      if (!hasNotes) {
+        context.res = reply(400, { error: "bad-request", message: "Add some notes first." });
+        return;
+      }
+    } else if (!b || !["letter", "email"].includes(b.kind) || !["draft", "amend"].includes(b.mode)) {
       context.res = reply(400, { error: "bad-request", message: "Say whether it's a letter or an email, and a draft or a change." });
       return;
     }
@@ -186,7 +240,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
 
     let res;
     try {
-      res = await complete(key, model, userMessage(b));
+      res = meeting ? await complete(key, model, meetingMessage(b), SYSTEM_MEETING) : await complete(key, model, userMessage(b));
     } catch (e) {
       const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
       context.res = reply(timeout ? 504 : 502, {
@@ -199,7 +253,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (res.ok) {
       const json = await res.json();
       const text = json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
-      const answer = parseAnswer(text);
+      const answer = meeting ? parseMeeting(text) : parseAnswer(text);
       if (!answer) {
         context.res = reply(502, { error: "bad-answer", message: "OpenAI's answer couldn't be read. Try again." });
         return;
@@ -237,3 +291,4 @@ module.exports.createHandler = createHandler;
 module.exports.parseAnswer = parseAnswer;
 module.exports.userMessage = userMessage;
 module.exports.pickModel = pickModel;
+module.exports.parseMeeting = parseMeeting;

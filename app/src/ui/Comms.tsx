@@ -1,12 +1,16 @@
 // Letters and emails to clients. Write with AI (from a short brief), change with AI or by
 // hand, then make a Word letter in your letterhead (saved to OneDrive) or put an email in
 // your Outlook drafts. Every letter and email is kept on the client's record.
-import { ReactNode, forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { addScope, getAccessToken, hasExtraScope } from "../lib/auth";
-import { AiApi, AiError, FakeAi, HttpAi, AiStatus } from "../lib/ai";
+import { ReactNode, forwardRef, useEffect, useRef, useState } from "react";
+import { addScope } from "../lib/auth";
+import { AiError, AiStatus } from "../lib/ai";
+import { CommsTabs, MAIL_SCOPE, downloadFile, isDemo, mailAllowed, useAi, useCommsPrefs } from "./commsKit";
+import { MeetingPage, MeetingsList } from "./Meetings";
+import { PaymentReminders } from "./TaxPayments";
+import { paymentsForAi, TaxPayment } from "../lib/taxPayments";
 import {
   CHANGE_STARTERS, CommKind, CommStatus, CommsPrefs, EMAIL_STARTERS, LETTERS_FOLDER, LETTER_STARTERS, STATUS_TEXT, addressLines,
-  aiContext, clientFolder, emailGreeting, letterFileName, letterheadPath, longDate, readCommsPrefs, salutationFor, signOffFor, toBase64,
+  aiContext, clientFolder, emailGreeting, letterFileName, letterheadPath, longDate, salutationFor, signOffFor, toBase64,
 } from "../lib/comms";
 import { DOCX_TYPE, Letter, checkLetterhead, letterDocx, NotWordFile } from "../lib/docx";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
@@ -18,22 +22,6 @@ import { svcClass } from "../lib/serviceColour";
 import { Icon, go, href, useRoute } from "./bits";
 import { useData, useIndex } from "./data";
 
-declare const __DEMO__: boolean;
-
-export const MAIL_SCOPE = "Mail.ReadWrite";
-const demo = () => typeof __DEMO__ !== "undefined" && __DEMO__;
-
-let aiApi: AiApi | null = null;
-export function useAi(): AiApi {
-  if (!aiApi) aiApi = demo() ? new FakeAi() : new HttpAi(getAccessToken);
-  return aiApi;
-}
-
-export function useCommsPrefs(): CommsPrefs {
-  const { data } = useData();
-  return useMemo(() => readCommsPrefs(data.settings), [data.settings]);
-}
-
 // the letterhead is fetched once a visit (per upload)
 let letterheadCache: { uploaded: string; bytes: Uint8Array } | null = null;
 async function getLetterhead(graph: { download: (p: string) => Promise<Uint8Array> }, prefs: CommsPrefs): Promise<Uint8Array | null> {
@@ -44,29 +32,33 @@ async function getLetterhead(graph: { download: (p: string) => Promise<Uint8Arra
   return bytes;
 }
 
-function downloadFile(bytes: Uint8Array, name: string, type: string) {
-  const url = URL.createObjectURL(new Blob([bytes as unknown as BlobPart], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 10000);
-}
-
 const kindName = (k: CommKind) => (k === "letter" ? "Letter" : "Email");
 
 // ------------------------------------------------------------------ the list
 
 export function CommsPage() {
   const { parts, query } = useRoute();
+  if (parts[1] === "payments") return <PaymentReminders />;
+  if (parts[1] === "meetings" && parts[2] === "new") {
+    return <MeetingPage key={`new-${query.toString()}`} initial={{ clientKey: query.get("client") || "", kind: query.get("kind") || "meeting", jobKey: query.get("job") || "" }} />;
+  }
+  if (parts[1] === "meetings" && parts[2]) return <MeetingPage key={parts[2]} meetingKey={parts[2]} />;
+  if (parts[1] === "meetings") return <MeetingsList />;
   if (parts[1] === "new") {
-    return <Composer key={`new-${query.toString()}`} initial={{ clientKey: query.get("client") || "", kind: query.get("kind") === "email" ? "email" : "letter", jobKey: query.get("job") || "" }} />;
+    return (
+      <Composer
+        key={`new-${query.toString()}`}
+        initial={{
+          clientKey: query.get("client") || "", kind: query.get("kind") === "email" ? "email" : "letter", jobKey: query.get("job") || "",
+          brief: query.get("brief") || "", subject: query.get("subject") || "", body: query.get("body") || "",
+        }}
+      />
+    );
   }
   if (parts[1]) return <Composer key={parts[1]} commKey={parts[1]} />;
   return (
     <div className="page">
+      <CommsTabs current="letters" />
       <div className="page-head">
         <div>
           <h1>Letters and emails</h1>
@@ -179,7 +171,7 @@ function forClient(d: Draft, c: Client | undefined, prefs: CommsPrefs): Draft {
 
 type Busy = "" | "write" | "change" | "word" | "outlook" | "save";
 
-function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKey: string; kind: CommKind; jobKey: string } }) {
+function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKey: string; kind: CommKind; jobKey: string; brief?: string; subject?: string; body?: string } }) {
   const { data, store, create, update, remove } = useData();
   const idx = useIndex();
   const prefs = useCommsPrefs();
@@ -191,7 +183,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
     if (existing) return fromRow(existing);
     const base: Draft = {
       Key: newKey("M"), ClientKey: initial?.clientKey || "", JobKey: initial?.jobKey || "", Kind: initial?.kind || "letter", Status: "draft",
-      Subject: "", Body: "", Brief: "", ToEmail: "", Address: "", Salutation: "", SignOff: prefs.signOff, LetterDate: today,
+      Subject: initial?.subject || "", Body: initial?.body || "", Brief: initial?.brief || "", ToEmail: "", Address: "", Salutation: "", SignOff: prefs.signOff, LetterDate: today,
       Created: new Date().toISOString(), Updated: "", FileUrl: "", FileName: "", OutlookUrl: "",
     };
     return forClient(base, idx.clientByKey.get(base.ClientKey), prefs);
@@ -255,6 +247,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
           client, jobs, job, today, kind: draft.Kind, salutation: draft.Salutation || salutationFor(client), prefs,
           stageName: (j: Job) => stageLabel(j, idx.stagesByService.get(j.ServiceKey || "") || []),
           serviceName: (k?: string) => idx.serviceName.get(k || "") || "",
+          payments: paymentsForAi(data.taxPayments as TaxPayment[], client.Key, today),
         })
       : {};
 
@@ -367,7 +360,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
     }
   };
 
-  const needsMail = !demo() && !hasExtraScope(MAIL_SCOPE);
+  const needsMail = !mailAllowed();
   const allowMail = async () => {
     await persist().catch(() => undefined);
     await addScope(MAIL_SCOPE, true); // Microsoft asks you to allow it, then you come back here
@@ -715,7 +708,7 @@ export function CommsSettings() {
     }
   };
 
-  const mailAllowed = demo() || hasExtraScope(MAIL_SCOPE);
+  const canMail = mailAllowed();
   const f = (k: keyof CommsPrefs) => (e: { target: { value: string } }) => {
     setForm({ ...form, [k]: e.target.value });
     setState("idle");
@@ -808,11 +801,11 @@ export function CommsSettings() {
       <section className="card pad stack" aria-labelledby="ol-h">
         <h2 id="ol-h">Outlook</h2>
         <p style={{ margin: 0, fontSize: 14 }}>
-          {mailAllowed
+          {canMail
             ? "Emails go into your Outlook drafts, ready for you to check and send."
             : "Emails go into your Outlook drafts. Microsoft asks you to allow this the first time; the planner never sends anything itself."}
         </p>
-        {!mailAllowed && <div><button type="button" className="btn" onClick={() => addScope(MAIL_SCOPE, true)}>Allow Outlook drafts</button></div>}
+        {!canMail && <div><button type="button" className="btn" onClick={() => addScope(MAIL_SCOPE, true)}>Allow Outlook drafts</button></div>}
       </section>
 
       <div className="form-actions" style={{ alignItems: "center" }}>

@@ -346,6 +346,7 @@ details summary { cursor: pointer; color: var(--blue); font-weight: 600; font-si
 .dot.red { background: var(--red-solid); }
 .dot.amber { background: var(--amber-solid); }
 .dot.wait { background: var(--wait); }
+.dot.blue { background: var(--blue); }
 .alerts-foot { margin: 0; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 12px; }
 
 /* ---------- settings: types of work ---------- */
@@ -828,3 +829,88 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
   .comms-row { padding: 12px; }
 }
 .seg button svg { margin-right: 6px; vertical-align: -2px; }
+
+/* ---------- search ---------- */
+.search-btn { width: auto; padding: 0 10px; gap: 8px; }
+.search-btn-text { font-size: 14px; color: var(--muted); }
+.search-kbd { font-family: var(--mono); font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; background: var(--surface-2); }
+@media (max-width: 1799px) { .search-btn-text, .search-kbd { display: none; } .search-btn { padding: 0; width: 44px; } }
+.search-wrap { position: fixed; inset: 0; z-index: 60; background: rgba(10, 14, 20, 0.45); display: flex; justify-content: center; align-items: flex-start; padding: 10vh 16px 16px; }
+.search-dialog { width: min(640px, 100%); background: var(--surface); border-radius: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); overflow: hidden; display: flex; flex-direction: column; max-height: 75vh; }
+.search-big { max-width: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; min-height: 56px; padding: 0 16px; }
+.search-big input { font-size: 16px; }
+.search-results { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+.search-group { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 10px 10px 4px; }
+.search-hit { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; background: none; border-radius: 8px; text-align: left; cursor: pointer; color: var(--ink); }
+.search-hit.on { background: var(--blue-soft); }
+.search-icon { width: 30px; height: 30px; border-radius: 7px; background: var(--surface-2); display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2); flex: 0 0 auto; }
+.search-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-sub { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 720px) { .search-wrap { padding: 8px; } .search-dialog { max-height: 85vh; } }
+
+/* ---------- tax payments and reminders ---------- */
+.amount-btn { font-family: var(--mono); color: var(--ink); min-height: 0; padding: 2px 4px; }
+.amount-input { width: 120px; text-align: right; min-height: 32px; padding: 4px 8px; font-family: var(--mono); }
+.remind-list { list-style: none; margin: 0; padding: 0; }
+.remind-list li { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; flex-wrap: wrap; }
+.remind-list li + li { border-top: 1px solid var(--line-2); }
+.sa-form { border-top: 3px solid var(--blue); }
+
+/* ---------- meetings ---------- */
+.template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.template-card { display: flex; flex-direction: column; gap: 6px; padding: 16px; text-align: left; cursor: pointer; border: 1px solid var(--line); color: var(--ink); font: inherit; }
+.template-card:hover { border-color: var(--blue); box-shadow: 0 4px 14px var(--shadow); }
+.template-agenda { font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
+.meeting-details { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.agenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.agenda-head { display: flex; align-items: center; gap: 8px; }
+.agenda-no { width: 26px; height: 26px; border-radius: 50%; background: var(--blue-soft); color: var(--blue-ink); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.agenda-item { font-weight: 600; border-color: transparent; background: transparent; padding-left: 4px; }
+.agenda-item:hover, .agenda-item:focus { border-color: var(--line); background: var(--surface); }
+.agenda-notes { margin: 4px 0 0 34px; width: calc(100% - 34px) !important; box-sizing: border-box; line-height: 1.5; resize: vertical; }
+.after-card { border-top: 3px solid var(--wait); }
+.field-label { font-size: 14px; }
+.actions-table { display: flex; flex-direction: column; gap: 6px; }
+.action-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 120px 150px auto 32px; gap: 6px; align-items: center; }
+.action-row input[type="checkbox"] { width: 18px; height: 18px; }
+.chip-link { cursor: pointer; border: 0; }
+@media (max-width: 900px) { .meeting-details { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px) {
+  .meeting-details { grid-template-columns: minmax(0, 1fr); }
+  .action-row { grid-template-columns: 20px minmax(0, 1fr) 32px; }
+  .action-row .action-who, .action-row .action-due { grid-column: 2 / 3; }
+  .agenda-notes { margin-left: 0; width: 100% !important; }
+}
+@media (max-width: 720px) {
+  .subtabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .remind-list li { padding: 12px; }
+  .remind-list li > .row-wrap { width: 100%; }
+}
+@media (max-width: 720px) {
+  .topbar-right { gap: 6px; }
+  .topbar-right .iconbtn, .topbar-right .search-btn { width: 40px; height: 40px; min-width: 40px; }
+  .pay-table { min-width: 0 !important; }
+  .pay-table thead { display: none; }
+  .pay-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 12px; border-bottom: 1px solid var(--line-2); }
+  .pay-table td { padding: 0 !important; border: 0 !important; text-align: left !important; }
+  .pay-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 600; }
+  .pay-table td:nth-child(3) { grid-column: 2; grid-row: 1; text-align: right !important; }
+  .pay-table td:nth-child(2) { grid-column: 1; grid-row: 2; font-size: 13px; color: var(--muted); }
+  .pay-table td:nth-child(4) { grid-column: 1; grid-row: 3; }
+  .pay-table td:nth-child(5) { grid-column: 2; grid-row: 2 / 4; align-self: end; text-align: right !important; }
+}
+@media (max-width: 720px) {
+  .action-row { grid-template-columns: 20px minmax(0, 1fr) 32px; padding-bottom: 8px; border-bottom: 1px solid var(--line-2); }
+  .action-row > :nth-child(1) { grid-column: 1; grid-row: 1; }
+  .action-row > :nth-child(2) { grid-column: 2; grid-row: 1; }
+  .action-row > :nth-child(3) { grid-column: 2; grid-row: 2; }
+  .action-row > :nth-child(4) { grid-column: 2; grid-row: 3; }
+  .action-row > :nth-child(5) { grid-column: 2; grid-row: 4; justify-self: start; }
+  .action-row > :nth-child(6) { grid-column: 3; grid-row: 1; }
+  .action-row > span:nth-child(5):empty { display: none; }
+}
+/* keep the top bar on one row on laptop screens: the save note shrinks to its tick, the name goes */
+@media (min-width: 721px) and (max-width: 1699px) {
+  .save.saved .save-text, .save.saving .save-text { display: none; }
+  .topbar-user { display: none; }
+}

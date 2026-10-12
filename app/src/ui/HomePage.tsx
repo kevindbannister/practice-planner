@@ -6,6 +6,8 @@ import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, todayIso }
 import { forecast } from "../lib/forecast";
 import { addDays, mondayOf, weekday } from "../lib/planning";
 import { planHours, waitState, waitingForClient } from "../lib/waiting";
+import { usePaymentReminderCount } from "./TaxPayments";
+import { templateFor } from "../lib/meetings";
 import { useBackup } from "./Backups";
 import { useCalendar } from "./Calendar";
 import { fmtWhen, useCompaniesHouse } from "./CompaniesHouse";
@@ -67,6 +69,10 @@ export function HomePage() {
   const chase = useMemo(() => groupByClient(chaseItems(idx.openJobs, data.services, today, data.stageTemplates)).filter((g) => g.status !== "chased"), [idx.openJobs, data.services, today, data.stageTemplates]);
   const heldAlerts = work.filter((w) => w.held && holdAlert(w.row, w.deadline, today));
   const missed = active.filter((w) => w.planned && w.planned < today);
+  const reminders = usePaymentReminderCount();
+  const meetingsToday = data.meetings
+    .filter((m) => String(m.When || "").slice(0, 10) === today && m.Status !== "done")
+    .sort((a, b) => String(a.When).localeCompare(String(b.When)));
 
   // next fortnight's deadlines, by day
   const upcoming = active
@@ -248,13 +254,28 @@ export function HomePage() {
                   <span className="stack" style={{ gap: 1 }}><strong>{noSpeakDate.length} with the client, no date to speak</strong><span className="muted">Add a date on each job so it comes back to finalise</span></span>
                 </a></li>
               )}
+              {meetingsToday.map((m) => (
+                <li key={`m-${m.Key}`}><a href={`#/comms/meetings/${encodeURIComponent(String(m.Key))}`}>
+                  <span className="dot blue" aria-hidden="true" />
+                  <span className="stack" style={{ gap: 1 }}>
+                    <strong>{String(m.When).slice(11, 16)} {idx.clientByKey.get(String(m.ClientKey))?.Title || ""}</strong>
+                    <span className="muted">{templateFor(String(m.Template)).name}: open the agenda</span>
+                  </span>
+                </a></li>
+              ))}
+              {reminders > 0 && (
+                <li><a href="#/comms/payments">
+                  <span className="dot amber" aria-hidden="true" />
+                  <span className="stack" style={{ gap: 1 }}><strong>{reminders} tax payment reminder{reminders === 1 ? "" : "s"} to send</strong><span className="muted">Payments due in the next 30 days</span></span>
+                </a></li>
+              )}
               {missed.length > 0 && (
                 <li><a href="#/plan">
                   <span className="dot amber" aria-hidden="true" />
                   <span className="stack" style={{ gap: 1 }}><strong>{missed.length} planned on an earlier day, not finished</strong><span className="muted">Move them to a new day</span></span>
                 </a></li>
               )}
-              {!late.length && !ch.openFlags.length && !heldAlerts.length && !missed.length && !speakNow.length && !noSpeakDate.length && (
+              {!late.length && !ch.openFlags.length && !heldAlerts.length && !missed.length && !speakNow.length && !noSpeakDate.length && !reminders && !meetingsToday.length && (
                 <li className="muted" style={{ padding: "12px 16px" }}>Nothing waiting on you.</li>
               )}
             </ul>

@@ -15,6 +15,15 @@ export type AiRequest = {
 export type AiAnswer = { subject: string; body: string; model?: string };
 export type AiStatus = { configured: boolean; keyAccepted?: boolean; model?: string; models?: string[] };
 
+export type MeetingAction = { text: string; who: string; due: string };
+export type MeetingTidy = { summary: string; decisions: string[]; actions: MeetingAction[] };
+export type MeetingRequest = {
+  meeting: { title: string; when: string; kind: string; attendees: string; agenda: { item: string; notes: string }[]; notes: string };
+  context?: Record<string, unknown>;
+  style?: string;
+  model?: string;
+};
+
 export class AiError extends Error {
   constructor(public code: string, message: string) {
     super(message);
@@ -24,6 +33,7 @@ export class AiError extends Error {
 export interface AiApi {
   status(model?: string): Promise<AiStatus>;
   write(req: AiRequest): Promise<AiAnswer>;
+  tidyMeeting(req: MeetingRequest): Promise<MeetingTidy>;
 }
 
 export class HttpAi implements AiApi {
@@ -56,10 +66,29 @@ export class HttpAi implements AiApi {
   write(req: AiRequest): Promise<AiAnswer> {
     return this.call("write", { method: "POST", body: JSON.stringify(req) });
   }
+  tidyMeeting(req: MeetingRequest): Promise<MeetingTidy> {
+    return this.call("write", { method: "POST", body: JSON.stringify({ kind: "meeting", mode: "tidy", ...req }) });
+  }
 }
 
 /** Demo stand-in: writes plausible text from the brief, and applies a few simple changes. */
 export class FakeAi implements AiApi {
+  async tidyMeeting(req: MeetingRequest): Promise<MeetingTidy> {
+    await new Promise((r) => setTimeout(r, 400));
+    const items = req.meeting.agenda.filter((a) => a.notes.trim());
+    const lines = [...items.flatMap((a) => a.notes.split("\n")), ...req.meeting.notes.split("\n")].map((l) => l.trim()).filter(Boolean);
+    const actions = lines
+      .filter((l) => /^(action|todo|to do)\b/i.test(l))
+      .map((l) => {
+        const text = l.replace(/^(action|todo|to do)\s*[:-]?\s*/i, "");
+        return { text, who: /\bclient\b/i.test(text) ? "client" : "me", due: (text.match(/\d{4}-\d{2}-\d{2}/) || [""])[0] };
+      });
+    const decisions = lines.filter((l) => /^(agreed|decided|decision)\b/i.test(l)).map((l) => l.replace(/^(agreed|decided|decision)\s*[:-]?\s*/i, ""));
+    const summary = items.length
+      ? `We talked about ${items.map((a) => a.item.toLowerCase()).join(", ")}. ${lines.filter((l) => !/^(action|todo|to do|agreed|decided|decision)\b/i.test(l)).slice(0, 3).join(" ")}`.trim()
+      : lines.slice(0, 3).join(" ");
+    return { summary, decisions, actions };
+  }
   async status(): Promise<AiStatus> {
     return { configured: true, keyAccepted: true, model: "demo-writer", models: ["demo-writer"] };
   }
