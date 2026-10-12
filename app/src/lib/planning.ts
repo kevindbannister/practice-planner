@@ -190,7 +190,8 @@ export function rollForward(job: Job, r: Rule, completedOn: string, newKey: stri
   if (!next) return null;
   // dates like "when the records came in" move on by the same amount as the period
   const shift = (iso?: string) => (iso ? addMonths(iso, r.repeatMonths, false) : undefined);
-  const slot = shift(job.PlannedDate || completedOn);
+  // the preparing day, where the job was finalised separately after the client approved
+  const slot = shift((job.PreparedOn as string | undefined) || job.PlannedDate || completedOn);
   return {
     Key: newKey,
     Title: job.Title,

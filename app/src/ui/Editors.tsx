@@ -8,7 +8,7 @@ import {
 import { deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
 import { chaseSummary } from "../lib/chase";
-import { nextStagePatch } from "../lib/stages";
+import { finaliseDefault, firstWaitStage, inFinalise, isWaitStage, stageAt, unwaitPatch, waitPatch, waitingForClient } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
 import { DeadlineChip, Icon, href } from "./bits";
 import { useData, useIndex } from "./data";
@@ -140,6 +140,13 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const [error, setError] = useState<string>();
   const [done, setDone] = useState<Row | null | undefined>(undefined);
   const completeRef = useRef<HTMLElement>(null);
+  const [ask, setAsk] = useState<Row | null>(null); // moving onto a "with the client" stage: the stage patch, waiting for answers
+  const [speak, setSpeak] = useState("");
+  const [fin, setFin] = useState("");
+  const askRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ask) window.requestAnimationFrame(() => askRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  }, [!!ask]);
   if (!job) return null;
 
   const client = idx.clientByKey.get(job.ClientKey);
@@ -149,15 +156,33 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const save = (patch: Row) => update("Jobs", job, patch);
   const num = (v: string) => (v === "" ? "" : Number(v));
   const setStage = (n: number) => {
-    const name = (stages[n - 1]?.Title as string) || "";
+    const target = stageAt(stages, n) || stages[n - 1];
+    const name = (target?.Title as string) || "";
     // reaching a "records received" stage means the records are in
     const records = /received/i.test(name) && !job.RecordsReceived ? { RecordsReceived: today } : {};
-    return save({ StageNo: n, StageName: name, ...records });
+    const patch: Row = { StageNo: n, StageName: name, ...records };
+    // reaching the stage where the client has it: ask when you're speaking to them first
+    if (isWaitStage(target) && !inFinalise(job) && isOpen(job)) {
+      setAsk(patch);
+      setSpeak("");
+      setFin(String(finaliseDefault(job.ServiceKey, data.services)));
+      return;
+    }
+    // back before the client had it: it's a whole job again
+    const first = firstWaitStage(stages);
+    if (inFinalise(job) && first !== undefined && n < first) return save({ ...patch, ...unwaitPatch() });
+    return save(patch);
   };
+  const confirmWait = async () => {
+    if (!ask) return;
+    const hours = Number(fin) > 0 ? Number(fin) : finaliseDefault(job.ServiceKey, data.services);
+    await save(waitPatch(job, ask, speak, hours, today, data.services));
+    setAsk(null);
+  };
+  const waiting = waitingForClient(job, stages);
   /** The stage you're on is done: move on to the next one, or finish the job after the last. */
   const stageDone = () => {
-    const patch = nextStagePatch(job, stages, today);
-    if (patch) return save(patch);
+    if (current < stages.length) return setStage(current + 1);
     setCompleting(true);
     window.requestAnimationFrame(() => completeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   };
@@ -215,6 +240,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       <div className="row-wrap" style={{ gap: 6 }}>
         {job.Priority === "urgent" && <span className="chip red">Urgent</span>}
         {isOnHold(job) && <span className="chip hold">On hold</span>}
+        {waiting && <span className="chip wait">With the client</span>}
+        {inFinalise(job) && !waiting && isOpen(job) && <span className="chip wait">Ready to finalise</span>}
         <DeadlineChip job={job} today={today} />
         {!isOpen(job) && <span className="chip green">Complete</span>}
       </div>
@@ -244,6 +271,25 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <input type="checkbox" checked={job.Priority === "urgent"} onChange={(e) => save({ Priority: e.target.checked ? "urgent" : "" })} style={{ width: 18, height: 18 }} />
         Urgent
       </label>
+
+      {inFinalise(job) && isOpen(job) && (
+        <section className="wait-box" aria-labelledby="wait-h">
+          <h3 id="wait-h">{waiting ? "With the client" : "Ready to finalise"}</h3>
+          <p style={{ margin: 0, fontSize: 13 }}>
+            {job.PreparedOn ? <>Prepared {fmtDate(job.PreparedOn as string, { weekday: true, year: false })}{Number(job.PreparedHours) > 0 ? ` (${fmtHours(Number(job.PreparedHours))})` : ""}. </> : "Prepared. "}
+            {waiting
+              ? "It's off the plan until you speak to them, then it comes back to finalise."
+              : "Plan the finalising on a day, or let Suggest a plan find room."}
+          </p>
+          <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            <Field label="Speaking to them on" type="date" value={job.SpeakOn as string} onSave={(v) => save({ SpeakOn: v })} />
+            <Field label="Time to finalise" type="number" step="0.25" value={job.FinaliseHours as number} onSave={(v) => save({ FinaliseHours: num(v) as any })} />
+          </div>
+          {waiting && (
+            <div><button type="button" className="btn small primary" onClick={stageDone}><Icon name="check" size={14} />Client approved</button></div>
+          )}
+        </section>
+      )}
 
       {stages.length > 0 && (
         <section className="stack" aria-labelledby="stages-h" style={{ gap: 8 }}>
@@ -280,9 +326,32 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
               );
             })}
           </ol>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>
-            Click the stage you're on when it's done, and the next one starts. Click any other stage to move the job straight to it.
-          </p>
+          {ask ? (
+            <div className="wait-box" role="group" aria-labelledby="ask-h" ref={askRef}>
+              <h3 id="ask-h">{String(ask.StageName || "Next stage")}: the client has it</h3>
+              <p style={{ margin: 0, fontSize: 13 }}>
+                The preparing is done. The job comes off the plan and comes back to finalise once you've spoken to them.
+              </p>
+              <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                <label>
+                  When are you speaking to them? (optional)
+                  <input className="input" type="date" value={speak} onChange={(e) => setSpeak(e.target.value)} />
+                </label>
+                <label>
+                  Time to finalise (hours)
+                  <input className="input" type="number" step="0.25" min="0" value={fin} onChange={(e) => setFin(e.target.value)} />
+                </label>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="btn" onClick={() => setAsk(null)}>Cancel</button>
+                <button type="button" className="btn primary" onClick={confirmWait}>Waiting for the client</button>
+              </div>
+            </div>
+          ) : (
+            <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+              Click the stage you're on when it's done, and the next one starts. Click any other stage to move the job straight to it.
+            </p>
+          )}
         </section>
       )}
 

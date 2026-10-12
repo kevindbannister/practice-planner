@@ -1,7 +1,7 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
 // due, default hours and its stages); and Companies House checks.
 import React, { useEffect, useRef, useState } from "react";
-import { fmtDate, fmtHours } from "../lib/domain";
+import { fmtDate, fmtHours, todayIso } from "../lib/domain";
 import {
   BUILT_IN_RULES, DEFAULT_HOURS, Hours, Rule, deadlineByRule, describeRule, newKey, nextPeriod, ruleFields, ruleFor,
 } from "../lib/planning";
@@ -12,6 +12,7 @@ import { DEFAULT_FILL } from "../lib/autoplan";
 import { SelectField } from "./Editors";
 import { recordsRule } from "../lib/chase";
 import { moveItem, renumberStages } from "../lib/stages";
+import { adoptWaitingJobs, finaliseDefault, isWaitStage } from "../lib/waiting";
 import { Problem, clearProblems, problemText, readProblems } from "./ErrorBoundary";
 import { svcClass } from "../lib/serviceColour";
 import { CompaniesHouseSettings } from "./CompaniesHouse";
@@ -227,10 +228,13 @@ function RuleCard({ service: s }: { service: Row }) {
   const [name, setName] = useState(String(s.Title || ""));
   const [rule, setRule] = useState<Rule>(saved);
   const [hours, setHours] = useState(s.DefaultHours !== undefined ? String(s.DefaultHours) : "");
+  const savedFin = s.FinaliseHours !== undefined && s.FinaliseHours !== null ? String(s.FinaliseHours) : "";
+  const [finalise, setFinalise] = useState(savedFin);
+  const hasWait = (idx.stagesByService.get(s.Key as string) || []).some(isWaitStage);
   const savedRecords = recordsRule(s.Key as string, data.services);
   const [records, setRecords] = useState(savedRecords);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  useEffect(() => setState("idle"), [rule, name, hours, records]);
+  useEffect(() => setState("idle"), [rule, name, hours, records, finalise]);
 
   const fixedMonth = Number((rule.fixed || "01-31").split("-")[0]);
   const fixedDay = Number((rule.fixed || "01-31").split("-")[1]);
@@ -238,7 +242,7 @@ function RuleCard({ service: s }: { service: Row }) {
   const changed =
     JSON.stringify(ruleFields(rule)) !== JSON.stringify(ruleFields(saved)) ||
     name.trim() !== s.Title ||
-    hours !== (s.DefaultHours !== undefined ? String(s.DefaultHours) : "") ||
+    hours !== (s.DefaultHours !== undefined ? String(s.DefaultHours) : "") || finalise !== savedFin ||
     records.needs !== savedRecords.needs || records.leadDays !== savedRecords.leadDays;
 
   // worked example from a real open job where there is one
@@ -260,6 +264,7 @@ function RuleCard({ service: s }: { service: Row }) {
         ...ruleFields(rule),
         ...(name.trim() && name.trim() !== s.Title ? { Title: name.trim() } : {}),
         DefaultHours: hours === "" ? ("" as any) : Number(hours),
+        FinaliseHours: finalise === "" ? ("" as any) : Number(finalise),
         RecordsNeeded: records.needs ? "yes" : "no",
         RecordsLeadDays: records.leadDays,
       });
@@ -285,6 +290,12 @@ function RuleCard({ service: s }: { service: Row }) {
           Your hours per job (default {fmtHours(DEFAULT_HOURS[s.Key as string] ?? 1)})
           <input className="input" type="number" step="0.25" min="0" value={hours} placeholder={String(DEFAULT_HOURS[s.Key as string] ?? 1)}
             onChange={(e) => setHours(e.target.value)} />
+        </label>
+        <label>
+          Time to finalise after the client approves (default {fmtHours(finaliseDefault(s.Key as string, []))})
+          <input className="input" type="number" step="0.25" min="0" value={finalise} placeholder={String(finaliseDefault(s.Key as string, []))}
+            onChange={(e) => setFinalise(e.target.value)} />
+          {!hasWait && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>Used once a stage below is marked "With client".</span>}
         </label>
       </div>
 
@@ -511,7 +522,8 @@ function StagesCard({ service }: { service: string }) {
       </div>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>
         The steps this work goes through, shown on every job. Drag a stage by its handle to change the order, or use the arrows.
-        Rename a stage by editing it; it saves when you leave the box.
+        Rename a stage by editing it; it saves when you leave the box. Mark the stage where the work is with the client
+        (such as sent for approval) as "With client": the job comes off the plan until you speak to them, then comes back to finalise.
         {inUse.length ? ` ${inUse.length} open job${inUse.length === 1 ? "" : "s"} use these stages and stay on the same stage when you re-order.` : ""}
       </p>
       <ol className="stage-edit" ref={listRef}>
@@ -527,6 +539,26 @@ function StagesCard({ service }: { service: string }) {
               await updateMany("Jobs", jobs);
             }} />
             <span className="stage-buttons">
+              <button
+                type="button"
+                className={`waitbtn${isWaitStage(st) ? " on" : ""}`}
+                aria-pressed={isWaitStage(st)}
+                aria-label={`Waiting for the client at ${st.Title}`}
+                title="At this stage the work is with the client (for example sent for approval). The job comes off the plan until you speak to them, then comes back to finalise."
+                disabled={saving}
+                onClick={async () => {
+                  const on = !isWaitStage(st);
+                  try {
+                    await update("StageTemplates", st, { WaitClient: on });
+                    // jobs already at this stage are prepared: what's left is finalising
+                    if (on) await updateMany("Jobs", adoptWaitingJobs(inUse, stages.map((x) => (x.Key === st.Key ? { ...x, WaitClient: true } : x)), data.services, todayIso()));
+                  } catch {
+                    setError("Couldn't save that change.");
+                  }
+                }}
+              >
+                <Icon name="clock" size={14} /><span>With client</span>
+              </button>
               <button type="button" className="iconbtn small" aria-label={`Move ${st.Title} up`} disabled={i === 0 || saving} onClick={() => move(i, i - 1)}>
                 <Icon name="up" size={14} />
               </button>

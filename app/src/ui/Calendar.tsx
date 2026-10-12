@@ -8,7 +8,7 @@ import {
 } from "../lib/calendar";
 import { Job, Task, fmtDate, fmtHours, isOnHold, isOpen, todayIso } from "../lib/domain";
 import { GraphError } from "../lib/graph";
-import { jobHours } from "../lib/planning";
+import { planHours } from "../lib/waiting";
 import { friendlyError } from "../lib/sharepoint";
 import { readSetting, useData } from "./data";
 
@@ -57,7 +57,7 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
       if (!isOpen(j) || isOnHold(j) || !inWindow(j.PlannedDate)) continue;
       const name = clientName(j.ClientKey) || (j.ClientName as string) || "";
       rows.push({
-        item: { key: j.Key, day: j.PlannedDate!, hours: jobHours(j, data.services), subject: `${name ? `${name}: ` : ""}${j.Title}`, note: j.Deadline ? `Due ${fmtDate(j.Deadline)}` : "" },
+        item: { key: j.Key, day: j.PlannedDate!, hours: planHours(j, data.services), subject: `${name ? `${name}: ` : ""}${j.Title}`, note: j.Deadline ? `Due ${fmtDate(j.Deadline)}` : "" },
         urgent: j.Priority === "urgent", due: j.Deadline || "9999",
       });
     }

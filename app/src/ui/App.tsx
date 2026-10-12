@@ -18,10 +18,13 @@ import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from 
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
 import { PageBoundary } from "./ErrorBoundary";
+import { readSetting } from "./data";
+import { adoptWaitingJobs, initialWaitStages } from "../lib/waiting";
 
 export function App({ demo }: { demo: boolean }) {
   const { status, error, reload, saveSetting } = useData();
   const { parts } = useRoute();
+  useWaitStageSetup(status === "ready");
   const section = parts[0] || "home";
   const path = parts.join("/");
   // a new screen starts at the top (after it has drawn)
@@ -310,4 +313,26 @@ function Alerts() {
       )}
     </div>
   );
+}
+
+/**
+ * The first time, tick the stages that sound like "with the client for approval" (for example
+ * "Sent to Client for approval") as waiting stages. Change them in Settings › Types of work.
+ */
+function useWaitStageSetup(ready: boolean) {
+  const { data, updateMany, saveSetting } = useData();
+  const done = useRef(false);
+  useEffect(() => {
+    if (!ready || done.current || readSetting(data.settings, "waitStages.set")) return;
+    done.current = true;
+    const tick = initialWaitStages(data.stageTemplates);
+    (async () => {
+      if (tick.length) await updateMany("StageTemplates", tick.map((row) => ({ row, patch: { WaitClient: true } })));
+      const ticked = new Set(tick.map((t) => t.Key));
+      const stages = data.stageTemplates.map((s) => (ticked.has(s.Key) ? { ...s, WaitClient: true } : s));
+      const jobs = adoptWaitingJobs(data.jobs, stages, data.services, todayIso());
+      if (jobs.length) await updateMany("Jobs", jobs);
+      await saveSetting("waitStages.set", { on: todayIso(), stages: tick.length });
+    })().catch(() => { done.current = false; });
+  }, [ready, data.settings, data.stageTemplates]);
 }

@@ -5,13 +5,14 @@ import { Job, Task, fmtDate, isOnHold, jobState, todayIso } from "../lib/domain"
 import { addDays } from "../lib/planning";
 import { Icon, PlanTabs } from "./bits";
 import { svcClass } from "../lib/serviceColour";
+import { inFinalise, waitingForClient } from "../lib/waiting";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 
 type Range = "30" | "60" | "90" | "180" | "all";
 type Line = {
   key: string; kind: "job" | "task"; row: Job | Task; deadline: string; client: string; work: string; type: string;
-  periodEnd?: string; stage?: string; planned?: string; records?: string; held: boolean; urgent: boolean;
+  periodEnd?: string; stage?: string; planned?: string; records?: string; held: boolean; urgent: boolean; wait?: string;
 };
 
 const monthLabel = (iso: string) => new Date(`${iso.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -35,6 +36,7 @@ export function DeadlinesView() {
         key: j.Key, kind: "job", row: j, deadline: j.Deadline, client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "",
         work: j.Title, type: j.ServiceKey || "", periodEnd: j.PeriodEnd, stage: j.StageName ? `${j.StageNo || 1}. ${j.StageName}` : j.StageNo ? `Stage ${j.StageNo}` : "",
         planned: j.PlannedDate, records: j.RecordsReceived ? `In ${fmtDate(j.RecordsReceived, { year: false })}` : "", held: isOnHold(j), urgent: j.Priority === "urgent",
+        wait: waitingForClient(j, idx.stagesByService.get(j.ServiceKey || "") || []) ? `With the client${j.SpeakOn ? ` · speaking ${fmtDate(j.SpeakOn as string, { year: false })}` : ""}` : inFinalise(j) ? "Ready to finalise" : "",
       });
     }
     for (const t of idx.openTasks) {
@@ -174,6 +176,7 @@ export function DeadlinesView() {
 function status(l: Line, today: string): { text: string; tone: string }[] {
   const out: { text: string; tone: string }[] = [];
   if (l.held) out.push({ text: "On hold", tone: "hold" });
+  if (l.wait) out.push({ text: l.wait, tone: "wait" });
   if (l.urgent) out.push({ text: "Urgent", tone: "red" });
   const st = jobState(l.kind === "task" ? taskAsJob(l.row as Task) : (l.row as Job), today);
   if (st.state === "overdue") out.push({ text: `${-st.days!}d late`, tone: "red" });

@@ -3,6 +3,7 @@
 // recurring job is rolled forward by its type's rule (next quarter's VAT, next month's payroll).
 import { Job, Task, isOnHold, isOpen } from "./domain";
 import { Hours, addDays, jobHours, nextPeriod, parseIso, ruleFor, toIso } from "./planning";
+import { planHours } from "./waiting";
 import { Row } from "./schema";
 
 export type ForecastItem = {
@@ -84,7 +85,7 @@ export function forecast(jobs: Job[], tasks: Task[], services: Row[], hours: Hou
     if (j.Deadline) {
       items.push({
         key: j.Key, kind: "job", clientKey: j.ClientKey, title: j.Title, serviceKey: j.ServiceKey, periodEnd: j.PeriodEnd,
-        deadline: j.Deadline, hours: jobHours(j, services), planned: j.PlannedDate, held: isOnHold(j),
+        deadline: j.Deadline, hours: planHours(j, services), planned: j.PlannedDate, held: isOnHold(j),
       });
     }
     items.push(...expectedAfter(j, services, until));

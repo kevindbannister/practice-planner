@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { chaseItems, groupByClient } from "../lib/chase";
 import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, todayIso } from "../lib/domain";
 import { forecast } from "../lib/forecast";
-import { addDays, jobHours, mondayOf, weekday } from "../lib/planning";
+import { addDays, mondayOf, weekday } from "../lib/planning";
+import { planHours, waitState, waitingForClient } from "../lib/waiting";
 import { useBackup } from "./Backups";
 import { useCalendar } from "./Calendar";
 import { fmtWhen, useCompaniesHouse } from "./CompaniesHouse";
@@ -15,7 +16,7 @@ import { Icon, IconName } from "./bits";
 
 type Work = {
   key: string; kind: "job" | "task"; row: Job | Task; title: string; client: string; serviceKey?: string;
-  hours: number; deadline?: string; planned?: string; urgent: boolean; held: boolean; records?: string; periodEnd?: string; typeName: string;
+  hours: number; deadline?: string; planned?: string; urgent: boolean; held: boolean; records?: string; periodEnd?: string; typeName: string; waiting?: boolean;
 };
 
 const greeting = (h: number) => (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
@@ -38,8 +39,9 @@ export function HomePage() {
     return [
       ...idx.openJobs.map((j): Work => ({
         key: j.Key, kind: "job", row: j, title: j.Title, client: name(j.ClientKey) || (j.ClientName as string) || "", serviceKey: j.ServiceKey,
-        hours: jobHours(j, data.services), deadline: j.Deadline, planned: j.PlannedDate, urgent: j.Priority === "urgent", held: isOnHold(j),
+        hours: planHours(j, data.services), deadline: j.Deadline, planned: j.PlannedDate, urgent: j.Priority === "urgent", held: isOnHold(j),
         records: j.RecordsReceived, periodEnd: j.PeriodEnd, typeName: idx.serviceName.get(j.ServiceKey || "") || j.Title || "Job",
+        waiting: waitingForClient(j, idx.stagesByService.get(j.ServiceKey || "") || []),
       })),
       ...idx.openTasks.map((t): Work => ({
         key: t.Key, kind: "task", row: t, title: t.Title, client: name(t.ClientKey), hours: t.EstimateHours || 1, deadline: t.DueDate,
@@ -51,8 +53,14 @@ export function HomePage() {
   const active = work.filter((w) => !w.held);
   const late = active.filter((w) => w.deadline && w.deadline < today).sort((a, b) => a.deadline!.localeCompare(b.deadline!));
   const next7 = active.filter((w) => w.deadline && w.deadline >= today && w.deadline <= addDays(today, 7));
-  const next7Unplanned = next7.filter((w) => !w.planned || w.planned < today);
-  const due30Unplanned = active.filter((w) => w.deadline && w.deadline <= addDays(today, 30) && (!w.planned || w.planned < today));
+  // work with the client is off the plan on purpose, so it isn't counted as "not planned"
+  const next7Unplanned = next7.filter((w) => !w.waiting && (!w.planned || w.planned < today));
+  const due30Unplanned = active.filter((w) => !w.waiting && w.deadline && w.deadline <= addDays(today, 30) && (!w.planned || w.planned < today));
+  const withClient = active.filter((w) => w.waiting);
+  const speakNow = withClient
+    .filter((w) => ["today", "passed"].includes(waitState(w.row, today)) && (!w.planned || w.planned < today))
+    .sort((a, b) => String(a.row.SpeakOn).localeCompare(String(b.row.SpeakOn)));
+  const noSpeakDate = withClient.filter((w) => waitState(w.row, today) === "nodate");
   const todays = active.filter((w) => w.planned === today).sort((a, b) => Number(b.urgent) - Number(a.urgent) || (a.deadline || "9999").localeCompare(b.deadline || "9999"));
   const todayHours = todays.reduce((t, w) => t + w.hours, 0);
   const todayCap = weekday(today) >= 1 && weekday(today) <= 5 ? capacity(today) : 0;
@@ -223,13 +231,30 @@ export function HomePage() {
                   <span className="stack" style={{ gap: 1 }}><strong>{w.client ? `${w.client}: ` : ""}{w.title}</strong><span className="muted">{holdAlert(w.row, w.deadline, today)!.text}</span></span>
                 </button></li>
               ))}
+              {speakNow.slice(0, 4).map((w) => (
+                <li key={`s-${w.key}`}><button type="button" onClick={() => openWork(w)}>
+                  <span className="dot wait" aria-hidden="true" />
+                  <span className="stack" style={{ gap: 1 }}>
+                    <strong>{w.client ? `${w.client}: ` : ""}{w.title}</strong>
+                    <span className="muted">
+                      {waitState(w.row, today) === "today" ? "Speaking to them today: plan the finalising" : `Spoke to them ${fmtDate(w.row.SpeakOn as string, { year: false })}? Approved, or a new date`}
+                    </span>
+                  </span>
+                </button></li>
+              ))}
+              {noSpeakDate.length > 0 && (
+                <li><a href="#/plan">
+                  <span className="dot wait" aria-hidden="true" />
+                  <span className="stack" style={{ gap: 1 }}><strong>{noSpeakDate.length} with the client, no date to speak</strong><span className="muted">Add a date on each job so it comes back to finalise</span></span>
+                </a></li>
+              )}
               {missed.length > 0 && (
                 <li><a href="#/plan">
                   <span className="dot amber" aria-hidden="true" />
                   <span className="stack" style={{ gap: 1 }}><strong>{missed.length} planned on an earlier day, not finished</strong><span className="muted">Move them to a new day</span></span>
                 </a></li>
               )}
-              {!late.length && !ch.openFlags.length && !heldAlerts.length && !missed.length && (
+              {!late.length && !ch.openFlags.length && !heldAlerts.length && !missed.length && !speakNow.length && !noSpeakDate.length && (
                 <li className="muted" style={{ padding: "12px 16px" }}>Nothing waiting on you.</li>
               )}
             </ul>

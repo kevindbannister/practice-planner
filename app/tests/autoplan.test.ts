@@ -60,3 +60,16 @@ test("work bigger than a day goes on an empty day by itself", () => {
   assert.deepEqual(suggestions.map((s) => [s.key, s.day]), [["small", "2026-10-12"], ["big", "2026-10-13"]]);
   assert.match(suggestions[1].reason, /A full day's work/);
 });
+
+test("work with the client waits for the day you're speaking to them", () => {
+  const { suggestions, skipped } = suggestPlan([
+    c("nodate", { deadline: "2026-10-30", waitingForClient: true }),
+    c("weds", { deadline: "2026-10-30", waitingForClient: true, notBefore: "2026-10-14", hours: 1 }),
+    c("nextweek", { deadline: "2026-10-30", waitingForClient: true, notBefore: "2026-10-21", hours: 1 }),
+  ], opts());
+  assert.deepEqual(suggestions, [{ key: "weds", day: "2026-10-14", reason: "After speaking to the client" }]);
+  assert.deepEqual(skipped, [
+    { key: "nodate", reason: "Waiting for the client" },
+    { key: "nextweek", reason: "Speaking to the client after this week" },
+  ]);
+});

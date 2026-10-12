@@ -3,7 +3,7 @@
 // On a phone the week becomes a strip of days: tap one to see it, or drag a card onto it.
 import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
-import { addDays, jobHours, mondayOf, weekday } from "../lib/planning";
+import { addDays, mondayOf, weekday } from "../lib/planning";
 import { Icon, PlanTabs, useRoute } from "./bits";
 import { DeadlinesView } from "./DeadlinesView";
 import { MonthsView } from "./MonthsView";
@@ -17,6 +17,7 @@ import { readSetting } from "./data";
 import { Candidate, DEFAULT_FILL, LOOK_AHEAD_DAYS, Skipped, Suggestion, suggestPlan } from "../lib/autoplan";
 import { waitingForRecords } from "../lib/chase";
 import { stageLabel } from "../lib/stages";
+import { inFinalise, planHours, waitState, waitingForClient } from "../lib/waiting";
 import { CardField, CardOptions, useCardFields } from "./CardOptions";
 
 function useNarrow(query = "(max-width: 720px)"): boolean {
@@ -49,6 +50,9 @@ type Item = {
   stageCount?: number;
   note?: string;
   recordsIn?: boolean;
+  waiting?: boolean; // with the client for approval
+  finalise?: boolean; // prepared; what's left is finalising
+  speakOn?: string;
 };
 
 type Show = "all" | "compliance" | "other";
@@ -133,11 +137,14 @@ function WeekView() {
   const items: Item[] = useMemo(() => {
     const jobs = idx.openJobs.map<Item>((j) => {
       const stages = idx.stagesByService.get(j.ServiceKey || "") || [];
+      const finalise = inFinalise(j);
+      const tag = shortTag(j.ServiceKey, idx.serviceName.get(j.ServiceKey || ""));
       return {
         kind: "job", key: j.Key, row: j, title: j.Title,
         client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "",
-        tag: shortTag(j.ServiceKey, idx.serviceName.get(j.ServiceKey || "")),
-        hours: jobHours(j, data.services), planned: j.PlannedDate, deadline: j.Deadline,
+        tag: finalise ? `Finalise · ${tag}` : tag,
+        hours: planHours(j, data.services), planned: j.PlannedDate, deadline: j.Deadline,
+        waiting: waitingForClient(j, stages), finalise, speakOn: (j.SpeakOn as string) || undefined,
         urgent: j.Priority === "urgent", compliance: true, held: isOnHold(j),
         stage: stages.length || j.StageName ? stageLabel(j, stages) : undefined,
         stageNo: Math.min(Number(j.StageNo || 1), Math.max(stages.length, 1)), stageCount: stages.length,
@@ -159,14 +166,23 @@ function WeekView() {
     .filter((i) => i.held)
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
   const byDay = new Map(days.map((d) => [d, visible.filter((i) => i.planned === d)]));
+  // preparing already done (the job's now with the client, or being finalised), shown on its day
+  const preparedOn = (d: string) => items.filter((i) => i.kind === "job" && i.finalise && (i.row as Job).PreparedOn === d);
+  const preparedLoad = (d: string) => preparedOn(d).reduce((t, i) => t + (Number((i.row as Job).PreparedHours) || 0), 0);
   const activePlan = plan && plan.week === week ? plan : null;
   const suggestedKeys = new Set(activePlan?.suggestions.map((s) => s.key));
   const suggestedOn = (d: string) =>
     (activePlan?.suggestions || []).filter((s) => s.day === d).map((s) => ({ s, item: items.find((i) => i.key === s.key)! })).filter((x) => x.item);
   const typeKey = (i: Item) => (i.kind === "task" ? "TASK" : (i.row as Job).ServiceKey || "OTHER");
+  const inTray = (i: Item) => !i.planned || (i.planned < today && !days.includes(i.planned));
+  // with the client and not planned yet: their own group, soonest conversation first
+  const withClient = visible
+    .filter((i) => i.waiting && inTray(i) && !suggestedKeys.has(i.key))
+    .sort((a, b) => (a.speakOn || "9999").localeCompare(b.speakOn || "9999"));
+  const speakDue = withClient.filter((i) => i.speakOn && i.speakOn <= today).length;
   const trayAll = visible
-    .filter((i) => !suggestedKeys.has(i.key))
-    .filter((i) => !i.planned || (i.planned < today && !days.includes(i.planned)))
+    .filter((i) => !suggestedKeys.has(i.key) && !(i.waiting && inTray(i)))
+    .filter(inTray)
     .filter((i) => horizon === "all" || !i.deadline || i.deadline <= addDays(today, Number(horizon)))
     .filter((i) => !search || `${i.title} ${i.client}`.toLowerCase().includes(search.toLowerCase()));
   const typeOptions: TypeOption[] = [...trayAll.reduce((m, i) => {
@@ -184,13 +200,13 @@ function WeekView() {
   const cal = useCalendar();
   const usualHours = (d: string) => settings.hours[String(weekday(d)) as keyof typeof settings.hours] ?? 0;
   const capacity = (d: string) => cal.capacityFor(d, usualHours(d)); // less meetings, when the calendar is connected
-  const load = (d: string) => (byDay.get(d) || []).reduce((t, i) => t + i.hours, 0);
+  const load = (d: string) => (byDay.get(d) || []).reduce((t, i) => t + i.hours, 0) + preparedLoad(d);
   const suggestedLoad = (d: string) => suggestedOn(d).reduce((t, x) => t + x.item.hours, 0);
   const weekHours = days.reduce((t, d) => t + load(d), 0);
   const weekCapacity = days.reduce((t, d) => t + capacity(d), 0);
   const overDays = days.filter((d) => load(d) > capacity(d)).length;
   const tightPlanned = days.flatMap((d) => byDay.get(d) || []).filter((i) => ["tight", "overdue"].includes(state(i, today))).length;
-  const dueSoonUnplanned = items.filter((i) => !i.held && !i.planned && i.deadline && i.deadline <= addDays(today, 30)).length;
+  const dueSoonUnplanned = items.filter((i) => !i.held && !i.waiting && !i.planned && i.deadline && i.deadline <= addDays(today, 30)).length;
 
   const say = (text: string, undo?: () => void) => {
     window.clearTimeout(toastTimer.current);
@@ -233,7 +249,8 @@ function WeekView() {
   const runSuggest = (includeWaiting = plan?.includeWaiting ?? false) => {
     const cands: Candidate[] = shownKind.map((i) => ({
       key: i.key, kind: i.kind, hours: i.hours, deadline: i.deadline, urgent: i.urgent, held: i.held,
-      planned: i.planned, suggestedSlot: i.kind === "job" ? ((i.row as Job).SuggestedSlot as string | undefined) : undefined,
+      planned: i.planned, suggestedSlot: i.kind === "job" && !i.finalise ? ((i.row as Job).SuggestedSlot as string | undefined) : undefined,
+      waitingForClient: !!i.waiting, notBefore: i.waiting ? i.speakOn : undefined,
       waitingForRecords: !includeWaiting && i.kind === "job" && waitingForRecords(i.row as Job, data.services, data.stageTemplates),
     }));
     const r = suggestPlan(cands, {
@@ -409,6 +426,18 @@ function WeekView() {
               {missed.length} planned on an earlier day but not finished
             </p>
           )}
+          {withClient.length > 0 && (
+            <details className="wait-list" open={speakDue > 0}>
+              <summary>
+                With the client ({withClient.length})
+                {speakDue > 0 && <span className="chip amber" style={{ marginLeft: 6 }}>{speakDue} to speak to</span>}
+              </summary>
+              <p className="muted" style={{ margin: "6px 0", fontSize: 12 }}>
+                Prepared and waiting for approval. Drag one onto a day to plan the finalising.
+              </p>
+              <div className="stack held-cards wait-cards" style={{ gap: 8 }}>{withClient.map(card)}</div>
+            </details>
+          )}
           {held.length > 0 && (
             <details className="held-list">
               <summary>
@@ -465,6 +494,9 @@ function WeekView() {
                   {sHours > 0 && <span style={{ fontSize: 12, color: "var(--blue-ink)" }}>+{fmtHours(sHours)} suggested</span>}
                   {cal.meetingsOn(d) > 0 && <span className="muted" style={{ fontSize: 12 }}>Meetings {fmtHours(cal.meetingsOn(d))}</span>}
                 </div>
+                {preparedOn(d).map((i) => (
+                  <PreparedCard key={`p-${i.key}`} item={i} onOpen={() => open({ kind: "job", key: i.key })} />
+                ))}
                 {list.map(card)}
                 {sugg.map(({ s, item }) => (
                   <div key={item.key} className="suggest-wrap">
@@ -481,7 +513,7 @@ function WeekView() {
                     </button>
                   </div>
                 ))}
-                {!list.length && !sugg.length && narrow && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing planned yet.</p>}
+                {!list.length && !sugg.length && !preparedOn(d).length && narrow && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing planned yet.</p>}
                 <button type="button" className="day-add" onClick={() => open({ kind: "task", plannedDate: d })}>+ Task</button>
               </div>
             );
@@ -560,6 +592,15 @@ function PlanCard({
         <span className={`pcard-records ${i.recordsIn ? "in" : "out"}`}>{i.recordsIn ? `Records in ${fmtDate(job.RecordsReceived!, { year: false })}` : "Records not in yet"}</span>
       )}
       {on("note") && i.note && <span className="pcard-note">{i.note}</span>}
+      {i.waiting && (
+        <span className="pcard-wait">
+          <span className="chip wait">With the client</span>
+          <WaitWhen item={i} today={today} />
+        </span>
+      )}
+      {i.finalise && !i.waiting && (
+        <span className="pcard-wait"><span className="chip wait">Ready to finalise</span></span>
+      )}
       {suggested !== undefined && (
         <span className="pcard-suggest"><span className="chip blue">Suggested</span>{suggested && <span>{suggested}</span>}</span>
       )}
@@ -588,6 +629,31 @@ export function monthSpan(from: string, to: string): string {
     new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", ...(year ? { year: "numeric" } : {}), timeZone: "UTC" });
   if (from.slice(0, 7) === to.slice(0, 7)) return name(from, true);
   return from.slice(0, 4) === to.slice(0, 4) ? `${name(from, false)} – ${name(to, true)}` : `${name(from, true)} – ${name(to, true)}`;
+}
+
+function WaitWhen({ item: i, today }: { item: Item; today: string }) {
+  const st = waitState(i.row, today);
+  if (st === "nodate") return <span>no date to speak yet</span>;
+  if (st === "today") return <span className="chip amber">Speaking today</span>;
+  if (st === "passed") return <span className="chip amber">Spoke {fmtDate(i.speakOn!, { year: false })}?</span>;
+  return <span>speaking {fmtDate(i.speakOn!, { weekday: true, year: false })}</span>;
+}
+
+/** The preparing part of a job, done on this day; the job itself is with the client or being finalised. */
+function PreparedCard({ item: i, onOpen }: { item: Item; onOpen: () => void }) {
+  const job = i.row as Job;
+  const hours = Number(job.PreparedHours) || 0;
+  return (
+    <button type="button" className={`pcard prepared ${svcClass(job.ServiceKey)}`} onClick={onOpen}
+      aria-label={`Prepared: ${i.title}${i.client ? ", " + i.client : ""}. Open the job.`}>
+      <span className="pcard-top">
+        <span className="pcard-tag"><Icon name="check" size={12} /> Prepared</span>
+        {hours > 0 && <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{fmtHours(hours)}</span>}
+      </span>
+      <span className="pcard-client">{i.client || i.title}</span>
+      <span className="pcard-sub">{i.client ? job.Title : ""}{i.waiting ? `${i.client ? " · " : ""}with the client` : ""}</span>
+    </button>
+  );
 }
 
 function shortTag(service?: string, name?: string): string {

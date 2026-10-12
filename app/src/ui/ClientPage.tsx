@@ -7,6 +7,7 @@ import { Row } from "../lib/schema";
 import { jobHours } from "../lib/planning";
 import { ClientBadge, DeadlineChip, Icon, companiesHouseUrl, href } from "./bits";
 import { nextStagePatch, stageLabel } from "../lib/stages";
+import { inFinalise, isWaitStage, planHours, stageAt, waitingForClient } from "../lib/waiting";
 import { useData, useIndex } from "./data";
 import { chaseSummary } from "../lib/chase";
 import { LogoError, logoSrc, prepareLogo } from "../lib/logo";
@@ -413,7 +414,8 @@ function JobCard({ job: j }: { job: Job }) {
   const current = Math.min(j.StageNo || 1, Math.max(templates.length, 1));
   const last = current >= templates.length;
   const stageDone = async () => {
-    if (last) return open({ kind: "job", key: j.Key }); // the last stage: finish the job in its panel
+    // the last stage, or handing it to the client: that's done in the job's panel, which asks the questions
+    if (last || (isWaitStage(stageAt(templates, current + 1)) && !inFinalise(j))) return open({ kind: "job", key: j.Key });
     const patch = nextStagePatch(j, templates, today);
     if (!patch) return;
     setSaving(true);
@@ -433,6 +435,8 @@ function JobCard({ job: j }: { job: Job }) {
             <h2>{j.Title}</h2>
             {j.Priority === "urgent" && <span className="chip red">Urgent</span>}
             {isOnHold(j) && <span className="chip hold">On hold</span>}
+            {waitingForClient(j, templates) && <span className="chip wait">With the client{j.SpeakOn ? ` · speaking ${fmtDate(j.SpeakOn as string, { year: false })}` : ""}</span>}
+            {inFinalise(j) && !waitingForClient(j, templates) && <span className="chip wait">Ready to finalise</span>}
             <DeadlineChip job={j} today={today} />
           </div>
           <span className="muted">
@@ -459,7 +463,8 @@ function JobCard({ job: j }: { job: Job }) {
         </div>
         <div><div className="label">Planned</div><div className="value" style={j.PlannedDate ? { color: "var(--blue-ink)" } : undefined}>{j.PlannedDate ? fmtDate(j.PlannedDate, { weekday: true }) : "Not yet"}</div></div>
         <div><div className="label">Deadline</div><div className="value mono" style={st.state !== "ok" ? { color: st.state === "overdue" ? "var(--red-ink)" : "var(--amber-ink)" } : undefined}>{fmtDate(j.Deadline) || "—"}</div></div>
-        <div><div className="label">Your hours</div><div className="value">{fmtHours(budget)}{j.EstimateHours ? "" : <span className="muted" style={{ fontWeight: 400 }}> (default)</span>}</div></div>
+        <div><div className="label">Your hours</div><div className="value">{fmtHours(budget)}{j.EstimateHours ? "" : <span className="muted" style={{ fontWeight: 400 }}> (default)</span>}</div>
+          {inFinalise(j) && <div className="muted" style={{ fontSize: 12 }}>{fmtHours(planHours(j, data.services))} left to finalise</div>}</div>
       </div>
       {templates.length > 0 && (
         <div className="job-stages">

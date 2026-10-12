@@ -4,7 +4,8 @@
 // The rules, in order:
 //   1. Only work that's open, not on hold, not planned, and due within the look-ahead
 //      (or marked urgent, or whose slot from last year falls this week) is considered.
-//   2. Work still waiting for records from the client is left out, and listed as such.
+//   2. Work still waiting for records from the client is left out, and listed as such. So is
+//      work with the client for approval, until the day you're speaking to them.
 //   3. Late work first, then urgent, then the nearest deadline.
 //   4. Each piece goes on the day it was done last year if that's this week, otherwise the
 //      earliest day with room, and never after its deadline (unless it's already late).
@@ -21,6 +22,8 @@ export type Candidate = {
   planned?: string; // a planned date; one in the past counts as unplanned
   suggestedSlot?: string; // the same time last year
   waitingForRecords: boolean;
+  waitingForClient?: boolean; // with the client for approval
+  notBefore?: string; // the day you're speaking to the client: finalising goes on or after it
 };
 
 export type PlanOptions = {
@@ -66,6 +69,10 @@ export function suggestPlan(cands: Candidate[], o: PlanOptions): { suggestions: 
       skipped.push({ key: c.key, reason: "Waiting for records" });
       return false;
     }
+    if (c.waitingForClient && !c.notBefore) {
+      skipped.push({ key: c.key, reason: "Waiting for the client" });
+      return false;
+    }
     return true;
   });
 
@@ -79,9 +86,10 @@ export function suggestPlan(cands: Candidate[], o: PlanOptions): { suggestions: 
   );
 
   for (const c of eligible) {
-    const allowed = days.filter((d) => late(c) || !c.deadline || d <= c.deadline);
+    const after = c.notBefore || "";
+    const allowed = days.filter((d) => (late(c) || !c.deadline || d <= c.deadline) && d >= after);
     if (!allowed.length) {
-      skipped.push({ key: c.key, reason: "Due before any day left this week" });
+      skipped.push({ key: c.key, reason: after > days[days.length - 1] ? "Speaking to the client after this week" : "Due before any day left this week" });
       continue;
     }
     const fits = (d: string) => room[d] >= c.hours - 1e-9;
@@ -104,7 +112,7 @@ export function suggestPlan(cands: Candidate[], o: PlanOptions): { suggestions: 
     room[day] = Math.max(0, room[day] - c.hours);
     empty[day] = false;
     // the card already shows the deadline; say why it was picked
-    const why = [late(c) ? "Late" : "", c.urgent ? "Urgent" : "", reason].filter(Boolean);
+    const why = [late(c) ? "Late" : "", c.urgent ? "Urgent" : "", c.notBefore ? "After speaking to the client" : "", reason].filter(Boolean);
     if (!why.length) why.push("Next deadline");
     suggestions.push({ key: c.key, day, reason: why.join(" · ") });
   }
