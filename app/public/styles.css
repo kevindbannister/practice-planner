@@ -976,8 +976,15 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
 .hours-gutter { position: relative; }
 .hours-gutter span { position: absolute; right: 6px; transform: translateY(-50%); font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .hours-gutter span:first-child { transform: none; }
-.hours-col { position: relative; min-width: 0; border-radius: 8px; background-color: var(--surface); border: 1px solid var(--line); cursor: copy;
-  background-image: linear-gradient(to bottom, var(--line-2) 1px, transparent 1px); background-size: 100% var(--hour-px); overflow: hidden; }
+.hours-gutter span.half { font-size: 10px; opacity: 0.6; }
+.hours-col { position: relative; min-width: 0; border-radius: 8px; background-color: var(--surface); border: 1px solid var(--line); cursor: copy; overflow: hidden;
+  /* hour lines, half-hour lines, and faint quarter-hour lines */
+  background-image:
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--line) 75%, transparent) 1px, transparent 1px);
+  background-size: 100% var(--hour-px), 100% calc(var(--hour-px) / 2); }
+.hours-col::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(to bottom, transparent 0 calc(var(--hour-px) / 4 - 1px), color-mix(in srgb, var(--line-2) 55%, transparent) calc(var(--hour-px) / 4 - 1px) calc(var(--hour-px) / 4)); }
 .hours-col.today { border-color: var(--blue-line); }
 .hours-col.drop { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue-soft); }
 .hours-col .off { position: absolute; left: 0; right: 0; pointer-events: auto;

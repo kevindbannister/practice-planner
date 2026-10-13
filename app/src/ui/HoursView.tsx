@@ -40,8 +40,8 @@ type Props = {
   connected: boolean;
 };
 
-const PPM = 0.9; // pixels a minute (54px an hour)
-const PPM_PHONE = 1.1;
+const PPM = 1.3; // pixels a minute (78px an hour, so half hours are easy to hit)
+const PPM_PHONE = 1.5;
 
 function minutesIn(e: CalEvent, day: string): [number, number] {
   const start = new Date(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)).getTime();
@@ -183,6 +183,7 @@ export function HoursView(p: Props) {
       <div className="hours-body">
         <div className="hours-gutter" style={{ height }} aria-hidden="true">
           {hours.map((m) => <span key={m} style={{ top: y(m) }}>{hhmm(m)}</span>)}
+          {hours.map((m) => <span key={`h${m}`} className="half" style={{ top: y(m + 30) }}>{hhmm(m + 30)}</span>)}
         </div>
         {perDay.map((x) => {
           const byKey = new Map(x.cards.map((c) => [c.key, c]));
