@@ -8,6 +8,7 @@ import { addDays, mondayOf, weekday } from "../lib/planning";
 import { planHours, waitState, waitingForClient } from "../lib/waiting";
 import { usePaymentReminderCount } from "./TaxPayments";
 import { templateFor } from "../lib/meetings";
+import { compareInDay } from "../lib/dayOrder";
 import { useBackup } from "./Backups";
 import { useCalendar } from "./Calendar";
 import { fmtWhen, useCompaniesHouse } from "./CompaniesHouse";
@@ -63,7 +64,7 @@ export function HomePage() {
     .filter((w) => ["today", "passed"].includes(waitState(w.row, today)) && (!w.planned || w.planned < today))
     .sort((a, b) => String(a.row.SpeakOn).localeCompare(String(b.row.SpeakOn)));
   const noSpeakDate = withClient.filter((w) => waitState(w.row, today) === "nodate");
-  const todays = active.filter((w) => w.planned === today).sort((a, b) => Number(b.urgent) - Number(a.urgent) || (a.deadline || "9999").localeCompare(b.deadline || "9999"));
+  const todays = active.filter((w) => w.planned === today).sort((a, b) => compareInDay(a, b));
   const todayHours = todays.reduce((t, w) => t + w.hours, 0);
   const todayCap = weekday(today) >= 1 && weekday(today) <= 5 ? capacity(today) : 0;
   const chase = useMemo(() => groupByClient(chaseItems(idx.openJobs, data.services, today, data.stageTemplates)).filter((g) => g.status !== "chased"), [idx.openJobs, data.services, today, data.stageTemplates]);

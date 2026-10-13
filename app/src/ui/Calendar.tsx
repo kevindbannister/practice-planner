@@ -9,6 +9,7 @@ import {
 import { Job, Task, fmtDate, fmtHours, isOnHold, isOpen, todayIso } from "../lib/domain";
 import { GraphError } from "../lib/graph";
 import { planHours } from "../lib/waiting";
+import { dayRank } from "../lib/dayOrder";
 import { friendlyError } from "../lib/sharepoint";
 import { readSetting, useData } from "./data";
 
@@ -52,13 +53,13 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
     const clientName = (k?: string) => (k && data.clients.find((c) => c.Key === k)?.Title) || "";
     const from = days[0], to = days[days.length - 1];
     const inWindow = (d?: string) => !!d && d >= from && d <= to;
-    const rows: { item: PlannedItem; urgent: boolean; due: string }[] = [];
+    const rows: { item: PlannedItem; urgent: boolean; due: string; rank: number }[] = [];
     for (const j of data.jobs as Job[]) {
       if (!isOpen(j) || isOnHold(j) || !inWindow(j.PlannedDate)) continue;
       const name = clientName(j.ClientKey) || (j.ClientName as string) || "";
       rows.push({
         item: { key: j.Key, day: j.PlannedDate!, hours: planHours(j, data.services), subject: `${name ? `${name}: ` : ""}${j.Title}`, note: j.Deadline ? `Due ${fmtDate(j.Deadline)}` : "" },
-        urgent: j.Priority === "urgent", due: j.Deadline || "9999",
+        urgent: j.Priority === "urgent", due: j.Deadline || "9999", rank: dayRank(j),
       });
     }
     for (const t of data.tasks as Task[]) {
@@ -66,10 +67,11 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
       const name = clientName(t.ClientKey);
       rows.push({
         item: { key: t.Key, day: t.PlannedDate!, hours: t.EstimateHours || 1, subject: `${name ? `${name}: ` : ""}${t.Title}`, note: t.DueDate ? `Due ${fmtDate(t.DueDate)}` : "" },
-        urgent: false, due: t.DueDate || "9999",
+        urgent: false, due: t.DueDate || "9999", rank: dayRank(t),
       });
     }
-    rows.sort((a, b) => a.item.day.localeCompare(b.item.day) || Number(b.urgent) - Number(a.urgent) || a.due.localeCompare(b.due));
+    // the order you've set for each day, then urgent, then nearest deadline
+    rows.sort((a, b) => a.item.day.localeCompare(b.item.day) || (a.rank === b.rank ? 0 : a.rank < b.rank ? -1 : 1) || Number(b.urgent) - Number(a.urgent) || a.due.localeCompare(b.due));
     return rows.map((r) => r.item);
   }, [ctx, days]);
   const plannedSig = JSON.stringify(planned.map((p) => [p.key, p.day, p.hours, p.subject]));

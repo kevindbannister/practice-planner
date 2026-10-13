@@ -17,6 +17,9 @@ import { readSetting } from "./data";
 import { Candidate, DEFAULT_FILL, LOOK_AHEAD_DAYS, Skipped, Suggestion, suggestPlan } from "../lib/autoplan";
 import { waitingForRecords } from "../lib/chase";
 import { stageLabel } from "../lib/stages";
+import { Row } from "../lib/schema";
+import { compareInDay, placeInDay } from "../lib/dayOrder";
+import { progress, readSubtasks } from "../lib/subtasks";
 import { inFinalise, planHours, waitState, waitingForClient } from "../lib/waiting";
 import { CardField, CardOptions, useCardFields } from "./CardOptions";
 
@@ -66,7 +69,7 @@ export function PlanPage() {
 }
 
 function WeekView() {
-  const { data, settings, update } = useData();
+  const { data, settings, update, updateMany } = useData();
   const idx = useIndex();
   const { open } = useEditor();
   const today = todayIso();
@@ -165,7 +168,7 @@ function WeekView() {
   const held = shownKind
     .filter((i) => i.held)
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
-  const byDay = new Map(days.map((d) => [d, visible.filter((i) => i.planned === d)]));
+  const byDay = new Map(days.map((d) => [d, visible.filter((i) => i.planned === d).sort(compareInDay)]));
   // preparing already done (the job's now with the client, or being finalised), shown on its day
   const preparedOn = (d: string) => items.filter((i) => i.kind === "job" && i.finalise && (i.row as Job).PreparedOn === d);
   const preparedLoad = (d: string) => preparedOn(d).reduce((t, i) => t + (Number((i.row as Job).PreparedHours) || 0), 0);
@@ -215,9 +218,19 @@ function WeekView() {
   };
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
-  const move = async (key: string, date?: string, quiet = false) => {
+  /** Saves DayOrder (and the moved card's day) for a day's new order, jobs and tasks in their own lists. */
+  const saveOrder = async (changes: { item: Item; patch: Row }[]) => {
+    const jobs = changes.filter((c) => c.item.kind === "job").map((c) => ({ row: c.item.row, patch: c.patch }));
+    const tasks = changes.filter((c) => c.item.kind === "task").map((c) => ({ row: c.item.row, patch: c.patch }));
+    if (jobs.length) await updateMany("Jobs", jobs);
+    if (tasks.length) await updateMany("Tasks", tasks);
+  };
+
+  const move = async (key: string, date?: string, quiet = false, at?: number) => {
     const item = items.find((i) => i.key === key);
-    if (!item || (item.planned || undefined) === date) return;
+    if (!item) return;
+    const sameDay = (item.planned || undefined) === date;
+    if (sameDay && (!date || at === undefined)) return;
     const before = item.planned;
     const list = item.kind === "job" ? "Jobs" : "Tasks";
     setError(undefined);
@@ -229,12 +242,24 @@ function WeekView() {
         say(`${item.client || item.title}: taken off hold and planned for ${fmtDate(date, { weekday: true, year: false })}`);
         return;
       }
-      await update(list, item.row, { PlannedDate: date || "" });
+      if (!date) {
+        await update(list, item.row, { PlannedDate: "", DayOrder: "" });
+      } else {
+        // the day's order, with this card where it was dropped (or at the end)
+        const dayList = (byDay.get(date) || visible.filter((i) => i.planned === date)).filter((i) => i.key !== key);
+        const { changes } = placeInDay(dayList, item, at);
+        const undoOrder = changes.map((c) => ({ item: c.item, patch: { DayOrder: c.item.row.DayOrder ?? "", ...(c.item.key === key ? { PlannedDate: before || "" } : {}) } }));
+        await saveOrder(changes.map((c) => ({ item: c.item, patch: { DayOrder: c.DayOrder, ...(c.item.key === key && !sameDay ? { PlannedDate: date } : {}) } })));
+        if (!quiet) {
+          say(
+            sameDay ? `${item.client || item.title}: moved ${at === 0 ? "to the top" : `to number ${(at ?? 0) + 1}`} on ${fmtDate(date, { weekday: true, year: false })}` : `${item.client || item.title}: planned for ${fmtDate(date, { weekday: true, year: false })}`,
+            () => saveOrder(undoOrder).then(() => setToast(undefined)),
+          );
+        }
+        return;
+      }
       if (!quiet) {
-        say(
-          `${item.client || item.title}: ${date ? `planned for ${fmtDate(date, { weekday: true, year: false })}` : "back to unplanned"}`,
-          () => moveRef.current(key, before, true).then(() => setToast(undefined)),
-        );
+        say(`${item.client || item.title}: back to unplanned`, () => moveRef.current(key, before, true).then(() => setToast(undefined)));
       }
     } catch {
       setError("That move didn't save. It's been put back; try again.");
@@ -244,7 +269,7 @@ function WeekView() {
   const moveRef = useRef(move);
   moveRef.current = move; // undo runs later, so it needs the latest board
 
-  const { dragKey, target: dropTarget, cardProps } = useBoardDrag((key, t) => move(key, t === "tray" ? undefined : t));
+  const { dragKey, target: dropTarget, insertAt, cardProps } = useBoardDrag((key, t, at) => move(key, t === "tray" ? undefined : t, false, at));
 
   const runSuggest = (includeWaiting = plan?.includeWaiting ?? false) => {
     const cands: Candidate[] = shownKind.map((i) => ({
@@ -272,7 +297,7 @@ function WeekView() {
       for (const s of activePlan.suggestions) {
         const item = items.find((i) => i.key === s.key);
         if (!item) continue;
-        await update(item.kind === "job" ? "Jobs" : "Tasks", item.row, { PlannedDate: s.day });
+        await update(item.kind === "job" ? "Jobs" : "Tasks", item.row, { PlannedDate: s.day, DayOrder: "" });
         done.push({ item, before: item.planned });
       }
       setPlan(null);
@@ -293,9 +318,10 @@ function WeekView() {
   const waitingCount = activePlan?.skipped.filter((s) => s.reason === "Waiting for records").length || 0;
   const noRoomCount = activePlan?.skipped.filter((s) => s.reason !== "Waiting for records").length || 0;
 
-  const card = (i: Item) => (
+  const card = (i: Item, onDay = false) => (
     <PlanCard
       key={i.key}
+      onDay={onDay}
       item={i}
       today={today}
       fields={fields}
@@ -435,7 +461,7 @@ function WeekView() {
               <p className="muted" style={{ margin: "6px 0", fontSize: 12 }}>
                 Prepared and waiting for approval. Drag one onto a day to plan the finalising.
               </p>
-              <div className="stack held-cards wait-cards" style={{ gap: 8 }}>{withClient.map(card)}</div>
+              <div className="stack held-cards wait-cards" style={{ gap: 8 }}>{withClient.map((i) => card(i))}</div>
             </details>
           )}
           {held.length > 0 && (
@@ -447,11 +473,11 @@ function WeekView() {
                 )}
               </summary>
               <p className="muted" style={{ margin: "6px 0", fontSize: 12 }}>Drag one onto a day to take it off hold and plan it.</p>
-              <div className="stack held-cards" style={{ gap: 8 }}>{held.map(card)}</div>
+              <div className="stack held-cards" style={{ gap: 8 }}>{held.map((i) => card(i))}</div>
             </details>
           )}
           <div className="tray-list">
-            {unplanned.slice(0, 80).map(card)}
+            {unplanned.slice(0, 80).map((i) => card(i))}
             {unplanned.length > 80 && <p className="muted" style={{ fontSize: 12 }}>{unplanned.length - 80} more; narrow the dates or search.</p>}
             {!unplanned.length && <p className="muted" style={{ fontSize: 13 }}>Nothing waiting to be planned.</p>}
           </div>
@@ -471,6 +497,7 @@ function WeekView() {
                 key={d}
                 role="listitem"
                 data-drop={d}
+                data-order=""
                 className={`day${d === today ? " today" : ""}${dropTarget === d ? " drop" : ""}${d === shownDay ? " shown" : ""}`}
               >
                 <div className="day-title">
@@ -497,7 +524,20 @@ function WeekView() {
                 {preparedOn(d).map((i) => (
                   <PreparedCard key={`p-${i.key}`} item={i} onOpen={() => open({ kind: "job", key: i.key })} />
                 ))}
-                {list.map(card)}
+                {(() => {
+                  // a line shows where a dragged card will land among the day's cards
+                  let n = 0;
+                  const out: React.ReactNode[] = [];
+                  for (const i of list) {
+                    if (i.key !== dragKey) {
+                      if (dropTarget === d && insertAt === n) out.push(<div key="drop-line" className="drop-line" aria-hidden="true" />);
+                      n++;
+                    }
+                    out.push(card(i, true));
+                  }
+                  if (dropTarget === d && dragKey && insertAt === n && list.some((i) => i.key !== dragKey)) out.push(<div key="drop-line" className="drop-line" aria-hidden="true" />);
+                  return out;
+                })()}
                 {sugg.map(({ s, item }) => (
                   <div key={item.key} className="suggest-wrap">
                     <PlanCard
@@ -546,10 +586,11 @@ type DragProps = {
 };
 
 function PlanCard({
-  item: i, today, fields, dragging, onOpen, dragProps, suggested,
+  item: i, today, fields, dragging, onOpen, dragProps, suggested, onDay,
 }: {
-  item: Item; today: string; fields: Set<CardField>; dragging: boolean; onOpen: () => void; dragProps?: DragProps; suggested?: string;
+  item: Item; today: string; fields: Set<CardField>; dragging: boolean; onOpen: () => void; dragProps?: DragProps; suggested?: string; onDay?: boolean;
 }) {
+  const subs = i.kind === "task" ? progress(readSubtasks(i.row.Subtasks)) : { done: 0, total: 0 };
   const st = jobState(i.kind === "task" ? taskAsJob(i.row as Task) : (i.row as Job), today);
   const job = i.kind === "job" ? (i.row as Job) : undefined;
   const on = (f: CardField) => fields.has(f);
@@ -567,6 +608,7 @@ function PlanCard({
       type="button"
       className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}`}
       {...(dragProps || {})}
+      {...(onDay ? { "data-card": i.key } : {})}
       onClick={onOpen}
       aria-label={`${suggested !== undefined ? "Suggested: " : ""}${i.title}${i.client ? ", " + i.client : ""}${i.stage ? ", stage: " + i.stage : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}${i.note ? ". Note: " + i.note : ""}. Open to edit.`}
     >
@@ -592,6 +634,12 @@ function PlanCard({
         <span className={`pcard-records ${i.recordsIn ? "in" : "out"}`}>{i.recordsIn ? `Records in ${fmtDate(job.RecordsReceived!, { year: false })}` : "Records not in yet"}</span>
       )}
       {on("note") && i.note && <span className="pcard-note">{i.note}</span>}
+      {on("subtasks") && subs.total > 0 && (
+        <span className={`pcard-subtasks${subs.done === subs.total ? " all" : ""}`}>
+          <span className="pcard-subbar" aria-hidden="true"><span style={{ width: `${(subs.done / subs.total) * 100}%` }} /></span>
+          <span>{subs.done}/{subs.total} subtasks</span>
+        </span>
+      )}
       {i.waiting && (
         <span className="pcard-wait">
           <span className="chip wait">With the client</span>

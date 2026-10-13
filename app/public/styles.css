@@ -914,3 +914,21 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
   .save.saved .save-text, .save.saving .save-text { display: none; }
   .topbar-user { display: none; }
 }
+
+/* ---------- subtasks and order within a day ---------- */
+.subbar, .pcard-subbar { height: 5px; border-radius: 3px; background: var(--line-2); overflow: hidden; }
+.subbar > span, .pcard-subbar > span { display: block; height: 100%; background: var(--green); border-radius: 3px; transition: width 0.2s; }
+.subtask-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.subtask-list li { display: flex; align-items: center; gap: 8px; padding: 2px 4px; border-radius: 6px; }
+.subtask-list li:hover { background: var(--surface-2); }
+.subtask-list input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; margin: 0; }
+.subtask-text { flex: 1 1 auto; min-width: 0; border: 1px solid transparent; background: transparent; border-radius: 6px; padding: 6px 8px; font: inherit; color: var(--ink); }
+.subtask-text:focus { border-color: var(--line); background: var(--surface); outline: none; }
+.subtask-list li.done .subtask-text { text-decoration: line-through; color: var(--muted); }
+.subtask-tools { display: inline-flex; gap: 2px; opacity: 0.5; }
+.subtask-list li:hover .subtask-tools, .subtask-list li:focus-within .subtask-tools { opacity: 1; }
+@media (hover: none) { .subtask-tools { opacity: 1; } }
+.pcard-subtasks { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+.pcard-subtasks .pcard-subbar { flex: 1 1 auto; max-width: 90px; }
+.pcard-subtasks.all { color: var(--green); font-weight: 600; }
+.drop-line { height: 3px; border-radius: 2px; background: var(--blue); margin: -2px 4px; box-shadow: 0 0 0 2px var(--blue-soft); }

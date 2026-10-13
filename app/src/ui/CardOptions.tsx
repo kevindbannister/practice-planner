@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./bits";
 
-export type CardField = "type" | "hours" | "client" | "job" | "period" | "stage" | "deadline" | "flags" | "note" | "records";
+export type CardField = "type" | "hours" | "client" | "job" | "period" | "stage" | "deadline" | "flags" | "note" | "records" | "subtasks";
 
 export const CARD_FIELDS: [CardField, string][] = [
   ["type", "Type of work"],
@@ -15,15 +15,25 @@ export const CARD_FIELDS: [CardField, string][] = [
   ["flags", "Urgent, late and tight"],
   ["note", "Card note"],
   ["records", "Records in or not"],
+  ["subtasks", "Subtasks ticked off"],
 ];
-const DEFAULT: CardField[] = ["type", "hours", "client", "job", "period", "stage", "deadline", "flags", "note"];
+const DEFAULT: CardField[] = ["type", "hours", "client", "job", "period", "stage", "deadline", "flags", "note", "subtasks"];
 const KEY = "pp.plan.card";
+const NEW_SINCE: CardField[] = ["subtasks"];
+const seen = (f: CardField) => {
+  try {
+    return (JSON.parse(localStorage.getItem(KEY + ".seen") || "[]") as string[]).includes(f);
+  } catch {
+    return false;
+  }
+};
 
 export function useCardFields(): [Set<CardField>, (f: CardField, on: boolean) => void, () => void] {
   const read = (): CardField[] => {
     try {
       const v = JSON.parse(localStorage.getItem(KEY) || "null");
-      return Array.isArray(v) ? v : DEFAULT;
+      // fields added since the choice was saved are shown until they're turned off
+      return Array.isArray(v) ? [...v, ...NEW_SINCE.filter((f) => !v.includes(f) && !seen(f))] : DEFAULT;
     } catch {
       return DEFAULT;
     }
@@ -33,6 +43,7 @@ export function useCardFields(): [Set<CardField>, (f: CardField, on: boolean) =>
     setFields(v);
     try {
       localStorage.setItem(KEY, JSON.stringify(v));
+      localStorage.setItem(KEY + ".seen", JSON.stringify(NEW_SINCE));
     } catch {
       /* this visit only */
     }

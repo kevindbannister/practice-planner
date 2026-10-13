@@ -8,6 +8,7 @@ import {
 import { deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
 import { chaseSummary } from "../lib/chase";
+import { Subtask, progress, readSubtasks, writeSubtasks } from "../lib/subtasks";
 import { finaliseDefault, firstWaitStage, inFinalise, isWaitStage, stageAt, unwaitPatch, waitPatch, waitingForClient } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
 import { DeadlineChip, Icon, href } from "./bits";
@@ -251,7 +252,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <div style={{ gridColumn: "1 / -1" }}>
           <Field label="Note on card" value={job.CardNote as string} placeholder="A short note shown on the planner card" onSave={(v) => save({ CardNote: v })} />
         </div>
-        <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v })} />
+        <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v, DayOrder: "" })} />
         <Field label="Deadline" type="date" value={job.Deadline} onSave={(v) => save({ Deadline: v, DeadlineSource: "Manual" })} />
         <Field label="Records expected" type="date" value={job.RecordsExpected as string} onSave={(v) => save({ RecordsExpected: v })} />
         <Field label="Records received" type="date" value={job.RecordsReceived} onSave={(v) => save({ RecordsReceived: v })} />
@@ -264,7 +265,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       {job.SuggestedSlot && !job.PlannedDate && (
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
           <span className="muted" style={{ fontSize: 13 }}>Suggested from last time: {fmtDate(job.SuggestedSlot, { weekday: true })}</span>
-          <button type="button" className="btn small" onClick={() => save({ PlannedDate: job.SuggestedSlot })}>Plan for then</button>
+          <button type="button" className="btn small" onClick={() => save({ PlannedDate: job.SuggestedSlot, DayOrder: "" })}>Plan for then</button>
         </div>
       )}
       <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
@@ -582,6 +583,8 @@ function TaskPanel({ taskKey, clientKey, plannedDate, onClose }: { taskKey?: str
       <Drawer title={existing.Title} eyebrow={existing.Type || "Task"} onClose={onClose}>
         {isOpen(existing) && <HoldSection item={existing} deadline={existing.DueDate} save={save} what="task" />}
         <TaskFields value={existing} clients={clients} onChange={(patch) => save(patch)} live />
+        <SubtaskList value={existing.Subtasks as string} onChange={(v) => save({ Subtasks: v })}
+          onAllDone={isOpen(existing) ? () => save({ Status: "Done", CompletedDate: todayIso() }).then(onClose) : undefined} />
         {isOpen(existing) ? (
           <div className="form-actions" style={{ justifyContent: "space-between" }}>
             <button type="button" className="btn" onClick={() => save({ Status: "Cancelled" }).then(onClose)}>Cancel task</button>
@@ -611,6 +614,7 @@ function TaskPanel({ taskKey, clientKey, plannedDate, onClose }: { taskKey?: str
   return (
     <Drawer title="New task" eyebrow="Task" onClose={onClose}>
       <TaskFields value={draft} clients={clients} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
+      <SubtaskList value={draft.Subtasks as string} onChange={(v) => setDraft((d) => ({ ...d, Subtasks: v }))} />
       {error && <p className="error-text" role="alert">{error}</p>}
       <div className="form-actions">
         <button type="button" className="btn" onClick={onClose}>Cancel</button>
@@ -633,7 +637,7 @@ function TaskFields({ value, clients, onChange, live }: { value: Row; clients: R
           <option value="">None</option>
           {clients.map((c) => <option key={c.Key as string} value={c.Key as string}>{c.Title as string}</option>)}
         </SelectField>
-        <Field label="Planned for" type="date" value={value.PlannedDate as string} onSave={(v) => onChange({ PlannedDate: v })} />
+        <Field label="Planned for" type="date" value={value.PlannedDate as string} onSave={(v) => onChange({ PlannedDate: v, DayOrder: "" })} />
         <Field label="Due" type="date" value={value.DueDate as string} onSave={(v) => onChange({ DueDate: v })} />
         <Field label="Hours" type="number" step="0.25" value={value.EstimateHours as number} onSave={(v) => onChange({ EstimateHours: num(v) })} />
         <div style={{ gridColumn: "1 / -1" }}>
@@ -660,6 +664,89 @@ function TaskFields({ value, clients, onChange, live }: { value: Row; clients: R
       <label style={{ gridColumn: "1 / -1" }}>Note on card<input className="input" placeholder="A short note shown on the planner card" value={(value.CardNote as string) || ""} onChange={set("CardNote")} /></label>
       <label style={{ gridColumn: "1 / -1" }}>Notes<textarea className="input" rows={3} value={(value.Notes as string) || ""} onChange={set("Notes")} /></label>
     </div>
+  );
+}
+
+/** A checklist of subtasks: tick them off, rename, re-order, remove, add. */
+function SubtaskList({ value, onChange, onAllDone }: { value?: string; onChange: (json: string) => Promise<void> | void; onAllDone?: () => void }) {
+  const [list, setList] = useState<Subtask[]>(() => readSubtasks(value));
+  const [adding, setAdding] = useState("");
+  const [err, setErr] = useState<string>();
+  const addRef = useRef<HTMLInputElement>(null);
+  const editing = useRef(false);
+  // follow saved changes (e.g. from another device), unless a name is being typed
+  useEffect(() => {
+    if (!editing.current) setList(readSubtasks(value));
+  }, [value]);
+  const commit = async (next: Subtask[]) => {
+    setList(next);
+    const json = writeSubtasks(next);
+    if (json === writeSubtasks(readSubtasks(value))) return;
+    try {
+      setErr(undefined);
+      await onChange(json);
+    } catch {
+      setErr("Couldn't save. Try again.");
+    }
+  };
+  const add = () => {
+    const text = adding.trim();
+    if (!text) return;
+    setAdding("");
+    void commit([...list, { id: newKey("S"), text, done: false }]);
+    requestAnimationFrame(() => addRef.current?.focus());
+  };
+  const move = (i: number, by: number) => {
+    const j = i + by;
+    if (j < 0 || j >= list.length) return;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    void commit(next);
+  };
+  const p = progress(list);
+  return (
+    <section className="stack subtasks" aria-labelledby="sub-h" style={{ gap: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <h3 id="sub-h" style={{ margin: 0, fontSize: 15 }}>Subtasks</h3>
+        {p.total > 0 && <span className="muted" style={{ fontSize: 13 }}>{p.done} of {p.total} done</span>}
+      </div>
+      {p.total > 0 && <div className="subbar" aria-hidden="true"><span style={{ width: `${(p.done / p.total) * 100}%` }} /></div>}
+      {list.length > 0 && (
+        <ul className="subtask-list">
+          {list.map((st, i) => (
+            <li key={st.id} className={st.done ? "done" : undefined}>
+              <input type="checkbox" checked={st.done} aria-label={`Done: ${st.text}`} onChange={(e) => void commit(list.map((x) => (x.id === st.id ? { ...x, done: e.target.checked } : x)))} />
+              <input
+                className="subtask-text"
+                value={st.text}
+                aria-label={`Subtask ${i + 1}`}
+                onFocus={() => (editing.current = true)}
+                onChange={(e) => setList(list.map((x) => (x.id === st.id ? { ...x, text: e.target.value } : x)))}
+                onBlur={() => { editing.current = false; void commit(list); }}
+                onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+              />
+              <span className="subtask-tools">
+                <button type="button" className="iconbtn small" aria-label={`Move ${st.text} up`} disabled={i === 0} onClick={() => move(i, -1)}><Icon name="up" size={13} /></button>
+                <button type="button" className="iconbtn small" aria-label={`Move ${st.text} down`} disabled={i === list.length - 1} onClick={() => move(i, 1)}><Icon name="down" size={13} /></button>
+                <button type="button" className="iconbtn small" aria-label={`Remove ${st.text}`} onClick={() => void commit(list.filter((x) => x.id !== st.id))}><Icon name="close" size={13} /></button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="row-wrap" style={{ gap: 6, flexWrap: "nowrap" }}>
+        <input ref={addRef} className="input" placeholder="Add a subtask and press Enter" value={adding} aria-label="New subtask"
+          onChange={(e) => setAdding(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
+        <button type="button" className="btn" onClick={add} disabled={!adding.trim()}>Add</button>
+      </div>
+      {err && <span className="error-text">{err}</span>}
+      {onAllDone && p.total > 0 && p.done === p.total && (
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+          <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>All subtasks done.</span>
+          <button type="button" className="btn small primary" onClick={onAllDone}>Mark the task done</button>
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -4,7 +4,8 @@
 // - Touch: press on the card's grip and move straight away, or press and hold anywhere on
 //   the card for a moment (so an ordinary swipe still scrolls the page).
 //
-// Anything marked data-drop="<target>" is a drop target. A floating copy of the card follows
+// Anything marked data-drop="<target>" is a drop target. A target that also has data-order
+// lets cards (marked data-card) be dropped between others: the drop says where. A floating copy of the card follows
 // the pointer, and the page scrolls when you drag near the top or bottom edge.
 import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 
@@ -26,9 +27,10 @@ type Pending = {
   timer?: number;
 };
 
-export function useBoardDrag(onDrop: (key: string, target: string) => void) {
+export function useBoardDrag(onDrop: (key: string, target: string, at?: number) => void) {
   const [dragKey, setDragKey] = useState<string>();
   const [target, setTarget] = useState<string>();
+  const [insertAt, setInsertAt] = useState<number>();
   const dropRef = useRef(onDrop);
   dropRef.current = onDrop;
 
@@ -39,15 +41,30 @@ export function useBoardDrag(onDrop: (key: string, target: string) => void) {
     let ghost: HTMLElement | null = null;
     let pos = { x: 0, y: 0 };
     let over: string | undefined;
+    let at: number | undefined;
     let raf = 0;
     let justDropped = false;
 
     const hitTest = (x: number, y: number) => {
       const el = document.elementFromPoint(x, y) as HTMLElement | null;
-      const t = el?.closest<HTMLElement>("[data-drop]")?.dataset.drop;
+      const zone = el?.closest<HTMLElement>("[data-drop]");
+      const t = zone?.dataset.drop;
       if (t !== over) {
         over = t;
         setTarget(t);
+      }
+      // where among the day's cards it would land
+      let i: number | undefined;
+      if (zone && zone.dataset.order !== undefined) {
+        const cards = [...zone.querySelectorAll<HTMLElement>("[data-card]")].filter((c) => c.dataset.card !== pending?.key);
+        i = cards.filter((c) => {
+          const r = c.getBoundingClientRect();
+          return r.top + r.height / 2 < y;
+        }).length;
+      }
+      if (i !== at) {
+        at = i;
+        setInsertAt(i);
       }
     };
 
@@ -93,6 +110,7 @@ export function useBoardDrag(onDrop: (key: string, target: string) => void) {
       ghost?.remove();
       ghost = null;
       over = undefined;
+      at = undefined;
       document.body.classList.remove("is-dragging");
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
@@ -100,6 +118,7 @@ export function useBoardDrag(onDrop: (key: string, target: string) => void) {
       document.removeEventListener("touchmove", stopTouchScroll);
       setDragKey(undefined);
       setTarget(undefined);
+      setInsertAt(undefined);
     };
 
     const start = () => {
@@ -142,12 +161,13 @@ export function useBoardDrag(onDrop: (key: string, target: string) => void) {
       if (!pending || e.pointerId !== pending.pointerId) return;
       const key = pending.key;
       const t = over;
+      const where = at;
       const wasDragging = dragging;
       cleanup();
       if (!wasDragging) return;
       justDropped = true;
       window.setTimeout(() => (justDropped = false), 60);
-      if (t) dropRef.current(key, t);
+      if (t) dropRef.current(key, t, where);
     }
 
     const pointerDown = (key: string, e: ReactPointerEvent<HTMLElement>) => {
@@ -196,5 +216,5 @@ export function useBoardDrag(onDrop: (key: string, target: string) => void) {
     },
   });
 
-  return { dragKey, target, cardProps };
+  return { dragKey, target, insertAt, cardProps };
 }
