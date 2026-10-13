@@ -932,3 +932,18 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
 .pcard-subtasks .pcard-subbar { flex: 1 1 auto; max-width: 90px; }
 .pcard-subtasks.all { color: var(--green); font-weight: 600; }
 .drop-line { height: 3px; border-radius: 2px; background: var(--blue); margin: -2px 4px; box-shadow: 0 0 0 2px var(--blue-soft); }
+
+/* ---------- screen edges turn the week while dragging ---------- */
+.week-edge { position: fixed; top: var(--topbar-h); bottom: 0; width: 46px; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  color: var(--blue-ink); font-size: 12px; font-weight: 700; letter-spacing: 0.03em; pointer-events: auto; transition: background 0.15s, width 0.15s; }
+.week-edge span { writing-mode: vertical-rl; }
+.week-edge.prev { left: 0; background: linear-gradient(90deg, var(--blue-soft), transparent); border-right: 2px dashed var(--blue-line); }
+.week-edge.prev span { transform: rotate(180deg); }
+.week-edge.next { right: 0; background: linear-gradient(270deg, var(--blue-soft), transparent); border-left: 2px dashed var(--blue-line); }
+.week-edge.on { width: 58px; background: var(--blue-soft); border-color: var(--blue); animation: edge-pulse 1s ease-in-out infinite; }
+@keyframes edge-pulse { 50% { box-shadow: inset 0 0 0 3px var(--blue-line); } }
+@media (prefers-reduced-motion: reduce) { .week-edge.on { animation: none; } }
+@media (max-width: 720px) {
+  .week-edge { width: 34px; bottom: calc(64px + env(safe-area-inset-bottom)); font-size: 11px; }
+  .week-edge.on { width: 44px; }
+}

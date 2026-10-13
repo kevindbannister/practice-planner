@@ -4,6 +4,8 @@
 // - Touch: press on the card's grip and move straight away, or press and hold anywhere on
 //   the card for a moment (so an ordinary swipe still scrolls the page).
 //
+// Holding a card over data-drop="week-prev" or "week-next" (the screen edges) turns the week
+// back or on, again every second while it stays there; nothing is dropped there.
 // Anything marked data-drop="<target>" is a drop target. A target that also has data-order
 // lets cards (marked data-card) be dropped between others: the drop says where. A floating copy of the card follows
 // the pointer, and the page scrolls when you drag near the top or bottom edge.
@@ -27,12 +29,17 @@ type Pending = {
   timer?: number;
 };
 
-export function useBoardDrag(onDrop: (key: string, target: string, at?: number) => void) {
+const EDGE_WAIT_MS = 500; // hold at an edge this long before the week turns
+const EDGE_REPEAT_MS = 1000;
+
+export function useBoardDrag(onDrop: (key: string, target: string, at?: number) => void, onEdge?: (by: 1 | -1) => void) {
   const [dragKey, setDragKey] = useState<string>();
   const [target, setTarget] = useState<string>();
   const [insertAt, setInsertAt] = useState<number>();
   const dropRef = useRef(onDrop);
   dropRef.current = onDrop;
+  const edgeRef = useRef(onEdge);
+  edgeRef.current = onEdge;
 
   // one set of handlers for the life of the board, so listeners add and remove cleanly
   const drag = useMemo(() => {
@@ -44,6 +51,28 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
     let at: number | undefined;
     let raf = 0;
     let justDropped = false;
+    let edgeTimer = 0;
+    let edgeLocked = false; // the drag began at an edge: wait until the card has left it
+    const clearEdge = () => {
+      window.clearTimeout(edgeTimer);
+      edgeTimer = 0;
+    };
+    const armEdge = (t: string | undefined) => {
+      clearEdge();
+      if (t !== "week-next" && t !== "week-prev") {
+        edgeLocked = false;
+        return;
+      }
+      if (edgeLocked) return;
+      const by = t === "week-next" ? 1 : -1;
+      const turn = () => {
+        if (!dragging || over !== t) return;
+        edgeRef.current?.(by);
+        if (pending?.touch) navigator.vibrate?.(8);
+        edgeTimer = window.setTimeout(turn, EDGE_REPEAT_MS);
+      };
+      edgeTimer = window.setTimeout(turn, EDGE_WAIT_MS);
+    };
 
     const hitTest = (x: number, y: number) => {
       const el = document.elementFromPoint(x, y) as HTMLElement | null;
@@ -52,6 +81,7 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
       if (t !== over) {
         over = t;
         setTarget(t);
+        armEdge(t);
       }
       // where among the day's cards it would land
       let i: number | undefined;
@@ -102,6 +132,7 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
     };
 
     const cleanup = () => {
+      clearEdge();
       if (pending?.timer) window.clearTimeout(pending.timer);
       pending?.el.classList.remove("lifting");
       pending = null;
@@ -137,6 +168,7 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
       document.addEventListener("touchmove", stopTouchScroll, { passive: false });
       if (pending.touch) navigator.vibrate?.(12);
       setDragKey(pending.key);
+      edgeLocked = pos.x < 60 || pos.x > window.innerWidth - 60;
       hitTest(pos.x, pos.y);
       raf = requestAnimationFrame(autoScroll);
     };
@@ -167,7 +199,7 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
       if (!wasDragging) return;
       justDropped = true;
       window.setTimeout(() => (justDropped = false), 60);
-      if (t) dropRef.current(key, t, where);
+      if (t && !t.startsWith("week-")) dropRef.current(key, t, where);
     }
 
     const pointerDown = (key: string, e: ReactPointerEvent<HTMLElement>) => {

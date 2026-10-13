@@ -269,7 +269,10 @@ function WeekView() {
   const moveRef = useRef(move);
   moveRef.current = move; // undo runs later, so it needs the latest board
 
-  const { dragKey, target: dropTarget, insertAt, cardProps } = useBoardDrag((key, t, at) => move(key, t === "tray" ? undefined : t, false, at));
+  const { dragKey, target: dropTarget, insertAt, cardProps } = useBoardDrag(
+    (key, t, at) => move(key, t === "tray" ? undefined : t, false, at),
+    (by) => changeWeek(by), // holding a card at the screen edge turns the week
+  );
 
   const runSuggest = (includeWaiting = plan?.includeWaiting ?? false) => {
     const cands: Candidate[] = shownKind.map((i) => ({
@@ -444,8 +447,8 @@ function WeekView() {
           <TypeFilter options={typeOptions} selected={types} onChange={setTypes} />
           <p className="muted" style={{ margin: 0, fontSize: 12 }}>
             {narrow
-              ? "Hold a card, or drag its handle, onto a day above to plan it. Tap a card to open it. Swipe the days left or right to change week."
-              : "Drag onto a day to plan it, or open a card to pick a date."}
+              ? "Hold a card, or drag its handle, onto a day above to plan it. Hold it at the screen's edge to change week. Tap a card to open it. Swipe the days left or right to change week."
+              : "Drag onto a day to plan it, or hold it at the screen's left or right edge to change week. Open a card to pick a date."}
           </p>
           {missed.length > 0 && (
             <p style={{ margin: 0, fontSize: 12, color: "var(--amber-ink)", fontWeight: 600 }}>
@@ -560,6 +563,16 @@ function WeekView() {
           })}
         </div>
       </div>
+      {dragKey && (
+        <>
+          <div className={`week-edge prev${dropTarget === "week-prev" ? " on" : ""}`} data-drop="week-prev" aria-hidden="true">
+            <Icon name="left" size={20} /><span>Previous week</span>
+          </div>
+          <div className={`week-edge next${dropTarget === "week-next" ? " on" : ""}`} data-drop="week-next" aria-hidden="true">
+            <span>Next week</span><Icon name="right" size={20} />
+          </div>
+        </>
+      )}
       <p className="muted legend">
         <span className="chip amber">Tight</span> due within {settings.tightDays} days of when it's planned ·{" "}
         <span className="chip red">Late</span> past its deadline · dashed cards are your own tasks
