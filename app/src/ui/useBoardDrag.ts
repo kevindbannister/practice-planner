@@ -7,7 +7,9 @@
 // Holding a card over data-drop="week-prev" or "week-next" (the screen edges) turns the week
 // back or on, again every second while it stays there; nothing is dropped there.
 // Anything marked data-drop="<target>" is a drop target. A target that also has data-order
-// lets cards (marked data-card) be dropped between others: the drop says where. A floating copy of the card follows
+// lets cards (marked data-card) be dropped between others: the drop says where. A target with
+// data-time (the hours view) says what time the card's top edge is at instead, in minutes from
+// midnight, to the quarter hour; it needs data-from (minutes at its top) and data-ppm (pixels a minute). A floating copy of the card follows
 // the pointer, and the page scrolls when you drag near the top or bottom edge.
 import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 
@@ -32,10 +34,11 @@ type Pending = {
 const EDGE_WAIT_MS = 500; // hold at an edge this long before the week turns
 const EDGE_REPEAT_MS = 1000;
 
-export function useBoardDrag(onDrop: (key: string, target: string, at?: number) => void, onEdge?: (by: 1 | -1) => void) {
+export function useBoardDrag(onDrop: (key: string, target: string, at?: number, kind?: "index" | "time") => void, onEdge?: (by: 1 | -1) => void) {
   const [dragKey, setDragKey] = useState<string>();
   const [target, setTarget] = useState<string>();
   const [insertAt, setInsertAt] = useState<number>();
+  const [dropKind, setDropKind] = useState<"index" | "time">();
   const dropRef = useRef(onDrop);
   dropRef.current = onDrop;
   const edgeRef = useRef(onEdge);
@@ -49,6 +52,7 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
     let pos = { x: 0, y: 0 };
     let over: string | undefined;
     let at: number | undefined;
+    let kind: "index" | "time" | undefined;
     let raf = 0;
     let justDropped = false;
     let edgeTimer = 0;
@@ -85,16 +89,28 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
       }
       // where among the day's cards it would land
       let i: number | undefined;
-      if (zone && zone.dataset.order !== undefined) {
+      let k: "index" | "time" | undefined;
+      if (zone && zone.dataset.time !== undefined) {
+        // the time at the floating card's top edge
+        const r = zone.getBoundingClientRect();
+        const top = y - (pending ? pending.dy * scale() : 0);
+        const from = Number(zone.dataset.from || 0), ppm = Number(zone.dataset.ppm || 1);
+        const m = Math.round((from + (top - r.top) / ppm) / 15) * 15;
+        i = Math.max(0, Math.min(24 * 60 - 15, m));
+        k = "time";
+      } else if (zone && zone.dataset.order !== undefined) {
+        k = "index";
         const cards = [...zone.querySelectorAll<HTMLElement>("[data-card]")].filter((c) => c.dataset.card !== pending?.key);
         i = cards.filter((c) => {
           const r = c.getBoundingClientRect();
           return r.top + r.height / 2 < y;
         }).length;
       }
-      if (i !== at) {
+      if (i !== at || k !== kind) {
         at = i;
+        kind = k;
         setInsertAt(i);
+        setDropKind(k);
       }
     };
 
@@ -142,6 +158,7 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
       ghost = null;
       over = undefined;
       at = undefined;
+      kind = undefined;
       document.body.classList.remove("is-dragging");
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
@@ -150,6 +167,7 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
       setDragKey(undefined);
       setTarget(undefined);
       setInsertAt(undefined);
+      setDropKind(undefined);
     };
 
     const start = () => {
@@ -194,12 +212,13 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
       const key = pending.key;
       const t = over;
       const where = at;
+      const whereKind = kind;
       const wasDragging = dragging;
       cleanup();
       if (!wasDragging) return;
       justDropped = true;
       window.setTimeout(() => (justDropped = false), 60);
-      if (t && !t.startsWith("week-")) dropRef.current(key, t, where);
+      if (t && !t.startsWith("week-")) dropRef.current(key, t, where, whereKind);
     }
 
     const pointerDown = (key: string, e: ReactPointerEvent<HTMLElement>) => {
@@ -248,5 +267,5 @@ export function useBoardDrag(onDrop: (key: string, target: string, at?: number) 
     },
   });
 
-  return { dragKey, target, insertAt, cardProps };
+  return { dragKey, target, insertAt, dropKind, cardProps };
 }

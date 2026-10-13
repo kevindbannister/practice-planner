@@ -16,7 +16,7 @@ export type CalendarPrefs = {
 };
 
 export const DEFAULT_CAL: CalendarPrefs = {
-  enabled: false, readMeetings: true, writeBlocks: true, dayStart: "09:00", dayEnd: "17:30", lunchStart: "13:00", lunchMins: 60, showAs: "busy",
+  enabled: false, readMeetings: true, writeBlocks: false, dayStart: "09:00", dayEnd: "17:30", lunchStart: "13:00", lunchMins: 60, showAs: "busy",
 };
 
 export const CAL_SCOPE = "Calendars.ReadWrite";
@@ -242,6 +242,15 @@ export async function applyChanges(graph: Graph, c: CalChanges, prefs: CalendarP
     n++;
   }
   return n;
+}
+
+export const READ_DAYS = 56; // meetings are read for this week and the next eight
+
+/** Days whose meetings are read: from this week's Monday to eight weeks on. */
+export function readDays(today: string): string[] {
+  const d = new Date(`${today}T00:00:00Z`);
+  const monday = addDays(today, -((d.getUTCDay() + 6) % 7));
+  return Array.from({ length: READ_DAYS + 7 }, (_, i) => addDays(monday, i));
 }
 
 export function windowDays(today: string): string[] {

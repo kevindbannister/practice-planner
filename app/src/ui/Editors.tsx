@@ -16,7 +16,7 @@ import { useData, useIndex } from "./data";
 
 type Open =
   | { kind: "job"; key: string }
-  | { kind: "task"; key?: string; clientKey?: string; plannedDate?: string }
+  | { kind: "task"; key?: string; clientKey?: string; plannedDate?: string; startTime?: string }
   | { kind: "newJob"; clientKey: string };
 
 const EditorContext = createContext<{ open: (o: Open) => void; close: () => void } | null>(null);
@@ -35,7 +35,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       {children}
       {current?.kind === "job" && <JobPanel jobKey={current.key} onClose={close} />}
       {current?.kind === "task" && (
-        <TaskPanel taskKey={current.key} clientKey={current.clientKey} plannedDate={current.plannedDate} onClose={close} />
+        <TaskPanel taskKey={current.key} clientKey={current.clientKey} plannedDate={current.plannedDate} startTime={current.startTime} onClose={close} />
       )}
       {current?.kind === "newJob" && <NewJobPanel clientKey={current.clientKey} onClose={close} />}
     </EditorContext.Provider>
@@ -252,7 +252,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <div style={{ gridColumn: "1 / -1" }}>
           <Field label="Note on card" value={job.CardNote as string} placeholder="A short note shown on the planner card" onSave={(v) => save({ CardNote: v })} />
         </div>
-        <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v, DayOrder: "" })} />
+        <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v, DayOrder: "", StartTime: "" })} />
+        <TimeField value={job.StartTime as string} disabled={!job.PlannedDate} onSave={(v) => save({ StartTime: v })} />
         <Field label="Deadline" type="date" value={job.Deadline} onSave={(v) => save({ Deadline: v, DeadlineSource: "Manual" })} />
         <Field label="Records expected" type="date" value={job.RecordsExpected as string} onSave={(v) => save({ RecordsExpected: v })} />
         <Field label="Records received" type="date" value={job.RecordsReceived} onSave={(v) => save({ RecordsReceived: v })} />
@@ -569,10 +570,10 @@ function HoldForm(p: {
 
 export const TASK_TYPES = ["Advisory", "Client work", "Practice", "Admin", "Other"];
 
-function TaskPanel({ taskKey, clientKey, plannedDate, onClose }: { taskKey?: string; clientKey?: string; plannedDate?: string; onClose: () => void }) {
+function TaskPanel({ taskKey, clientKey, plannedDate, startTime, onClose }: { taskKey?: string; clientKey?: string; plannedDate?: string; startTime?: string; onClose: () => void }) {
   const { data, update, create } = useData();
   const existing = taskKey ? data.tasks.find((t) => t.Key === taskKey) : undefined;
-  const [draft, setDraft] = useState<Row>({ Type: clientKey ? "Client work" : "Practice", ClientKey: clientKey, PlannedDate: plannedDate });
+  const [draft, setDraft] = useState<Row>({ Type: clientKey ? "Client work" : "Practice", ClientKey: clientKey, PlannedDate: plannedDate, StartTime: startTime });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const clients = data.clients;
@@ -637,7 +638,8 @@ function TaskFields({ value, clients, onChange, live }: { value: Row; clients: R
           <option value="">None</option>
           {clients.map((c) => <option key={c.Key as string} value={c.Key as string}>{c.Title as string}</option>)}
         </SelectField>
-        <Field label="Planned for" type="date" value={value.PlannedDate as string} onSave={(v) => onChange({ PlannedDate: v, DayOrder: "" })} />
+        <Field label="Planned for" type="date" value={value.PlannedDate as string} onSave={(v) => onChange({ PlannedDate: v, DayOrder: "", StartTime: "" })} />
+        <TimeField value={value.StartTime as string} disabled={!value.PlannedDate} onSave={(v) => onChange({ StartTime: v })} />
         <Field label="Due" type="date" value={value.DueDate as string} onSave={(v) => onChange({ DueDate: v })} />
         <Field label="Hours" type="number" step="0.25" value={value.EstimateHours as number} onSave={(v) => onChange({ EstimateHours: num(v) })} />
         <div style={{ gridColumn: "1 / -1" }}>
@@ -659,11 +661,25 @@ function TaskFields({ value, clients, onChange, live }: { value: Row; clients: R
         {clients.map((c) => <option key={c.Key as string} value={c.Key as string}>{c.Title as string}</option>)}
       </SelectField>
       <label>Planned for<input className="input" type="date" value={(value.PlannedDate as string) || ""} onChange={set("PlannedDate")} /></label>
+      <label>Start time (optional)<input className="input" type="time" step="900" value={(value.StartTime as string) || ""} onChange={set("StartTime")} /></label>
       <label>Due<input className="input" type="date" value={(value.DueDate as string) || ""} onChange={set("DueDate")} /></label>
       <label>Hours<input className="input" type="number" step="0.25" value={(value.EstimateHours as any) ?? ""} onChange={(e) => onChange({ EstimateHours: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
       <label style={{ gridColumn: "1 / -1" }}>Note on card<input className="input" placeholder="A short note shown on the planner card" value={(value.CardNote as string) || ""} onChange={set("CardNote")} /></label>
       <label style={{ gridColumn: "1 / -1" }}>Notes<textarea className="input" rows={3} value={(value.Notes as string) || ""} onChange={set("Notes")} /></label>
     </div>
+  );
+}
+
+/** An optional start time on the planned day; blank means "wherever it fits". */
+function TimeField({ value, onSave, disabled }: { value?: string; onSave: (v: string) => Promise<void> | void; disabled?: boolean }) {
+  return (
+    <label>
+      Start time (optional)
+      <span className="row-wrap" style={{ gap: 6, flexWrap: "nowrap" }}>
+        <input className="input" type="time" step="900" value={value || ""} disabled={disabled} onChange={(e) => onSave(e.target.value)} />
+        {value && <button type="button" className="btn small" onClick={() => onSave("")} title="Back to wherever it fits in the day">Clear</button>}
+      </span>
+    </label>
   );
 }
 

@@ -19,6 +19,8 @@ import { waitingForRecords } from "../lib/chase";
 import { stageLabel } from "../lib/stages";
 import { Row } from "../lib/schema";
 import { compareInDay, placeInDay } from "../lib/dayOrder";
+import { HourCard, HoursView } from "./HoursView";
+import { hhmm } from "../lib/calendar";
 import { progress, readSubtasks } from "../lib/subtasks";
 import { inFinalise, planHours, waitState, waitingForClient } from "../lib/waiting";
 import { CardField, CardOptions, useCardFields } from "./CardOptions";
@@ -88,6 +90,21 @@ function WeekView() {
   const days = [0, 1, 2, 3, 4].map((i) => addDays(week, i));
   const [picked, setPicked] = useState<string>();
   const [types, setTypes] = useRememberedTypes("pp.plan.types");
+  const [view, setViewState] = useState<"hours" | "cards">(() => {
+    try {
+      return localStorage.getItem("pp.plan.view") === "cards" ? "cards" : "hours";
+    } catch {
+      return "hours";
+    }
+  });
+  const setView = (v: "hours" | "cards") => {
+    setViewState(v);
+    try {
+      localStorage.setItem("pp.plan.view", v);
+    } catch {
+      /* this visit only */
+    }
+  };
   const [fields, toggleField, resetFields] = useCardFields();
   const [slide, setSlide] = useState<"" | "next" | "prev">("");
   const swipe = useRef<{ x: number; y: number; cancelled: boolean } | null>(null);
@@ -226,9 +243,10 @@ function WeekView() {
     if (tasks.length) await updateMany("Tasks", tasks);
   };
 
-  const move = async (key: string, date?: string, quiet = false, at?: number) => {
+  const move = async (key: string, date?: string, quiet = false, at?: number, kind?: "index" | "time") => {
     const item = items.find((i) => i.key === key);
     if (!item) return;
+    if (date && kind === "time" && at !== undefined) return moveToTime(item, date, at, quiet);
     const sameDay = (item.planned || undefined) === date;
     if (sameDay && (!date || at === undefined)) return;
     const before = item.planned;
@@ -243,13 +261,13 @@ function WeekView() {
         return;
       }
       if (!date) {
-        await update(list, item.row, { PlannedDate: "", DayOrder: "" });
+        await update(list, item.row, { PlannedDate: "", DayOrder: "", StartTime: "" });
       } else {
         // the day's order, with this card where it was dropped (or at the end)
         const dayList = (byDay.get(date) || visible.filter((i) => i.planned === date)).filter((i) => i.key !== key);
         const { changes } = placeInDay(dayList, item, at);
-        const undoOrder = changes.map((c) => ({ item: c.item, patch: { DayOrder: c.item.row.DayOrder ?? "", ...(c.item.key === key ? { PlannedDate: before || "" } : {}) } }));
-        await saveOrder(changes.map((c) => ({ item: c.item, patch: { DayOrder: c.DayOrder, ...(c.item.key === key && !sameDay ? { PlannedDate: date } : {}) } })));
+        const undoOrder = changes.map((c) => ({ item: c.item, patch: { DayOrder: c.item.row.DayOrder ?? "", ...(c.item.key === key ? { PlannedDate: before || "", StartTime: c.item.row.StartTime ?? "" } : {}) } }));
+        await saveOrder(changes.map((c) => ({ item: c.item, patch: { DayOrder: c.DayOrder, ...(c.item.key === key ? { StartTime: "", ...(!sameDay ? { PlannedDate: date } : {}) } : {}) } })));
         if (!quiet) {
           say(
             sameDay ? `${item.client || item.title}: moved ${at === 0 ? "to the top" : `to number ${(at ?? 0) + 1}`} on ${fmtDate(date, { weekday: true, year: false })}` : `${item.client || item.title}: planned for ${fmtDate(date, { weekday: true, year: false })}`,
@@ -266,11 +284,29 @@ function WeekView() {
     }
   };
 
+  /** Dropped on the hours view: planned for that day, set to that time. */
+  const moveToTime = async (item: Item, date: string, minutes: number, quiet = false) => {
+    const list = item.kind === "job" ? "Jobs" : "Tasks";
+    const time = hhmm(minutes);
+    const before = { PlannedDate: item.planned || "", StartTime: (item.row.StartTime as string) || "", DayOrder: item.row.DayOrder ?? "" };
+    setError(undefined);
+    try {
+      const patch = { PlannedDate: date, StartTime: time, ...(item.held ? resumePatch(item.row, today) : {}) };
+      await update(list, item.row, patch);
+      if (!quiet) {
+        say(`${item.client || item.title}: ${fmtDate(date, { weekday: true, year: false })} at ${time.replace(/^0/, "")}`,
+          item.held ? undefined : () => update(list, item.row, before).then(() => setToast(undefined)));
+      }
+    } catch {
+      setError("That move didn't save. It's been put back; try again.");
+    }
+  };
+
   const moveRef = useRef(move);
   moveRef.current = move; // undo runs later, so it needs the latest board
 
-  const { dragKey, target: dropTarget, insertAt, cardProps } = useBoardDrag(
-    (key, t, at) => move(key, t === "tray" ? undefined : t, false, at),
+  const { dragKey, target: dropTarget, insertAt, dropKind, cardProps } = useBoardDrag(
+    (key, t, at, kind) => move(key, t === "tray" ? undefined : t, false, at, kind),
     (by) => changeWeek(by), // holding a card at the screen edge turns the week
   );
 
@@ -321,6 +357,43 @@ function WeekView() {
   const waitingCount = activePlan?.skipped.filter((s) => s.reason === "Waiting for records").length || 0;
   const noRoomCount = activePlan?.skipped.filter((s) => s.reason !== "Waiting for records").length || 0;
 
+  /** A day's work for the hours view: what's been prepared, the plan in your order, then suggestions. */
+  const hourCards = (d: string): HourCard[] => {
+    const toCard = (i: Item, extra: Partial<HourCard> = {}): HourCard => {
+      const st = state(i, today);
+      const subs = i.kind === "task" ? progress(readSubtasks(i.row.Subtasks)) : { done: 0, total: 0 };
+      return {
+        key: i.key, title: i.title, client: i.client, tag: i.tag, hours: i.hours, task: i.kind === "task",
+        svc: i.compliance ? svcClass((i.row as Job).ServiceKey) : "task", start: (i.row.StartTime as string) || undefined,
+        flags: [st === "overdue" ? "late" : st === "tight" ? "tight" : "", i.urgent ? "urgent" : ""].filter(Boolean),
+        subtasks: subs.total ? `${subs.done}/${subs.total} subtasks` : undefined,
+        ...extra,
+      };
+    };
+    return [
+      ...preparedOn(d).map((i) => toCard(i, { key: `p-${i.key}`, hours: Number((i.row as Job).PreparedHours) || 0.25, prepared: true, start: undefined, flags: [] })),
+      ...(byDay.get(d) || []).map((i) => toCard(i)),
+      ...suggestedOn(d).map(({ s, item }) => toCard(item, { suggested: s.reason, start: undefined })),
+    ];
+  };
+
+  const dayHeadFor = (d: string) => {
+    const used = load(d), cap = capacity(d);
+    const over = used > cap;
+    const pct = cap ? Math.min(100, Math.round((used / cap) * 100)) : 100;
+    return (
+      <div className="day-head hours-day-head">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontWeight: 700 }}>{fmtDate(d, { weekday: true, year: false })}</span>
+          <span className="mono" style={{ fontSize: 12, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>{fmtHours(used) || "0h"} / {fmtHours(cap)}</span>
+        </div>
+        <div className="cap" aria-hidden="true" style={{ display: "flex" }}><span className={over ? "over" : ""} style={{ width: `${pct}%` }} /></div>
+        {over && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red-ink)" }}>{fmtHours(used - cap)} over</span>}
+        {cal.meetingsOn(d) > 0 && <span className="muted" style={{ fontSize: 12 }}>Meetings {fmtHours(cal.meetingsOn(d))}</span>}
+      </div>
+    );
+  };
+
   const card = (i: Item, onDay = false) => (
     <PlanCard
       key={i.key}
@@ -358,7 +431,11 @@ function WeekView() {
                 <Icon name="spark" />Suggest a plan
               </button>
             )}
-            <CardOptions fields={fields} toggle={toggleField} reset={resetFields} />
+            <div className="seg" role="group" aria-label="View">
+              <button type="button" aria-pressed={view === "hours"} onClick={() => setView("hours")}><Icon name="clock" />Hours</button>
+              <button type="button" aria-pressed={view === "cards"} onClick={() => setView("cards")}><Icon name="list" />Cards</button>
+            </div>
+            {view === "cards" && <CardOptions fields={fields} toggle={toggleField} reset={resetFields} />}
             <button type="button" className="btn primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
           </div>
           <span id="suggest-help" className="sr-only">Fills the days left this week from unplanned work. Nothing is saved until you accept.</span>
@@ -486,6 +563,33 @@ function WeekView() {
           </div>
         </aside>
 
+        {view === "hours" ? (
+          <HoursView
+            days={days}
+            today={today}
+            shownDay={shownDay}
+            narrow={narrow}
+            prefs={cal.prefs}
+            connected={cal.prefs.enabled}
+            cardsFor={hourCards}
+            eventsOn={cal.eventsOn}
+            busyOn={cal.busyOn}
+            dragKey={dragKey}
+            dragHours={items.find((i) => i.key === dragKey)?.hours}
+            dropTarget={dropTarget}
+            insertAt={insertAt}
+            dropKind={dropKind}
+            cardProps={cardProps as (k: string) => Record<string, unknown>}
+            onOpen={(k) => {
+              const it = items.find((i) => i.key === k);
+              if (it) open(it.kind === "job" ? { kind: "job", key: k } : { kind: "task", key: k });
+            }}
+            onAdd={(d, time) => open({ kind: "task", plannedDate: d, startTime: time })}
+            head={dayHeadFor}
+            className={slide ? `slide-${slide}` : ""}
+            swipe={narrow ? swipeProps : undefined}
+          />
+        ) : (
         <div className={`week${slide ? ` slide-${slide}` : ""}`} role="list" aria-label="Week" {...(narrow ? swipeProps : {})}>
           {days.map((d) => {
             const list = byDay.get(d) || [];
@@ -562,6 +666,7 @@ function WeekView() {
             );
           })}
         </div>
+        )}
       </div>
       {dragKey && (
         <>

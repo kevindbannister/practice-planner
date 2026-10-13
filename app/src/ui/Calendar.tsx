@@ -1,10 +1,11 @@
-// Outlook calendar in the app: reads your meetings (so each day's hours reflect them) and
-// keeps a block in your calendar for each piece of planned work. Settings › Calendar.
+// Outlook calendar in the app: reads your meetings (so each day's hours reflect them, and the
+// planner's hours view shows them). Optionally (off unless turned on) keeps a block in your
+// calendar for each piece of planned work. Settings › Calendar.
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { addScope, hasExtraScope, refreshNow } from "../lib/auth";
 import {
   CAL_SCOPE, CalEvent, CalendarPrefs, DEFAULT_CAL, PlannedItem, applyChanges, busyOn, capacityOn, diffBlocks, fetchEvents, layoutBlocks,
-  meetingHours, windowDays,
+  meetingHours, readDays, windowDays,
 } from "../lib/calendar";
 import { Job, Task, fmtDate, fmtHours, isOnHold, isOpen, todayIso } from "../lib/domain";
 import { GraphError } from "../lib/graph";
@@ -21,6 +22,10 @@ type Ctx = {
   /** Hours you have on a day, after meetings (your usual hours if the calendar isn't on). */
   capacityFor: (day: string, usual: number) => number;
   meetingsOn: (day: string) => number;
+  /** Your own calendar events on a day (not the planner's blocks), for the hours view. */
+  eventsOn: (day: string) => CalEvent[];
+  /** Busy time on a day, as minutes from midnight (empty if the calendar isn't on). */
+  busyOn: (day: string) => [number, number][];
   sync: () => Promise<void>;
   savePrefs: (p: Partial<CalendarPrefs>) => Promise<void>;
   connect: () => Promise<void>;
@@ -46,6 +51,7 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
 
   const today = todayIso();
   const days = useMemo(() => windowDays(today), [today]);
+  const shown = useMemo(() => readDays(today), [today]); // meetings are read from this Monday on
 
   /** Planned work in the next four weeks, in the order it should sit in each day. */
   const planned = useMemo((): PlannedItem[] => {
@@ -90,7 +96,8 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
     try {
       const graph = latest.current.store.graph;
       const from = days[0], to = days[days.length - 1];
-      let evs = await fetchEvents(graph, from, to);
+      const readFrom = shown[0], readTo = shown[shown.length - 1];
+      let evs = await fetchEvents(graph, readFrom, readTo);
       let changed = 0;
       let unfitted: string[] = [];
       if (p.writeBlocks) {
@@ -99,13 +106,14 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
         unfitted = layout.unfitted;
         const diff = diffBlocks(layout.blocks, evs, from);
         changed = await applyChanges(graph, diff, p);
-        if (changed) evs = await fetchEvents(graph, from, to);
+        if (changed) evs = await fetchEvents(graph, readFrom, readTo);
       } else {
         // blocks turned off: take the planner's future blocks back out
         const diff = diffBlocks([], evs, from);
         changed = await applyChanges(graph, diff, p);
-        if (changed) evs = await fetchEvents(graph, from, to);
+        if (changed) evs = await fetchEvents(graph, readFrom, readTo);
       }
+      void to;
       setEvents(evs);
       setState({ syncing: false, at: new Date(), changed, unfitted });
     } catch (e) {
@@ -122,7 +130,17 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
         void sync();
       }
     }
-  }, [days]);
+  }, [days, shown]);
+
+  // Kevin asked (13 Oct 2026) for planned work not to go into Outlook: turn blocks off once;
+  // the next sync takes the planner's blocks back out. It can be turned back on in Settings.
+  useEffect(() => {
+    if (ctx.status !== "ready" || !prefs.writeBlocks || readSetting(ctx.data.settings, "calendar.blocksOff")) return;
+    void (async () => {
+      await latest.current.saveSetting("calendar", { ...prefsRef.current, writeBlocks: false });
+      await latest.current.saveSetting("calendar.blocksOff", { on: todayIso() });
+    })().catch(() => undefined);
+  }, [ctx.status, prefs.writeBlocks, ctx.data.settings]);
 
   // on a device that hasn't asked for calendar access yet, ask quietly (no sign-in screen)
   useEffect(() => {
@@ -150,9 +168,19 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
 
   const busyCache = useMemo(() => {
     const m = new Map<string, ReturnType<typeof busyOn>>();
-    if (events) for (const d of days) m.set(d, busyOn(d, events));
+    if (events) for (const d of shown) m.set(d, busyOn(d, events));
     return m;
-  }, [events, days]);
+  }, [events, shown]);
+  const eventsOn = useCallback(
+    (day: string) => {
+      if (!prefs.enabled || !events) return [];
+      const start = new Date(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)).getTime();
+      const end = start + 86400000;
+      return events.filter((e) => !e.block && !e.cancelled && e.end.getTime() > start && e.start.getTime() < end);
+    },
+    [events, prefs.enabled],
+  );
+  const busyFor = useCallback((day: string) => (prefs.enabled && prefs.readMeetings ? busyCache.get(day) || [] : []), [prefs, busyCache]);
 
   const capacityFor = useCallback(
     (day: string, usual: number) => {
@@ -191,8 +219,8 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
   }, [days]);
 
   const value = useMemo(
-    () => ({ prefs, state, events, capacityFor, meetingsOn, sync, savePrefs, connect, disconnect }),
-    [prefs, state, events, capacityFor, meetingsOn, sync, savePrefs, connect, disconnect],
+    () => ({ prefs, state, events, capacityFor, meetingsOn, eventsOn, busyOn: busyFor, sync, savePrefs, connect, disconnect }),
+    [prefs, state, events, capacityFor, meetingsOn, eventsOn, busyFor, sync, savePrefs, connect, disconnect],
   );
   return <CalCtx.Provider value={value}>{children}</CalCtx.Provider>;
 }
@@ -232,11 +260,11 @@ export function CalendarSettings() {
         <p style={{ margin: 0 }}>Connect your Outlook calendar and the planner will:</p>
         <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
           <li>take your meetings off each day's hours, so the plan and "Suggest a plan" use the time you really have</li>
-          <li>put each piece of planned work in your calendar as a time block around your meetings, and move it when you change the plan</li>
+          <li>show your meetings in the planner's hours view, in their own colour</li>
         </ul>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          Microsoft will ask you to allow the planner to read and write your calendar. It only ever changes the blocks it made itself
-          (marked with the category "Practice Planner"); your own events are only read.
+          Microsoft will ask you to allow the planner to use your calendar. Your events are only read. Planned work isn't put in your
+          calendar unless you turn that on below.
         </p>
         <div><button type="button" className="btn primary" disabled={busy} onClick={() => run(connect)}>Connect Outlook calendar</button></div>
       </section>
@@ -283,7 +311,7 @@ export function CalendarSettings() {
         </label>
         <label className="radio">
           <input type="checkbox" checked={draft.writeBlocks} onChange={(e) => setDraft({ ...draft, writeBlocks: e.target.checked })} />
-          <span>Put planned work in my calendar as time blocks</span>
+          <span>Also put planned work in my calendar as time blocks (off: your calendar only has your own events)</span>
         </label>
         <div className="form" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
           <label>Day starts<input className="input" type="time" value={draft.dayStart} onChange={(e) => setDraft({ ...draft, dayStart: e.target.value })} /></label>
