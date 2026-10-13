@@ -302,6 +302,27 @@ function WeekView() {
     }
   };
 
+  /** A block's edge dragged in the hours view: new length, and maybe a new start time. */
+  const resizeItem = async (key: string, change: { hours: number; start?: string }) => {
+    const item = items.find((i) => i.key === key);
+    if (!item) return;
+    const list = item.kind === "job" ? "Jobs" : "Tasks";
+    // a job being finalised keeps its finalising time; otherwise it's the job's hours
+    const field = item.kind === "job" && item.finalise ? "FinaliseHours" : "EstimateHours";
+    const hours = Math.max(0.25, Math.round(change.hours * 4) / 4);
+    const before: Row = { [field]: item.row[field] ?? "", StartTime: (item.row.StartTime as string) || "" };
+    setError(undefined);
+    try {
+      await update(list, item.row, { [field]: hours, ...(change.start ? { StartTime: change.start } : {}) });
+      say(
+        `${item.client || item.title}: ${fmtHours(hours)}${change.start ? `, from ${change.start.replace(/^0/, "")}` : ""}`,
+        () => update(list, item.row, before).then(() => setToast(undefined)),
+      );
+    } catch {
+      setError("That change didn't save. Try again.");
+    }
+  };
+
   const moveRef = useRef(move);
   moveRef.current = move; // undo runs later, so it needs the latest board
 
@@ -431,6 +452,23 @@ function WeekView() {
                 <Icon name="spark" />Suggest a plan
               </button>
             )}
+            {cal.prefs.enabled ? (
+              <button
+                type="button"
+                className={`btn cal-refresh${cal.state.syncing ? " spinning" : ""}`}
+                onClick={() => void cal.sync()}
+                disabled={cal.state.syncing}
+                title={cal.state.at ? `Calendar updated ${cal.state.at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : "Get the latest from your Outlook calendar"}
+              >
+                <Icon name="refresh" />
+                {cal.state.syncing ? "Refreshing…" : "Refresh calendar"}
+                {!cal.state.syncing && cal.state.at && (
+                  <span className="muted cal-refresh-at">{cal.state.at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                )}
+              </button>
+            ) : (
+              <a className="btn" href="#/settings/calendar" title="Connect Outlook to see your meetings in the planner"><Icon name="refresh" />Connect calendar</a>
+            )}
             <div className="seg" role="group" aria-label="View">
               <button type="button" aria-pressed={view === "hours"} onClick={() => setView("hours")}><Icon name="clock" />Hours</button>
               <button type="button" aria-pressed={view === "cards"} onClick={() => setView("cards")}><Icon name="list" />Cards</button>
@@ -448,6 +486,11 @@ function WeekView() {
         </div>
       </section>
       {error && <p className="error-text" role="alert" style={{ padding: "0 24px" }}>{error}</p>}
+      {cal.prefs.enabled && cal.state.error && !cal.state.syncing && (
+        <p className="error-text" role="alert" style={{ padding: "0 24px", margin: 0 }}>
+          Calendar didn't refresh: {cal.state.error} <a href="#/settings/calendar">Calendar settings</a>
+        </p>
+      )}
       {activePlan && (
         <section className="suggest-bar" aria-label="Suggested plan">
           <div className="stack" style={{ gap: 2 }}>
@@ -585,6 +628,7 @@ function WeekView() {
               if (it) open(it.kind === "job" ? { kind: "job", key: k } : { kind: "task", key: k });
             }}
             onAdd={(d, time) => open({ kind: "task", plannedDate: d, startTime: time })}
+            onResize={resizeItem}
             head={dayHeadFor}
             className={slide ? `slide-${slide}` : ""}
             swipe={narrow ? swipeProps : undefined}

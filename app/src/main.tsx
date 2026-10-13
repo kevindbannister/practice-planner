@@ -43,6 +43,7 @@ async function start() {
 
   if (__DEMO__) {
     graph = new FakeGraph("pp.demo");
+    (window as unknown as { __fakeGraph: Graph }).__fakeGraph = graph; // demo only: lets tests change the fake Outlook
     user = "Demo user";
   } else {
     try {

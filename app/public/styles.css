@@ -1017,11 +1017,33 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 10px; }
 .hours-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; margin: 10px 0 0 60px; align-items: center; }
 .hours-legend .lg { display: inline-block; width: 14px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 .hours-legend .lg.off { background: repeating-linear-gradient(135deg, var(--offhours) 0 3px, var(--offhours-line) 3px 5px); border: 1px solid var(--line); }
-.hours-legend .lg.meet { background: var(--meet); }
+.hours-legend .lg-meet { background: var(--meet); }
 .hours-day-head { padding: 8px 10px; }
 @media (max-width: 720px) {
   .hours { flex-basis: 100%; }
   .hours-head { display: none; }
   .hours-legend { margin-left: 0; }
   .hblock { touch-action: pan-y; }
+}
+.cal-refresh-at { font-size: 12px; font-weight: 500; }
+.cal-refresh.spinning svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .cal-refresh.spinning svg { animation: none; } }
+@media (max-width: 720px) { .cal-refresh-at { display: none; } }
+/* drag a block's top or bottom edge to change its length */
+.hb-edge { position: absolute; left: 0; right: 0; height: 9px; cursor: ns-resize; z-index: 2; touch-action: none; }
+.hb-edge.top { top: -2px; }
+.hb-edge.bottom { bottom: -2px; }
+.hb-edge::after { content: ""; position: absolute; left: 50%; width: 26px; height: 4px; margin-left: -13px; border-radius: 2px; background: var(--svc, var(--muted)); opacity: 0; transition: opacity 0.15s; }
+.hb-edge.top::after { top: 3px; }
+.hb-edge.bottom::after { bottom: 3px; }
+.hblock:hover .hb-edge::after, .hblock.resizing .hb-edge::after { opacity: 0.9; }
+.hblock.resizing { z-index: 7; box-shadow: 0 0 0 2px var(--blue), 0 6px 18px var(--shadow); }
+.hb-size { position: absolute; right: 6px; bottom: 6px; background: var(--blue); color: #fff; font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; }
+body.is-resizing, body.is-resizing * { cursor: ns-resize !important; user-select: none; }
+@media (hover: none), (max-width: 720px) {
+  .hb-edge { height: 16px; }
+  .hb-edge.top { top: -4px; }
+  .hb-edge.bottom { bottom: -4px; }
+  .hb-edge::after { opacity: 0.6; }
 }
