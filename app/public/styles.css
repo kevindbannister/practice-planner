@@ -1054,3 +1054,138 @@ body.is-resizing, body.is-resizing * { cursor: ns-resize !important; user-select
   .hb-edge.bottom { bottom: -4px; }
   .hb-edge::after { opacity: 0.6; }
 }
+
+
+/* ==========================================================================
+   Planner, refined (13 Oct 2026): a desk-diary week. One ruled sheet with the
+   hours in the margin, big date numerals at the top of each day, work as tinted
+   tabs in its type-of-work colour, meetings as solid slate. Quiet chrome around it.
+   ========================================================================== */
+.plan { gap: 14px; }
+.plan-head { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 22px 24px 2px; }
+.plan-head-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.plan-head .plan-title h1 { font-size: 30px; letter-spacing: -0.025em; }
+
+/* the week in one line: load bar, then the three things to watch */
+.week-summary { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.week-summary > div { display: flex; align-items: center; gap: 8px; padding: 9px 16px; min-height: 44px; }
+.week-summary > div + div { border-left: 1px solid var(--line-2); }
+.ws-load { min-width: 230px; }
+.ws-label { font-size: 12.5px; color: var(--muted); }
+.ws-value { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
+.ws-of { font-size: 13px; font-weight: 500; color: var(--muted); }
+.ws-bar { flex: 1 1 60px; min-width: 50px; height: 6px; border-radius: 3px; background: var(--line-2); overflow: hidden; }
+.ws-bar > span { display: block; height: 100%; border-radius: 3px; background: var(--blue); }
+.ws-bar > span.over { background: var(--red-solid); }
+.ws-num { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 1ch; text-align: right; }
+.ws-stat.red .ws-num { color: var(--red-ink); }
+.ws-stat.red { background: var(--red-soft); }
+.ws-stat.amber .ws-num { color: var(--amber-ink); }
+.ws-stat.amber { background: color-mix(in srgb, var(--amber-soft) 70%, var(--surface)); }
+
+/* one toolbar: week, filters, view on the left; actions on the right */
+.plan-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.week-nav { gap: 6px; flex-wrap: nowrap; }
+.week-label { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; min-width: 170px; white-space: nowrap; }
+.week-arrows { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--surface); }
+.week-arrows .iconbtn { border: 0; border-radius: 0; width: 38px; height: 36px; min-width: 38px; background: transparent; }
+.week-arrows .iconbtn + .iconbtn { border-left: 1px solid var(--line-2); }
+.week-arrows .iconbtn:hover { background: var(--surface-2); }
+.toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+
+/* the sheet */
+.hours-head, .hours-body, .hours-foot { gap: 0; }
+.hours-head { padding-bottom: 0; background: var(--ground); }
+.hours-body { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 0 var(--line-2); }
+.hours-gutter { background: var(--surface-2); border-right: 1px solid var(--line); }
+.hours-gutter span { right: 8px; font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hours-gutter span.half { font-size: 10.5px; font-weight: 500; color: var(--muted); opacity: 0.8; }
+.hours-col { border: 0; border-radius: 0; background-color: transparent; }
+.hours-col + .hours-col { border-left: 1px solid var(--line); }
+.hours-col.today { background-color: color-mix(in srgb, var(--blue-soft) 45%, transparent); border-color: var(--line); }
+.hours-col.drop { box-shadow: inset 0 0 0 2px var(--blue); }
+.hours-col .off { background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--offhours-line) 80%, transparent) 6px 7px), color-mix(in srgb, var(--offhours) 75%, transparent); opacity: 1; }
+.hours-col .off.lunch { display: flex; align-items: center; justify-content: center; }
+.hours-col .off.lunch span { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; background: var(--surface); padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line-2); }
+
+/* date headings, diary style */
+.dhead { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px 10px; }
+.dhead-date { display: flex; align-items: center; gap: 8px; }
+.dhead-num { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; min-width: 2ch; }
+.dhead-names { display: flex; flex-direction: column; line-height: 1.15; font-size: 12.5px; color: var(--muted); }
+.dhead-names strong { color: var(--ink); font-size: 13.5px; }
+.dhead.today .dhead-num { color: #fff; background: var(--primary); border-radius: 10px; padding: 4px 6px; min-width: 0; }
+.dhead.today .dhead-names strong { color: var(--blue-ink); }
+.dhead-load { display: flex; flex-direction: column; gap: 3px; }
+.dhead-bar { height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; }
+.dhead-bar > span { display: block; height: 100%; background: var(--blue); border-radius: 2px; }
+.dhead.over .dhead-bar > span { background: var(--red-solid); }
+.dhead-hours { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.dhead.over .dhead-hours strong { color: var(--red-ink); }
+.dhead-meet { font-size: 11.5px; color: var(--muted); }
+.hours-dayhead { gap: 4px; padding: 0 4px; }
+.hours-dayhead + .hours-dayhead { border-left: 1px solid transparent; }
+.allday { margin: 0 6px 6px; }
+
+/* work as tinted tabs in its type-of-work colour; meetings solid slate */
+.hblock { left: 4px; right: 4px; border: 0; border-left: 4px solid var(--svc, var(--muted)); border-radius: 7px;
+  background: color-mix(in srgb, var(--svc, var(--muted)) 12%, var(--surface)); box-shadow: 0 1px 2px var(--shadow); padding: 4px 8px; }
+.hblock:hover { box-shadow: 0 4px 14px var(--shadow); }
+.hblock .hb-top strong { font-size: 12.5px; }
+.hblock .hb-sub { font-size: 12px; }
+.hblock .hb-time { font-family: var(--sans); font-variant-numeric: tabular-nums; color: var(--ink-2); opacity: 0.8; }
+.hblock.task { background: var(--surface); border: 1px dashed var(--line-strong); border-left: 4px solid var(--muted); }
+.hblock.suggested { background: color-mix(in srgb, var(--blue-soft) 70%, var(--surface)); border: 1.5px dashed var(--blue); border-left-width: 4px; }
+.hblock.prepared { background: transparent; border: 1px dashed var(--line-strong); border-left: 4px solid var(--green); box-shadow: none; }
+.meet { left: 4px; border-radius: 7px; padding: 4px 8px; box-shadow: none; }
+.meet strong { font-size: 12.5px; }
+.meet span { font-variant-numeric: tabular-nums; }
+.now-line { height: 2px; }
+.hdrop { border-radius: 7px; }
+.hours-legend { margin-left: 52px; padding-top: 2px; }
+.hours-unfit-h { color: var(--amber-ink); font-size: 12px; }
+
+/* the tray reads as a panel beside the sheet */
+.tray { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; gap: 10px; }
+.tray.drop { border: 1.5px dashed var(--blue); background: var(--blue-soft); }
+.tray > div:first-child h2 { font-size: 16px; letter-spacing: -0.01em; }
+
+@media (max-width: 720px) {
+  .plan-head { padding: 14px 16px 0; gap: 10px; }
+  .week-summary { width: 100%; }
+  .week-summary > div { padding: 8px 12px; flex: 1 1 auto; }
+  .ws-load { min-width: 100%; }
+  .week-summary > div + div { border-left: 0; border-top: 1px solid var(--line-2); }
+  .week-summary > .ws-stat + .ws-stat { border-left: 1px solid var(--line-2); }
+  .ws-stat .ws-label { font-size: 11.5px; }
+  .toolbar-actions { margin-left: 0; width: 100%; }
+  .week-label { font-size: 16px; min-width: 0; }
+  .tray { border-radius: 12px; }
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hours-col.today { background-color: color-mix(in srgb, var(--blue-soft) 60%, transparent); } }
+/* cards on the planner: numbers in the text face, not a typewriter one */
+.pcard .mono, .daypill .dh, .day-title .mono, .day-head .mono { font-family: var(--sans); font-variant-numeric: tabular-nums; }
+.pcard { border-radius: 9px; }
+@media (max-width: 720px) {
+  /* a compact header so the day's hours start higher up */
+  .plan-head .plan-title h1 { font-size: 24px; }
+  .week-summary > div { padding: 7px 10px; min-height: 0; }
+  .week-summary > .ws-stat { flex: 1 1 0; border-top: 1px solid var(--line-2); flex-direction: column; align-items: flex-start; gap: 0; }
+  .week-summary > .ws-stat + .ws-stat { border-left: 1px solid var(--line-2); }
+  .ws-stat .ws-label { font-size: 11px; line-height: 1.25; }
+  .ws-num { font-size: 16px; text-align: left; }
+  .plan-toolbar { gap: 8px; }
+  .plan-toolbar .seg button { padding: 6px 10px; font-size: 13px; min-height: 36px; }
+  .plan-toolbar .seg[aria-label="View"] .tb-text, .toolbar-actions .tb-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .plan-toolbar .seg[aria-label="View"] button svg, .toolbar-actions .btn svg { margin: 0; }
+  .toolbar-actions { width: auto; margin-left: auto; }
+  .toolbar-actions .btn { padding: 0 11px; min-height: 36px; }
+  .week-nav { width: 100%; }
+}
+@media (max-width: 720px) {
+  .week-nav { width: auto; order: 1; }
+  .toolbar-actions { order: 2; }
+  .plan-toolbar > .seg { order: 3; }
+  .week-label { font-size: 15px; }
+  .week-arrows .iconbtn { width: 34px; min-width: 34px; height: 34px; }
+}

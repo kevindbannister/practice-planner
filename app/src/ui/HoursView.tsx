@@ -4,7 +4,7 @@
 // time to pin it there; drag its top or bottom edge to change how long it takes (the top edge
 // also sets its start time); click an empty time to add a task there.
 import { PointerEvent as ReactPointerEvent, ReactNode, useEffect, useRef, useState } from "react";
-import { CalEvent, CalendarPrefs, hhmm } from "../lib/calendar";
+import { CalEvent, CalendarPrefs, hhmm, mins } from "../lib/calendar";
 import { clock, gridRange, layoutDay, offHours } from "../lib/dayGrid";
 import { fmtHours } from "../lib/domain";
 import { Icon } from "./bits";
@@ -214,7 +214,14 @@ export function HoursView(p: Props) {
                 p.onAdd(x.d, hhmm(m));
               }}
             >
-              {shade.map(([s, f]) => <div key={`o${s}`} className="off" style={{ top: y(s), height: (f - s) * ppm }} />)}
+              {shade.map(([s, f]) => {
+                const lunch = p.prefs.lunchMins > 0 && s === mins(p.prefs.lunchStart);
+                return (
+                  <div key={`o${s}`} className={`off${lunch ? " lunch" : ""}`} style={{ top: y(s), height: (f - s) * ppm }}>
+                    {lunch && (f - s) * ppm >= 28 && <span>Lunch</span>}
+                  </div>
+                );
+              })}
               {x.timed.map((e, i) => {
                 const [s, f] = minutesIn(e, x.d);
                 const l = meetLanes[i];

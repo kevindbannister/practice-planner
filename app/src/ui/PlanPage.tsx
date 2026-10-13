@@ -402,15 +402,22 @@ function WeekView() {
     const used = load(d), cap = capacity(d);
     const over = used > cap;
     const pct = cap ? Math.min(100, Math.round((used / cap) * 100)) : 100;
+    const [weekdayName, , monthName] = fmtDate(d, { weekday: true, year: false }).split(" ");
+    const meet = cal.meetingsOn(d);
     return (
-      <div className="day-head hours-day-head">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-          <span style={{ fontWeight: 700 }}>{fmtDate(d, { weekday: true, year: false })}</span>
-          <span className="mono" style={{ fontSize: 12, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>{fmtHours(used) || "0h"} / {fmtHours(cap)}</span>
+      <div className={`dhead${d === today ? " today" : ""}${over ? " over" : ""}`}>
+        <div className="dhead-date">
+          <span className="dhead-num">{Number(d.slice(8))}</span>
+          <span className="dhead-names"><strong>{weekdayName}</strong><span>{monthName}</span></span>
         </div>
-        <div className="cap" aria-hidden="true" style={{ display: "flex" }}><span className={over ? "over" : ""} style={{ width: `${pct}%` }} /></div>
-        {over && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red-ink)" }}>{fmtHours(used - cap)} over</span>}
-        {cal.meetingsOn(d) > 0 && <span className="muted" style={{ fontSize: 12 }}>Meetings {fmtHours(cal.meetingsOn(d))}</span>}
+        <div className="dhead-load">
+          <span className="dhead-bar" aria-hidden="true"><span style={{ width: `${pct}%` }} /></span>
+          <span className="dhead-hours">
+            {fmtHours(used) || "0h"} of {fmtHours(cap) || "0h"}
+            {over ? <strong> · {fmtHours(used - cap)} over</strong> : null}
+          </span>
+          {meet > 0 && <span className="dhead-meet">{fmtHours(meet)} in meetings</span>}
+        </div>
       </div>
     );
   };
@@ -431,27 +438,43 @@ function WeekView() {
   return (
     <div className="plan">
       <section className="plan-head">
-        <div className="stack" style={{ gap: 10 }}>
+        <div className="plan-head-top">
           <PlanTabs current="week" />
-          <div className="row-wrap">
-            <button type="button" className="iconbtn" aria-label="Previous week" onClick={() => changeWeek(-1)}><Icon name="left" /></button>
-            <span style={{ fontWeight: 600, fontSize: 16, padding: "0 4px", minWidth: 180, textAlign: "center" }}>
-              {fmtDate(week, { year: false })} – {fmtDate(addDays(week, 4))}
-            </span>
-            <button type="button" className="iconbtn" aria-label="Next week" onClick={() => changeWeek(1)}><Icon name="right" /></button>
-            {week !== mondayOf(today) && <button type="button" className="btn small" onClick={() => setWeek(mondayOf(today))}>This week</button>}
-            <div className="seg" role="group" aria-label="Show">
-              {(["all", "compliance", "other"] as Show[]).map((s) => (
-                <button key={s} type="button" aria-pressed={show === s} onClick={() => setShow(s)}>
-                  {s === "all" ? "All work" : s === "compliance" ? "Compliance" : "Tasks"}
-                </button>
-              ))}
+          <div className="week-summary" aria-label="This week">
+            <div className="ws-load">
+              <span className="ws-label">Planned</span>
+              <span className="ws-value">{fmtHours(weekHours) || "0h"}<span className="ws-of"> of {fmtHours(weekCapacity)}</span></span>
+              <span className="ws-bar" aria-hidden="true">
+                <span className={weekHours > weekCapacity ? "over" : ""} style={{ width: `${weekCapacity ? Math.min(100, (weekHours / weekCapacity) * 100) : 0}%` }} />
+              </span>
             </div>
-            {canSuggest && (
-              <button type="button" className="btn" onClick={() => runSuggest()} aria-describedby="suggest-help">
-                <Icon name="spark" />Suggest a plan
+            <div className={`ws-stat${overDays ? " red" : ""}`}><span className="ws-num">{overDays}</span><span className="ws-label">day{overDays === 1 ? "" : "s"} over capacity</span></div>
+            <div className={`ws-stat${tightPlanned ? " amber" : ""}`}><span className="ws-num">{tightPlanned}</span><span className="ws-label">tight or late</span></div>
+            <div className={`ws-stat${dueSoonUnplanned ? " amber" : ""}`}><span className="ws-num">{dueSoonUnplanned}</span><span className="ws-label">due in 30 days, unplanned</span></div>
+          </div>
+        </div>
+        <div className="plan-toolbar">
+          <div className="row-wrap week-nav">
+            <span className="week-label">{fmtDate(week, { year: false })} – {fmtDate(addDays(week, 4))}</span>
+            <span className="week-arrows">
+              <button type="button" className="iconbtn" aria-label="Previous week" onClick={() => changeWeek(-1)}><Icon name="left" /></button>
+              <button type="button" className="iconbtn" aria-label="Next week" onClick={() => changeWeek(1)}><Icon name="right" /></button>
+            </span>
+            {week !== mondayOf(today) && <button type="button" className="btn small" onClick={() => setWeek(mondayOf(today))}>This week</button>}
+          </div>
+          <div className="seg" role="group" aria-label="Show">
+            {(["all", "compliance", "other"] as Show[]).map((s) => (
+              <button key={s} type="button" aria-pressed={show === s} onClick={() => setShow(s)}>
+                {s === "all" ? "All work" : s === "compliance" ? "Compliance" : "Tasks"}
               </button>
-            )}
+            ))}
+          </div>
+          <div className="seg" role="group" aria-label="View">
+            <button type="button" aria-pressed={view === "hours"} onClick={() => setView("hours")}><Icon name="clock" /><span className="tb-text">Hours</span></button>
+            <button type="button" aria-pressed={view === "cards"} onClick={() => setView("cards")}><Icon name="list" /><span className="tb-text">Cards</span></button>
+          </div>
+          {view === "cards" && <CardOptions fields={fields} toggle={toggleField} reset={resetFields} />}
+          <div className="toolbar-actions">
             {cal.prefs.enabled ? (
               <button
                 type="button"
@@ -461,7 +484,7 @@ function WeekView() {
                 title={cal.state.at ? `Calendar updated ${cal.state.at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : "Get the latest from your Outlook calendar"}
               >
                 <Icon name="refresh" />
-                {cal.state.syncing ? "Refreshing…" : "Refresh calendar"}
+                <span className="tb-text">{cal.state.syncing ? "Refreshing…" : "Refresh calendar"}</span>
                 {!cal.state.syncing && cal.state.at && (
                   <span className="muted cal-refresh-at">{cal.state.at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
                 )}
@@ -469,20 +492,13 @@ function WeekView() {
             ) : (
               <a className="btn" href="#/settings/calendar" title="Connect Outlook to see your meetings in the planner"><Icon name="refresh" />Connect calendar</a>
             )}
-            <div className="seg" role="group" aria-label="View">
-              <button type="button" aria-pressed={view === "hours"} onClick={() => setView("hours")}><Icon name="clock" />Hours</button>
-              <button type="button" aria-pressed={view === "cards"} onClick={() => setView("cards")}><Icon name="list" />Cards</button>
-            </div>
-            {view === "cards" && <CardOptions fields={fields} toggle={toggleField} reset={resetFields} />}
-            <button type="button" className="btn primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
+            {canSuggest && (
+              <button type="button" className="btn" onClick={() => runSuggest()} aria-describedby="suggest-help">
+                <Icon name="spark" /><span className="tb-text">Suggest a plan</span>
+              </button>
+            )}
           </div>
           <span id="suggest-help" className="sr-only">Fills the days left this week from unplanned work. Nothing is saved until you accept.</span>
-        </div>
-        <div className="tiles" style={{ flex: "1 1 320px", minWidth: 0, maxWidth: 680 }}>
-          <div className="tile"><div className="label">Planned this week</div><div className="value">{fmtHours(weekHours) || "0h"} <span className="muted" style={{ fontSize: 13 }}>/ {fmtHours(weekCapacity)}</span></div></div>
-          <div className={`tile${overDays ? " red" : ""}`}><div className="label">Over capacity</div><div className="value">{overDays} day{overDays === 1 ? "" : "s"}</div></div>
-          <div className={`tile${tightPlanned ? " amber" : ""}`}><div className="label">Tight or late</div><div className="value">{tightPlanned}</div></div>
-          <div className={`tile${dueSoonUnplanned ? " amber" : ""}`}><div className="label">Due in 30 days, unplanned</div><div className="value">{dueSoonUnplanned}</div></div>
         </div>
       </section>
       {error && <p className="error-text" role="alert" style={{ padding: "0 24px" }}>{error}</p>}
