@@ -5,6 +5,7 @@ import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, u
 import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
 import { addDays, mondayOf, weekday } from "../lib/planning";
 import { Icon, PlanTabs, useRoute } from "./bits";
+import { elementsUrl } from "../lib/elements";
 import { DeadlinesView } from "./DeadlinesView";
 import { MonthsView } from "./MonthsView";
 import { useData, useIndex } from "./data";
@@ -43,6 +44,7 @@ type Item = {
   row: Job | Task;
   title: string;
   client: string;
+  elements?: string; // the client's Elements link
   tag: string;
   hours: number;
   planned?: string;
@@ -162,6 +164,7 @@ function WeekView() {
       return {
         kind: "job", key: j.Key, row: j, title: j.Title,
         client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "",
+        elements: elementsUrl(idx.clientByKey.get(j.ClientKey)),
         tag: finalise ? `Finalise · ${tag}` : tag,
         hours: planHours(j, data.services), planned: j.PlannedDate, deadline: j.Deadline,
         waiting: waitingForClient(j, stages), finalise, speakOn: (j.SpeakOn as string) || undefined,
@@ -812,6 +815,15 @@ function PlanCard({
         <span className={`pcard-records ${i.recordsIn ? "in" : "out"}`}>{i.recordsIn ? `Records in ${fmtDate(job.RecordsReceived!, { year: false })}` : "Records not in yet"}</span>
       )}
       {on("note") && i.note && <span className="pcard-note">{i.note}</span>}
+      {on("elements") && i.elements && (
+        // inside a button, so a span that behaves as a link rather than a nested <a>
+        <span role="link" tabIndex={0} className="elements-link" title="Open this client in Iris Elements"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); window.open(i.elements, "_blank", "noopener,noreferrer"); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); e.preventDefault(); window.open(i.elements, "_blank", "noopener,noreferrer"); } }}>
+          Elements<span aria-hidden="true"> ↗</span>
+        </span>
+      )}
       {on("subtasks") && subs.total > 0 && (
         <span className={`pcard-subtasks${subs.done === subs.total ? " all" : ""}`}>
           <span className="pcard-subbar" aria-hidden="true"><span style={{ width: `${(subs.done / subs.total) * 100}%` }} /></span>

@@ -11,7 +11,7 @@ import { chaseSummary } from "../lib/chase";
 import { Subtask, progress, readSubtasks, writeSubtasks } from "../lib/subtasks";
 import { finaliseDefault, firstWaitStage, inFinalise, isWaitStage, stageAt, unwaitPatch, waitPatch, waitingForClient } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
-import { DeadlineChip, Icon, href } from "./bits";
+import { DeadlineChip, ElementsLink, Icon, href } from "./bits";
 import { useData, useIndex } from "./data";
 
 type Open =
@@ -237,6 +237,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       <div className="row-wrap" style={{ gap: 6 }}>
         {client && <a href={href("clients", client.Key, "work")} onClick={onClose} style={{ fontWeight: 600 }}>{client.Title}</a>}
         {job.PeriodEnd && <span className="muted">· period to {fmtDate(job.PeriodEnd)}</span>}
+        <ElementsLink client={client} />
       </div>
       <div className="row-wrap" style={{ gap: 6 }}>
         {job.Priority === "urgent" && <span className="chip red">Urgent</span>}

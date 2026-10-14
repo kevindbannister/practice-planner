@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { Job, Task, fmtDate, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
-import { Icon, PlanTabs } from "./bits";
+import { ElementsLink, Icon, PlanTabs } from "./bits";
+import { TypeFilter, useRememberedTypes } from "./TypeFilter";
 import { svcClass } from "../lib/serviceColour";
 import { inFinalise, waitingForClient } from "../lib/waiting";
 import { useData, useIndex } from "./data";
@@ -23,7 +24,7 @@ export function DeadlinesView() {
   const { open } = useEditor();
   const today = todayIso();
   const [range, setRange] = useState<Range>("90");
-  const [type, setType] = useState("");
+  const [picked, setPicked] = useRememberedTypes("pp.deadlines.types");
   const [tasks, setTasks] = useState(true);
   const [held, setHeld] = useState(true);
   const [search, setSearch] = useState("");
@@ -49,10 +50,16 @@ export function DeadlinesView() {
     return out.sort((a, b) => a.deadline.localeCompare(b.deadline) || a.client.localeCompare(b.client));
   }, [idx]);
 
+  const types = [...new Set(lines.map((l) => l.type))]
+    .map((k) => [k, k === "TASK" ? "Tasks" : idx.serviceName.get(k) || k] as const)
+    .sort((a, b) => a[1].localeCompare(b[1]));
+  // only count choices that are still on offer
+  const chosen = picked.filter((k) => types.some(([t]) => t === k));
+  const typeOptions = types.map(([key, name]) => ({ key, name, count: lines.filter((l) => l.type === key).length }));
   const until = range === "all" ? "9999-12-31" : addDays(today, Number(range));
   const shown = lines.filter((l) =>
     l.deadline <= until &&
-    (!type || l.type === type) &&
+    (!chosen.length || chosen.includes(l.type)) &&
     (tasks || l.kind !== "task") &&
     (held || !l.held) &&
     (!search || `${l.client} ${l.work}`.toLowerCase().includes(search.toLowerCase())));
@@ -63,11 +70,8 @@ export function DeadlinesView() {
     if (!months.has(k)) months.set(k, []);
     months.get(k)!.push(l);
   }
-  const types = [...new Set(lines.map((l) => l.type))]
-    .map((k) => [k, k === "TASK" ? "Tasks" : idx.serviceName.get(k) || k] as const)
-    .sort((a, b) => a[1].localeCompare(b[1]));
   const rangeText = range === "all" ? "all deadlines" : `the next ${range} days`;
-  const typeText = type ? ` · ${types.find(([k]) => k === type)?.[1]}` : "";
+  const typeText = chosen.length ? ` · ${chosen.map((k) => types.find(([t]) => t === k)?.[1]).join(", ")}` : "";
 
   const downloadCsv = () => {
     const head = ["Deadline", "Client", "Work", "Type of work", "Period end", "Stage", "Planned", "Records", "Status"];
@@ -98,7 +102,10 @@ export function DeadlinesView() {
         {list.map((l) => (
           <tr key={l.key} className="clickable" onClick={() => open(l.kind === "job" ? { kind: "job", key: l.key } : { kind: "task", key: l.key })}>
             <td className="c-date mono" style={{ whiteSpace: "nowrap" }}>{fmtDate(l.deadline, { weekday: true, year: l.deadline.slice(0, 4) !== today.slice(0, 4) })}</td>
-            <td className="c-client cell-title">{l.client || "—"}</td>
+            <td className="c-client cell-title">
+              {l.client || "—"}
+              {l.kind === "job" && <div><ElementsLink client={idx.clientByKey.get((l.row as Job).ClientKey)} /></div>}
+            </td>
             <td className="c-work">
               <span className={`svc-dot ${svcClass(l.type)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />{l.work}
               {l.periodEnd && <div className="cell-sub">Period to {fmtDate(l.periodEnd)}</div>}
@@ -128,13 +135,9 @@ export function DeadlinesView() {
             </button>
           ))}
         </div>
-        <label>
-          <span className="sr-only">Type of work</span>
-          <select className="input" value={type} onChange={(e) => setType(e.target.value)} style={{ width: "auto" }}>
-            <option value="">All types of work</option>
-            {types.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-          </select>
-        </label>
+        <div className="deadline-types">
+          <TypeFilter options={typeOptions} selected={picked} onChange={setPicked} />
+        </div>
         <label className="search" style={{ flex: "1 1 200px" }}>
           <Icon name="search" />
           <span className="sr-only">Search deadlines</span>

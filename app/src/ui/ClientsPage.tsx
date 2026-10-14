@@ -1,7 +1,9 @@
 // Clients list with filters, and the quick look panel for the selected client.
 import { useMemo, useState } from "react";
 import { Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtMoney, isOnHold, jobState, loeLabel, recordGaps, todayIso } from "../lib/domain";
-import { ClientBadge, DeadlineChip, Icon, companiesHouseUrl, go, href, useRoute } from "./bits";
+import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, companiesHouseUrl, go, href, useRoute } from "./bits";
+import { elementsUrl } from "../lib/elements";
+import { ElementsImport } from "./ElementsImport";
 import { useData, useIndex } from "./data";
 import { svcClass } from "../lib/serviceColour";
 
@@ -56,6 +58,7 @@ export function ClientsPage() {
               {data.clients.length} clients · {attentionCount} need attention
             </p>
           </div>
+          <ElementsImport />
         </div>
 
         <div className="row-wrap">
@@ -193,7 +196,7 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
           <h2 id="ql-title">{c.Title}</h2>
           <span className="muted">
             {KIND_LABEL[c.Kind || ""] || c.Kind}
-            {c.CompanyNumber && <> · <span className="mono">{c.CompanyNumber}</span></>}
+            {c.CompanyNumber && <> · <span className="mono">{c.CompanyNumber}</span><CopyButton value={c.CompanyNumber} label="company number" /></>}
             {c.YearEnd && <> · YE {fmtDate(`2000-${c.YearEnd}`, { year: false })}</>}
           </span>
         </div>
@@ -222,6 +225,8 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
           )}
         </div>
       )}
+
+      {elementsUrl(c) && <div><ElementsLink client={c} /></div>}
 
       <div className="stack" style={{ gap: 8 }}>
         <h3>Open work</h3>

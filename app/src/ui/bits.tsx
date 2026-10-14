@@ -1,6 +1,7 @@
 // Small shared pieces: routing, client badge, deadline chips, icons.
 import { CSSProperties, useEffect, useState } from "react";
 import { logoSrc } from "../lib/logo";
+import { elementsUrl } from "../lib/elements";
 import { Client, Job, badgeColours, deadlineLabel, initials, jobState, todayIso } from "../lib/domain";
 
 /** The current hash route, split into path parts and query. "#/clients/C1?x=1" -> ["clients","C1"], {x:"1"} */
@@ -49,7 +50,7 @@ export function DeadlineChip({ job, today = todayIso() }: { job: Job; today?: st
 
 export type IconName =
   | "check" | "close" | "search" | "left" | "right" | "alert" | "plan" | "clients" | "groups" | "settings" | "sun" | "moon"
-  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag" | "up" | "down" | "letter" | "refresh";
+  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag" | "up" | "down" | "letter" | "refresh" | "copy";
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", "aria-hidden": true } as const;
@@ -109,6 +110,8 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       return <svg {...common}><path d="M8 1.5l1.4 4.1 4.1 1.4-4.1 1.4L8 12.5l-1.4-4.1L2.5 7l4.1-1.4L8 1.5zM13 11l.6 1.4L15 13l-1.4.6L13 15l-.6-1.4L11 13l1.4-.6L13 11z" {...stroke} /></svg>;
     case "plus":
       return <svg {...common}><path d="M8 3v10M3 8h10" {...stroke} /></svg>;
+    case "copy":
+      return <svg {...common}><rect x="5.5" y="5.5" width="8" height="8" rx="1.6" {...stroke} /><path d="M10.5 3.5v-.4a1.6 1.6 0 0 0-1.6-1.6H3.6A1.6 1.6 0 0 0 2 3.1v5.3a1.6 1.6 0 0 0 1.6 1.6h.4" {...stroke} /></svg>;
     case "grip":
       return <svg {...common}><g fill="currentColor"><circle cx="6" cy="4" r="1.1" /><circle cx="10" cy="4" r="1.1" /><circle cx="6" cy="8" r="1.1" /><circle cx="10" cy="8" r="1.1" /><circle cx="6" cy="12" r="1.1" /><circle cx="10" cy="12" r="1.1" /></g></svg>;
   }
@@ -148,5 +151,50 @@ export function PlanTabs({ current }: { current: "week" | "months" | "deadlines"
         ))}
       </nav>
     </div>
+  );
+}
+
+/** A small copy icon: puts `value` on the clipboard and shows a tick for a moment. */
+export function CopyButton({ value, label }: { value: string; label: string }) {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (!done) return;
+    const t = window.setTimeout(() => setDone(false), 1500);
+    return () => window.clearTimeout(t);
+  }, [done]);
+  const copy = async (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // older browsers, or no permission: the old way
+      const t = document.createElement("textarea");
+      t.value = value;
+      t.setAttribute("readonly", "");
+      t.style.position = "fixed";
+      t.style.opacity = "0";
+      document.body.appendChild(t);
+      t.select();
+      try { document.execCommand("copy"); } catch { /* nothing more to try */ }
+      t.remove();
+    }
+    setDone(true);
+  };
+  return (
+    <button type="button" className={`copybtn${done ? " done" : ""}`} onClick={copy} aria-label={done ? `${label} copied` : `Copy ${label}`} title={done ? "Copied" : `Copy ${label}`}>
+      <Icon name={done ? "check" : "copy"} size={13} />
+    </button>
+  );
+}
+
+/** "Elements": the client's page in Iris Elements. Nothing if the client has no link. */
+export function ElementsLink({ client, className }: { client?: object | null; className?: string }) {
+  const url = elementsUrl(client);
+  if (!url) return null;
+  return (
+    <a className={`elements-link${className ? " " + className : ""}`} href={url} target="_blank" rel="noreferrer noopener"
+      onClick={(e) => e.stopPropagation()} title="Open this client in Iris Elements">
+      Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span>
+    </a>
   );
 }

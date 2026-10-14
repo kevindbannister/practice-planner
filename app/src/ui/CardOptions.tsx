@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./bits";
 
-export type CardField = "type" | "hours" | "client" | "job" | "period" | "stage" | "deadline" | "flags" | "note" | "records" | "subtasks";
+export type CardField = "type" | "hours" | "client" | "job" | "period" | "stage" | "deadline" | "flags" | "note" | "records" | "subtasks" | "elements";
 
 export const CARD_FIELDS: [CardField, string][] = [
   ["type", "Type of work"],
@@ -16,6 +16,7 @@ export const CARD_FIELDS: [CardField, string][] = [
   ["note", "Card note"],
   ["records", "Records in or not"],
   ["subtasks", "Subtasks ticked off"],
+  ["elements", "Elements link"],
 ];
 const DEFAULT: CardField[] = ["type", "hours", "client", "job", "period", "stage", "deadline", "flags", "note", "subtasks"];
 const KEY = "pp.plan.card";

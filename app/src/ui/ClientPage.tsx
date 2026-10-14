@@ -5,7 +5,8 @@ import {
 } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { jobHours } from "../lib/planning";
-import { ClientBadge, DeadlineChip, Icon, companiesHouseUrl, href } from "./bits";
+import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, companiesHouseUrl, href } from "./bits";
+import { elementsUrl } from "../lib/elements";
 import { nextStagePatch, stageLabel } from "../lib/stages";
 import { inFinalise, isWaitStage, planHours, stageAt, waitingForClient } from "../lib/waiting";
 import { useData, useIndex } from "./data";
@@ -52,7 +53,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
           <div className="row-wrap" style={{ gap: 6 }}>
             <span className="chip green">{c.Status === "active" || !c.Status ? "Active" : String(c.Status)}</span>
             <span className="chip">{KIND_LABEL[c.Kind || ""] || c.Kind}</span>
-            {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}</span>}
+            {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}<CopyButton value={c.CompanyNumber} label="company number" /></span>}
             {c.YearEnd && <span className="chip">Year end {fmtDate(`2000-${c.YearEnd}`, { year: false })}</span>}
             {c.Incorporated && <span className="chip">Incorporated {fmtDate(c.Incorporated as string)}</span>}
             {(idx.groupsByMember.get(c.Key) || []).map((g) => (
@@ -65,6 +66,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
           {c.Email && <a className="btn" href={`mailto:${c.Email}`}>Email</a>}
         </div>
       </div>
+      <ElementsRow client={c} />
 
       {(urgent.length > 0 || aml.warn || loe.warn) && (
         <section className="alerts" aria-label="Needs attention">
@@ -243,7 +245,10 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
               {fields.map(([k, label]) => (
                 <div className="kv" key={k}>
                   <span>{label}</span>
-                  <span className="mono">{(c[k] as string) || <span style={{ color: "var(--muted)", fontFamily: "var(--sans)" }}>—</span>}</span>
+                  <span className="copy-val">
+                    <span className="mono">{(c[k] as string) || <span style={{ color: "var(--muted)", fontFamily: "var(--sans)" }}>—</span>}</span>
+                    {c[k] ? <CopyButton value={String(c[k])} label={label.toLowerCase()} /> : null}
+                  </span>
                 </div>
               ))}
             </>
@@ -460,6 +465,7 @@ function JobCard({ job: j }: { job: Job }) {
     }
   };
   const budget = jobHours(j, data.services);
+  const client = useIndex().clientByKey.get(j.ClientKey);
 
   return (
     <article className={`job ${svcClass(j.ServiceKey)}${isOnHold(j) ? " held" : st.state === "overdue" ? " late" : st.state === "tight" ? " warn" : ""}`} aria-label={j.Title}>
@@ -472,6 +478,7 @@ function JobCard({ job: j }: { job: Job }) {
             {waitingForClient(j, templates) && <span className="chip wait">With the client{j.SpeakOn ? ` · speaking ${fmtDate(j.SpeakOn as string, { year: false })}` : ""}</span>}
             {inFinalise(j) && !waitingForClient(j, templates) && <span className="chip wait">Ready to finalise</span>}
             <DeadlineChip job={j} today={today} />
+            <ElementsLink client={client} />
           </div>
           <span className="muted">
             {j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)}` : ""}
@@ -602,6 +609,53 @@ function LogoPicker({ client: c }: { client: Client }) {
       <input ref={input} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" hidden
         aria-label={`Choose a logo for ${c.Title}`} onChange={(e) => void use(e.target.files?.[0])} />
       {error && <span className="error-text" role="alert" style={{ flexBasis: "100%" }}>{error}</span>}
+    </div>
+  );
+}
+
+/** The client's Elements link: shown as "Elements", with an edit box for changing it. It flows through to all their jobs. */
+function ElementsRow({ client: c }: { client: Client }) {
+  const { update } = useData();
+  const url = elementsUrl(c);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const start = () => {
+    setDraft(String(c.ElementsLink || ""));
+    setError(undefined);
+    setEditing(true);
+  };
+  const saveIt = async () => {
+    const v = draft.trim();
+    if (v && !/^https:\/\/\S+$/i.test(v)) return setError("That should be a full web address starting https://");
+    setBusy(true);
+    try {
+      if (v !== String(c.ElementsLink || "")) await update("Clients", c, { ElementsLink: v });
+      setEditing(false);
+    } catch {
+      setError("Couldn't save. Your change is still here; try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="row-wrap" style={{ gap: 10 }}>
+      <span className="muted" style={{ fontSize: 13 }}>Iris Elements</span>
+      {url ? <ElementsLink client={c} /> : <span className="muted" style={{ fontSize: 13 }}>No link yet</span>}
+      {url && <CopyButton value={url} label="Elements link" />}
+      {editing ? (
+        <span className="elements-edit">
+          <label className="sr-only" htmlFor="elements-link-input">Elements link for {c.Title}</label>
+          <input id="elements-link-input" className="input" value={draft} placeholder="https://elements.iris.co.uk/…" autoFocus
+            onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void saveIt(); if (e.key === "Escape") setEditing(false); }} />
+          <button type="button" className="btn small primary" onClick={saveIt} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+          <button type="button" className="btn small" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
+          {error && <span className="error-text" role="alert">{error}</span>}
+        </span>
+      ) : (
+        <button type="button" className="linkbtn" style={{ minHeight: 0, fontSize: 13 }} onClick={start}>{url ? "Edit link" : "Add link"}</button>
+      )}
     </div>
   );
 }
