@@ -99,7 +99,8 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
             nextPeople[num] = { officers, pscs };
           }
           const jobs = latest.current.data.jobs.filter((j) => j.ClientKey === c.Key && isOpen(j));
-          found.push(...compareCompany({ client: c, profile, jobs, officers, pscs, before: before[num] }));
+          const off = new Set<string>(latest.current.data.clientServices.filter((s) => s.ClientKey === c.Key && (s.Off === true || s.Off === "true")).map((s) => String(s.ServiceKey)));
+          found.push(...compareCompany({ client: c, profile, jobs, off, officers, pscs, before: before[num] }));
           checked.add(c.Key);
           const st = profile ? statusText(profile) : "Not found at Companies House";
           if (c.CHStatus !== st || !c.CHChecked) await update("Clients", c, { CHStatus: st, CHChecked: true });
@@ -152,7 +153,8 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
       (data.stageTemplates.filter((s) => s.ServiceKey === service).sort((x, y) => (x.StageNo as number) - (y.StageNo as number))[0]?.Title as string) || "";
 
     if (a.do === "complete" && job && isOpen(job)) {
-      if (a.next) {
+      const serviceOff = data.clientServices.some((s) => s.ClientKey === job.ClientKey && s.ServiceKey === job.ServiceKey && (s.Off === true || s.Off === "true"));
+      if (a.next && !serviceOff) {
         const rolled = rollForward(job, ruleFor(job.ServiceKey, data.services), today, newKey("J")) || {
           Key: newKey("J"), Title: job.Title, ClientKey: job.ClientKey, ClientName: job.ClientName, ServiceKey: job.ServiceKey, Status: "Open",
         };

@@ -4,7 +4,7 @@ import {
   Client, Job, KIND_LABEL, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
 } from "../lib/domain";
 import { Row } from "../lib/schema";
-import { jobHours } from "../lib/planning";
+import { jobHours, newKey } from "../lib/planning";
 import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, companiesHouseUrl, href } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { nextStagePatch, stageLabel } from "../lib/stages";
@@ -131,7 +131,6 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
 function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   const { data } = useData();
   const idx = useIndex();
-  const services = data.clientServices.filter((s) => s.ClientKey === c.Key);
   const gaps = recordGaps(c, idx.servicesByClient.get(c.Key) || new Set());
   const company = c.Kind === "Ltd" || c.Kind === "LLP";
   const today = todayIso();
@@ -182,31 +181,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
           </div>
         )}
 
-        <section className="card" aria-labelledby="svc-h">
-          <div className="card-head"><h2 id="svc-h">Services and fees</h2>
-            {c.AnnualFees ? <span className="mono">{fmtMoney(c.AnnualFees)} a year</span> : null}
-          </div>
-          {services.length ? (
-            <div className="table-wrap">
-              <table className="grid">
-                <thead><tr><th scope="col">Service</th><th scope="col">Fee</th><th scope="col">Next deadline</th></tr></thead>
-                <tbody>
-                  {services.map((s) => (
-                    <tr key={s.Key}>
-                      <td>{idx.serviceName.get(s.ServiceKey as string) || s.ServiceKey}</td>
-                      <td className="mono">
-                        {s.Fee ? `${fmtMoney(s.Fee as number)} ${s.FeePeriod || ""}` : <span className="muted">In package</span>}
-                      </td>
-                      <td className="mono">{fmtDate(s.NextDeadline as string) || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty">No services recorded.</div>
-          )}
-        </section>
+        <ServicesCard client={c} jobs={jobs} />
 
         <AddressesCard client={c} />
       </div>
@@ -465,7 +440,8 @@ function JobCard({ job: j }: { job: Job }) {
     }
   };
   const budget = jobHours(j, data.services);
-  const client = useIndex().clientByKey.get(j.ClientKey);
+  const idx = useIndex();
+  const client = idx.clientByKey.get(j.ClientKey);
 
   return (
     <article className={`job ${svcClass(j.ServiceKey)}${isOnHold(j) ? " held" : st.state === "overdue" ? " late" : st.state === "tight" ? " warn" : ""}`} aria-label={j.Title}>
@@ -479,6 +455,7 @@ function JobCard({ job: j }: { job: Job }) {
             {inFinalise(j) && !waitingForClient(j, templates) && <span className="chip wait">Ready to finalise</span>}
             <DeadlineChip job={j} today={today} />
             <ElementsLink client={client} />
+            {idx.servicesOff.has(`${j.ClientKey}|${j.ServiceKey}`) && <span className="chip hold" title="Complete it yourself; no next job will be created">Service turned off</span>}
           </div>
           <span className="muted">
             {j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)}` : ""}
@@ -657,5 +634,103 @@ function ElementsRow({ client: c }: { client: Client }) {
         <button type="button" className="linkbtn" style={{ minHeight: 0, fontSize: 13 }} onClick={start}>{url ? "Edit link" : "Add link"}</button>
       )}
     </div>
+  );
+}
+
+/** The work you do for this client, each with an on/off switch. Off keeps the open job but creates no next one. */
+function ServicesCard({ client: c, jobs }: { client: Client; jobs: Job[] }) {
+  const { data, update, create } = useData();
+  const idx = useIndex();
+  const { open } = useEditor();
+  const [asking, setAsking] = useState<string>();
+  const [busy, setBusy] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [turnedOn, setTurnedOn] = useState<string>();
+  const today = todayIso();
+  const rows = data.clientServices.filter((s) => s.ClientKey === c.Key);
+  // every service this client has: recorded ones, and any that only have an open job
+  const keys = [...new Set([...rows.map((r) => String(r.ServiceKey)), ...jobs.map((j) => j.ServiceKey || "").filter(Boolean)])]
+    .sort((a, b) => (idx.serviceName.get(a) || a).localeCompare(idx.serviceName.get(b) || b));
+  const name = (k: string) => idx.serviceName.get(k) || k;
+
+  const setOff = async (serviceKey: string, off: boolean) => {
+    setBusy(serviceKey);
+    setError(undefined);
+    try {
+      const row = rows.find((r) => r.ServiceKey === serviceKey);
+      if (row) await update("ClientServices", row, { Off: off, OffSince: off ? today : "" });
+      else await create("ClientServices", { Key: newKey("CS"), ClientKey: c.Key, ServiceKey: serviceKey, Off: off, OffSince: off ? today : undefined });
+      setAsking(undefined);
+      setTurnedOn(off ? undefined : serviceKey);
+    } catch {
+      setError("Couldn't save that. Nothing has changed; try again.");
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  return (
+    <section className="card" aria-labelledby="svc-h">
+      <div className="card-head"><h2 id="svc-h">Services and fees</h2>
+        {c.AnnualFees ? <span className="mono">{fmtMoney(c.AnnualFees)} a year</span> : null}
+      </div>
+      {keys.length ? (
+        <div className="table-wrap">
+          <table className="grid">
+            <thead><tr><th scope="col">Service</th><th scope="col">Fee</th><th scope="col">Next deadline</th><th scope="col">We do this</th></tr></thead>
+            <tbody>
+              {keys.map((k) => {
+                const s = rows.find((r) => r.ServiceKey === k);
+                const off = idx.servicesOff.has(`${c.Key}|${k}`);
+                const openJob = jobs.find((j) => j.ServiceKey === k);
+                return (
+                  <tr key={k} className={off ? "svc-off" : undefined}>
+                    <td>
+                      {name(k)}
+                      {off && <div className="cell-sub">Turned off{s?.OffSince ? ` ${fmtDate(String(s.OffSince))}` : ""}{openJob ? ": complete the open job yourself" : ""}</div>}
+                    </td>
+                    <td className="mono">
+                      {s?.Fee ? `${fmtMoney(s.Fee as number)} ${s.FeePeriod || ""}` : <span className="muted">In package</span>}
+                    </td>
+                    <td className="mono">{fmtDate(s?.NextDeadline as string) || "—"}</td>
+                    <td>
+                      {asking === k ? (
+                        <div className="stack" style={{ gap: 6, maxWidth: 260 }}>
+                          <span style={{ fontSize: 12 }}>
+                            Stop {name(k).toLowerCase()} for {c.Title}?{" "}
+                            {openJob ? "The open job stays until you complete it; no next one will be created." : "No new jobs will be created."}
+                          </span>
+                          <span className="row-wrap" style={{ gap: 6 }}>
+                            <button type="button" className="btn small primary" disabled={busy === k} onClick={() => void setOff(k, true)}>{busy === k ? "Saving…" : "Turn off"}</button>
+                            <button type="button" className="btn small" onClick={() => setAsking(undefined)}>Keep</button>
+                          </span>
+                        </div>
+                      ) : (
+                        <button type="button" role="switch" aria-checked={!off} aria-label={`${name(k)}: we ${off ? "don't do" : "do"} this`} className={`switch${off ? "" : " on"}`}
+                          disabled={busy === k} onClick={() => (off ? void setOff(k, false) : setAsking(k))}>
+                          <span aria-hidden="true" />
+                          <span className="switch-text">{off ? "Off" : "On"}</span>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty">No services recorded.</div>
+      )}
+      {turnedOn && (
+        <p className="muted" style={{ margin: 0, padding: "0 16px 14px", fontSize: 13 }}>
+          {name(turnedOn)} is back on. Jobs are created when the next one is completed, so{" "}
+          {jobs.some((j) => j.ServiceKey === turnedOn) ? "the open job will roll on as normal." : (
+            <button type="button" className="linkbtn" style={{ minHeight: 0, padding: 0 }} onClick={() => open({ kind: "newJob", clientKey: c.Key })}>add the next job now</button>
+          )}.
+        </p>
+      )}
+      {error && <p className="error-text" role="alert" style={{ padding: "0 16px 12px" }}>{error}</p>}
+    </section>
   );
 }

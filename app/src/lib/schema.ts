@@ -60,7 +60,7 @@ export const LISTS: ListDef[] = [
     key: "ClientServices", displayName: "PP Client Services", description: "Practice Planner: which work each client has",
     columns: [
       t("Key", true), t("ClientKey", true), t("ServiceKey"), n("Fee"), t("FeePeriod"), b("OneOff"),
-      n("AnnualFee"), t("NextDeadline"),
+      n("AnnualFee"), t("NextDeadline"), b("Off"), t("OffSince"),
     ],
   },
   {

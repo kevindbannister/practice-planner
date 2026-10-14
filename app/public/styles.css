@@ -1218,3 +1218,13 @@ body.is-resizing, body.is-resizing * { cursor: ns-resize !important; user-select
 .meet.done { opacity: .6; }
 .meet.done strong { text-decoration: line-through; }
 .show-done { white-space: nowrap; }
+
+/* turning a service on and off for a client */
+.switch { display: inline-flex; align-items: center; gap: 8px; min-height: 0; padding: 3px 10px 3px 4px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 600; }
+.switch > span:first-child { width: 28px; height: 16px; border-radius: 999px; background: var(--line-strong, #bbb); position: relative; transition: background .15s; }
+.switch > span:first-child::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.switch.on { color: var(--green); }
+.switch.on > span:first-child { background: var(--green); }
+.switch.on > span:first-child::after { transform: translateX(12px); }
+.switch:disabled { opacity: .6; cursor: default; }
+.svc-off td:not(:last-child) { color: var(--muted); }

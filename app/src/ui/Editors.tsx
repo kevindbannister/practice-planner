@@ -188,7 +188,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     window.requestAnimationFrame(() => completeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   };
   const rule = ruleFor(job.ServiceKey, data.services);
-  const preview = nextPeriod(rule, job.PeriodEnd, job.Deadline);
+  const serviceOff = idx.servicesOff.has(`${job.ClientKey}|${job.ServiceKey}`);
+  const preview = serviceOff ? null : nextPeriod(rule, job.PeriodEnd, job.Deadline);
 
   const complete = async () => {
     setBusy(true);
@@ -196,7 +197,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     try {
       const hours = actual ? Number(actual) : undefined;
       const finished = { ...job, ActualHours: hours ?? job.ActualHours } as Job;
-      const nextRow = rollForward(finished, rule, today, newKey("J"));
+      const nextRow = serviceOff ? null : rollForward(finished, rule, today, newKey("J"));
       // create the next job first, so nothing is lost if the second step fails
       if (nextRow) {
         nextRow.StageName = (stages[0]?.Title as string) || "";
@@ -225,7 +226,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
             {done.SuggestedSlot ? <>, suggested slot {fmtDate(done.SuggestedSlot as string, { weekday: true })}</> : null}.
           </p>
         ) : (
-          <p style={{ margin: 0 }} className="muted">This is one-off work, so there's no next job.</p>
+          <p style={{ margin: 0 }} className="muted">{serviceOff ? "This work is turned off for the client, so there's no next job." : "This is one-off work, so there's no next job."}</p>
         )}
         <div className="form-actions"><button type="button" className="btn primary" onClick={onClose}>Done</button></div>
       </Drawer>
@@ -243,6 +244,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         {job.Priority === "urgent" && <span className="chip red">Urgent</span>}
         {isOnHold(job) && <span className="chip hold">On hold</span>}
         {waiting && <span className="chip wait">With the client</span>}
+        {serviceOff && isOpen(job) && <span className="chip hold" title="Complete it yourself; no next job will be created">Service turned off</span>}
         {inFinalise(job) && !waiting && isOpen(job) && <span className="chip wait">Ready to finalise</span>}
         <DeadlineChip job={job} today={today} />
         {!isOpen(job) && <span className="chip green">Complete</span>}
@@ -374,7 +376,9 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>
                 {preview
                   ? `Completing it creates the next one: period to ${fmtDate(preview.PeriodEnd)}, due ${fmtDate(preview.Deadline)} (${describeRule(rule).toLowerCase()}).`
-                  : "One-off work: nothing is created after it. You can change this in Settings › Types of work."}
+                  : serviceOff
+                    ? `${idx.serviceName.get(job.ServiceKey || "") || "This work"} is turned off for ${client?.Title || "this client"}, so nothing is created after it. You can turn it back on from the client's page.`
+                    : "One-off work: nothing is created after it. You can change this in Settings › Types of work."}
               </p>
               <div><button type="button" className="btn" onClick={() => setCompleting(true)}>Mark complete…</button></div>
             </>
@@ -448,7 +452,7 @@ function NewJobPanel({ clientKey, onClose }: { clientKey: string; onClose: () =>
       <div className="form" style={{ gridTemplateColumns: "1fr" }}>
         <SelectField label="Type of work" value={service} onChange={setService}>
           <option value="">Choose…</option>
-          {services.map((s) => <option key={s.Key as string} value={s.Key as string}>{s.Title as string}</option>)}
+          {services.map((s) => <option key={s.Key as string} value={s.Key as string}>{s.Title as string}{idx.servicesOff.has(`${clientKey}|${s.Key}`) ? " (turned off for this client)" : ""}</option>)}
         </SelectField>
         <label>
           Period end

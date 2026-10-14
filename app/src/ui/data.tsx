@@ -256,6 +256,9 @@ export function useIndex() {
       if (!servicesByClient.has(ck)) servicesByClient.set(ck, new Set());
       servicesByClient.get(ck)!.add(s.ServiceKey as string);
     }
+    // work you've stopped doing for a client: "ClientKey|ServiceKey"
+    const servicesOff = new Set<string>();
+    for (const s of data.clientServices) if (s.Off === true || s.Off === "true") servicesOff.add(`${s.ClientKey}|${s.ServiceKey}`);
     for (const j of openJobs) {
       if (!servicesByClient.has(j.ClientKey)) servicesByClient.set(j.ClientKey, new Set());
       if (j.ServiceKey) servicesByClient.get(j.ClientKey)!.add(j.ServiceKey);
@@ -269,7 +272,7 @@ export function useIndex() {
     for (const list of stagesByService.values()) list.sort((a, b) => (a.StageNo as number) - (b.StageNo as number));
     return {
       clientByKey, groupByKey, serviceName, openJobs, openTasks, jobsByClient, tasksByClient,
-      groupsByMember, membersByGroup, servicesByClient, stagesByService,
+      groupsByMember, membersByGroup, servicesByClient, servicesOff, stagesByService,
     };
   }, [data]);
 }

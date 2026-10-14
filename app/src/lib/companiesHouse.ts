@@ -157,6 +157,7 @@ export type CompareInput = {
   client: Client;
   profile: ChProfile | null; // null: Companies House has no such company
   jobs: Job[]; // the client's open jobs
+  off?: Set<string>; // services turned off for this client
   officers?: string[] | null;
   pscs?: string[] | null;
   before?: { officers?: string[]; pscs?: string[] }; // what was seen last time, if anything
@@ -164,7 +165,7 @@ export type CompareInput = {
 
 const d = (iso?: string) => (iso ? fmtDate(iso) : "not set");
 
-export function compareCompany({ client, profile, jobs, officers, pscs, before }: CompareInput): Proposal[] {
+export function compareCompany({ client, profile, jobs, off, officers, pscs, before }: CompareInput): Proposal[] {
   const ck = client.Key;
   const out: Proposal[] = [];
   if (!profile) {
@@ -203,7 +204,7 @@ export function compareCompany({ client, profile, jobs, officers, pscs, before }
           nextDue: profile.confirmation_statement?.next_due,
           overdue: !!profile.confirmation_statement?.overdue,
         };
-      out.push(...compareFiling(client, f, ch, jobs));
+      out.push(...compareFiling(client, f, ch, jobs, f.services.some((s) => off?.has(s))));
     }
   }
 
@@ -254,7 +255,7 @@ export function tidyName(name: string): string {
 
 type FilingDates = { last?: string; nextPe?: string; nextDue?: string; overdue: boolean };
 
-function compareFiling(client: Client, f: (typeof FILINGS)[number], ch: FilingDates, jobs: Job[]): Proposal[] {
+function compareFiling(client: Client, f: (typeof FILINGS)[number], ch: FilingDates, jobs: Job[], serviceOff = false): Proposal[] {
   const ck = client.Key;
   const out: Proposal[] = [];
   const open = jobs
@@ -266,7 +267,7 @@ function compareFiling(client: Client, f: (typeof FILINGS)[number], ch: FilingDa
 
   filed.forEach((j, i) => {
     const last = i === filed.length - 1;
-    const next = last && !rest.length && ch.nextPe && ch.nextDue ? { PeriodEnd: ch.nextPe, Deadline: ch.nextDue } : undefined;
+    const next = !serviceOff && last && !rest.length && ch.nextPe && ch.nextDue ? { PeriodEnd: ch.nextPe, Deadline: ch.nextDue } : undefined;
     out.push({
       key: `${ck}|filed|${j.Key}`, type: "filed", clientKey: ck, jobKey: j.Key, severity: "amber",
       title: `${f.label} filed for ${f.kind === "accounts" ? "period to" : "made up to"} ${d(j.PeriodEnd)}`,
@@ -278,7 +279,7 @@ function compareFiling(client: Client, f: (typeof FILINGS)[number], ch: FilingDa
 
   const current = rest[0];
   if (!current) {
-    if (!filed.length && ch.nextPe && ch.nextDue) {
+    if (!serviceOff && !filed.length && ch.nextPe && ch.nextDue) {
       const serviceKey = f.kind === "accounts" ? accountsServiceFor(client) : "CS01";
       out.push({
         key: `${ck}|missing|${f.kind}`, type: "missing", clientKey: ck, severity: "amber",
