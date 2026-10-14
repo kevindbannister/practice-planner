@@ -1201,3 +1201,20 @@ body.is-resizing, body.is-resizing * { cursor: ns-resize !important; user-select
 .elements-edit { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .elements-edit .input { width: 260px; max-width: 100%; }
 .deadline-types { min-width: 190px; }
+
+/* completed work and meetings ticked off */
+.pcard.done { opacity: 0.72; background: color-mix(in srgb, var(--green-soft) 45%, var(--surface)); border-left-color: var(--green); box-shadow: none; }
+.pcard.done .pcard-client, .pcard.done .pcard-sub { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink) 45%, transparent); }
+.pcard-done { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--green); }
+.hblock.done { opacity: 0.7; background: color-mix(in srgb, var(--green-soft) 55%, var(--surface)); border-left-color: var(--green); box-shadow: none; cursor: pointer; }
+.hblock.done strong, .hblock.done .hb-sub { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink) 40%, transparent); }
+.meet { padding-right: 24px; }
+.meet-done { position: absolute; top: 2px; right: 2px; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; min-height: 0; padding: 0; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; color: inherit; opacity: .55; cursor: pointer; }
+.meet-done:hover { opacity: 1; }
+.meet-done svg { opacity: 0; }
+.meet-done:hover svg { opacity: .6; }
+.meet-done[aria-pressed="true"] { opacity: 1; background: var(--green); border-color: var(--green); color: #fff; }
+.meet-done[aria-pressed="true"] svg { opacity: 1; }
+.meet.done { opacity: .6; }
+.meet.done strong { text-decoration: line-through; }
+.show-done { white-space: nowrap; }

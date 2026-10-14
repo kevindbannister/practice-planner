@@ -6,6 +6,7 @@ import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, resumePatc
 import { addDays, mondayOf, weekday } from "../lib/planning";
 import { Icon, PlanTabs, useRoute } from "./bits";
 import { elementsUrl } from "../lib/elements";
+import { DoneView } from "./DoneView";
 import { DeadlinesView } from "./DeadlinesView";
 import { MonthsView } from "./MonthsView";
 import { useData, useIndex } from "./data";
@@ -60,6 +61,8 @@ type Item = {
   waiting?: boolean; // with the client for approval
   finalise?: boolean; // prepared; what's left is finalising
   speakOn?: string;
+  done?: boolean; // finished: shown on its day, ticked off
+  doneOn?: string;
 };
 
 type Show = "all" | "compliance" | "other";
@@ -69,6 +72,7 @@ export function PlanPage() {
   const { parts } = useRoute();
   if (parts[1] === "months") return <MonthsView />;
   if (parts[1] === "deadlines") return <DeadlinesView />;
+  if (parts[1] === "done") return <DoneView />;
   return <WeekView />;
 }
 
@@ -108,6 +112,21 @@ function WeekView() {
     }
   };
   const [fields, toggleField, resetFields] = useCardFields();
+  const [showDone, setShowDoneState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("pp.plan.done") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const setShowDone = (v: boolean) => {
+    setShowDoneState(v);
+    try {
+      localStorage.setItem("pp.plan.done", v ? "1" : "0");
+    } catch {
+      /* this visit only */
+    }
+  };
   const [slide, setSlide] = useState<"" | "next" | "prev">("");
   const swipe = useRef<{ x: number; y: number; cancelled: boolean } | null>(null);
   /** Move a week on or back; on a phone the same weekday stays selected. */
@@ -156,32 +175,30 @@ function WeekView() {
     };
   }, [narrow]);
 
-  const items: Item[] = useMemo(() => {
-    const jobs = idx.openJobs.map<Item>((j) => {
-      const stages = idx.stagesByService.get(j.ServiceKey || "") || [];
-      const finalise = inFinalise(j);
-      const tag = shortTag(j.ServiceKey, idx.serviceName.get(j.ServiceKey || ""));
-      return {
-        kind: "job", key: j.Key, row: j, title: j.Title,
-        client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "",
-        elements: elementsUrl(idx.clientByKey.get(j.ClientKey)),
-        tag: finalise ? `Finalise · ${tag}` : tag,
-        hours: planHours(j, data.services), planned: j.PlannedDate, deadline: j.Deadline,
-        waiting: waitingForClient(j, stages), finalise, speakOn: (j.SpeakOn as string) || undefined,
-        urgent: j.Priority === "urgent", compliance: true, held: isOnHold(j),
-        stage: stages.length || j.StageName ? stageLabel(j, stages) : undefined,
-        stageNo: Math.min(Number(j.StageNo || 1), Math.max(stages.length, 1)), stageCount: stages.length,
-        note: (j.CardNote as string) || "", recordsIn: !!j.RecordsReceived,
-      };
-    });
-    const tasks = idx.openTasks.map<Item>((t) => ({
-      kind: "task", key: t.Key, row: t, title: t.Title,
-      client: (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "",
-      tag: t.Type || "Task", hours: t.EstimateHours || 1, planned: t.PlannedDate, deadline: t.DueDate,
-      urgent: false, compliance: false, held: isOnHold(t), note: (t.CardNote as string) || "",
-    }));
-    return [...jobs, ...tasks];
-  }, [idx, data.services]);
+  const mapJob = (j: Job): Item => {
+    const stages = idx.stagesByService.get(j.ServiceKey || "") || [];
+    const finalise = inFinalise(j);
+    const tag = shortTag(j.ServiceKey, idx.serviceName.get(j.ServiceKey || ""));
+    return {
+      kind: "job", key: j.Key, row: j, title: j.Title,
+      client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "",
+      elements: elementsUrl(idx.clientByKey.get(j.ClientKey)),
+      tag: finalise ? `Finalise · ${tag}` : tag,
+      hours: planHours(j, data.services), planned: j.PlannedDate, deadline: j.Deadline,
+      waiting: waitingForClient(j, stages), finalise, speakOn: (j.SpeakOn as string) || undefined,
+      urgent: j.Priority === "urgent", compliance: true, held: isOnHold(j),
+      stage: stages.length || j.StageName ? stageLabel(j, stages) : undefined,
+      stageNo: Math.min(Number(j.StageNo || 1), Math.max(stages.length, 1)), stageCount: stages.length,
+      note: (j.CardNote as string) || "", recordsIn: !!j.RecordsReceived,
+    };
+  };
+  const mapTask = (t: Task): Item => ({
+    kind: "task", key: t.Key, row: t, title: t.Title,
+    client: (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "",
+    tag: t.Type || "Task", hours: t.EstimateHours || 1, planned: t.PlannedDate, deadline: t.DueDate,
+    urgent: false, compliance: false, held: isOnHold(t), note: (t.CardNote as string) || "",
+  });
+  const items: Item[] = useMemo(() => [...idx.openJobs.map(mapJob), ...idx.openTasks.map(mapTask)], [idx, data.services]);
 
   const shownKind = items.filter((i) => (show === "all" ? true : show === "compliance" ? i.compliance : !i.compliance));
   const visible = shownKind.filter((i) => !i.held); // on-hold work is off the board
@@ -189,6 +206,15 @@ function WeekView() {
     .filter((i) => i.held)
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
   const byDay = new Map(days.map((d) => [d, visible.filter((i) => i.planned === d).sort(compareInDay)]));
+  // finished work stays on its day, ticked off: the day it was planned for, or the day it was finished
+  const asDone = (i: Item, day: string, finished?: string): Item => ({ ...i, done: true, doneOn: finished, planned: day, waiting: false, finalise: false, held: false, urgent: false });
+  const doneItems: Item[] = [
+    ...data.jobs.filter((j) => j.Status === "Complete" && days.includes(String(j.PlannedDate || j.CompletedDate || "")))
+      .map((j) => asDone(mapJob(j), String(j.PlannedDate || j.CompletedDate), j.CompletedDate)),
+    ...data.tasks.filter((t) => t.Status === "Done" && days.includes(String(t.PlannedDate || t.CompletedDate || "")))
+      .map((t) => asDone(mapTask(t), String(t.PlannedDate || t.CompletedDate), t.CompletedDate)),
+  ].filter((i) => (show === "all" ? true : show === "compliance" ? i.compliance : !i.compliance));
+  const doneOn = (d: string) => doneItems.filter((i) => i.planned === d).sort((a, b) => String(a.row.StartTime || "").localeCompare(String(b.row.StartTime || "")) || a.client.localeCompare(b.client));
   // preparing already done (the job's now with the client, or being finalised), shown on its day
   const preparedOn = (d: string) => items.filter((i) => i.kind === "job" && i.finalise && (i.row as Job).PreparedOn === d);
   const preparedLoad = (d: string) => preparedOn(d).reduce((t, i) => t + (Number((i.row as Job).PreparedHours) || 0), 0);
@@ -223,7 +249,7 @@ function WeekView() {
   const cal = useCalendar();
   const usualHours = (d: string) => settings.hours[String(weekday(d)) as keyof typeof settings.hours] ?? 0;
   const capacity = (d: string) => cal.capacityFor(d, usualHours(d)); // less meetings, when the calendar is connected
-  const load = (d: string) => (byDay.get(d) || []).reduce((t, i) => t + i.hours, 0) + preparedLoad(d);
+  const load = (d: string) => (byDay.get(d) || []).reduce((t, i) => t + i.hours, 0) + preparedLoad(d) + doneOn(d).reduce((t, i) => t + i.hours, 0);
   const suggestedLoad = (d: string) => suggestedOn(d).reduce((t, x) => t + x.item.hours, 0);
   const weekHours = days.reduce((t, d) => t + load(d), 0);
   const weekCapacity = days.reduce((t, d) => t + capacity(d), 0);
@@ -397,6 +423,7 @@ function WeekView() {
     return [
       ...preparedOn(d).map((i) => toCard(i, { key: `p-${i.key}`, hours: Number((i.row as Job).PreparedHours) || 0.25, prepared: true, start: undefined, flags: [] })),
       ...(byDay.get(d) || []).map((i) => toCard(i)),
+      ...(showDone ? doneOn(d).map((i) => toCard(i, { done: true, flags: [] })) : []),
       ...suggestedOn(d).map(({ s, item }) => toCard(item, { suggested: s.reason, start: undefined })),
     ];
   };
@@ -476,6 +503,10 @@ function WeekView() {
             <button type="button" aria-pressed={view === "hours"} onClick={() => setView("hours")}><Icon name="clock" /><span className="tb-text">Hours</span></button>
             <button type="button" aria-pressed={view === "cards"} onClick={() => setView("cards")}><Icon name="list" /><span className="tb-text">Cards</span></button>
           </div>
+          <label className="row-wrap show-done" style={{ gap: 6, fontSize: 14 }}>
+            <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} style={{ width: 18, height: 18 }} />
+            <span>Completed</span>
+          </label>
           {view === "cards" && <CardOptions fields={fields} toggle={toggleField} reset={resetFields} />}
           <div className="toolbar-actions">
             {cal.prefs.enabled ? (
@@ -642,8 +673,10 @@ function WeekView() {
             insertAt={insertAt}
             dropKind={dropKind}
             cardProps={cardProps as (k: string) => Record<string, unknown>}
+            doneMeetings={cal.doneMeetings}
+            onToggleMeeting={(id) => void cal.toggleMeetingDone(id).catch(() => setError("That didn't save. Try again."))}
             onOpen={(k) => {
-              const it = items.find((i) => i.key === k);
+              const it = items.find((i) => i.key === k) || doneItems.find((i) => i.key === k);
               if (it) open(it.kind === "job" ? { kind: "job", key: k } : { kind: "task", key: k });
             }}
             onAdd={(d, time) => open({ kind: "task", plannedDate: d, startTime: time })}
@@ -708,6 +741,10 @@ function WeekView() {
                   if (dropTarget === d && dragKey && insertAt === n && list.some((i) => i.key !== dragKey)) out.push(<div key="drop-line" className="drop-line" aria-hidden="true" />);
                   return out;
                 })()}
+                {showDone && doneOn(d).map((i) => (
+                  <PlanCard key={`done-${i.key}`} item={i} today={today} fields={fields} dragging={false}
+                    onOpen={() => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key })} />
+                ))}
                 {sugg.map(({ s, item }) => (
                   <div key={item.key} className="suggest-wrap">
                     <PlanCard
@@ -723,7 +760,7 @@ function WeekView() {
                     </button>
                   </div>
                 ))}
-                {!list.length && !sugg.length && !preparedOn(d).length && narrow && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing planned yet.</p>}
+                {!list.length && !sugg.length && !preparedOn(d).length && !(showDone && doneOn(d).length) && narrow && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing planned yet.</p>}
                 <button type="button" className="day-add" onClick={() => open({ kind: "task", plannedDate: d })}>+ Task</button>
               </div>
             );
@@ -782,16 +819,16 @@ function PlanCard({
     showClient && on("job") ? i.title : "",
     on("period") && job?.PeriodEnd ? `to ${fmtDate(job.PeriodEnd, { year: false })}` : "",
   ].filter(Boolean).join(" · ");
-  const flags = on("flags") && (i.urgent || (!i.held && (st.state === "overdue" || st.state === "tight")) || (i.planned && i.planned < today));
+  const flags = on("flags") && !i.done && (i.urgent || (!i.held && (st.state === "overdue" || st.state === "tight")) || (i.planned && i.planned < today));
   const showDeadline = on("deadline") && !!i.deadline;
   return (
     <button
       type="button"
-      className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}`}
+      className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.done ? " done" : ""}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}`}
       {...(dragProps || {})}
       {...(onDay ? { "data-card": i.key } : {})}
       onClick={onOpen}
-      aria-label={`${suggested !== undefined ? "Suggested: " : ""}${i.title}${i.client ? ", " + i.client : ""}${i.stage ? ", stage: " + i.stage : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}${i.note ? ". Note: " + i.note : ""}. Open to edit.`}
+      aria-label={`${i.done ? "Completed: " : suggested !== undefined ? "Suggested: " : ""}${i.title}${i.client ? ", " + i.client : ""}${i.stage ? ", stage: " + i.stage : ""}${i.deadline ? ", due " + fmtDate(i.deadline) : ""}${i.note ? ". Note: " + i.note : ""}. Open to edit.`}
     >
       {(on("type") || on("hours") || dragProps) && (
         <span className="pcard-top">
@@ -802,6 +839,7 @@ function PlanCard({
           </span>
         </span>
       )}
+      {i.done && <span className="pcard-done"><Icon name="check" size={12} />Completed{i.doneOn ? ` ${fmtDate(i.doneOn, { weekday: true, year: false })}` : ""}</span>}
       <span className="pcard-client">{head}</span>
       {sub && <span className="pcard-sub">{sub}</span>}
       {on("stage") && i.stage && (
@@ -811,7 +849,7 @@ function PlanCard({
           {i.stageCount ? <span className="pcard-stage-of">{i.stageNo}/{i.stageCount}</span> : null}
         </span>
       )}
-      {on("records") && job && (
+      {on("records") && job && !i.done && (
         <span className={`pcard-records ${i.recordsIn ? "in" : "out"}`}>{i.recordsIn ? `Records in ${fmtDate(job.RecordsReceived!, { year: false })}` : "Records not in yet"}</span>
       )}
       {on("note") && i.note && <span className="pcard-note">{i.note}</span>}

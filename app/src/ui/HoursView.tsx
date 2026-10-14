@@ -12,7 +12,7 @@ import { Icon } from "./bits";
 export type HourCard = {
   key: string; title: string; client: string; tag: string; hours: number; svc: string; start?: string;
   flags: string[]; // "late", "tight", "urgent", "held"
-  suggested?: string; prepared?: boolean; subtasks?: string; task?: boolean;
+  suggested?: string; prepared?: boolean; subtasks?: string; task?: boolean; done?: boolean;
 };
 
 type Props = {
@@ -24,6 +24,8 @@ type Props = {
   cardsFor: (day: string) => HourCard[];
   eventsOn: (day: string) => CalEvent[];
   busyOn: (day: string) => [number, number][];
+  doneMeetings: Set<string>;
+  onToggleMeeting: (id: string) => void;
   dragKey?: string;
   dropTarget?: string;
   insertAt?: number;
@@ -229,10 +231,16 @@ export function HoursView(p: Props) {
                 return (
                   <div
                     key={e.id}
-                    className={`meet ${e.showAs}`}
+                    className={`meet ${e.showAs}${p.doneMeetings.has(e.id) ? " done" : ""}`}
                     style={{ top: y(s), height: Math.max(14, (f - s) * ppm - 2), left: `calc(${w * (l?.lane || 0)}% + 2px)`, width: `calc(${w}% - 4px)` }}
                     title={`${e.subject || "Busy"} · ${clock(s)}–${clock(f)}`}
                   >
+                    <button type="button" className="meet-done" aria-pressed={p.doneMeetings.has(e.id)}
+                      aria-label={`${p.doneMeetings.has(e.id) ? "Mark meeting not done" : "Mark meeting done"}: ${e.subject || "Busy"}`}
+                      title={p.doneMeetings.has(e.id) ? "Done (click to undo). This stays in the planner; Outlook isn't changed." : "Mark this meeting as done (Outlook isn't changed)"}
+                      onClick={(ev) => { ev.stopPropagation(); p.onToggleMeeting(e.id); }}>
+                      <Icon name="check" size={11} />
+                    </button>
                     <strong>{e.subject || "Busy"}</strong>
                     {(f - s) * ppm > 30 && <span>{clock(s)}–{clock(f)}{e.showAs === "tentative" ? " · tentative" : ""}</span>}
                   </div>
@@ -240,7 +248,7 @@ export function HoursView(p: Props) {
               })}
               {x.layout.placed.flatMap((pl) => {
                 const c = byKey.get(pl.key)!;
-                const canEdit = c.suggested === undefined && !c.prepared;
+                const canEdit = c.suggested === undefined && !c.prepared && !c.done;
                 const original = p.cardsFor(x.d).find((cc) => cc.key === c.key);
                 return pl.segments.map(([s, f], n) => {
                   const h = (f - s) * ppm;
@@ -251,14 +259,14 @@ export function HoursView(p: Props) {
                     <button
                       key={`${pl.key}-${n}`}
                       type="button"
-                      className={`hblock ${c.svc}${c.task ? " task" : ""}${c.suggested !== undefined ? " suggested" : ""}${c.prepared ? " prepared" : ""}${pl.clash ? " clash" : ""}${p.dragKey === c.key ? " dragging" : ""}${small ? " small" : ""}${resizing ? " resizing" : ""}`}
+                      className={`hblock ${c.svc}${c.task ? " task" : ""}${c.suggested !== undefined ? " suggested" : ""}${c.prepared ? " prepared" : ""}${c.done ? " done" : ""}${pl.clash ? " clash" : ""}${p.dragKey === c.key ? " dragging" : ""}${small ? " small" : ""}${resizing ? " resizing" : ""}`}
                       style={{ top: y(s) + 1, height: Math.max(16, h - 2) }}
                       {...(canEdit ? p.cardProps(c.key) : {})}
                       onClick={() => !justResized.current && p.onOpen(c.key)}
                       aria-label={`${c.client ? `${c.client}: ` : ""}${c.title}, ${clock(s)} to ${clock(f)}${pl.pinned ? ", set time" : ""}${c.suggested !== undefined ? ", suggested" : ""}. Open.`}
                     >
                       <span className="hb-top">
-                        <strong>{c.prepared ? "✓ " : ""}{c.client || c.title}</strong>
+                        <strong>{c.prepared || c.done ? "✓ " : ""}{c.client || c.title}</strong>
                         {pl.pinned && <span className="hb-pin" title="Set to this time"><Icon name="clock" size={11} /></span>}
                       </span>
                       {!small && <span className="hb-sub">{c.client ? c.title : c.tag}{n > 0 ? " (continued)" : ""}</span>}
@@ -310,7 +318,7 @@ export function HoursView(p: Props) {
                     const c = x.cards.find((cc) => cc.key === k)!;
                     return (
                       <button key={k} type="button" className={`hblock unfit ${c.svc}${c.task ? " task" : ""}${c.suggested !== undefined ? " suggested" : ""}`}
-                        {...(c.suggested === undefined && !c.prepared ? p.cardProps(c.key) : {})} onClick={() => p.onOpen(c.key)}>
+                        {...(c.suggested === undefined && !c.prepared && !c.done ? p.cardProps(c.key) : {})} onClick={() => p.onOpen(c.key)}>
                         <span className="hb-top"><strong>{c.client || c.title}</strong><span className="mono">{fmtHours(c.hours)}</span></span>
                         <span className="hb-sub">{c.client ? c.title : c.tag}</span>
                       </button>
@@ -325,6 +333,7 @@ export function HoursView(p: Props) {
       <div className="hours-legend muted">
         <span><i className="lg off" />Outside your working hours and lunch</span>
         <span><i className="lg lg-meet" />{p.connected ? "Meetings from Outlook" : "Meetings (connect Outlook in Settings › Calendar)"}</span>
+        <span><Icon name="check" size={11} /> completed work and meetings you've ticked off</span>
         <span><Icon name="clock" size={11} /> set to a time (drag it to a time; clear it in the job or task)</span>
       </div>
     </div>

@@ -140,8 +140,8 @@ export function companiesHouseUrl(number?: string): string | undefined {
 }
 
 /** The Plan section's heading and its three views. */
-export function PlanTabs({ current }: { current: "week" | "months" | "deadlines" }) {
-  const tabs: [string, string, string][] = [["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"]];
+export function PlanTabs({ current }: { current: "week" | "months" | "deadlines" | "done" }) {
+  const tabs: [string, string, string][] = [["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"], ["done", "Completed", "#/plan/done"]];
   return (
     <div className="plan-title">
       <h1>Plan</h1>

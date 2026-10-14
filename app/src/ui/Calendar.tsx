@@ -26,6 +26,9 @@ type Ctx = {
   eventsOn: (day: string) => CalEvent[];
   /** Busy time on a day, as minutes from midnight (empty if the calendar isn't on). */
   busyOn: (day: string) => [number, number][];
+  /** Meetings you have ticked off in the planner (this stays in the planner; Outlook isn't changed). */
+  doneMeetings: Set<string>;
+  toggleMeetingDone: (id: string) => Promise<void>;
   sync: () => Promise<void>;
   savePrefs: (p: Partial<CalendarPrefs>) => Promise<void>;
   connect: () => Promise<void>;
@@ -194,6 +197,21 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
     [prefs, busyCache],
   );
 
+  // ticked-off meetings: event id -> the day it was ticked. Kept in settings, not in Outlook; old ones drop off.
+  const doneMap = useMemo(() => readSetting<Record<string, string>>(ctx.data.settings, "calendar.done") || {}, [ctx.data.settings]);
+  const doneRef = useRef(doneMap);
+  doneRef.current = doneMap;
+  const doneMeetings = useMemo(() => new Set(Object.keys(doneMap)), [doneMap]);
+  const toggleMeetingDone = useCallback(async (id: string) => {
+    const next = { ...doneRef.current };
+    if (next[id]) delete next[id];
+    else next[id] = todayIso();
+    const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    for (const k of Object.keys(next)) if (next[k] < cutoff) delete next[k];
+    doneRef.current = next;
+    await latest.current.saveSetting("calendar.done", next);
+  }, []);
+
   const savePrefs = useCallback(async (p: Partial<CalendarPrefs>) => {
     await latest.current.saveSetting("calendar", { ...prefsRef.current, ...p });
   }, []);
@@ -219,8 +237,8 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
   }, [days]);
 
   const value = useMemo(
-    () => ({ prefs, state, events, capacityFor, meetingsOn, eventsOn, busyOn: busyFor, sync, savePrefs, connect, disconnect }),
-    [prefs, state, events, capacityFor, meetingsOn, eventsOn, busyFor, sync, savePrefs, connect, disconnect],
+    () => ({ prefs, state, events, capacityFor, meetingsOn, eventsOn, busyOn: busyFor, doneMeetings, toggleMeetingDone, sync, savePrefs, connect, disconnect }),
+    [prefs, state, events, capacityFor, meetingsOn, eventsOn, busyFor, doneMeetings, toggleMeetingDone, sync, savePrefs, connect, disconnect],
   );
   return <CalCtx.Provider value={value}>{children}</CalCtx.Provider>;
 }
