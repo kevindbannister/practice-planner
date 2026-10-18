@@ -15,7 +15,7 @@ const note = (name: string): Column => ({ name, type: "note" });
 export type ListKey =
   | "Clients" | "Contacts" | "Groups" | "GroupMembers" | "Services" | "StageTemplates"
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
-  | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers";
+  | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines";
 
 export const LISTS: ListDef[] = [
   {
@@ -138,7 +138,17 @@ export const LISTS: ListDef[] = [
   },
   {
     key: "WorkingPapers", displayName: "PP Working Papers", description: "Practice Planner: status and notes for each section of a company's working papers",
-    columns: [t("Key", true), t("ClientKey", true), t("PeriodEnd", true), t("ItemKey"), t("Status"), note("Note"), t("Updated")],
+    columns: [
+      t("Key", true), t("ClientKey", true), t("PeriodEnd", true), t("ItemKey"), t("Status"), note("Note"), t("Updated"),
+      t("PreparedBy"), t("PreparedOn"), t("ReviewedBy"), t("ReviewedOn"),
+    ],
+  },
+  {
+    key: "PaperLines", displayName: "PP Paper Lines", description: "Practice Planner: the lines of each schedule in a company's working papers",
+    columns: [
+      t("Key", true), t("ClientKey", true), t("PeriodEnd", true), t("SectionKey", true), t("SubKey"), t("Code"), t("Detail"),
+      n("Amount"), note("Comment"), b("Done"), n("Order"), t("Updated"),
+    ],
   },
 ];
 

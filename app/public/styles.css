@@ -1253,3 +1253,25 @@ body.is-resizing, body.is-resizing * { cursor: ns-resize !important; user-select
 .section-edit li { display: flex; gap: 6px; align-items: center; }
 .section-edit .input { flex: 1 1 auto; }
 @media (max-width: 800px) { .paper { grid-template-columns: 1fr; } .paper-side { position: static; max-height: none; } }
+
+/* working paper sections, schedules and sign-off */
+.paper-group { display: flex; flex-direction: column; gap: 2px; }
+.paper-group-name { padding: 8px 10px 2px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.paper-side ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.paper-rev { flex: none; font-size: 10px; font-weight: 700; color: var(--green); border: 1px solid var(--green); border-radius: 4px; padding: 0 3px; line-height: 14px; }
+.paper-main { min-width: 0; gap: 14px; }
+.signoffs { display: flex; gap: 8px; flex-wrap: wrap; }
+.signoff { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 0; padding: 6px 12px; border: 1px dashed var(--line-strong, #aaa); border-radius: 8px; background: transparent; cursor: pointer; text-align: left; color: var(--muted); }
+.signoff.on { border-style: solid; border-color: var(--green); background: var(--green-soft); color: var(--green); }
+.signoff-k { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.signoff-v { font-size: 13px; font-weight: 600; }
+table.lead { width: 100%; }
+table.lead .num, table.lines .num { text-align: right; font-variant-numeric: tabular-nums; }
+.lead-label td { padding-top: 12px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.lead-sub td { border-top: 1px solid var(--line); font-weight: 600; }
+.lead-total td { border-top: 2px solid var(--ink); font-weight: 700; }
+table.lines .input.cell { min-height: 36px; padding: 4px 8px; font-size: 14px; }
+table.lines .input.money { text-align: right; font-variant-numeric: tabular-nums; }
+table.lines tfoot td { border-top: 2px solid var(--ink); }
+table.lines .input[rows] { resize: vertical; }
+.line-done .input { text-decoration: line-through; opacity: .6; }

@@ -4,10 +4,11 @@
 // to edit.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
-import { DEFAULT_ITEMS, PaperItem, PaperStatus, STATUS_LABEL, progress, readItems, statusOf, yearEnds } from "../lib/papers";
+import { GROUPS, PaperStatus, SECTIONS, STATUS_LABEL, Section, Sub, carryForward, leadTotals, linesFor, money, parseAmount, parsePasted, priorFor, priorPeriod, progress, stateOf, total, yearEnds } from "../lib/papers";
 import { newKey } from "../lib/planning";
+import { Row } from "../lib/schema";
 import { Icon, href, useRoute } from "./bits";
-import { readSetting, useData, useIndex } from "./data";
+import { useData, useIndex } from "./data";
 
 const isCompany = (c: Client) => c.Kind === "Ltd" || c.Kind === "LLP" || !!c.CompanyNumber;
 const ACCOUNTS = new Set(["ACCS_LTD", "ACCS_LLP"]);
@@ -31,7 +32,6 @@ function PapersList() {
   const { data } = useData();
   const idx = useIndex();
   const today = todayIso();
-  const items = readItems(readSetting<unknown>(data.settings, "papers.items"));
   const [search, setSearch] = useState("");
   const rows = useMemo(
     () =>
@@ -79,7 +79,7 @@ function PapersList() {
             </thead>
             <tbody>
               {rows.map(({ c, related, contact, current }) => {
-                const p = current ? progress(items, data.papers, c.Key, current) : undefined;
+                const p = current ? progress(c.Key, current, data.papers) : undefined;
                 return (
                   <tr key={c.Key} className="clickable" onClick={() => (window.location.hash = href("papers", c.Key))}>
                     <td className="cell-title">
@@ -117,13 +117,11 @@ function PapersList() {
 }
 
 function PaperView({ clientKey, period: periodParam }: { clientKey: string; period?: string }) {
-  const { data, update, create, saveSetting } = useData();
+  const { data, update, create, user } = useData();
   const idx = useIndex();
   const today = todayIso();
   const c = idx.clientByKey.get(clientKey);
-  const items = readItems(readSetting<unknown>(data.settings, "papers.items"));
   const [pick, setPick] = useState<string>();
-  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string>();
 
   if (!c) {
@@ -135,26 +133,25 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
     );
   }
   const { all, current } = periodsFor(c, idx.jobsByClient.get(c.Key) || [], today);
-  const period = periodParam && all.includes(periodParam) ? periodParam : periodParam || current;
-  const itemKey = items.some((i) => i.key === pick) ? (pick as string) : items[0]?.key;
-  const item = items.find((i) => i.key === itemKey);
-  const prog = period ? progress(items, data.papers, c.Key, period) : { done: 0, started: 0, total: items.length };
+  const period = periodParam || current;
+  const sec = SECTIONS.find((x) => x.key === pick) || SECTIONS[0];
+  const prog = period ? progress(c.Key, period, data.papers) : { done: 0, started: 0, total: SECTIONS.length };
 
-  const write = async (key: string, patch: { Status?: PaperStatus; Note?: string }) => {
+  const writeSection = async (key: string, patch: Row) => {
     if (!period) return;
     setError(undefined);
     try {
-      const { row } = statusOf(data.papers, c.Key, period, key);
+      const { row } = stateOf(data.papers, c.Key, period, key);
       const stamp = { ...patch, Updated: new Date().toISOString() };
       if (row) await update("WorkingPapers", row, stamp);
-      else await create("WorkingPapers", { Key: newKey("WP"), ClientKey: c.Key, PeriodEnd: period, ItemKey: key, Status: patch.Status || "todo", ...stamp });
+      else await create("WorkingPapers", { Key: newKey("WP"), ClientKey: c.Key, PeriodEnd: period, ItemKey: key, Status: "todo", ...stamp });
     } catch {
       setError("That didn't save. Try again.");
     }
   };
-  const next = () => {
-    const i = items.findIndex((x) => x.key === itemKey);
-    if (i >= 0 && i < items.length - 1) setPick(items[i + 1].key);
+  const nextSection = () => {
+    const i = SECTIONS.findIndex((x) => x.key === sec.key);
+    if (i < SECTIONS.length - 1) setPick(SECTIONS[i + 1].key);
   };
 
   return (
@@ -169,29 +166,15 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
             <a className="chip blue" href={href("clients", c.Key)}>Client page</a>
           </div>
         </div>
-        <div className="row-wrap">
-          <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
-            <span>Year to</span>
-            <select className="input" value={period} style={{ width: "auto" }} disabled={!all.length}
-              onChange={(e) => (window.location.hash = href("papers", c.Key, e.target.value))}>
-              {!all.length && <option value="">Set the year end first</option>}
-              {all.map((d) => <option key={d} value={d}>{fmtDate(d)}</option>)}
-            </select>
-          </label>
-          <button type="button" className="btn" onClick={() => setEditing(!editing)} aria-expanded={editing}>Edit sections</button>
-        </div>
+        <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
+          <span>Year to</span>
+          <select className="input" value={period} style={{ width: "auto" }} disabled={!all.length}
+            onChange={(e) => (window.location.hash = href("papers", c.Key, e.target.value))}>
+            {!all.length && <option value="">Set the year end first</option>}
+            {all.map((d) => <option key={d} value={d}>{fmtDate(d)}</option>)}
+          </select>
+        </label>
       </div>
-
-      {editing && (
-        <SectionEditor
-          items={items}
-          onClose={() => setEditing(false)}
-          onSave={async (list) => {
-            await saveSetting("papers.items", list);
-            setEditing(false);
-          }}
-        />
-      )}
 
       {!period ? (
         <div className="alert amber"><strong>No year end on this company</strong><span>Add it on the <a href={href("clients", c.Key)}>client page</a> (or Companies House will fill it in) and the papers will appear.</span></div>
@@ -202,35 +185,30 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
               <strong>{prog.done} of {prog.total} done</strong>
               <span className="paper-bar" aria-hidden="true"><span style={{ width: `${prog.total ? (prog.done / prog.total) * 100 : 0}%` }} /></span>
             </div>
-            <ol>
-              {items.map((it, n) => {
-                const s = statusOf(data.papers, c.Key, period, it.key);
-                return (
-                  <li key={it.key}>
-                    <button type="button" className={`paper-item ${s.status}${it.key === itemKey ? " on" : ""}`} aria-current={it.key === itemKey ? "true" : undefined} onClick={() => setPick(it.key)}>
-                      <span className="paper-dot" aria-hidden="true">{s.status === "done" ? <Icon name="check" size={11} /> : s.status === "na" ? "–" : ""}</span>
-                      <span className="paper-name">{n + 1}. {it.title}</span>
-                      {s.note && <span className="paper-note-flag" title="Has a note" aria-label="Has a note" />}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+            {GROUPS.map((g) => (
+              <div key={g} className="paper-group">
+                <div className="paper-group-name">{g}</div>
+                <ul>
+                  {SECTIONS.filter((x) => x.group === g).map((it) => {
+                    const st = stateOf(data.papers, c.Key, period, it.key);
+                    return (
+                      <li key={it.key}>
+                        <button type="button" className={`paper-item ${st.status}${it.key === sec.key ? " on" : ""}`} aria-current={it.key === sec.key ? "true" : undefined} onClick={() => setPick(it.key)}>
+                          <span className="paper-dot" aria-hidden="true">{st.status === "done" ? <Icon name="check" size={11} /> : st.status === "na" ? "–" : ""}</span>
+                          <span className="paper-name">{it.title}</span>
+                          {st.reviewedBy && <span className="paper-rev" title={`Reviewed by ${st.reviewedBy}`} aria-label="Reviewed">R</span>}
+                          {st.note && <span className="paper-note-flag" title="Has a note" aria-label="Has a note" />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
           </nav>
-          <section className="card pad stack paper-main" aria-labelledby="paper-h">
-            {item ? (
-              <ItemDetail
-                key={`${period}-${item.key}`}
-                item={item}
-                status={statusOf(data.papers, c.Key, period, item.key)}
-                onStatus={(s) => void write(item.key, { Status: s })}
-                onNote={(v) => write(item.key, { Note: v })}
-                onDoneNext={() => { void write(item.key, { Status: "done" }); next(); }}
-                hasNext={items.findIndex((x) => x.key === itemKey) < items.length - 1}
-              />
-            ) : (
-              <p className="muted">No sections. Use Edit sections to add some.</p>
-            )}
+          <section className="paper-main stack" aria-labelledby="paper-h">
+            <SectionPage key={`${period}-${sec.key}`} client={c} period={period} sec={sec} user={user || ""} today={today}
+              onWrite={(patch) => writeSection(sec.key, patch)} onNext={nextSection} hasNext={SECTIONS[SECTIONS.length - 1].key !== sec.key} />
             {error && <p className="error-text" role="alert">{error}</p>}
           </section>
         </div>
@@ -239,91 +217,240 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
   );
 }
 
-function ItemDetail({ item, status, onStatus, onNote, onDoneNext, hasNext }: {
-  item: PaperItem; status: { status: PaperStatus; note: string; row?: unknown };
-  onStatus: (s: PaperStatus) => void; onNote: (v: string) => Promise<void>; onDoneNext: () => void; hasNext: boolean;
+const who = (name: string) => name || "Me";
+
+function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNext }: {
+  client: Client; period: string; sec: Section; user: string; today: string; hasNext: boolean;
+  onWrite: (patch: Row) => Promise<void>; onNext: () => void;
 }) {
-  const [note, setNote] = useState(status.note);
-  const saved = useRef(status.note);
+  const { data } = useData();
+  const st = stateOf(data.papers, client.Key, period, sec.key);
+  const [note, setNote] = useState(st.note);
+  const saved = useRef(st.note);
   useEffect(() => {
-    saved.current = status.note;
-    setNote(status.note);
-  }, [status.note]);
+    saved.current = st.note;
+    setNote(st.note);
+  }, [st.note]);
   const commit = () => {
     if (note !== saved.current) {
       saved.current = note;
-      void onNote(note);
+      void onWrite({ Note: note });
     }
   };
+  const sign = (kind: "Prepared" | "Reviewed") => {
+    const on = kind === "Prepared" ? st.preparedOn : st.reviewedOn;
+    return onWrite(on ? { [`${kind}By`]: "", [`${kind}On`]: "" } : { [`${kind}By`]: who(user), [`${kind}On`]: today });
+  };
+
   return (
     <>
-      <h2 id="paper-h" style={{ margin: 0 }}>{item.title}</h2>
-      <div className="seg" role="group" aria-label="Status of this section">
-        {(Object.keys(STATUS_LABEL) as PaperStatus[]).map((s) => (
-          <button key={s} type="button" aria-pressed={status.status === s} onClick={() => onStatus(s)}>{STATUS_LABEL[s]}</button>
-        ))}
+      <div className="card pad stack">
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+          <div className="stack" style={{ gap: 2 }}>
+            <span className="eyebrow">{sec.group}</span>
+            <h2 id="paper-h" style={{ margin: 0 }}>{sec.title}</h2>
+            <span className="muted" style={{ fontSize: 13 }}>For the year ended {fmtDate(period)}</span>
+          </div>
+          <div className="signoffs">
+            {(["Prepared", "Reviewed"] as const).map((k) => {
+              const by = k === "Prepared" ? st.preparedBy : st.reviewedBy, on = k === "Prepared" ? st.preparedOn : st.reviewedOn;
+              return (
+                <button key={k} type="button" className={`signoff${on ? " on" : ""}`} aria-pressed={!!on} onClick={() => void sign(k)}
+                  title={on ? "Click to take the sign-off off" : `Sign this section off as ${k.toLowerCase()}`}>
+                  <span className="signoff-k">{k}</span>
+                  <span className="signoff-v">{on ? `${by} · ${fmtDate(on, { year: false })}` : "Not yet"}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="seg" role="group" aria-label="Status of this section">
+          {(Object.keys(STATUS_LABEL) as PaperStatus[]).map((s) => (
+            <button key={s} type="button" aria-pressed={st.status === s} onClick={() => void onWrite({ Status: s })}>{STATUS_LABEL[s]}</button>
+          ))}
+        </div>
       </div>
-      <label>
-        Notes
-        <textarea className="input" rows={10} value={note} placeholder="What you did, what you found, what to ask the client" onChange={(e) => setNote(e.target.value)} onBlur={commit} />
-      </label>
-      <div className="form-actions" style={{ justifyContent: "flex-start" }}>
-        <button type="button" className="btn primary" onClick={() => { commit(); onDoneNext(); }}>
-          <Icon name="check" size={14} />{hasNext ? "Done, next section" : "Done"}
-        </button>
+
+      {sec.kind === "lead" && <LeadSchedule client={client} period={period} sec={sec} />}
+      {sec.kind === "queries" && (
+        <div className="card pad stack">
+          <LinesEditor client={client} period={period} sec={sec} sub={{ key: "main", title: sec.title }} mode="queries" />
+        </div>
+      )}
+
+      <div className="card pad stack">
+        <label>
+          {sec.kind === "check" ? "Notes" : "Notes on this schedule"}
+          <textarea className="input" rows={sec.kind === "check" ? 10 : 4} value={note} placeholder="What you did, what you found, what to ask the client"
+            onChange={(e) => setNote(e.target.value)} onBlur={commit} />
+        </label>
+        <div className="form-actions" style={{ justifyContent: "flex-start" }}>
+          <button type="button" className="btn primary" onClick={() => { commit(); void onWrite({ Status: "done" }); onNext(); }}>
+            <Icon name="check" size={14} />{hasNext ? "Done, next section" : "Done"}
+          </button>
+        </div>
       </div>
     </>
   );
 }
 
-function SectionEditor({ items, onSave, onClose }: { items: PaperItem[]; onSave: (list: PaperItem[]) => Promise<void>; onClose: () => void }) {
-  const [list, setList] = useState<PaperItem[]>(items);
-  const [busy, setBusy] = useState(false);
+/** The lead schedule: each detail schedule's total (this year and last), then the schedules themselves. */
+function LeadSchedule({ client, period, sec }: { client: Client; period: string; sec: Section }) {
+  const { data } = useData();
+  const rows = leadTotals(sec, data.paperLines, client.Key, period);
+  const within = rows.filter((r) => !r.sub.after), after = rows.filter((r) => r.sub.after);
+  const sum = (l: typeof rows, k: "now" | "before") => total(l.map((r) => ({ Amount: r[k] })));
+  const block = (list: typeof rows, label?: string) => (
+    <>
+      {label && <tr className="lead-label"><td colSpan={3}>{label}</td></tr>}
+      {list.map((r) => (
+        <tr key={r.sub.key}>
+          <td>{r.sub.title}</td><td className="num mono">{money(r.now) || "–"}</td><td className="num mono muted">{money(r.before) || "–"}</td>
+        </tr>
+      ))}
+      {list.length > 1 && (
+        <tr className="lead-sub"><td>{label ? "Total " + label.toLowerCase() : "Total"}</td><td className="num mono">{money(sum(list, "now")) || "–"}</td><td className="num mono muted">{money(sum(list, "before")) || "–"}</td></tr>
+      )}
+    </>
+  );
+  return (
+    <>
+      <section className="card pad stack" aria-label={`${sec.title} lead schedule`}>
+        <table className="grid lead">
+          <thead>
+            <tr><th scope="col">Lead schedule</th><th scope="col" className="num">{period.slice(0, 4)}</th><th scope="col" className="num">{priorPeriod(period).slice(0, 4)}</th></tr>
+          </thead>
+          <tbody>
+            {after.length ? <>{block(within, "Due within one year")}{block(after, "Due after one year")}</> : block(within)}
+            {rows.length > 1 && after.length > 0 && (
+              <tr className="lead-total"><td>Total</td><td className="num mono">{money(sum(rows, "now")) || "–"}</td><td className="num mono">{money(sum(rows, "before")) || "–"}</td></tr>
+            )}
+          </tbody>
+        </table>
+      </section>
+      {(sec.subs || []).map((sub) => (
+        <section key={sub.key} className="card pad stack" aria-label={sub.title}>
+          <h3 style={{ margin: 0, fontSize: 15 }}>{sub.title}</h3>
+          <LinesEditor client={client} period={period} sec={sec} sub={sub} mode="amounts" />
+        </section>
+      ))}
+    </>
+  );
+}
+
+/** The lines of one detail schedule: detail and this year's figure (last year's beside it), adding up to a total. */
+function LinesEditor({ client, period, sec, sub, mode }: { client: Client; period: string; sec: Section; sub: Sub; mode: "amounts" | "queries" }) {
+  const { data, update, create, remove } = useData();
   const [error, setError] = useState<string>();
-  const move = (i: number, by: number) =>
-    setList((l) => {
-      const j = i + by;
-      if (j < 0 || j >= l.length) return l;
-      const copy = [...l];
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-      return copy;
-    });
-  const save = async () => {
-    const clean = list.map((x) => ({ ...x, title: x.title.trim() })).filter((x) => x.title);
-    if (!clean.length) return setError("Keep at least one section.");
+  const [pasting, setPasting] = useState(false);
+  const [paste, setPaste] = useState("");
+  const [busy, setBusy] = useState(false);
+  const lines = linesFor(data.paperLines, client.Key, period, sec.key, sub.key);
+  const carry = mode === "amounts" ? carryForward(data.paperLines, client.Key, period, sec.key, sub.key) : [];
+  const nextOrder = () => lines.reduce((m, l) => Math.max(m, l.Order), 0) + 1;
+  const base = { ClientKey: client.Key, PeriodEnd: period, SectionKey: sec.key, SubKey: sub.key };
+  const safely = async (work: () => Promise<unknown>) => {
+    setError(undefined);
     setBusy(true);
     try {
-      await onSave(clean);
+      await work();
     } catch {
-      setError("Couldn't save the sections. Try again.");
+      setError("That didn't save. Try again.");
+    } finally {
       setBusy(false);
     }
   };
+  const addRow = () => safely(() => create("PaperLines", { Key: newKey("PL"), ...base, Order: nextOrder(), Updated: new Date().toISOString() }));
+  const patch = (l: (typeof lines)[number], p: Row) => safely(() => update("PaperLines", l.row, { ...p, Updated: new Date().toISOString() }));
+  const addMany = (list: { Code?: string; Detail: string; Amount?: number }[]) =>
+    safely(async () => {
+      let o = nextOrder();
+      for (const x of list) await create("PaperLines", { Key: newKey("PL"), ...base, Code: x.Code || undefined, Detail: x.Detail, Amount: x.Amount, Order: o++, Updated: new Date().toISOString() });
+    });
+  const sum = total(lines);
+  const pasted = parsePasted(paste);
+
   return (
-    <section className="card pad stack" aria-labelledby="sec-h">
-      <h2 id="sec-h" style={{ margin: 0 }}>Edit sections</h2>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>These sections are used for every company. Ones already filled in keep their status and notes if you rename or move them.</p>
-      <ol className="section-edit">
-        {list.map((it, i) => (
-          <li key={it.key}>
-            <input className="input" value={it.title} aria-label={`Section ${i + 1}`} onChange={(e) => setList(list.map((x) => (x.key === it.key ? { ...x, title: e.target.value } : x)))} />
-            <button type="button" className="iconbtn" aria-label={`Move ${it.title} up`} disabled={i === 0} onClick={() => move(i, -1)}><Icon name="up" size={14} /></button>
-            <button type="button" className="iconbtn" aria-label={`Move ${it.title} down`} disabled={i === list.length - 1} onClick={() => move(i, 1)}><Icon name="down" size={14} /></button>
-            <button type="button" className="iconbtn" aria-label={`Remove ${it.title}`} onClick={() => setList(list.filter((x) => x.key !== it.key))}><Icon name="close" size={14} /></button>
-          </li>
-        ))}
-      </ol>
-      {error && <p className="error-text" role="alert">{error}</p>}
-      <div className="form-actions" style={{ justifyContent: "space-between" }}>
-        <span className="row-wrap">
-          <button type="button" className="btn small" onClick={() => setList([...list, { key: newKey("S"), title: "" }])}>+ Add a section</button>
-          <button type="button" className="btn small" onClick={() => setList(DEFAULT_ITEMS)}>Back to the standard list</button>
-        </span>
-        <span className="row-wrap">
-          <button type="button" className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="btn primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save sections"}</button>
-        </span>
+    <div className="stack" style={{ gap: 10 }}>
+      <div className="table-wrap">
+        <table className={`grid lines ${mode}`}>
+          <thead>
+            {mode === "amounts" ? (
+              <tr><th scope="col" style={{ width: 90 }}>Code</th><th scope="col">Detail</th><th scope="col" className="num">{period.slice(0, 4)}</th><th scope="col" className="num">{priorPeriod(period).slice(0, 4)}</th><th scope="col"><span className="sr-only">Remove</span></th></tr>
+            ) : (
+              <tr><th scope="col">Notes</th><th scope="col">Comments back</th><th scope="col" style={{ width: 90 }}>Completed</th><th scope="col"><span className="sr-only">Remove</span></th></tr>
+            )}
+          </thead>
+          <tbody>
+            {lines.map((l) => (
+              <tr key={l.Key} className={mode === "queries" && l.Done ? "line-done" : undefined}>
+                {mode === "amounts" ? (
+                  <>
+                    <td><Cell value={l.Code} label="Code" onSave={(v) => patch(l, { Code: v })} /></td>
+                    <td><Cell value={l.Detail} label="Detail" onSave={(v) => patch(l, { Detail: v })} /></td>
+                    <td className="num"><Cell value={l.Amount === undefined ? "" : String(l.Amount)} label={`Amount for ${l.Detail || "this line"}`} money onSave={(v) => patch(l, { Amount: parseAmount(v) ?? "" })} /></td>
+                    <td className="num mono muted">{money(priorFor(data.paperLines, client.Key, period, sec.key, sub.key, l.Detail)) || "–"}</td>
+                  </>
+                ) : (
+                  <>
+                    <td><Cell value={l.Detail} label="Note" area onSave={(v) => patch(l, { Detail: v })} /></td>
+                    <td><Cell value={l.Comment} label="Comment back" area onSave={(v) => patch(l, { Comment: v })} /></td>
+                    <td style={{ textAlign: "center" }}><input type="checkbox" checked={l.Done} aria-label={`Completed: ${l.Detail || "this note"}`} style={{ width: 18, height: 18 }} onChange={(e) => void patch(l, { Done: e.target.checked })} /></td>
+                  </>
+                )}
+                <td><button type="button" className="iconbtn" aria-label={`Remove ${l.Detail || "this line"}`} disabled={busy} onClick={() => void safely(() => remove("PaperLines", l.row))}><Icon name="close" size={14} /></button></td>
+              </tr>
+            ))}
+            {!lines.length && <tr><td colSpan={mode === "amounts" ? 5 : 4} className="muted" style={{ padding: 12 }}>{mode === "amounts" ? "No lines yet." : "Nothing here yet."}</td></tr>}
+          </tbody>
+          {mode === "amounts" && lines.length > 0 && (
+            <tfoot><tr><td /><td><strong>Total</strong></td><td className="num mono"><strong>{money(sum) || "0.00"}</strong></td><td className="num mono muted">{money(total(linesFor(data.paperLines, client.Key, priorPeriod(period), sec.key, sub.key))) || "–"}</td><td /></tr></tfoot>
+          )}
+        </table>
       </div>
-    </section>
+      <div className="row-wrap" style={{ gap: 8 }}>
+        <button type="button" className="btn small" disabled={busy} onClick={() => void addRow()}>+ {mode === "amounts" ? "Add a line" : "Add a note"}</button>
+        {mode === "amounts" && (
+          <>
+            <button type="button" className="btn small" onClick={() => setPasting(!pasting)} aria-expanded={pasting}>Paste from Excel</button>
+            {carry.length > 0 && (
+              <button type="button" className="btn small" disabled={busy} onClick={() => void addMany(carry.map((x) => ({ Code: x.Code, Detail: x.Detail })))}>
+                Bring in last year's {carry.length} line{carry.length === 1 ? "" : "s"}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+      {pasting && (
+        <div className="stack" style={{ gap: 8 }}>
+          <label>
+            Paste rows: detail and amount (or code, detail and amount), one per line
+            <textarea className="input" rows={5} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={"Acme Ltd\t1,200.00\nBolt Ltd\t(50.00)"} />
+          </label>
+          <div className="row-wrap">
+            <button type="button" className="btn small primary" disabled={!pasted.length || busy} onClick={() => void addMany(pasted).then(() => { setPaste(""); setPasting(false); })}>
+              Add {pasted.length} line{pasted.length === 1 ? "" : "s"}
+            </button>
+            <span className="muted" style={{ fontSize: 12 }}>{pasted.length ? `Total ${money(total(pasted)) || "0.00"}` : ""}</span>
+          </div>
+        </div>
+      )}
+      {error && <p className="error-text" role="alert">{error}</p>}
+    </div>
+  );
+}
+
+/** A cell that keeps what you type and saves when you leave it. */
+function Cell({ value, label, onSave, money: isMoney, area }: { value: string; label: string; onSave: (v: string) => Promise<unknown> | void; money?: boolean; area?: boolean }) {
+  const [v, setV] = useState(value);
+  useEffect(() => setV(value), [value]);
+  const commit = () => {
+    if (v !== value) void onSave(v);
+  };
+  return area ? (
+    <textarea className="input cell" rows={2} aria-label={label} value={v} onChange={(e) => setV(e.target.value)} onBlur={commit} />
+  ) : (
+    <input className={`input cell${isMoney ? " money" : ""}`} aria-label={label} inputMode={isMoney ? "decimal" : undefined} value={v}
+      onChange={(e) => setV(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} />
   );
 }
