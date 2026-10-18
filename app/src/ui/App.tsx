@@ -19,6 +19,7 @@ import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
 import { PageBoundary } from "./ErrorBoundary";
 import { CommsPage } from "./Comms";
+import { PapersPage } from "./PapersPage";
 import { SearchButton } from "./Search";
 import { readSetting } from "./data";
 import { adoptWaitingJobs, initialWaitStages } from "../lib/waiting";
@@ -68,6 +69,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <ChasePage />;
   } else if (section === "comms") {
     body = <CommsPage />;
+  } else if (section === "papers") {
+    body = <PapersPage />;
   } else {
     body = <ClientsPage />;
   }
@@ -93,7 +96,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const { open } = useEditor();
   const chase = useChaseCount();
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["papers", "Papers", "list"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"],
     ["settings", "Settings", "settings"],
   ];
   return (
