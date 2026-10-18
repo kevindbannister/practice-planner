@@ -8,10 +8,12 @@ import { GROUPS, PaperStatus, SECTIONS, STATUS_LABEL, Section, Sub, carryForward
 import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { Icon, href, useRoute } from "./bits";
+import { useEditor } from "./Editors";
 import { useData, useIndex } from "./data";
 
 const isCompany = (c: Client) => c.Kind === "Ltd" || c.Kind === "LLP" || !!c.CompanyNumber;
 const ACCOUNTS = new Set(["ACCS_LTD", "ACCS_LLP"]);
+const PAPER_JOBS = new Set(["ACCS_LTD", "ACCS_LLP", "CT600"]);
 
 /** The periods to choose from for a company: its accounts jobs, and its year ends. */
 function periodsFor(c: Client, jobs: Job[], today: string): { all: string[]; current: string } {
@@ -121,6 +123,7 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
   const idx = useIndex();
   const today = todayIso();
   const c = idx.clientByKey.get(clientKey);
+  const editor = useEditor();
   const [pick, setPick] = useState<string>();
   const [error, setError] = useState<string>();
 
@@ -175,6 +178,20 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
           </select>
         </label>
       </div>
+
+      {period && (() => {
+        const linked = (idx.jobsByClient.get(c.Key) || []).filter((j) => PAPER_JOBS.has(j.ServiceKey || "") && j.PeriodEnd === period);
+        return linked.length ? (
+          <div className="row-wrap" style={{ gap: 8 }}>
+            <span className="muted" style={{ fontSize: 13 }}>Jobs for this year:</span>
+            {linked.map((j) => (
+              <button key={j.Key} type="button" className="chip blue" style={{ cursor: "pointer" }} onClick={() => editor.open({ kind: "job", key: j.Key as string })}>
+                {j.Title}{j.Status === "done" || j.CompletedDate ? " · complete" : j.Deadline ? ` · due ${fmtDate(j.Deadline as string, { year: false })}` : ""}
+              </button>
+            ))}
+          </div>
+        ) : null;
+      })()}
 
       {!period ? (
         <div className="alert amber"><strong>No year end on this company</strong><span>Add it on the <a href={href("clients", c.Key)}>client page</a> (or Companies House will fill it in) and the papers will appear.</span></div>

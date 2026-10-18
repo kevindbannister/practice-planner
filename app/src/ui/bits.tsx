@@ -187,6 +187,20 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
+const PAPER_SERVICES = new Set(["ACCS_LTD", "ACCS_LLP", "CT600"]);
+/** Where a job's working papers are, if it's accounts or a CT600 for a company with a period end. */
+export function papersHref(job?: { ClientKey?: unknown; ServiceKey?: unknown; PeriodEnd?: unknown } | null): string | undefined {
+  if (!job || !PAPER_SERVICES.has(String(job.ServiceKey || "")) || !job.ClientKey || !job.PeriodEnd) return undefined;
+  return href("papers", String(job.ClientKey), String(job.PeriodEnd));
+}
+
+/** "Working papers": jumps from a job to that period's papers. */
+export function PapersLink({ job, onNavigate }: { job?: { ClientKey?: unknown; ServiceKey?: unknown; PeriodEnd?: unknown } | null; onNavigate?: () => void }) {
+  const to = papersHref(job);
+  if (!to) return null;
+  return <a className="elements-link papers-link" href={to} onClick={(e) => { e.stopPropagation(); onNavigate?.(); }} title="Open the working papers for this period">Working papers →</a>;
+}
+
 /** "Elements": the client's page in Iris Elements. Nothing if the client has no link. */
 export function ElementsLink({ client, className }: { client?: object | null; className?: string }) {
   const url = elementsUrl(client);

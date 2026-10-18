@@ -5,7 +5,7 @@ import {
 } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { jobHours, newKey } from "../lib/planning";
-import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, companiesHouseUrl, href } from "./bits";
+import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, PapersLink, companiesHouseUrl, href } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { nextStagePatch, stageLabel } from "../lib/stages";
 import { inFinalise, isWaitStage, planHours, stageAt, waitingForClient } from "../lib/waiting";
@@ -455,6 +455,7 @@ function JobCard({ job: j }: { job: Job }) {
             {inFinalise(j) && !waitingForClient(j, templates) && <span className="chip wait">Ready to finalise</span>}
             <DeadlineChip job={j} today={today} />
             <ElementsLink client={client} />
+            <PapersLink job={j} />
             {idx.servicesOff.has(`${j.ClientKey}|${j.ServiceKey}`) && <span className="chip hold" title="Complete it yourself; no next job will be created">Service turned off</span>}
           </div>
           <span className="muted">
