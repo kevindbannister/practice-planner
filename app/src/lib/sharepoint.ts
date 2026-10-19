@@ -70,7 +70,12 @@ export class SharePointStore {
         onStep(`Adding ${s.missingColumns.length} column(s) to ${s.list.displayName}`);
         for (const name of s.missingColumns) {
           const col = s.list.columns.find((c) => c.name === name)!;
-          await this.graph.post(`${this.listPath(s.list.key)}/columns`, columnDefinition(col));
+          try {
+            await this.graph.post(`${this.listPath(s.list.key)}/columns`, columnDefinition(col));
+          } catch (e) {
+            // SharePoint renames a few reserved names inside (e.g. "Order"), so the column can exist under another name.
+            if (!/already exists/i.test(String((e as Error).message))) throw e;
+          }
         }
       }
     }
