@@ -13,7 +13,7 @@ export type CommsPrefs = {
   emailSignature: string; // added under emails
   style: string; // told to the AI every time: house style, practice details
   model: string; // OpenAI model; blank = the server's choice
-  letterhead?: { name: string; size: number; uploaded: string; placeholder: boolean; webUrl?: string };
+  letterhead?: { name: string; size: number; uploaded: string; placeholder: boolean; example?: boolean; webUrl?: string };
 };
 
 export const DEFAULT_COMMS: CommsPrefs = {
@@ -134,7 +134,7 @@ export function aiContext(o: {
 
 /** A safe file name: "2026-10-12 Your accounts.docx". */
 export function letterFileName(date: string, subject: string): string {
-  const s = subject.replace(/[\\/:*?"<>|#%{}~&]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Letter";
+  const s = oneLine(subject).replace(/[\\/:*?"<>|#%{}~&]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Letter";
   return `${date} ${s}.docx`;
 }
 export const clientFolder = (name: string) => name.replace(/[\\/:*?"<>|#%{}~&]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Client";
@@ -143,4 +143,59 @@ export function toBase64(d: Uint8Array): string {
   let s = "";
   for (let i = 0; i < d.length; i += 0x8000) s += String.fromCharCode(...d.subarray(i, i + 0x8000));
   return btoa(s);
+}
+
+/** A subject that may run over two lines (as on a letter), as one line for file names and emails. */
+export const oneLine = (subject: string) => subject.split(/\r?\n/).map((x) => x.trim()).filter(Boolean).join(" - ");
+
+const MONTH_NO: Record<string, number> = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** A date as written on a letter ("28th July 2026", "Monday 28 July 2026", "28/07/2026") as yyyy-mm-dd. */
+export function dateFromText(text: string): string | undefined {
+  const t = text.trim().replace(/,/g, "");
+  let m = t.match(/^(?:[a-z]+day\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3})[a-z]*\.?\s+(\d{4})$/i);
+  if (m && MONTH_NO[m[2].toLowerCase()]) return `${m[3]}-${pad(MONTH_NO[m[2].toLowerCase()])}-${pad(Number(m[1]))}`;
+  m = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (m && Number(m[2]) <= 12 && Number(m[1]) <= 31) return `${m[3]}-${pad(Number(m[2]))}-${pad(Number(m[1]))}`;
+  return undefined;
+}
+
+export type PastedLetter = { date?: string; address: string; salutation: string; subject: string; body: string; signOff?: string };
+
+const SIGN_OFF_LINE = /^(?:yours\s+(?:faithfully|sincerely|truly)|kind(?:est)?\s+regards|best\s+regards|warm\s+regards|regards|best\s+wishes|many\s+thanks|with\s+thanks)\b/i;
+
+/**
+ * A whole letter pasted in, split into its parts: the date and address (before "Dear ..."), the
+ * greeting, the subject (the short line or two straight after the greeting), the body, and the
+ * sign-off. Anything after the sign-off (the name and signature) is left off, as the letterhead adds it.
+ * Without a "Dear ..." line, it's all taken as the body.
+ */
+export function parseLetter(text: string): PastedLetter {
+  const lines = text.replace(/\r\n?/g, "\n").replace(/\u00a0/g, " ").split("\n");
+  const g = lines.findIndex((l) => /^\s*dear\b/i.test(l));
+  if (g < 0) return { address: "", salutation: "", subject: "", body: text.trim() };
+  let date: string | undefined;
+  const address: string[] = [];
+  for (const l of lines.slice(0, g)) {
+    const d = dateFromText(l);
+    if (d && !date) date = d;
+    else if (l.trim()) address.push(l.trim());
+  }
+  // the greeting line may carry the subject straight after it
+  let rest = lines.slice(g + 1);
+  const firstBlock: string[] = [];
+  let i = 0;
+  while (i < rest.length && !rest[i].trim()) i++;
+  while (i < rest.length && rest[i].trim()) firstBlock.push(rest[i++].trim());
+  const isSubject = firstBlock.length > 0 && firstBlock.length <= 3 && firstBlock.every((l) => l.length <= 140 && !/[.?!:]$/.test(l) && !l.includes("\t"));
+  if (isSubject) rest = rest.slice(i);
+  const so = rest.findIndex((l) => SIGN_OFF_LINE.test(l.trim()));
+  const body = (so >= 0 ? rest.slice(0, so) : rest).join("\n").replace(/^\s*\n/, "").replace(/\s+$/, "");
+  return {
+    date, address: address.join("\n"), salutation: lines[g].trim(),
+    subject: isSubject ? firstBlock.map((l) => l.replace(/^\*\*(.*)\*\*$/, "$1").replace(/^(re|subject):\s*/i, "")).join("\n") : "",
+    body: body.trim() ? body.replace(/^\n+/, "") : "",
+    signOff: so >= 0 ? rest[so].trim() : undefined,
+  };
 }

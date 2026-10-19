@@ -29,7 +29,7 @@ test("letter paragraphs are escaped and in order", () => {
   assert.ok(x.indexOf("12 October 2026") < x.indexOf("Dear Tristan,"));
   assert.ok(x.indexOf("Dear Tristan,") < x.indexOf("Your 2025/26 tax return"));
   assert.match(x, /Para &amp; one\./);
-  assert.match(x, /<w:b\/><\/w:rPr><w:t xml:space="preserve">Your 2025\/26 tax return/);
+  assert.match(x, /<w:b\/><w:bCs\/><\/w:rPr><w:t xml:space="preserve">Your 2025\/26 tax return/);
   assert.ok(x.lastIndexOf("Kevin Bannister") > x.indexOf("Para two."));
 });
 
@@ -48,7 +48,7 @@ test("reads back a zip, keeps the letterhead's other files, turns a template int
     { name: "word/header1.xml", data: enc.encode("<w:hdr>LOGO ".repeat(50) + "</w:hdr>") },
     { name: "word/media/image1.png", data: new Uint8Array([137, 80, 78, 71, 1, 2, 3]) },
   ]);
-  assert.deepEqual(await checkLetterhead(head), { placeholder: false });
+  assert.deepEqual(await checkLetterhead(head), { placeholder: false, example: false });
   const out = await unzip(await letterDocx(letter, head));
   const names = out.map((f) => f.name);
   assert.deepEqual(names, ["[Content_Types].xml", "word/document.xml", "word/header1.xml", "word/media/image1.png"]);

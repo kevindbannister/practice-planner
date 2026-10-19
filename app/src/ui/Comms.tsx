@@ -10,7 +10,7 @@ import { PaymentReminders } from "./TaxPayments";
 import { paymentsForAi, TaxPayment } from "../lib/taxPayments";
 import {
   CHANGE_STARTERS, CommKind, CommStatus, CommsPrefs, EMAIL_STARTERS, LETTERS_FOLDER, LETTER_STARTERS, STATUS_TEXT, addressLines,
-  aiContext, clientFolder, emailGreeting, letterFileName, letterheadPath, longDate, salutationFor, signOffFor, toBase64,
+  aiContext, clientFolder, emailGreeting, letterFileName, letterheadPath, longDate, oneLine, parseLetter, salutationFor, signOffFor, toBase64,
 } from "../lib/comms";
 import { DOCX_TYPE, Letter, checkLetterhead, letterDocx, NotWordFile } from "../lib/docx";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
@@ -194,6 +194,8 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
   const [error, setError] = useState<string>();
   const [note, setNote] = useState<ReactNode>();
   const [change, setChange] = useState("");
+  const [pasting, setPasting] = useState(false);
+  const [pasted, setPasted] = useState("");
   const [history, setHistory] = useState<{ subject: string; body: string; why: string }[]>([]);
   const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -317,6 +319,34 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
     set({ Body: value.slice(0, start) + block + value.slice(end) });
   };
 
+  // ---- a table: rows with tabs between the cells (as pasted from Excel)
+  const insertTable = () => {
+    const el = bodyRef.current;
+    const value = draft.Body;
+    const at = el ? el.selectionEnd : value.length;
+    const before = value.slice(0, at), after = value.slice(at);
+    const table = "Item\t2026\t2025\nFirst line\t0.00\t0.00\nSecond line\t0.00\t0.00";
+    const lead = before && !before.endsWith("\n\n") ? (before.endsWith("\n") ? "\n" : "\n\n") : "";
+    const trail = after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : after ? "\n\n" : "";
+    set({ Body: before + lead + table + trail + after });
+  };
+
+  // ---- a whole letter pasted in: split into date, address, greeting, subject, body and sign-off
+  const usePasted = () => {
+    const p = parseLetter(pasted);
+    set({
+      ...(p.date ? { LetterDate: p.date } : {}),
+      ...(p.address ? { Address: p.address } : {}),
+      ...(p.salutation ? { Salutation: p.salutation } : {}),
+      ...(p.subject ? { Subject: p.subject } : {}),
+      ...(p.signOff ? { SignOff: p.signOff } : {}),
+      Body: p.body,
+    });
+    setPasted("");
+    setPasting(false);
+  };
+  const pastedParts = pasting && pasted.trim() ? parseLetter(pasted) : undefined;
+
   // ---- outputs
   const letter = (): Letter => ({
     date: longDate(draft.LetterDate || today),
@@ -377,7 +407,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
         ? toHtml(`${emailGreeting(client!)}\n\nPlease find attached a letter about ${draft.Subject ? draft.Subject.charAt(0).toLowerCase() + draft.Subject.slice(1) : "your affairs"}.\n\nKind regards,\n${(prefs.signName || "").split(" ")[0]}`, prefs.emailSignature)
         : toHtml(draft.Body, prefs.emailSignature);
       const msg = await store.graph.post<{ id: string; webLink?: string }>("/me/messages", {
-        subject: draft.Subject || (isLetter ? "Letter" : ""),
+        subject: oneLine(draft.Subject) || (isLetter ? "Letter" : ""),
         body: { contentType: "HTML", content: html },
         toRecipients: to ? to.split(/[;,]\s*/).filter(Boolean).map((address) => ({ emailAddress: { address } })) : [],
       });
@@ -423,7 +453,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
           <a href={client ? href("clients", client.Key, "comms") : "#/comms"} className="muted" style={{ fontSize: 13 }}>
             ← {client ? `${client.Title}: letters and emails` : "Letters and emails"}
           </a>
-          <h1>{saved ? (draft.Subject || `${kindName(draft.Kind)} to ${client?.Title || ""}`) : `New ${isLetter ? "letter" : "email"}`}</h1>
+          <h1>{saved ? (oneLine(draft.Subject) || `${kindName(draft.Kind)} to ${client?.Title || ""}`) : `New ${isLetter ? "letter" : "email"}`}</h1>
         </div>
         <div className="row-wrap" style={{ gap: 8 }}>
           <span className="muted" style={{ fontSize: 13 }} role="status">
@@ -528,8 +558,8 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
                   <input className="input" value={draft.Salutation} onChange={(e) => set({ Salutation: e.target.value })} />
                 </label>
                 <label className="doc-field">
-                  <span>Subject line (bold on the letter)</span>
-                  <input className="input doc-subject" value={draft.Subject} onChange={(e) => set({ Subject: e.target.value })} />
+                  <span>Subject line (bold on the letter; press Enter for a second line)</span>
+                  <textarea className="input doc-subject" rows={Math.max(1, draft.Subject.split("\n").length)} value={draft.Subject} onChange={(e) => set({ Subject: e.target.value })} />
                 </label>
               </>
             ) : (
@@ -544,12 +574,37 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
                 </label>
               </>
             )}
+            {isLetter && (
+              <div className="doc-paste">
+                {!pasting ? (
+                  <button type="button" className="btn small" onClick={() => setPasting(true)}>Paste a whole letter</button>
+                ) : (
+                  <div className="stack" style={{ gap: 8 }}>
+                    <label className="doc-field">
+                      <span>Paste the letter: date, address, "Dear …", subject, then the body. Your name and signature come from the letterhead.</span>
+                      <textarea className="input" rows={8} value={pasted} autoFocus onChange={(e) => setPasted(e.target.value)} />
+                    </label>
+                    {pastedParts && (
+                      <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+                        Found: {[pastedParts.date && "date", pastedParts.address && "address", pastedParts.salutation && "greeting", pastedParts.subject && "subject", pastedParts.body && "body", pastedParts.signOff && "sign-off"].filter(Boolean).join(", ") || "nothing yet"}
+                        {!pastedParts.salutation && pastedParts.body ? ' (no "Dear …" line, so it will all go in the body)' : ""}
+                      </p>
+                    )}
+                    <div className="row-wrap" style={{ gap: 8 }}>
+                      <button type="button" className="btn small primary" disabled={!pasted.trim()} onClick={usePasted}>Use this</button>
+                      <button type="button" className="btn small" onClick={() => { setPasting(false); setPasted(""); }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="doc-field">
               <div className="doc-toolbar">
                 <span id="body-label">{isLetter ? "Letter" : "Message"}</span>
                 <span className="row-wrap" style={{ gap: 4 }}>
                   <button type="button" className="iconbtn small" title="Bold (select words first)" aria-label="Bold" onClick={wrapBold}><strong>B</strong></button>
                   <button type="button" className="iconbtn small" title="Bullet points" aria-label="Bullet points" onClick={makeList}><Icon name="list" size={14} /></button>
+                  <button type="button" className="iconbtn small" title="Add a table (or paste one from Excel)" aria-label="Add a table" onClick={insertTable}><TableIcon /></button>
                 </span>
               </div>
               <AutoTextarea
@@ -560,7 +615,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
                 placeholder={aiReady ? "Write here, or describe it on the left and let the AI write it." : "Write here."}
                 onChange={(v) => set({ Body: v })}
               />
-              <span className="muted" style={{ fontSize: 12 }}>A blank line starts a new paragraph. Lines starting with "- " become bullet points; **words** in stars are bold.</span>
+              <span className="muted" style={{ fontSize: 12 }}>A blank line starts a new paragraph. Lines starting with "- " become bullet points; **words** in stars are bold. Paste a table from Excel or Word (cells separated by tabs) and it becomes a table.</span>
             </div>
             {isLetter ? (
               <div className="doc-signoff">
@@ -622,6 +677,12 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
     </div>
   );
 }
+
+const TableIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="1.5" y="2.5" width="13" height="11" rx="1" /><path d="M1.5 6.5h13M1.5 10h13M6 6.5v7M10.5 6.5v7" />
+  </svg>
+);
 
 /** A text box that grows with what's typed. */
 const AutoTextarea = forwardRef<HTMLTextAreaElement, { value: string; onChange: (v: string) => void; className?: string; placeholder?: string; "aria-labelledby"?: string }>(
@@ -685,7 +746,7 @@ export function CommsSettings() {
       const item = await store.graph.put<{ webUrl?: string }>(`${letterheadPath()}:/content`, bytes, DOCX_TYPE);
       const uploaded = new Date().toISOString();
       letterheadCache = { uploaded, bytes };
-      await saveSetting("comms", { ...prefs, letterhead: { name: f.name, size: bytes.length, uploaded, placeholder: check.placeholder, webUrl: item.webUrl } });
+      await saveSetting("comms", { ...prefs, letterhead: { name: f.name, size: bytes.length, uploaded, placeholder: check.placeholder, example: check.example, webUrl: item.webUrl } });
       setUpload({ state: "idle" });
     } catch (e) {
       setUpload({ state: "error", message: e instanceof NotWordFile ? e.message : "Couldn't save the letterhead to OneDrive. Try again." });
@@ -700,7 +761,7 @@ export function CommsSettings() {
       const bytes = await letterDocx({
         date: longDate(todayIso()), address: ["Mr A Client", "Example Trading Ltd", "1 High Street", "Leeds", "LS1 1AA"], salutation: "Dear Alex,",
         subject: "A sample letter", signOff: form.signOff || "Yours sincerely,", signName: form.signName || "[Your name]", signTitle: form.signTitle || undefined,
-        body: "This is how your letters will look. The text goes here, in your letterhead's own font and margins.\n\nBullet points look like this:\n- the first point\n- the second point\n\nAnd **bold words** stand out like this.",
+        body: "This is how your letters will look. The text goes here, in your letterhead's own font and margins.\n\nBullet points look like this:\n- the first point\n- the second point\n\nA table looks like this:\n\nItem\t2026\t2025\nTurnover\t120,000\t98,500\nProfit before tax\t24,300\t(1,200)\n\nAnd **bold words** stand out like this.",
       }, head);
       downloadFile(bytes, "Sample letter.docx", DOCX_TYPE);
     } catch {
@@ -720,14 +781,16 @@ export function CommsSettings() {
       <section className="card pad stack" aria-labelledby="lh-h">
         <h2 id="lh-h">Letterhead</h2>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          Upload your Word letterhead (.docx or .dotx). Letters keep its header, footer, logo, fonts and margins. The letter goes where the
-          letterhead has the text <span className="mono">{"{{LETTER}}"}</span>, or else at the top of the page body. It's kept in OneDrive › {LETTERS_FOLDER}.
+          Upload your Word letterhead (.docx or .dotx). Letters keep its header, footer, logo, fonts and margins. If it's an example letter (address,
+          date, "Dear …" with the subject, the body, "Yours …" and your signature), each new letter is laid out the same way, in the same fonts, with
+          your signature, and the example's words are replaced. Otherwise the letter goes where it says <span className="mono">{"{{LETTER}}"}</span>, or
+          at the top of the page body. It's kept in OneDrive › {LETTERS_FOLDER}.
         </p>
         {prefs.letterhead ? (
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <span>
               <Icon name="letter" /> <strong>{prefs.letterhead.name}</strong>{" "}
-              <span className="muted">· uploaded {fmtDate(prefs.letterhead.uploaded.slice(0, 10))}{prefs.letterhead.placeholder ? " · has the {{LETTER}} marker" : ""}</span>
+              <span className="muted">· uploaded {fmtDate(prefs.letterhead.uploaded.slice(0, 10))}{prefs.letterhead.placeholder ? " · has the {{LETTER}} marker" : prefs.letterhead.example ? " · laid out like your example letter" : ""}</span>
             </span>
             <span className="row-wrap">
               <button type="button" className="btn small" onClick={sample}>Download a sample letter</button>

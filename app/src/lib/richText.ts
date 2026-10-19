@@ -1,9 +1,11 @@
 // The text of a letter or email as Kevin edits it: plain text where a blank line starts a new
 // paragraph, lines starting "- " are bullet points, and **words** are bold. Turned into Word
-// paragraphs for letters and HTML for emails.
+// paragraphs for letters and HTML for emails. Rows with tabs between cells (as pasted from
+// Excel or Word) or written "| a | b |" become a table.
 
 export type Run = { text: string; bold?: boolean };
-export type Block = { type: "p"; lines: Run[][] } | { type: "li"; runs: Run[] };
+export type Cell = { runs: Run[]; num: boolean };
+export type Block = { type: "p"; lines: Run[][] } | { type: "li"; runs: Run[] } | { type: "table"; rows: Cell[][]; header: boolean };
 
 const BULLET = /^\s*(?:[-•*]|\d+[.)])\s+/;
 
@@ -22,18 +24,53 @@ export function runs(line: string): Run[] {
   return out.length ? out : [{ text: "" }];
 }
 
+const isRow = (l: string) => l.includes("\t") || /^\s*\|.*\|\s*$/.test(l);
+const isRule = (l: string) => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l);
+/** A money or number cell: "1,200.00", "£(50)", "-3", "12%". Lined up on the right. */
+export const looksNumeric = (s: string) => /^[-(]?\s*[£$€]?\s*[-(]?\d[\d,]*(\.\d+)?\)?%?$/.test(s.replace(/\*\*/g, "").trim());
+
+function cellsOf(l: string): string[] {
+  if (l.includes("\t")) return l.split("\t").map((c) => c.trim());
+  return l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+}
+
+/** Table rows into a table block. The first row is a heading row when a "|---|" line follows it,
+ *  or when it has no figures but the rows under it do. */
+function tableBlock(lines: string[]): Block {
+  const ruled = lines.length > 1 && isRule(lines[1]);
+  const raw = lines.filter((l) => !isRule(l)).map(cellsOf);
+  const width = Math.max(...raw.map((r) => r.length));
+  const rows = raw.map((r) => Array.from({ length: width }, (_, i) => r[i] ?? "").map((c) => ({ runs: runs(c), num: looksNumeric(c) })));
+  // years ("2026", "2025") in the first row are column headings, not figures
+  const headingLike = (c: Cell) => !c.num || /^(19|20)\d\d$/.test(c.runs.map((r) => r.text).join("").trim());
+  const header = rows.length > 1 && (ruled || (rows[0].every(headingLike) && rows.slice(1).some((r) => r.some((c) => c.num && !headingLike(c)))));
+  return { type: "table", rows, header };
+}
+
 export function parseText(text: string): Block[] {
   const blocks: Block[] = [];
   const paras = text.replace(/\r\n?/g, "\n").split(/\n\s*\n/);
   for (const para of paras) {
-    const lines = para.split("\n").map((l) => l.replace(/\s+$/, "")).filter((l) => l.trim());
+    // trailing tabs are kept: an empty last cell is still a cell
+    const lines = para.split("\n").map((l) => l.replace(/[ \u00a0]+$/, "")).filter((l) => l.trim());
     if (!lines.length) continue;
     let plain: string[] = [];
+    let table: string[] = [];
     const flush = () => {
       if (plain.length) blocks.push({ type: "p", lines: plain.map(runs) });
       plain = [];
     };
+    const flushTable = () => {
+      if (table.length) blocks.push(tableBlock(table));
+      table = [];
+    };
     for (const l of lines) {
+      if (isRow(l) || (table.length && isRule(l))) {
+        flush();
+        table.push(l);
+        continue;
+      }
+      flushTable();
       if (BULLET.test(l)) {
         flush();
         blocks.push({ type: "li", runs: runs(l.replace(BULLET, "")) });
@@ -42,6 +79,7 @@ export function parseText(text: string): Block[] {
       }
     }
     flush();
+    flushTable();
   }
   return blocks;
 }
@@ -59,6 +97,15 @@ export function toHtml(text: string, signature = ""): string {
     list = [];
   };
   for (const b of blocks) {
+    if (b.type === "table") {
+      flushList();
+      const cell = (c: Cell, head: boolean) => {
+        const tag = head ? "th" : "td";
+        return `<${tag} style="border:1px solid #bbb;padding:4px 8px;text-align:${c.num ? "right" : "left"}${head ? ";background:#f2f2f2" : ""}">${runsHtml(c.runs)}</${tag}>`;
+      };
+      out.push(`<table style="border-collapse:collapse;margin:0 0 12px 0">${b.rows.map((r, i) => `<tr>${r.map((c) => cell(c, b.header && i === 0)).join("")}</tr>`).join("")}</table>`);
+      continue;
+    }
     if (b.type === "li") {
       list.push(`<li>${runsHtml(b.runs)}</li>`);
       continue;

@@ -1275,3 +1275,7 @@ table.lines .input.money { text-align: right; font-variant-numeric: tabular-nums
 table.lines tfoot td { border-top: 2px solid var(--ink); }
 table.lines .input[rows] { resize: vertical; }
 .line-done .input { text-decoration: line-through; opacity: .6; }
+
+/* letters: paste a whole letter; subject can run to two lines */
+.doc-paste { padding: 2px 0 4px; }
+textarea.doc-subject { resize: vertical; min-height: 0; font-weight: 700; }
