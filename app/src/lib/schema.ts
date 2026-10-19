@@ -147,7 +147,7 @@ export const LISTS: ListDef[] = [
     key: "PaperLines", displayName: "PP Paper Lines", description: "Practice Planner: the lines of each schedule in a company's working papers",
     columns: [
       t("Key", true), t("ClientKey", true), t("PeriodEnd", true), t("SectionKey", true), t("SubKey"), t("Code"), t("Detail"),
-      n("Amount"), note("Comment"), b("Done"), n("Order"), t("Updated"),
+      n("Amount"), note("Remark"), b("Done"), n("Seq"), t("Updated"),
     ],
   },
 ];

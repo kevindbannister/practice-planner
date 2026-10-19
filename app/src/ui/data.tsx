@@ -77,9 +77,16 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
         return;
       }
       // New versions of the app may add lists or columns; add them quietly (no data changes).
-      if (schema.some((s) => !s.exists || s.missingColumns.length)) await store.ensureSchema();
+      if (schema.some((s) => !s.exists || s.missingColumns.length)) {
+        try {
+          await store.ensureSchema();
+        } catch (e) {
+          // A list the app couldn't add must not stop everything else loading; its page will say so when used.
+          console.warn("Couldn't add a list or column", e);
+        }
+      }
       setStatus("loading");
-      const loaded = await Promise.all(SOURCE.map(([, list]) => store.readAll(list)));
+      const loaded = await Promise.all(SOURCE.map(([, list]) => (store.hasList(list) ? store.readAll(list) : Promise.resolve([] as Row[]))));
       const next = { ...EMPTY };
       SOURCE.forEach(([k], i) => ((next as any)[k] = loaded[i]));
       next.clients.sort((a, b) => String(a.Title || "").localeCompare(String(b.Title || "")));

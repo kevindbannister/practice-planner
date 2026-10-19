@@ -109,16 +109,16 @@ export function progress(clientKey: string, period: string, rows: Row[]): { done
 
 // ------------------------------------------------------------------ lines and totals
 
-export type Line = { Key: string; Code: string; Detail: string; Amount: number | undefined; Comment: string; Done: boolean; Order: number; row: Row };
+export type Line = { Key: string; Code: string; Detail: string; Amount: number | undefined; Remark: string; Done: boolean; Seq: number; row: Row };
 
 export function linesFor(rows: Row[], clientKey: string, period: string, sectionKey: string, subKey: string): Line[] {
   return rows
     .filter((r) => r.ClientKey === clientKey && r.PeriodEnd === period && r.SectionKey === sectionKey && (r.SubKey || "main") === subKey)
     .map((r) => ({
       Key: String(r.Key), Code: String(r.Code || ""), Detail: String(r.Detail || ""), Amount: r.Amount === undefined || r.Amount === "" || r.Amount === null ? undefined : Number(r.Amount),
-      Comment: String(r.Comment || ""), Done: r.Done === true || r.Done === "true", Order: Number(r.Order) || 0, row: r,
+      Remark: String(r.Remark || ""), Done: r.Done === true || r.Done === "true", Seq: Number(r.Seq) || 0, row: r,
     }))
-    .sort((a, b) => a.Order - b.Order || a.Detail.localeCompare(b.Detail));
+    .sort((a, b) => a.Seq - b.Seq || a.Detail.localeCompare(b.Detail));
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;

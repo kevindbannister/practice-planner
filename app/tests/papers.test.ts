@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { SECTIONS, carryForward, leadTotals, linesFor, money, parseAmount, parsePasted, priorFor, priorPeriod, progress, stateOf, total, yearEnds } from "../src/lib/papers";
 
-const line = (o: any) => ({ ClientKey: "C1", PeriodEnd: "2026-03-31", SectionKey: "debtors", SubKey: "trade", Order: 1, ...o });
+const line = (o: any) => ({ ClientKey: "C1", PeriodEnd: "2026-03-31", SectionKey: "debtors", SubKey: "trade", Seq: 1, ...o });
 
 test("year ends: newest past ones, and the next to come", () => {
   assert.deepEqual(yearEnds("03-31", "2026-10-19", 2), ["2027-03-31", "2026-03-31", "2025-03-31"]);
@@ -32,9 +32,9 @@ test("totals add pence correctly and last year's figures match on the detail", (
   assert.equal(total([{ Amount: 0.1 }, { Amount: 0.2 }, { Amount: undefined }]), 0.3);
   const rows = [
     line({ Key: "a", Detail: "Acme Ltd", Amount: 100 }),
-    line({ Key: "b", Detail: "Bolt Ltd", Amount: 50.5, Order: 2 }),
+    line({ Key: "b", Detail: "Bolt Ltd", Amount: 50.5, Seq: 2 }),
     line({ Key: "p", PeriodEnd: "2025-03-31", Detail: "ACME LTD", Amount: 80 }),
-    line({ Key: "q", PeriodEnd: "2025-03-31", Detail: "Cog Ltd", Amount: 20, Order: 2 }),
+    line({ Key: "q", PeriodEnd: "2025-03-31", Detail: "Cog Ltd", Amount: 20, Seq: 2 }),
     line({ Key: "o", ClientKey: "C2", Detail: "Other client", Amount: 999 }),
   ];
   assert.deepEqual(linesFor(rows, "C1", "2026-03-31", "debtors", "trade").map((l) => l.Detail), ["Acme Ltd", "Bolt Ltd"]);

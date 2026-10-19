@@ -364,7 +364,7 @@ function LinesEditor({ client, period, sec, sub, mode }: { client: Client; perio
   const [busy, setBusy] = useState(false);
   const lines = linesFor(data.paperLines, client.Key, period, sec.key, sub.key);
   const carry = mode === "amounts" ? carryForward(data.paperLines, client.Key, period, sec.key, sub.key) : [];
-  const nextOrder = () => lines.reduce((m, l) => Math.max(m, l.Order), 0) + 1;
+  const nextOrder = () => lines.reduce((m, l) => Math.max(m, l.Seq), 0) + 1;
   const base = { ClientKey: client.Key, PeriodEnd: period, SectionKey: sec.key, SubKey: sub.key };
   const safely = async (work: () => Promise<unknown>) => {
     setError(undefined);
@@ -377,12 +377,12 @@ function LinesEditor({ client, period, sec, sub, mode }: { client: Client; perio
       setBusy(false);
     }
   };
-  const addRow = () => safely(() => create("PaperLines", { Key: newKey("PL"), ...base, Order: nextOrder(), Updated: new Date().toISOString() }));
+  const addRow = () => safely(() => create("PaperLines", { Key: newKey("PL"), ...base, Seq: nextOrder(), Updated: new Date().toISOString() }));
   const patch = (l: (typeof lines)[number], p: Row) => safely(() => update("PaperLines", l.row, { ...p, Updated: new Date().toISOString() }));
   const addMany = (list: { Code?: string; Detail: string; Amount?: number }[]) =>
     safely(async () => {
       let o = nextOrder();
-      for (const x of list) await create("PaperLines", { Key: newKey("PL"), ...base, Code: x.Code || undefined, Detail: x.Detail, Amount: x.Amount, Order: o++, Updated: new Date().toISOString() });
+      for (const x of list) await create("PaperLines", { Key: newKey("PL"), ...base, Code: x.Code || undefined, Detail: x.Detail, Amount: x.Amount, Seq: o++, Updated: new Date().toISOString() });
     });
   const sum = total(lines);
   const pasted = parsePasted(paste);
@@ -411,7 +411,7 @@ function LinesEditor({ client, period, sec, sub, mode }: { client: Client; perio
                 ) : (
                   <>
                     <td><Cell value={l.Detail} label="Note" area onSave={(v) => patch(l, { Detail: v })} /></td>
-                    <td><Cell value={l.Comment} label="Comment back" area onSave={(v) => patch(l, { Comment: v })} /></td>
+                    <td><Cell value={l.Remark} label="Comment back" area onSave={(v) => patch(l, { Remark: v })} /></td>
                     <td style={{ textAlign: "center" }}><input type="checkbox" checked={l.Done} aria-label={`Completed: ${l.Detail || "this note"}`} style={{ width: 18, height: 18 }} onChange={(e) => void patch(l, { Done: e.target.checked })} /></td>
                   </>
                 )}
