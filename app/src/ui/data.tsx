@@ -42,6 +42,8 @@ type Ctx = {
   update: (list: ListKey, row: Row, patch: Row) => Promise<void>;
   updateMany: (list: ListKey, changes: { row: Row; patch: Row }[]) => Promise<void>;
   create: (list: ListKey, row: Row) => Promise<Row>;
+  /** Add many rows at once (in batches), then read the list again. */
+  createMany: (list: ListKey, rows: Row[]) => Promise<void>;
   remove: (list: ListKey, row: Row) => Promise<void>;
   saveSetting: (key: string, value: unknown) => Promise<void>;
 };
@@ -165,6 +167,20 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     [store, track],
   );
 
+  const createMany = useCallback(
+    async (list: ListKey, rows: Row[]) => {
+      if (!rows.length) return;
+      const res = await track(async () => {
+        const r = await store.createMany(list, rows);
+        const all = await store.readAll(list);
+        setData((d) => ({ ...d, [keyFor(list)]: all }));
+        return r;
+      });
+      if (res.failed) throw new Error(res.error || `${res.failed} couldn't be saved`);
+    },
+    [store, track],
+  );
+
   const remove = useCallback(
     async (list: ListKey, row: Row) => {
       await track(() => store.remove(list, row._id!));
@@ -187,8 +203,8 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
   const settings = useMemo(() => readSettings(data.settings), [data.settings]);
 
   const value = useMemo(
-    () => ({ status, error, data, settings, store, user, save, reload, update, updateMany, create, remove, saveSetting }),
-    [status, error, data, settings, store, user, save, reload, update, updateMany, create, remove, saveSetting],
+    () => ({ status, error, data, settings, store, user, save, reload, update, updateMany, create, createMany, remove, saveSetting }),
+    [status, error, data, settings, store, user, save, reload, update, updateMany, create, createMany, remove, saveSetting],
   );
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

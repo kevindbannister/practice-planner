@@ -199,7 +199,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .empty { padding: 24px; text-align: center; color: var(--muted); }
 
 /* ---------- tables ---------- */
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; position: relative; }
 table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.grid th { text-align: left; font-weight: 600; color: var(--ink-2); background: var(--surface-2); padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.grid td { padding: 10px 12px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
@@ -1279,3 +1279,28 @@ table.lines .input[rows] { resize: vertical; }
 /* letters: paste a whole letter; subject can run to two lines */
 .doc-paste { padding: 2px 0 4px; }
 textarea.doc-subject { resize: vertical; min-height: 0; font-weight: 700; }
+
+/* working paper schedules */
+.sched-h { margin: 0; font-size: 15px; }
+.setup-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.setup-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); min-width: 150px; }
+.setup-field .input { width: 170px; }
+.stat-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.paper-stat { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; min-width: 150px; }
+.paper-stat span { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.paper-stat strong { font-size: 15px; }
+.paper-stat.warn { border-color: var(--amber, #b7791f); background: var(--amber-soft, #fff7e6); }
+.paper-stat.warn strong { color: var(--amber, #b7791f); }
+table.lines td.num .calc { display: block; text-align: right; padding: 0 4px; white-space: nowrap; }
+table.lines th.wide { min-width: 200px; }
+table.lines .input.cell { min-width: 70px; }
+table.lines select.input.cell { min-width: 64px; padding-right: 20px; }
+table.kind-register th, table.kind-opening th, table.kind-payroll th { font-size: 11px; white-space: normal; vertical-align: bottom; }
+table.kind-register .input.money, table.kind-payroll .input.money, table.kind-opening .input.money { min-width: 88px; }
+table.report td { padding: 4px 8px; font-size: 13px; white-space: nowrap; }
+table.assets th { white-space: normal; }
+.paper-pick { border: 0; margin: 0 0 6px; padding: 0; }
+.paper-pick legend { padding: 6px 0 2px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.paper-pick-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; font-weight: 400; cursor: pointer; }
+.paper-pick-row input { width: 16px; height: 16px; }
+table.lead .input.cell { width: 130px; min-height: 30px; padding: 2px 8px; margin-left: auto; display: block; text-align: right; font-variant-numeric: tabular-nums; }
