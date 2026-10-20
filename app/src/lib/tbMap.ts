@@ -206,3 +206,19 @@ export function tbTotals(maps: Mapping[]): Map<string, number> {
   }
   return out;
 }
+
+/** Whether an account is a control account (or a suspense account), and what that means for checking it. */
+export function controlNote(name: string, dest: string): { label: string; hint: string } | undefined {
+  const n = norm(name);
+  if (/suspense/.test(n)) return { label: "Suspense account", hint: "Should be nil: clear it to the right account." };
+  if (/debtors? control|accounts receivable|sales ledger/.test(n) || (dest === "debtors/trade" && /control/.test(n)))
+    return { label: "Debtors control account", hint: "The total of the sales ledger. The customers behind it come from the aged debtors report." };
+  if (/creditors? control|accounts payable|purchase ledger/.test(n) || (dest === "creditors/trade" && /control/.test(n)))
+    return { label: "Creditors control account", hint: "The total of the purchase ledger. The suppliers behind it come from the aged creditors report." };
+  if (/vat/.test(n) && /control|liability|account/.test(n) || /\bvat\b/.test(n) && dest === "creditors/ssot")
+    return { label: "VAT control account", hint: "Should agree to the VAT return: owed to HMRC (credit) or due back (debit)." };
+  if (/wages control|payroll control|net wages|paye|national insurance|pension/.test(n))
+    return { label: "Payroll control account", hint: "Agree to the payroll reports: PAYE, NI, pensions and net pay still to pay." };
+  if (/control/.test(n)) return { label: "Control account", hint: "The total of a ledger kept elsewhere. Agree it to that ledger." };
+  return undefined;
+}

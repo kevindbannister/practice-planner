@@ -200,6 +200,7 @@ function figuresOf(r: Row): Record<string, unknown> {
 export function linesFor(rows: Row[], clientKey: string, period: string, sectionKey: string, subKey: string): Line[] {
   return rows
     .filter((r) => r.ClientKey === clientKey && r.PeriodEnd === period && r.SectionKey === sectionKey && (r.SubKey || "main") === subKey)
+    .filter((r) => !String(r.Figures || "").includes('"tb":')) // lines an earlier version put in from the trial balance: now shown live from the mapping
     .map((r) => ({
       Key: String(r.Key), Code: String(r.Code || ""), Detail: String(r.Detail || ""), Amount: num(r.Amount),
       Remark: String(r.Remark || ""), Done: r.Done === true || r.Done === "true", Seq: Number(r.Seq) || 0, f: figuresOf(r), row: r,
@@ -331,7 +332,7 @@ export type LeadRow = { sub: Sub; label: string; now: number; before: number | u
  * paper for last year (the first year in the planner), the figure typed on this year's lead is used.
  * A split account (HP, loans) gives two rows: due within one year and after one year.
  */
-export function leadRows(section: Section, rows: Row[], lines: Row[], clientKey: string, period: string): LeadRow[] {
+export function leadRows(section: Section, rows: Row[], lines: Row[], clientKey: string, period: string, tb?: { now?: Map<string, number>; prior?: Map<string, number> }): LeadRow[] {
   const prior = priorPeriod(period);
   const out: LeadRow[] = [];
   for (const sb of subsFor(section, rows, clientKey, period)) {
@@ -340,9 +341,12 @@ export function leadRows(section: Section, rows: Row[], lines: Row[], clientKey:
     const ps = setupOf(rows, clientKey, prior, setupKey(section.key, sb.key));
     const nowLines = linesFor(lines, clientKey, period, section.key, sb.key);
     const priorLines = linesFor(lines, clientKey, prior, section.key, sb.key);
-    const hasPrior = priorLines.length > 0 || Object.keys(ps).length > 0;
-    const now = subValue(sb, nowLines, s);
-    const before = hasPrior ? subValue(sb, priorLines, ps) : num(s.prior);
+    const tbKey = `${section.key}/${sb.key}`;
+    // a list schedule's trial balance accounts count as its lines
+    const tbNow = sb.kind === "list" ? tb?.now?.get(tbKey) || 0 : 0, tbPrior = sb.kind === "list" ? tb?.prior?.get(tbKey) : undefined;
+    const hasPrior = priorLines.length > 0 || Object.keys(ps).length > 0 || tbPrior !== undefined;
+    const now = round2(subValue(sb, nowLines, s) + tbNow);
+    const before = hasPrior ? round2(subValue(sb, priorLines, ps) + (tbPrior || 0)) : num(s.prior);
     if (sb.split) {
       const within = n0(s.within), pWithin = hasPrior ? n0(ps.within) : num(s.priorWithin);
       out.push({ sub: sb, label: `${sb.title} (within one year)`, now: within, before: pWithin, after: false, priorTyped: !hasPrior });

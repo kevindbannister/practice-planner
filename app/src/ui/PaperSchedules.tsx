@@ -13,7 +13,7 @@ import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { Icon, companiesHouseUrl } from "./bits";
 import { readSetting, useData } from "./data";
-import { ChartRow, DESTS, DEST_BY_KEY, Mapping, mapTb, parseChart, postings, tbBalance, tbTotals } from "../lib/tbMap";
+import { ChartRow, DESTS, DEST_BY_KEY, Mapping, controlNote, mapTb, onSide, parseChart, tbBalance, tbTotals } from "../lib/tbMap";
 
 // ------------------------------------------------------------------ saving
 
@@ -150,17 +150,94 @@ function Stat({ label, value, warn }: { label: string; value: ReactNode; warn?: 
   );
 }
 
-/** The trial balance figure for each place in the papers, from the saved mapping (undefined until mapped). */
-function useTbChecks(): Map<string, number> | undefined {
+/** The mapped trial balance for a year (saved choices, else suggestions); undefined when there's no trial balance. */
+function useTbMaps(period: string): Mapping[] | undefined {
   const { data } = useData();
   const w = useWriter();
   return useMemo(() => {
-    const tb = linesFor(data.paperLines, w.client.Key, w.period, "tb", "main").filter((l) => l.f.dest);
+    const tb = linesFor(data.paperLines, w.client.Key, period, "tb", "main");
     if (!tb.length) return undefined;
-    return tbTotals(tb.map((line) => ({ line, balance: tbBalance(line), iris: String(line.f.iris || ""), dest: String(line.f.dest), saved: true, why: "" })));
-  }, [data.paperLines, w.client.Key, w.period]);
+    const chart = readSetting<ChartRow[]>(data.settings, "papers.irisChart") || [];
+    return mapTb(tb, data.paperLines, w.client.Key, period, chart);
+  }, [data.paperLines, data.settings, w.client.Key, period]);
+}
+
+/** The trial balance figure for each place in the papers (undefined until there is a trial balance). */
+function useTbChecks(period?: string): Map<string, number> | undefined {
+  const w = useWriter();
+  const maps = useTbMaps(period || w.period);
+  return useMemo(() => (maps ? tbTotals(maps) : undefined), [maps]);
 }
 const diffOf = (a: number, b: number) => Math.round((a - b) * 100) / 100;
+
+// ------------------------------------------------------------------ trial balance accounts in a schedule
+
+/** The trial balance accounts that belong to a schedule: a line each, a total, and a link to move one that's in the wrong place. */
+function TbItems({ section, sb }: { section: Section; sb: Sub }) {
+  const w = useWriter();
+  const maps = useTbMaps(w.period);
+  const [moving, setMoving] = useState<string>();
+  if (!maps) return null;
+  const base = `${section.key}/${sb.key}`;
+  const keys = sb.kind === "register" ? [`${base}#cost`, `${base}#dep`] : [base];
+  const blocks = keys.map((key) => ({ dest: DEST_BY_KEY.get(key)!, items: maps.filter((m) => m.dest === key && m.balance !== 0) })).filter((b) => b.dest && b.items.length);
+  if (!blocks.length) return null;
+  const hasControl = blocks.some((b) => b.items.some((m) => controlNote(m.line.Detail, m.dest)));
+  const move = async (m: Mapping, dest: string) => {
+    setMoving(undefined);
+    if (dest !== m.dest) await w.patchLine(m.line, { f: { dest, iris: m.iris || undefined } });
+  };
+  return (
+    <div className="stack tb-items" style={{ gap: 6 }}>
+      <h4 style={{ margin: 0 }}>From the trial balance</h4>
+      <div className="table-wrap">
+        <table className="grid lines tb-items-table">
+          <thead><tr><th scope="col">Code</th><th scope="col" className="wide">Account</th><th scope="col">IRIS</th><th scope="col" className="num">Amount</th></tr></thead>
+          <tbody>
+            {blocks.map((b) => {
+              const total = Math.round(b.items.reduce((a, m) => a + onSide(m.balance, b.dest.side), 0) * 100) / 100;
+              const label = b.dest.part === "cost" ? "Total cost" : b.dest.part === "dep" ? "Total depreciation" : "Total per trial balance";
+              return (
+                <Fragment key={b.dest.key}>
+                  {b.dest.part && <tr className="lead-label"><td colSpan={4}>{b.dest.part === "cost" ? "Cost" : "Depreciation"}</td></tr>}
+                  {b.items.map((m) => {
+                    const ctl = controlNote(m.line.Detail, m.dest);
+                    const open = moving === m.line.Key;
+                    return (
+                      <Fragment key={m.line.Key}>
+                        <tr>
+                          <td className="mono">{m.line.Code}</td>
+                          <td>
+                            <button type="button" className="linkbtn" aria-expanded={open} title="Click to move this account to a different schedule" onClick={() => setMoving(open ? undefined : m.line.Key)}>{m.line.Detail}</button>
+                            {ctl && <span className="tb-control" title={ctl.hint}>{ctl.label}</span>}
+                            {!m.saved && <span className="muted" style={{ fontSize: 11 }}> · suggested</span>}
+                          </td>
+                          <td className="mono muted">{m.iris}</td>
+                          <td className="num mono">{money(onSide(m.balance, b.dest.side)) || "0.00"}</td>
+                        </tr>
+                        {open && (
+                          <tr className="tb-move"><td colSpan={4}>
+                            <label>Move {m.line.Detail} to
+                              <select className="input cell" autoFocus value={m.dest} onChange={(e) => void move(m, e.target.value)}>
+                                {DEST_GROUPS.map(([g, list]) => <optgroup key={g} label={g}>{list.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}</optgroup>)}
+                              </select>
+                            </label>
+                          </td></tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                  <tr className="lead-sub"><td colSpan={3}>{label}</td><td className="num mono">{money(total) || "0.00"}</td></tr>
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {hasControl && <p className="muted" style={{ margin: 0, fontSize: 12 }}>A control account is the total of a ledger kept in the accounts software. Hover its tag to see what to agree it to.</p>}
+    </div>
+  );
+}
 
 // ------------------------------------------------------------------ one schedule
 
@@ -181,6 +258,7 @@ export function Schedule({ section, sb }: { section: Section; sb: Sub }) {
   else body = (
     <>
       <KindSettings section={section} sb={sb} itemKey={itemKey} s={s} lines={lines} />
+      {["list", "register", "account", "expense"].includes(sb.kind) && <TbItems section={section} sb={sb} />}
       <Grid section={section} sb={sb} lines={lines} s={s} cols={KIND_COLS[sb.kind] || KIND_COLS.list!} />
       <KindSummary sb={sb} s={s} lines={lines} itemKey={itemKey} tbKey={`${section.key}/${sb.key}`} />
       {sb.kind === "tb" && section.key === "tb" && lines.length > 0 && <TbMapper lines={lines} />}
@@ -567,7 +645,8 @@ export function LeadTable({ section }: { section: Section }) {
   const { data } = useData();
   const w = useWriter();
   const checks = useTbChecks();
-  const rows = leadRows(section, data.papers, data.paperLines, w.client.Key, w.period);
+  const priorChecks = useTbChecks(priorPeriod(w.period));
+  const rows = leadRows(section, data.papers, data.paperLines, w.client.Key, w.period, { now: checks, prior: priorChecks });
   if (!rows.length) return null;
   const within = rows.filter((r) => !r.after), after = rows.filter((r) => r.after);
   const sum = (l: typeof rows, k: "now" | "before") => Math.round(l.reduce((a, r) => a + (r[k] || 0), 0) * 100) / 100;
@@ -740,7 +819,7 @@ export function AddSchedule({ section }: { section: Section }) {
 
 /** Give each trial balance account an IRIS code and a place in the papers, then put the balances into the sections. */
 function TbMapper({ lines }: { lines: Line[] }) {
-  const { data, updateMany, createMany, removeMany, saveSetting } = useData();
+  const { data, updateMany, saveSetting } = useData();
   const w = useWriter();
   const chart = useMemo(() => readSetting<ChartRow[]>(data.settings, "papers.irisChart") || [], [data.settings]);
   const maps = useMemo(() => mapTb(lines, data.paperLines, w.client.Key, w.period, chart), [lines, data.paperLines, w.client.Key, w.period, chart]);
@@ -750,8 +829,6 @@ function TbMapper({ lines }: { lines: Line[] }) {
   const [loading, setLoading] = useState(false);
   const [chartText, setChartText] = useState("");
   const unsaved = maps.filter((m) => !m.saved);
-  const posts = postings(maps);
-  const posted = data.paperLines.filter((r) => r.ClientKey === w.client.Key && r.PeriodEnd === w.period && String(r.Figures || "").includes('"tb":'));
 
   const saveMaps = (list: Mapping[]) =>
     updateMany("PaperLines", list.map((m) => ({ row: m.line.row, patch: { Figures: JSON.stringify({ ...m.line.f, iris: m.iris || undefined, dest: m.dest }) } })));
@@ -768,19 +845,6 @@ function TbMapper({ lines }: { lines: Line[] }) {
       setBusy("");
     }
   };
-  const putIn = () => run("post", async () => {
-    if (unsaved.length) await saveMaps(unsaved);
-    // lines put in from the trial balance before are replaced, so this can be run again after changes
-    await removeMany("PaperLines", posted);
-    const seqStart = 1000;
-    const rows: Row[] = posts.map((p, i) => ({
-      Key: newKey("PL"), ClientKey: w.client.Key, PeriodEnd: w.period, SectionKey: p.dest.section, SubKey: p.dest.sub,
-      Code: p.Code || undefined, Detail: p.Detail, Amount: p.Amount, Figures: JSON.stringify({ tb: p.tbKey }), Seq: seqStart + i, Updated: new Date().toISOString(),
-    }));
-    await createMany("PaperLines", rows);
-    const places = new Set(posts.map((p) => p.dest.key)).size;
-    return `${rows.length} line${rows.length === 1 ? "" : "s"} put into ${places} schedule${places === 1 ? "" : "s"}. Registers, accounts and expenses show the trial balance figure beside their own as a check.`;
-  });
   const loadChart = () => run("chart", async () => {
     const rows = parseChart(chartText);
     if (!rows.length) throw new Error("empty");
@@ -791,19 +855,12 @@ function TbMapper({ lines }: { lines: Line[] }) {
   });
   const setOne = (m: Mapping, patch: { iris?: string; dest?: string }) =>
     w.patchLine(m.line, { f: { iris: (patch.iris ?? m.iris) || undefined, dest: patch.dest ?? m.dest } });
-  const groups = useMemo(() => {
-    const by = new Map<string, typeof DESTS>();
-    for (const d of DESTS) {
-      const g = d.key === "ignore" ? "Other" : SECTION_GROUP.get(d.section) || "Other";
-      by.set(g, [...(by.get(g) || []), d]);
-    }
-    return [...by.entries()];
-  }, []);
+  const groups = DEST_GROUPS;
 
   return (
     <div className="stack tb-map" style={{ gap: 10, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h4 style={{ margin: 0 }}>Map to IRIS and the sections</h4>
+        <h4 style={{ margin: 0 }}>Map to IRIS and the schedules</h4>
         <span className="muted" style={{ fontSize: 12 }}>
           {chart.length ? `IRIS chart: ${chart.length} codes` : "No IRIS chart loaded yet"} ·{" "}
           <button type="button" className="linkbtn" onClick={() => setLoading(!loading)} aria-expanded={loading}>{chart.length ? "Replace the IRIS chart" : "Load the IRIS chart"}</button>
@@ -855,15 +912,12 @@ function TbMapper({ lines }: { lines: Line[] }) {
         </table>
       </div>
       <div className="row-wrap" style={{ gap: 8 }}>
-        <button type="button" className="btn small primary" disabled={busy !== "" || !maps.length} onClick={() => void putIn()}>
-          {busy === "post" ? "Putting in…" : `Put into the sections (${posts.length} line${posts.length === 1 ? "" : "s"})`}
-        </button>
         {unsaved.length > 0 && (
           <button type="button" className="btn small" disabled={busy !== ""} onClick={() => void run("save", async () => { await saveMaps(unsaved); return `${unsaved.length} suggestion${unsaved.length === 1 ? "" : "s"} saved.`; })}>
             Accept the {unsaved.length} suggestion{unsaved.length === 1 ? "" : "s"}
           </button>
         )}
-        {posted.length > 0 && <span className="muted" style={{ fontSize: 12 }}>{posted.length} line{posted.length === 1 ? "" : "s"} in the sections from the trial balance; putting in again replaces them.</span>}
+        <span className="muted" style={{ fontSize: 12 }}>The accounts show in their schedules straight away. Change "Goes to" to move one; each schedule also has a link to move an account.</span>
       </div>
       {note && <p className="muted" role="status" style={{ margin: 0, fontSize: 13 }}>{note}</p>}
       {error && <p className="error-text" role="alert" style={{ margin: 0 }}>{error}</p>}
@@ -878,6 +932,15 @@ const SECTION_GROUP = new Map<string, string>([
   ["income", "Profit and loss"], ["expenditure", "Profit and loss"],
   ["vat", "Other schedules"], ["wages", "Other schedules"], ["creditors-ca", "Other schedules"], ["debtors-ca", "Other schedules"], ["workings", "Other schedules"],
 ]);
+
+const DEST_GROUPS: [string, typeof DESTS][] = (() => {
+  const by = new Map<string, typeof DESTS>();
+  for (const d of DESTS) {
+    const g = d.key === "ignore" ? "Other" : SECTION_GROUP.get(d.section) || "Other";
+    by.set(g, [...(by.get(g) || []), d]);
+  }
+  return [...by.entries()];
+})();
 
 function IrisInput({ value, label, onSave }: { value: string; label: string; onSave: (v: string) => unknown }) {
   const [v, setV] = useState(value);
