@@ -68,7 +68,7 @@ export const SECTIONS: Section[] = [
   lead("capital", "Capital and reserves", "Balance sheet", [sub("shares", "Share capital"), sub("reserves", "Reserves"), sub("accounts", "Capital accounts", "account", { normal: "cr" })]),
   sec("statutory", "Statutory lead schedule", "Balance sheet", [sub("main", "Companies House details and filing history", "report")]),
   lead("income", "Income", "Profit and loss", [sub("sales", "Sales"), sub("interest", "Interest received"), sub("other", "Other income")]),
-  lead("expenditure", "Expenditure", "Profit and loss", [sub("accountancy", "Accountancy", "expense")]),
+  lead("expenditure", "Expenditure", "Profit and loss", [sub("cos", "Cost of sales"), sub("tb", "Expenses per trial balance"), sub("accountancy", "Accountancy", "expense")]),
   sec("vat", "VAT", "Other schedules", [sub("control", "VAT control account", "account", { normal: "cr" }), sub("returns", "VAT return summary", "vat")]),
   sec("workings", "Accounts working papers", "Other schedules", [sub("receipts", "Receipts"), sub("payments", "Payments"), sub("sundry", "Sundry")], { offByDefault: true, canAdd: true }),
   sec("wages", "Wages and PAYE", "Other schedules", [

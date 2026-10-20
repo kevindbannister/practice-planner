@@ -145,6 +145,14 @@ export class SharePointStore {
     return { failed: bad.length, error: bad[0]?.body?.error?.message };
   }
 
+  /** Delete many items in batches of 20 (they go to the site's recycle bin). */
+  async removeMany(key: ListKey, itemIds: string[]): Promise<{ failed: number }> {
+    if (!itemIds.length) return { failed: 0 };
+    const path = this.listPath(key);
+    const res = await this.graph.batch(itemIds.map((id) => ({ method: "DELETE" as const, url: `${path}/items/${id}` })));
+    return { failed: res.filter((r) => !r || r.status >= 300).length };
+  }
+
   hasList(key: ListKey): boolean {
     return this.listIds.has(key);
   }

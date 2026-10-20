@@ -1304,3 +1304,11 @@ table.assets th { white-space: normal; }
 .paper-pick-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; font-weight: 400; cursor: pointer; }
 .paper-pick-row input { width: 16px; height: 16px; }
 table.lead .input.cell { width: 130px; min-height: 30px; padding: 2px 8px; margin-left: auto; display: block; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* trial balance mapping and checks */
+.tb-map h4 { font-size: 14px; }
+.tb-map-table select.input.cell { min-width: 240px; }
+tr.tb-suggested td { background: var(--blue-soft, #eef4ff); }
+td.diff-warn { color: var(--amber, #b7791f); font-weight: 700; }
+tr.tb-check td { border-top: 1px dashed var(--line); font-size: 12.5px; }
+.tb-map-table td.num { white-space: nowrap; }

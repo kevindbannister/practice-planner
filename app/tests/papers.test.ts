@@ -94,7 +94,7 @@ test("sections: the usual ones on, a company's choice kept into next year; added
   assert.deepEqual([...sectionsOff(rows, "C", "2026-03-31")], ["vat"]);
   const exp = SECTIONS.find((x) => x.key === "expenditure")!;
   const setup = [{ ClientKey: "C", PeriodEnd: "2025-03-31", ItemKey: "expenditure", Setup: JSON.stringify({ extra: [{ key: "x1", title: "Rent", kind: "expense" }] }) }];
-  assert.deepEqual(subsFor(exp, setup, "C", "2026-03-31").map((x) => x.title), ["Accountancy", "Rent"]);
+  assert.deepEqual(subsFor(exp, setup, "C", "2026-03-31").map((x) => x.title), ["Cost of sales", "Expenses per trial balance", "Accountancy", "Rent"]);
   // hire purchase splits between within and after one year on the creditors lead
   const cred = SECTIONS.find((x) => x.key === "creditors")!;
   const p = [{ ClientKey: "C", PeriodEnd: "2026-03-31", ItemKey: "creditors/hp", Setup: JSON.stringify({ bf: 9000, within: 3000 }) }];

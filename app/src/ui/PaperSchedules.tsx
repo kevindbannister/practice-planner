@@ -12,7 +12,8 @@ import {
 import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { Icon, companiesHouseUrl } from "./bits";
-import { useData } from "./data";
+import { readSetting, useData } from "./data";
+import { ChartRow, DESTS, DEST_BY_KEY, Mapping, mapTb, parseChart, postings, tbBalance, tbTotals } from "../lib/tbMap";
 
 // ------------------------------------------------------------------ saving
 
@@ -149,6 +150,18 @@ function Stat({ label, value, warn }: { label: string; value: ReactNode; warn?: 
   );
 }
 
+/** The trial balance figure for each place in the papers, from the saved mapping (undefined until mapped). */
+function useTbChecks(): Map<string, number> | undefined {
+  const { data } = useData();
+  const w = useWriter();
+  return useMemo(() => {
+    const tb = linesFor(data.paperLines, w.client.Key, w.period, "tb", "main").filter((l) => l.f.dest);
+    if (!tb.length) return undefined;
+    return tbTotals(tb.map((line) => ({ line, balance: tbBalance(line), iris: String(line.f.iris || ""), dest: String(line.f.dest), saved: true, why: "" })));
+  }, [data.paperLines, w.client.Key, w.period]);
+}
+const diffOf = (a: number, b: number) => Math.round((a - b) * 100) / 100;
+
 // ------------------------------------------------------------------ one schedule
 
 export function Schedule({ section, sb }: { section: Section; sb: Sub }) {
@@ -169,7 +182,8 @@ export function Schedule({ section, sb }: { section: Section; sb: Sub }) {
     <>
       <KindSettings section={section} sb={sb} itemKey={itemKey} s={s} lines={lines} />
       <Grid section={section} sb={sb} lines={lines} s={s} cols={KIND_COLS[sb.kind] || KIND_COLS.list!} />
-      <KindSummary sb={sb} s={s} lines={lines} itemKey={itemKey} />
+      <KindSummary sb={sb} s={s} lines={lines} itemKey={itemKey} tbKey={`${section.key}/${sb.key}`} />
+      {sb.kind === "tb" && section.key === "tb" && lines.length > 0 && <TbMapper lines={lines} />}
     </>
   );
   return (
@@ -237,13 +251,22 @@ function KindSettings({ section, sb, itemKey, s, lines }: { section: Section; sb
 }
 
 /** Figures under the lines: balance c/f, charge for the year, whether it balances. */
-function KindSummary({ sb, s, lines }: { sb: Sub; s: Setup; lines: Line[]; itemKey: string }) {
+function KindSummary({ sb, s, lines, tbKey }: { sb: Sub; s: Setup; lines: Line[]; itemKey: string; tbKey: string }) {
+  const checks = useTbChecks();
+  const tb = checks?.get(tbKey);
+  const tbStats = (mine: number) => tb === undefined ? null : (
+    <>
+      <Stat label="Per trial balance" value={money(tb) || "0.00"} />
+      <Stat label="Difference to the trial balance" value={money(diffOf(mine, tb)) || "0.00"} warn={diffOf(mine, tb) !== 0} />
+    </>
+  );
   if (sb.kind === "account") {
     const cf = accountCf(lines, s, sb.normal);
     return (
       <div className="stat-row">
         <Stat label={`Balance c/f (${sb.normal === "dr" ? "debit" : "credit"})`} value={money(cf) || "0.00"} />
         {sb.split && <Stat label="Due after one year" value={money(cf - (Number(s.within) || 0)) || "0.00"} />}
+        {tbStats(cf)}
       </div>
     );
   }
@@ -255,6 +278,7 @@ function KindSummary({ sb, s, lines }: { sb: Sub; s: Setup; lines: Line[]; itemK
       <div className="stat-row">
         <Stat label="Charge for the year" value={money(charge) || "0.00"} />
         {diff !== undefined && <Stat label="Difference to the software" value={money(diff) || "0.00"} warn={diff !== 0} />}
+        {tbStats(charge)}
       </div>
     );
   }
@@ -542,6 +566,7 @@ function FinalTb() {
 export function LeadTable({ section }: { section: Section }) {
   const { data } = useData();
   const w = useWriter();
+  const checks = useTbChecks();
   const rows = leadRows(section, data.papers, data.paperLines, w.client.Key, w.period);
   if (!rows.length) return null;
   const within = rows.filter((r) => !r.after), after = rows.filter((r) => r.after);
@@ -553,23 +578,42 @@ export function LeadTable({ section }: { section: Section }) {
     const key = setupKey(section.key, r.sub.key);
     return <Field value={r.before === undefined ? "" : money(r.before)} label={`Last year: ${r.label}`} type="money" placeholder="–" onSave={(x) => w.writeSetup(key, { [field]: parseAmount(x) })} />;
   };
+  // the trial balance figure for each row (a split account's trial balance figure sits on its "after one year" row, less the part within)
+  const tbFor = (r: (typeof rows)[number]): number | undefined => {
+    const t = checks?.get(`${section.key}/${r.sub.key}`);
+    if (t === undefined) return undefined;
+    if (!r.sub.split) return t;
+    if (!r.after) return r.now;
+    const within = rows.find((x) => x.sub.key === r.sub.key && !x.after)?.now || 0;
+    return diffOf(t, within);
+  };
+  const tbSum = (l: typeof rows) => l.reduce((a, r) => a + (tbFor(r) ?? r.now), 0);
+  const tbCells = (now: number, t: number | undefined) => checks ? (
+    <>
+      <td className="num mono muted">{t === undefined ? "–" : money(t) || "0.00"}</td>
+      <td className={`num mono${t !== undefined && diffOf(now, t) ? " diff-warn" : " muted"}`}>{t === undefined ? "" : diffOf(now, t) ? money(diffOf(now, t)) : "✔"}</td>
+    </>
+  ) : null;
+  const span = checks ? 5 : 3;
   const block = (list: typeof rows, label?: string) => (
     <>
-      {label && <tr className="lead-label"><td colSpan={3}>{label}</td></tr>}
-      {list.map((r) => <tr key={r.label}><td>{r.label}</td><td className="num mono">{money(r.now) || "–"}</td><td className="num">{priorCell(r)}</td></tr>)}
-      {list.length > 1 && <tr className="lead-sub"><td>{label ? `Total ${label.toLowerCase()}` : "Total"}</td><td className="num mono">{money(sum(list, "now")) || "–"}</td><td className="num mono muted">{money(sum(list, "before")) || "–"}</td></tr>}
+      {label && <tr className="lead-label"><td colSpan={span}>{label}</td></tr>}
+      {list.map((r) => <tr key={r.label}><td>{r.label}</td><td className="num mono">{money(r.now) || "–"}</td><td className="num">{priorCell(r)}</td>{tbCells(r.now, tbFor(r))}</tr>)}
+      {list.length > 1 && <tr className="lead-sub"><td>{label ? `Total ${label.toLowerCase()}` : "Total"}</td><td className="num mono">{money(sum(list, "now")) || "–"}</td><td className="num mono muted">{money(sum(list, "before")) || "–"}</td>{tbCells(sum(list, "now"), Math.round(tbSum(list) * 100) / 100)}</tr>}
     </>
   );
   const typed = rows.some((r) => r.priorTyped);
   return (
     <section className="card pad stack" aria-label={`${section.title} lead schedule`}>
+      <div className="table-wrap">
       <table className="grid lead">
-        <thead><tr><th scope="col">Lead schedule</th><th scope="col" className="num">{w.period.slice(0, 4)}</th><th scope="col" className="num">{priorPeriod(w.period).slice(0, 4)}</th></tr></thead>
+        <thead><tr><th scope="col">Lead schedule</th><th scope="col" className="num">{w.period.slice(0, 4)}</th><th scope="col" className="num">{priorPeriod(w.period).slice(0, 4)}</th>{checks && <><th scope="col" className="num">Per trial balance</th><th scope="col" className="num">Difference</th></>}</tr></thead>
         <tbody>
           {after.length && within.length ? <>{block(within, "Due within one year")}{block(after, "Due after one year")}</> : block(rows)}
-          {after.length > 0 && within.length > 0 && <tr className="lead-total"><td>Total</td><td className="num mono">{money(sum(rows, "now")) || "–"}</td><td className="num mono">{money(sum(rows, "before")) || "–"}</td></tr>}
+          {after.length > 0 && within.length > 0 && <tr className="lead-total"><td>Total</td><td className="num mono">{money(sum(rows, "now")) || "–"}</td><td className="num mono">{money(sum(rows, "before")) || "–"}</td>{tbCells(sum(rows, "now"), Math.round(tbSum(rows) * 100) / 100)}</tr>}
         </tbody>
       </table>
+      </div>
       {typed && <p className="muted" style={{ margin: 0, fontSize: 12 }}>No paper for last year in the planner yet, so type last year's figures from the accounts.</p>}
     </section>
   );
@@ -592,6 +636,9 @@ export function AssetSummary({ section }: { section: Section }) {
     ["Depreciation", null], ["Depreciation b/f", "depBf"], ["Charge for the year", "charge"], ["Eliminated on disposal", "depDisp"], ["Depreciation c/f", "depCf"],
     [`NBV at ${fmtDate(w.period)}`, "nbvCf"], [`NBV at ${fmtDate(priorPeriod(w.period))}`, "nbvBf"],
   ];
+  const checks = useTbChecks();
+  const tbRow = (part: "cost" | "dep") => cols.map((c) => checks?.get(`${section.key}/${c.sb.key}#${part}`));
+  const tbCost = tbRow("cost"), tbDep = tbRow("dep");
   const proceeds = Number(w.setup(section.key).proceeds) || 0;
   const disposedNbv = Math.round((sumOf("disp") - sumOf("depDisp")) * 100) / 100;
   return (
@@ -607,6 +654,20 @@ export function AssetSummary({ section }: { section: Section }) {
                 <td>{label}</td>{cols.map((c) => <td key={c.sb.key} className="num mono">{money(c.t[k]) || "–"}</td>)}<td className="num mono"><strong>{money(sumOf(k)) || "–"}</strong></td>
               </tr>
             ) : <tr key={label} className="lead-label"><td colSpan={cols.length + 2}>{label}</td></tr>)}
+            {checks && ([["Cost per trial balance", tbCost, "costCf"], ["Depreciation per trial balance", tbDep, "depCf"]] as const).map(([label, vals, k]) => {
+              const total = vals.reduce((a: number, x) => a + (x ?? 0), 0);
+              return (
+                <tr key={label} className="tb-check">
+                  <td>{label}</td>
+                  {cols.map((c, i) => {
+                    const t = vals[i];
+                    const d = t === undefined ? 0 : diffOf(c.t[k], t);
+                    return <td key={c.sb.key} className={`num mono${d ? " diff-warn" : " muted"}`} title={d ? `Difference ${money(d)}` : undefined}>{t === undefined ? "–" : `${money(t) || "0.00"}${d ? " ⚠" : ""}`}</td>;
+                  })}
+                  <td className="num mono muted">{money(total) || "0.00"}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -650,5 +711,157 @@ export function AddSchedule({ section }: { section: Section }) {
       <button type="button" className="btn primary" disabled={!title.trim() || w.busy} onClick={() => void add()}>Add</button>
       <button type="button" className="btn" onClick={() => setOpen(false)}>Cancel</button>
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ mapping the trial balance
+
+/** Give each trial balance account an IRIS code and a place in the papers, then put the balances into the sections. */
+function TbMapper({ lines }: { lines: Line[] }) {
+  const { data, updateMany, createMany, removeMany, saveSetting } = useData();
+  const w = useWriter();
+  const chart = useMemo(() => readSetting<ChartRow[]>(data.settings, "papers.irisChart") || [], [data.settings]);
+  const maps = useMemo(() => mapTb(lines, data.paperLines, w.client.Key, w.period, chart), [lines, data.paperLines, w.client.Key, w.period, chart]);
+  const [busy, setBusy] = useState("");
+  const [note, setNote] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+  const [chartText, setChartText] = useState("");
+  const unsaved = maps.filter((m) => !m.saved);
+  const posts = postings(maps);
+  const posted = data.paperLines.filter((r) => r.ClientKey === w.client.Key && r.PeriodEnd === w.period && String(r.Figures || "").includes('"tb":'));
+
+  const saveMaps = (list: Mapping[]) =>
+    updateMany("PaperLines", list.map((m) => ({ row: m.line.row, patch: { Figures: JSON.stringify({ ...m.line.f, iris: m.iris || undefined, dest: m.dest }) } })));
+  const run = async (what: string, work: () => Promise<string | void>) => {
+    setBusy(what);
+    setError(undefined);
+    setNote(undefined);
+    try {
+      const msg = await work();
+      if (msg) setNote(msg);
+    } catch {
+      setError("That didn't all save. Try again.");
+    } finally {
+      setBusy("");
+    }
+  };
+  const putIn = () => run("post", async () => {
+    if (unsaved.length) await saveMaps(unsaved);
+    // lines put in from the trial balance before are replaced, so this can be run again after changes
+    await removeMany("PaperLines", posted);
+    const seqStart = 1000;
+    const rows: Row[] = posts.map((p, i) => ({
+      Key: newKey("PL"), ClientKey: w.client.Key, PeriodEnd: w.period, SectionKey: p.dest.section, SubKey: p.dest.sub,
+      Code: p.Code || undefined, Detail: p.Detail, Amount: p.Amount, Figures: JSON.stringify({ tb: p.tbKey }), Seq: seqStart + i, Updated: new Date().toISOString(),
+    }));
+    await createMany("PaperLines", rows);
+    const places = new Set(posts.map((p) => p.dest.key)).size;
+    return `${rows.length} line${rows.length === 1 ? "" : "s"} put into ${places} schedule${places === 1 ? "" : "s"}. Registers, accounts and expenses show the trial balance figure beside their own as a check.`;
+  });
+  const loadChart = () => run("chart", async () => {
+    const rows = parseChart(chartText);
+    if (!rows.length) throw new Error("empty");
+    await saveSetting("papers.irisChart", rows);
+    setChartText("");
+    setLoading(false);
+    return `${rows.length} IRIS codes loaded.`;
+  });
+  const setOne = (m: Mapping, patch: { iris?: string; dest?: string }) =>
+    w.patchLine(m.line, { f: { iris: (patch.iris ?? m.iris) || undefined, dest: patch.dest ?? m.dest } });
+  const groups = useMemo(() => {
+    const by = new Map<string, typeof DESTS>();
+    for (const d of DESTS) {
+      const g = d.key === "ignore" ? "Other" : SECTION_GROUP.get(d.section) || "Other";
+      by.set(g, [...(by.get(g) || []), d]);
+    }
+    return [...by.entries()];
+  }, []);
+
+  return (
+    <div className="stack tb-map" style={{ gap: 10, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <h4 style={{ margin: 0 }}>Map to IRIS and the sections</h4>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {chart.length ? `IRIS chart: ${chart.length} codes` : "No IRIS chart loaded yet"} ·{" "}
+          <button type="button" className="linkbtn" onClick={() => setLoading(!loading)} aria-expanded={loading}>{chart.length ? "Replace the IRIS chart" : "Load the IRIS chart"}</button>
+        </span>
+      </div>
+      {loading && (
+        <div className="stack" style={{ gap: 8 }}>
+          <label>
+            Paste the IRIS Elements chart of accounts (code and name on each row, from Excel or a CSV export). A third column can say where it goes (e.g. creditors/accruals).
+            <textarea className="input" rows={6} value={chartText} onChange={(e) => setChartText(e.target.value)} placeholder={"Code\tName\n…"} />
+          </label>
+          <div className="row-wrap">
+            <input type="file" accept=".csv,.txt,text/csv" aria-label="IRIS chart file" onChange={(e) => e.target.files?.[0]?.text().then(setChartText)} />
+            <button type="button" className="btn small primary" disabled={!parseChart(chartText).length || busy !== ""} onClick={() => void loadChart()}>
+              Load {parseChart(chartText).length || ""} codes
+            </button>
+          </div>
+        </div>
+      )}
+      <datalist id="iris-codes">{chart.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}</datalist>
+      <div className="table-wrap">
+        <table className="grid lines tb-map-table">
+          <thead>
+            <tr><th scope="col">Code</th><th scope="col" className="wide">Account</th><th scope="col" className="num">Balance</th><th scope="col">IRIS code</th><th scope="col" className="wide">Goes to</th><th scope="col">Suggested because</th></tr>
+          </thead>
+          <tbody>
+            {maps.map((m) => {
+              const ic = chart.find((c) => c.code === m.iris);
+              return (
+                <tr key={m.line.Key} className={m.saved ? undefined : "tb-suggested"}>
+                  <td className="mono">{m.line.Code}</td>
+                  <td>{m.line.Detail}</td>
+                  <td className="num mono">{money(Math.abs(m.balance)) || "0.00"} {m.balance < 0 ? "Cr" : m.balance > 0 ? "Dr" : ""}</td>
+                  <td>
+                    <IrisInput value={m.iris} label={`IRIS code for ${m.line.Detail}`} onSave={(x) => setOne(m, { iris: x.trim() })} />
+                    {ic && <div className="muted" style={{ fontSize: 11 }}>{ic.name}</div>}
+                  </td>
+                  <td>
+                    <select className="input cell" aria-label={`Where ${m.line.Detail} goes`} value={m.dest} onChange={(e) => void setOne(m, { dest: e.target.value })}>
+                      {!DEST_BY_KEY.has(m.dest) && <option value={m.dest}>{m.dest}</option>}
+                      {groups.map(([g, list]) => <optgroup key={g} label={g}>{list.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}</optgroup>)}
+                    </select>
+                  </td>
+                  <td className="muted" style={{ fontSize: 12 }}>{m.saved ? "Saved" : m.why}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="row-wrap" style={{ gap: 8 }}>
+        <button type="button" className="btn small primary" disabled={busy !== "" || !maps.length} onClick={() => void putIn()}>
+          {busy === "post" ? "Putting in…" : `Put into the sections (${posts.length} line${posts.length === 1 ? "" : "s"})`}
+        </button>
+        {unsaved.length > 0 && (
+          <button type="button" className="btn small" disabled={busy !== ""} onClick={() => void run("save", async () => { await saveMaps(unsaved); return `${unsaved.length} suggestion${unsaved.length === 1 ? "" : "s"} saved.`; })}>
+            Accept the {unsaved.length} suggestion{unsaved.length === 1 ? "" : "s"}
+          </button>
+        )}
+        {posted.length > 0 && <span className="muted" style={{ fontSize: 12 }}>{posted.length} line{posted.length === 1 ? "" : "s"} in the sections from the trial balance; putting in again replaces them.</span>}
+      </div>
+      {note && <p className="muted" role="status" style={{ margin: 0, fontSize: 13 }}>{note}</p>}
+      {error && <p className="error-text" role="alert" style={{ margin: 0 }}>{error}</p>}
+    </div>
+  );
+}
+
+const SECTION_GROUP = new Map<string, string>([
+  ["goodwill", "Fixed assets"], ["fixed", "Fixed assets"], ["investments", "Fixed assets"],
+  ["stock", "Current assets"], ["debtors", "Current assets"], ["bank", "Current assets"],
+  ["creditors", "Liabilities"], ["loans", "Liabilities"], ["capital", "Capital and reserves"],
+  ["income", "Profit and loss"], ["expenditure", "Profit and loss"],
+  ["vat", "Other schedules"], ["wages", "Other schedules"], ["creditors-ca", "Other schedules"], ["debtors-ca", "Other schedules"], ["workings", "Other schedules"],
+]);
+
+function IrisInput({ value, label, onSave }: { value: string; label: string; onSave: (v: string) => unknown }) {
+  const [v, setV] = useState(value);
+  useEffect(() => setV(value), [value]);
+  return (
+    <input className="input cell" list="iris-codes" aria-label={label} value={v} style={{ width: 96 }} onChange={(e) => setV(e.target.value)}
+      onBlur={() => v !== value && void onSave(v)} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} />
   );
 }
