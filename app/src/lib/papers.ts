@@ -321,6 +321,9 @@ export function subValue(sb: Sub, lines: Line[], s: Setup): number {
   }
 }
 
+/** The kinds of schedule that put a figure on the lead schedule (and so open from it). */
+export const LEAD_KINDS = ["list", "register", "account", "expense", "vat"];
+
 export type LeadRow = { sub: Sub; label: string; now: number; before: number | undefined; after: boolean; priorTyped: boolean };
 
 /**
@@ -332,7 +335,7 @@ export function leadRows(section: Section, rows: Row[], lines: Row[], clientKey:
   const prior = priorPeriod(period);
   const out: LeadRow[] = [];
   for (const sb of subsFor(section, rows, clientKey, period)) {
-    if (!["list", "register", "account", "expense", "vat"].includes(sb.kind)) continue;
+    if (!LEAD_KINDS.includes(sb.kind)) continue;
     const s = setupOf(rows, clientKey, period, setupKey(section.key, sb.key));
     const ps = setupOf(rows, clientKey, prior, setupKey(section.key, sb.key));
     const nowLines = linesFor(lines, clientKey, period, section.key, sb.key);

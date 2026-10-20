@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AddSchedule, AssetSummary, LeadTable, PaperWriter, Schedule, useWriterState } from "./PaperSchedules";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
-import { GROUPS, PaperStatus, SECTIONS, STATUS_LABEL, Section, progress, sectionsOff, stateOf, subsFor, yearEnds } from "../lib/papers";
+import { GROUPS, LEAD_KINDS, PaperStatus, SECTIONS, STATUS_LABEL, Section, progress, sectionsOff, stateOf, subsFor, yearEnds } from "../lib/papers";
 import { Row } from "../lib/schema";
 import { Icon, href, useRoute } from "./bits";
 import { useEditor } from "./Editors";
@@ -335,7 +335,7 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
 
       {sec.summary === "lead" && <LeadTable section={sec} />}
       {sec.summary === "assets" && <AssetSummary section={sec} />}
-      {subs.map((sb) => <Schedule key={sb.key} section={sec} sb={sb} />)}
+      {subs.filter((sb) => sec.summary !== "lead" || !LEAD_KINDS.includes(sb.kind)).map((sb) => <Schedule key={sb.key} section={sec} sb={sb} />)}
       {sec.canAdd && <AddSchedule section={sec} />}
 
       <div className="card pad stack">

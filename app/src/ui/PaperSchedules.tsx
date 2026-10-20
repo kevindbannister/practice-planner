@@ -2,7 +2,7 @@
 // of schedule (list, asset register, account, VAT, payroll, expense, trial balance, journals...),
 // the settings each kind needs (depreciation method and rate, balance brought forward, accruals,
 // fee), and the summaries (lead schedule, fixed asset summary, final trial balance).
-import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Fragment, ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Client, fmtDate } from "../lib/domain";
 import {
   AssetTotals, Col, DEFAULT_LINES, INFO_FIELDS, KIND_COLS, KIND_NAMES, Kind, Line, Section, Setup, Sub, accountCf, carryLines, carrySetup,
@@ -595,10 +595,31 @@ export function LeadTable({ section }: { section: Section }) {
     </>
   ) : null;
   const span = checks ? 5 : 3;
+  const [open, setOpen] = useState<string[]>([]);
+  const toggle = (k: string) => setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
+  const shown = new Set<string>(); // a split account has two rows; its schedule sits under the first
+  const line = (r: (typeof rows)[number]) => {
+    const k = r.sub.key, isOpen = open.includes(k), first = !shown.has(k);
+    shown.add(k);
+    return (
+      <Fragment key={r.label}>
+        <tr className={`lead-line${isOpen ? " is-open" : ""}`} onClick={(e) => { if (!(e.target as HTMLElement).closest("input,select,textarea")) toggle(k); }}>
+          <td>
+            <button type="button" className="lead-toggle" aria-expanded={isOpen} aria-controls={`lead-${section.key}-${k}`}
+              onClick={(e) => { e.stopPropagation(); toggle(k); }}>
+              <span className="lead-chev" aria-hidden="true">{isOpen ? "▾" : "▸"}</span>{r.label}
+            </button>
+          </td>
+          <td className="num mono">{money(r.now) || "–"}</td><td className="num">{priorCell(r)}</td>{tbCells(r.now, tbFor(r))}
+        </tr>
+        {isOpen && first && <tr className="lead-open"><td colSpan={span} id={`lead-${section.key}-${k}`}><Schedule section={section} sb={r.sub} /></td></tr>}
+      </Fragment>
+    );
+  };
   const block = (list: typeof rows, label?: string) => (
     <>
       {label && <tr className="lead-label"><td colSpan={span}>{label}</td></tr>}
-      {list.map((r) => <tr key={r.label}><td>{r.label}</td><td className="num mono">{money(r.now) || "–"}</td><td className="num">{priorCell(r)}</td>{tbCells(r.now, tbFor(r))}</tr>)}
+      {list.map(line)}
       {list.length > 1 && <tr className="lead-sub"><td>{label ? `Total ${label.toLowerCase()}` : "Total"}</td><td className="num mono">{money(sum(list, "now")) || "–"}</td><td className="num mono muted">{money(sum(list, "before")) || "–"}</td>{tbCells(sum(list, "now"), Math.round(tbSum(list) * 100) / 100)}</tr>}
     </>
   );
@@ -614,6 +635,7 @@ export function LeadTable({ section }: { section: Section }) {
         </tbody>
       </table>
       </div>
+      <p className="muted" style={{ margin: 0, fontSize: 12 }}>Click a line to open its schedule.</p>
       {typed && <p className="muted" style={{ margin: 0, fontSize: 12 }}>No paper for last year in the planner yet, so type last year's figures from the accounts.</p>}
     </section>
   );
