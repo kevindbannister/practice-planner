@@ -561,7 +561,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
           <thead>
             <tr>
               {cols.map((c) => <th key={c.key} scope="col" className={c.type === "money" ? "num" : c.wide ? "wide" : undefined}>{c.label}</th>)}
-              {showPrior && <th scope="col" className="num">{prior.slice(0, 4)}</th>}
+              {showPrior && <th scope="col" className="num prior">{prior.slice(0, 4)}</th>}
               {done && <th scope="col" style={{ width: 80 }}>Completed</th>}
               <th scope="col"><span className="sr-only">Remove</span></th>
             </tr>
@@ -578,7 +578,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
                     )}
                   </td>
                 ))}
-                {showPrior && <td className="num mono muted">{money(priorFor(data.paperLines, w.client.Key, w.period, section.key, sb.key, l.Detail)) || "–"}</td>}
+                {showPrior && <td className="num mono prior">{money(priorFor(data.paperLines, w.client.Key, w.period, section.key, sb.key, l.Detail)) || "–"}</td>}
                 {done && <td style={{ textAlign: "center" }}><input type="checkbox" checked={l.Done} aria-label={`Completed: ${l.Detail || "this note"}`} style={{ width: 18, height: 18 }} onChange={(e) => void w.patchLine(l, { Done: e.target.checked })} /></td>}
                 <td><button type="button" className="iconbtn" aria-label={`Remove ${l.Detail || "this line"}`} disabled={w.busy} onClick={() => void w.removeLine(l)}><Icon name="close" size={14} /></button></td>
               </tr>
@@ -593,7 +593,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
                     {c.total ? <strong>{money(colTotal(lines, c, s)) || "0.00"}</strong> : i === cols.findIndex((x) => x.type !== "date" && x.type !== "int" && !x.total) ? <strong>Total</strong> : null}
                   </td>
                 ))}
-                {showPrior && <td className="num mono muted">{money(priorLines.reduce((a, l) => a + (l.Amount || 0), 0)) || "–"}</td>}
+                {showPrior && <td className="num mono prior">{money(priorLines.reduce((a, l) => a + (l.Amount || 0), 0)) || "–"}</td>}
                 {done && <td />}
                 <td />
               </tr>
@@ -778,13 +778,13 @@ function AccountsSummary() {
   ];
   const table = (title: string, list: R[]) => (
     <table className="grid lead accounts-summary">
-      <thead><tr><th scope="col">{title}</th><th scope="col" className="num">{y}</th>{p && <th scope="col" className="num">{py}</th>}</tr></thead>
+      <thead><tr><th scope="col">{title}</th><th scope="col" className="num">{y}</th>{p && <th scope="col" className="num prior">{py}</th>}</tr></thead>
       <tbody>
         {list.filter(([, k]) => k !== "capitalAccounts" || f.capitalAccounts || p?.capitalAccounts).map(([label, k, how]) => {
           const show = (x?: AccountsFigures) => (x ? money(how === "neg" ? -(x[k] as number) : (x[k] as number)) || "–" : "");
           return (
             <tr key={label} className={how === "sub" ? "lead-sub" : how === "total" ? "lead-total" : undefined}>
-              <td>{label}</td><td className="num mono">{show(f)}</td>{p && <td className="num mono muted">{show(p)}</td>}
+              <td>{label}</td><td className="num mono">{show(f)}</td>{p && <td className="num mono prior">{show(p)}</td>}
             </tr>
           );
         })}
@@ -881,7 +881,7 @@ export function LeadTable({ section }: { section: Section }) {
   const tbCells = (now: number, t: number | undefined) => checks ? (
     <>
       <td className="num mono muted">{t === undefined ? "–" : money(t) || "0.00"}</td>
-      <td className={`num mono${t !== undefined && diffOf(now, t) ? " diff-warn" : " muted"}`}>{t === undefined ? "" : diffOf(now, t) ? money(diffOf(now, t)) : "✔"}</td>
+      <td className={`num mono${t !== undefined && diffOf(now, t) ? " diff-bad" : " diff-ok"}`}>{t === undefined ? "" : diffOf(now, t) ? money(diffOf(now, t)) : "✔"}</td>
     </>
   ) : null;
   const span = checks ? 5 : 3;
@@ -900,7 +900,7 @@ export function LeadTable({ section }: { section: Section }) {
               <span className="lead-chev" aria-hidden="true">{isOpen ? "▾" : "▸"}</span>{r.label}{r.fromTb && <span className="muted lead-fromtb" title="No schedule filled in yet, so this is the trial balance figure"> · per TB</span>}
             </button>
           </td>
-          <td className="num mono">{money(r.now) || "–"}</td><td className="num">{priorCell(r)}</td>{tbCells(r.now, tbFor(r))}
+          <td className="num mono">{money(r.now) || "–"}</td><td className="num prior">{priorCell(r)}</td>{tbCells(r.now, tbFor(r))}
         </tr>
         {isOpen && first && <tr className="lead-open"><td colSpan={span} id={`lead-${section.key}-${k}`}><Schedule section={section} sb={r.sub} /></td></tr>}
       </Fragment>
@@ -910,7 +910,7 @@ export function LeadTable({ section }: { section: Section }) {
     <>
       {label && <tr className="lead-label"><td colSpan={span}>{label}</td></tr>}
       {list.map(line)}
-      {list.length > 1 && <tr className="lead-sub"><td>{label ? `Total ${label.toLowerCase()}` : "Total"}</td><td className="num mono">{money(sum(list, "now")) || "–"}</td><td className="num mono muted">{money(sum(list, "before")) || "–"}</td>{tbCells(sum(list, "now"), Math.round(tbSum(list) * 100) / 100)}</tr>}
+      {list.length > 1 && <tr className="lead-sub"><td>{label ? `Total ${label.toLowerCase()}` : "Total"}</td><td className="num mono">{money(sum(list, "now")) || "–"}</td><td className="num mono prior">{money(sum(list, "before")) || "–"}</td>{tbCells(sum(list, "now"), Math.round(tbSum(list) * 100) / 100)}</tr>}
     </>
   );
   const typed = rows.some((r) => r.priorTyped);
@@ -918,10 +918,10 @@ export function LeadTable({ section }: { section: Section }) {
     <section className="card pad stack" aria-label={`${section.title} lead schedule`}>
       <div className="table-wrap">
       <table className="grid lead">
-        <thead><tr><th scope="col">Lead schedule</th><th scope="col" className="num">{w.period.slice(0, 4)}</th><th scope="col" className="num">{priorPeriod(w.period).slice(0, 4)}</th>{checks && <><th scope="col" className="num">Per trial balance</th><th scope="col" className="num">Difference</th></>}</tr></thead>
+        <thead><tr><th scope="col">Lead schedule</th><th scope="col" className="num">{w.period.slice(0, 4)}</th><th scope="col" className="num prior">{priorPeriod(w.period).slice(0, 4)}</th>{checks && <><th scope="col" className="num">Per trial balance</th><th scope="col" className="num">Difference</th></>}</tr></thead>
         <tbody>
           {after.length && within.length ? <>{block(within, "Due within one year")}{block(after, "Due after one year")}</> : block(rows)}
-          {after.length > 0 && within.length > 0 && <tr className="lead-total"><td>Total</td><td className="num mono">{money(sum(rows, "now")) || "–"}</td><td className="num mono">{money(sum(rows, "before")) || "–"}</td>{tbCells(sum(rows, "now"), Math.round(tbSum(rows) * 100) / 100)}</tr>}
+          {after.length > 0 && within.length > 0 && <tr className="lead-total"><td>Total</td><td className="num mono">{money(sum(rows, "now")) || "–"}</td><td className="num mono prior">{money(sum(rows, "before")) || "–"}</td>{tbCells(sum(rows, "now"), Math.round(tbSum(rows) * 100) / 100)}</tr>}
         </tbody>
       </table>
       </div>

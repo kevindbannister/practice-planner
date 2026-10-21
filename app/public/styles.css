@@ -1341,3 +1341,29 @@ tr.tb-check td { border-top: 1px dashed var(--line); font-size: 12.5px; }
 .import-list { margin: 4px 0 0; padding-left: 20px; font-size: 13px; display: grid; gap: 3px; }
 .import-list.warn li::marker { color: var(--warn, #b45309); }
 .import-parts { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: grid; gap: 6px; font-size: 14px; }
+
+/* Working papers: colour. Last year's (comparative) figures are red; headings, sub-totals and totals are tinted. */
+.paper-main table .prior, .paper-main table .prior input, .paper-main table .prior .mono { color: var(--red-ink); }
+.paper-main table.lead th.prior, .paper-main table.lines th.prior { color: var(--red-ink); }
+.paper-main table.grid thead th { background: var(--blue-soft); color: var(--blue-ink); border-bottom: 2px solid var(--blue-line); }
+.paper-main table.grid thead th.prior { background: var(--red-soft); border-bottom-color: var(--red-line); }
+.paper-main .lead-label td { color: var(--blue); background: var(--surface-2); }
+.paper-main .lead-sub td { background: var(--blue-soft); color: var(--blue-ink); border-top: 1px solid var(--blue-line); }
+.paper-main .lead-sub td.prior { color: var(--red-ink); background: var(--red-soft); }
+.paper-main .lead-total td { background: var(--blue-soft); color: var(--blue-ink); border-top: 2px solid var(--blue); }
+.paper-main .lead-total td.prior { color: var(--red-ink); background: var(--red-soft); border-top-color: var(--red-solid); }
+.paper-main .lead-line:hover td { background: var(--surface-2); }
+.paper-main table.lines tfoot td { background: var(--blue-soft); color: var(--blue-ink); border-top: 2px solid var(--blue); }
+.paper-main table.lines tfoot td.prior { background: var(--red-soft); color: var(--red-ink); }
+.paper-main .paper-stat { border-left: 4px solid var(--blue); }
+.paper-main .paper-stat.warn { border-left-color: var(--amber-solid); }
+.paper-main .paper-stat strong { color: var(--blue-ink); }
+.paper-main .paper-stat.warn strong { color: var(--amber-ink); }
+.paper-main .diff-bad, .paper-main td.diff-bad { color: var(--red-solid); font-weight: 700; }
+.paper-main .diff-ok { color: var(--green); }
+.paper-main .check-list li { border-left: 4px solid var(--green); padding-left: 8px; }
+.paper-main .check-list li.warn { border-left-color: var(--red-solid); background: var(--red-soft); }
+.paper-side .paper-group-name { color: var(--blue); border-bottom: 1px solid var(--blue-line); margin: 0 8px; padding-left: 2px; }
+.paper-main > .card:first-child, .paper-main > section.card:first-child { border-top: 4px solid var(--blue); }
+.paper-main > .card:first-child h2, .paper-main > .card:first-child h1 { color: var(--blue-ink); }
+.paper-item.done .paper-name { color: var(--green); }
