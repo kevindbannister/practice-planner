@@ -61,7 +61,7 @@ test("sealing round-trips and refuses tampering", () => {
 test("status says whether the app is set up, and the redirect address to register", async () => {
   const r = await call("status", { method: "GET", headers: { host: "kind-smoke.azurestaticapps.net" } });
   assert.equal(r.status, 200);
-  assert.deepEqual(r.body, { configured: true, redirectUri: "https://kind-smoke.azurestaticapps.net/api/xero/callback" });
+  assert.deepEqual(r.body, { configured: true, redirectUri: "https://kind-smoke.azurestaticapps.net/api/xero/callback", fixed: false });
   const n = await call("status", { method: "GET", env: {} });
   assert.equal(n.body.configured, false);
 });
@@ -186,4 +186,19 @@ test("check asks Xero about each scope on its own and reports the refused ones",
   const r2 = await call("check", { fetch: odd, body: { scopes: ["accounting.settings.read"] } });
   assert.equal(r2.body.reliable, false);
   assert.deepEqual(r2.body.accepted, ["accounting.settings.read"]);
+});
+
+test("a redirect URI Xero doesn't know is caught before going to Xero, with the address to add", async () => {
+  const fetch = fakeFetch([[(u) => u.includes("/connect/authorize"), { ...res(400, undefined), text: async () => "<h1>Error: unauthorized_client</h1><p>Invalid redirect_uri</p>", url: "https://login.xero.com/identity/error" }]]);
+  const r = await call("check", { fetch, body: { scopes: ["accounting.settings.read"], origin: "https://kind-smoke-0153bb410.5.azurestaticapps.net" } });
+  assert.equal(r.status, 400);
+  assert.equal(r.body.error, "redirect");
+  assert.equal(r.body.redirectUri, "https://kind-smoke-0153bb410.5.azurestaticapps.net/api/xero/callback");
+  // start uses the browser's address and the callback reuses it from the state
+  const s = await call("start", { body: { scopes: [], origin: "https://kind-smoke-0153bb410.5.azurestaticapps.net/" } });
+  const u = new URL(s.body.url);
+  assert.equal(u.searchParams.get("redirect_uri"), "https://kind-smoke-0153bb410.5.azurestaticapps.net/api/xero/callback");
+  assert.equal(unseal(KEY, u.searchParams.get("state")).r, "https://kind-smoke-0153bb410.5.azurestaticapps.net/api/xero/callback");
+  const odd = await call("start", { body: { scopes: [], origin: "javascript:alert(1)" } });
+  assert.equal(new URL(odd.body.url).searchParams.get("redirect_uri"), "https://pp.example.net/api/xero/callback");
 });

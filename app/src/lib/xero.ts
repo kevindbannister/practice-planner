@@ -109,7 +109,7 @@ export class HttpXero implements XeroApi {
 
   async status(): Promise<XeroStatus> {
     try {
-      const res = await fetch("/api/xero/status", { headers: { Accept: "application/json" } });
+      const res = await fetch(`/api/xero/status?origin=${encodeURIComponent(location.origin)}`, { headers: { Accept: "application/json" } });
       const json = await res.json();
       return { configured: !!json.configured, redirectUri: json.redirectUri };
     } catch {
@@ -117,10 +117,10 @@ export class HttpXero implements XeroApi {
     }
   }
   async start(scopes: string[]): Promise<string> {
-    return (await this.post("start", { scopes })).url;
+    return (await this.post("start", { scopes, origin: location.origin })).url;
   }
   async check(scopes: string[]): Promise<ScopeCheck> {
-    const r = await this.post("check", { scopes });
+    const r = await this.post("check", { scopes, origin: location.origin });
     return { accepted: r.accepted || scopes, refused: r.refused || [], unsure: r.unsure || [], reliable: !!r.reliable, warning: r.warning || undefined };
   }
   connections() {

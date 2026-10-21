@@ -78,8 +78,15 @@ function header(req, name) {
 }
 
 /** The address Xero sends the browser back to. Must match the app's Redirect URI exactly. */
-function redirectUri(req, env) {
+/** The app's own address as the browser sees it (sent by the app), if it's a plausible one. */
+function originFrom(value) {
+  const s = String(value || "").trim().replace(/\/+$/, "");
+  return /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(s) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(s) ? s : "";
+}
+
+function redirectUri(req, env, origin) {
   if (env.XERO_REDIRECT_URI) return env.XERO_REDIRECT_URI.trim();
+  if (originFrom(origin)) return `${originFrom(origin)}/api/xero/callback`;
   const host = String(header(req, "x-forwarded-host") || header(req, "host") || "").split(",")[0].trim();
   const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
   return `${local ? "http" : "https"}://${host}/api/xero/callback`;
@@ -170,7 +177,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       if (!q.code) return void (context.res = redirect("/#/settings/xero/failed/no-code"));
       let r;
       try {
-        r = await tokenCall({ grant_type: "authorization_code", code: String(q.code), redirect_uri: redirectUri(req, env) });
+        r = await tokenCall({ grant_type: "authorization_code", code: String(q.code), redirect_uri: st.r || redirectUri(req, env) });
       } catch {
         return void (context.res = redirect("/#/settings/xero/failed/unreachable"));
       }
@@ -181,7 +188,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
 
     if (action === "status" && method === "GET") {
-      context.res = reply(200, { configured, redirectUri: redirectUri(req, env) });
+      context.res = reply(200, { configured, redirectUri: redirectUri(req, env, (req.query || {}).origin), fixed: !!env.XERO_REDIRECT_URI });
       return;
     }
 
@@ -211,12 +218,13 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (action === "check") {
       const asked = Array.isArray(b.scopes) ? b.scopes.filter((s) => typeof s === "string" && SCOPE.test(s) && s.length < 80).slice(0, 40) : [];
       const probe = async (scope) => {
-        const url = `${AUTHORIZE}?${new URLSearchParams({ response_type: "code", client_id: env.XERO_CLIENT_ID.trim(), redirect_uri: redirectUri(req, env), scope, state: "check" }).toString()}`;
+        const url = `${AUTHORIZE}?${new URLSearchParams({ response_type: "code", client_id: env.XERO_CLIENT_ID.trim(), redirect_uri: redirectUri(req, env, b.origin), scope, state: "check" }).toString()}`;
         try {
           const res = await fetch(url, { redirect: "follow", headers: { Accept: "text/html" } });
           const text = (await res.text()).slice(0, 200000);
           const where = String(res.url || "");
-          const err = (text.match(/\b(invalid_scope|unauthorized_client|invalid_client|invalid_request|unsupported_response_type)\b/) || [])[1] || (/error/i.test(where) && /invalid[_ ]scope/i.test(text) ? "invalid_scope" : "");
+          const err = /invalid[ _]redirect[ _]uri|redirect_uri[^<]{0,40}(invalid|not registered|mismatch)/i.test(text) ? "invalid_redirect"
+            : (text.match(/\b(invalid_scope|unauthorized_client|invalid_client|invalid_request|unsupported_response_type)\b/) || [])[1] || (/error/i.test(where) && /invalid[_ ]scope/i.test(text) ? "invalid_scope" : "");
           return { scope, error: err };
         } catch {
           return { scope, error: "unreachable" };
@@ -224,9 +232,14 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       };
       // openid is always allowed: if it looks refused, the check can't be trusted
       const base = await probe("openid");
+      if (base.error === "invalid_redirect") {
+        const uri = redirectUri(req, env, b.origin);
+        context.res = reply(400, { error: "redirect", redirectUri: uri, message: `Xero hasn't got this app's redirect URI. In the Xero developer portal, open your app › Configuration › Redirect URIs, add exactly ${uri} and save. Then press Connect to Xero again.` });
+        return;
+      }
       if (base.error) {
         const hint = /client/.test(base.error) ? "Xero didn't recognise the client ID in Azure (XERO_CLIENT_ID)."
-          : /request|response_type/.test(base.error) ? "Xero may not accept the app's redirect URI: check it matches the one in Settings › Xero exactly." : "";
+          : /request|response_type/.test(base.error) ? `Xero may not accept the redirect URI ${redirectUri(req, env, b.origin)}: check it's on the Xero app exactly.` : "";
         context.res = reply(200, { accepted: asked, refused: [], unsure: asked, reliable: false, warning: hint });
         return;
       }
@@ -239,15 +252,16 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (action === "start") {
       const asked = Array.isArray(b.scopes) ? b.scopes.filter((s) => typeof s === "string" && SCOPE.test(s) && s.length < 80) : [];
       const scopes = [...new Set([...ALWAYS, ...asked])].slice(0, 40);
-      const state = seal(key, { k: "state", exp: now() + STATE_FOR_MS, n: crypto.randomBytes(8).toString("hex") });
+      const redirect = redirectUri(req, env, b.origin);
+      const state = seal(key, { k: "state", exp: now() + STATE_FOR_MS, n: crypto.randomBytes(8).toString("hex"), r: redirect });
       const url = `${AUTHORIZE}?${new URLSearchParams({
         response_type: "code",
         client_id: env.XERO_CLIENT_ID.trim(),
-        redirect_uri: redirectUri(req, env),
+        redirect_uri: redirect,
         scope: scopes.join(" "),
         state,
       }).toString()}`;
-      context.res = reply(200, { url, scopes });
+      context.res = reply(200, { url, scopes, redirectUri: redirect });
       return;
     }
 

@@ -131,6 +131,11 @@ export function XeroSettings() {
     try {
       const wanted = scopesFor(opts);
       const c = await xero.check(wanted);
+      if (c.warning) {
+        setBusy("");
+        setError(c.warning);
+        return;
+      }
       const required = SCOPE_GROUPS.filter((g) => g.required).flatMap((g) => (opts.classic && g.classic ? g.classic : g.scopes));
       const blocked = c.refused.filter((s) => required.includes(s));
       if (blocked.length) {
