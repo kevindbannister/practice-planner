@@ -128,3 +128,16 @@ test("journals reach the trial balance account, codes repeat, new accounts are a
   assert.equal(f.fixed, 1400);
   assert.equal(f.difference, 0);
 });
+
+test("IRIS names from the Kent Stove 2026 trial balance all find a code, and NA leaves the account's name to decide", async () => {
+  const { IRIS_BUILT_IN: chart, irisOf: of } = await import("../src/lib/tbMap");
+  const code = (raw: string, acct = "") => of(raw, acct, chart).code;
+  assert.equal(code("Plant & machin  Additions"), "523/2");
+  assert.equal(code("Motor vehicles  Disposals "), "525/3");
+  assert.equal(code("Motor vehicles  Eliminated on disposal  "), "525/23");
+  assert.equal(code("Computer equipment Charge for year", "Computer depreciation P/L"), "526/22");
+  assert.equal(code("Bank account no. 3"), "694");
+  assert.equal(code("Amts owed by/to group undertak - AJT"), "715/3");
+  assert.equal(code("Amts owed by/to group undertak - GF properties"), "715/1");
+  assert.deepEqual(of("NA", "Till Bank", chart), { code: "", name: "" });
+});

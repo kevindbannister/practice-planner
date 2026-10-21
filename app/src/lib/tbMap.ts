@@ -189,6 +189,16 @@ export const IRIS_BUILT_IN: ChartRow[] = ([
   ["735", "VAT"], ["737", "Trade creditors"], ["747", "Tax"], ["755", "Social security and other tax"], ["756", "Net wages"], ["768", "Pension payable"],
   ["770", "Credit card"], ["786", "Accrued expenses"], ["909", "HP - gross - less than 1 yr"], ["931/1", "Deferred tax timing difference - Accelerated capital allowances"],
   ["966/1", "Called up share capital - Share capital 1"], ["968/1", "Profit and loss account - Brought forward"],
+  // added 21 Oct 2026 from the Kent Stove 2026 TB's IRIS names: codes from its TB 2025 where shown there, otherwise
+  // by IRIS's numbering (/2 additions, /3 disposals, /21 depreciation b/fwd, /22 charge, /23 eliminated on disposal)
+  ["523/2", "Plant & machin Additions"], ["523/3", "Plant & machin Disposals"], ["523/23", "Plant & machin Eliminated on disposal"],
+  ["524/3", "Fixtures & fittings Disposals"], ["524/23", "Fixtures & fittings Eliminated on disposal"],
+  ["525/3", "Motor vehicles Disposals"], ["525/23", "Motor vehicles Eliminated on disposal"],
+  ["526/3", "Computer equipmt Disposals"], ["526/23", "Computer equipmt Eliminated on disposal"],
+  ["526/1", "Computer equipment Cost/valuation"], ["526/2", "Computer equipment Additions"], ["526/3", "Computer equipment Disposals"],
+  ["526/21", "Computer equipment Depreciation b/fwd"], ["526/22", "Computer equipment Charge for year"], ["526/23", "Computer equipment Eliminated on disposal"],
+  ["694", "Bank account no. 3"], ["695", "Bank account no. 4"],
+  ["715/1", "Amts owed by/to group undertak - GF properties"], ["715/3", "Amts owed by/to group undertak - AJT"],
   ["1", "Sales"], ["18", "Opening stock"], ["27", "Purchases"], ["53", "Sub contractors"], ["74", "Closing stock"], ["130", "Deposit account interest"],
   ["227", "Other operating leases - rent"], ["230", "Rates and water"], ["232", "Insurance"], ["233", "Light and heat"], ["234", "Repairs to Property"],
   ["254/1*1", "Directors' remuneration"], ["254/5*1", "Directors' social security"], ["254/8*1", "Directors' pensions paid"],
@@ -269,7 +279,8 @@ const plHint = (name: string) => /p ?(and|&) ?l\b|charge|prior year|expense|paid
  */
 export function irisOf(raw: string, acctName: string, chart: ChartRow[]): { code: string; name: string } {
   const t = raw.trim();
-  if (!t) return { code: "", name: "" };
+  // "NA" (no IRIS account) leaves the account's own name and type to decide
+  if (!t || /^(n\/?a|none|nil|not applicable|-+)$/i.test(t)) return { code: "", name: "" };
   if (looksLikeCode(t)) return { code: t, name: chart.find((c) => c.code === t)?.name || "" };
   const n = norm(t);
   let hits = chart.filter((c) => norm(c.name) === n);
