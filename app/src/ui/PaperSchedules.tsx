@@ -886,7 +886,15 @@ export function LeadTable({ section }: { section: Section }) {
   ) : null;
   const span = checks ? 5 : 3;
   const [open, setOpen] = useState<string[]>([]);
-  const toggle = (k: string) => setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
+  // how a line shows its schedule: opens under the line, or in a panel beside the lead (kept per paper for now)
+  const modeKey = `papers.leadMode.${section.key}`;
+  const [mode, setModeState] = useState<"line" | "panel">(() => { try { return localStorage.getItem(modeKey) === "panel" ? "panel" : "line"; } catch { return "line"; } });
+  const setMode = (m: "line" | "panel") => {
+    setModeState(m);
+    setOpen((o) => (m === "panel" ? o.slice(0, 1) : o));
+    try { localStorage.setItem(modeKey, m); } catch { /* no storage */ }
+  };
+  const toggle = (k: string) => setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : mode === "panel" ? [k] : [...o, k]));
   const shown = new Set<string>(); // a split account has two rows; its schedule sits under the first
   const line = (r: (typeof rows)[number]) => {
     const k = r.sub.key, isOpen = open.includes(k), first = !shown.has(k);
@@ -902,7 +910,7 @@ export function LeadTable({ section }: { section: Section }) {
           </td>
           <td className="num mono">{money(r.now) || "–"}</td><td className="num prior">{priorCell(r)}</td>{tbCells(r.now, tbFor(r))}
         </tr>
-        {isOpen && first && <tr className="lead-open"><td colSpan={span} id={`lead-${section.key}-${k}`}><Schedule section={section} sb={r.sub} /></td></tr>}
+        {isOpen && first && mode === "line" && <tr className="lead-open"><td colSpan={span} id={`lead-${section.key}-${k}`}><Schedule section={section} sb={r.sub} /></td></tr>}
       </Fragment>
     );
   };
@@ -914,9 +922,18 @@ export function LeadTable({ section }: { section: Section }) {
     </>
   );
   const typed = rows.some((r) => r.priorTyped);
+  const panelRow = rows.find((r) => open.includes(r.sub.key));
   return (
     <section className="card pad stack" aria-label={`${section.title} lead schedule`}>
-      <div className="table-wrap">
+      <div className="row-wrap lead-mode">
+        <span className="muted" style={{ fontSize: 12 }}>A line opens:</span>
+        <div className="seg" role="group" aria-label="How a line opens its schedule">
+          <button type="button" aria-pressed={mode === "line"} onClick={() => setMode("line")}>Under the line</button>
+          <button type="button" aria-pressed={mode === "panel"} onClick={() => setMode("panel")}>Side panel</button>
+        </div>
+      </div>
+      <div className={mode === "panel" && panelRow ? "lead-split" : undefined}>
+      <div className="table-wrap lead-main">
       <table className="grid lead">
         <thead><tr><th scope="col">Lead schedule</th><th scope="col" className="num">{w.period.slice(0, 4)}</th><th scope="col" className="num prior">{priorPeriod(w.period).slice(0, 4)}</th>{checks && <><th scope="col" className="num">Per trial balance</th><th scope="col" className="num">Difference</th></>}</tr></thead>
         <tbody>
@@ -925,7 +942,17 @@ export function LeadTable({ section }: { section: Section }) {
         </tbody>
       </table>
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>Click a line to open its schedule.</p>
+      {mode === "panel" && panelRow && (
+        <aside className="lead-panel" aria-label={`${panelRow.label} schedule`}>
+          <div className="lead-panel-head">
+            <div><span className="eyebrow">Schedule</span><h3 style={{ margin: 0 }}>{panelRow.label} · {money(panelRow.now) || "0.00"}</h3></div>
+            <button type="button" className="iconbtn" aria-label="Close the panel" onClick={() => setOpen([])}><Icon name="close" size={16} /></button>
+          </div>
+          <Schedule section={section} sb={panelRow.sub} />
+        </aside>
+      )}
+      </div>
+      <p className="muted" style={{ margin: 0, fontSize: 12 }}>{mode === "panel" ? "Click a line to open its schedule beside the lead." : "Click a line to open its schedule."}</p>
       {typed && <p className="muted" style={{ margin: 0, fontSize: 12 }}>No paper for last year in the planner yet, so type last year's figures from the accounts.</p>}
     </section>
   );

@@ -1384,3 +1384,13 @@ button.paper-group-name { border: 0; border-bottom: 1px solid var(--blue-line); 
 .paper-main > .card:first-child .seg button { padding: 4px 10px; min-height: 30px; font-size: 13px; }
 .paper-main > .card:first-child .signoff { padding: 3px 10px; }
 .paper { gap: 12px; }
+
+/* Lead schedules: a line can open under itself or in a panel beside the lead */
+.lead-mode { gap: 8px; justify-content: flex-end; }
+.lead-split { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.lead-split .lead-main { flex: 1 1 380px; min-width: 0; }
+.lead-split .lead-panel { position: sticky; top: 76px; flex: 1.3 1 460px; min-width: 0; border: 1px solid var(--blue-line); border-top: 4px solid var(--blue); border-radius: 10px; background: var(--surface); box-shadow: -6px 0 18px rgba(20,30,50,.06); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.lead-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.lead-panel .card { box-shadow: none; border: 0; padding: 0; }
+.lead-split .lead-line.is-open td { background: var(--blue-soft); color: var(--blue-ink); }
+@media (max-width: 800px) { .lead-split .lead-panel { flex-basis: 100%; } }
