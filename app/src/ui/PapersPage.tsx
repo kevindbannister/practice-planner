@@ -139,19 +139,15 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
 
   return (
     <div className="page">
-      <a className="crumb" href="#/papers">Working papers</a>
-      <div className="page-head">
-        <div className="stack" style={{ gap: 6 }}>
-          <h1>{c.Title}</h1>
-          <div className="row-wrap" style={{ gap: 6 }}>
-            {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}</span>}
-            {c.YearEnd && <span className="chip">Year end {fmtDate(`2000-${c.YearEnd}`, { year: false })}</span>}
-            <a className="chip blue" href={href("clients", c.Key)}>Client page</a>
-          </div>
-        </div>
-        <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
+      <div className="paper-top">
+        <a className="crumb" href="#/papers">Working papers</a>
+        <h1>{c.Title}</h1>
+        {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}</span>}
+        {c.YearEnd && <span className="chip">Year end {fmtDate(`2000-${c.YearEnd}`, { year: false })}</span>}
+        <a className="chip blue" href={href("clients", c.Key)}>Client page</a>
+        <label className="row-wrap paper-year" style={{ gap: 6, fontSize: 13 }}>
           <span>Year to</span>
-          <select className="input" value={period} style={{ width: "auto" }} disabled={!all.length}
+          <select className="input" value={period} style={{ width: "auto", minHeight: 32, padding: "2px 8px" }} disabled={!all.length}
             onChange={(e) => (window.location.hash = href("papers", c.Key, e.target.value))}>
             {!all.length && <option value="">Set the year end first</option>}
             {all.map((d) => <option key={d} value={d}>{fmtDate(d)}</option>)}
@@ -160,8 +156,8 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
       </div>
 
       {linked.length > 0 && (
-        <div className="row-wrap" style={{ gap: 8 }}>
-          <span className="muted" style={{ fontSize: 13 }}>Jobs for this year:</span>
+        <div className="row-wrap" style={{ gap: 6 }}>
+          <span className="muted" style={{ fontSize: 12 }}>Jobs:</span>
           {linked.map((j) => (
             <button key={j.Key} type="button" className="chip blue" style={{ cursor: "pointer" }} onClick={() => editor.open({ kind: "job", key: j.Key as string })}>
               {j.Title}{j.Status === "done" || j.CompletedDate ? " · complete" : j.Deadline ? ` · due ${fmtDate(j.Deadline as string, { year: false })}` : ""}
@@ -187,11 +183,20 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
   const w = useWriterState();
   const [pick, setPick] = useState<string>();
   const [choosing, setChoosing] = useState(false);
+  const [shut, setShut] = useState<string[]>(() => {
+    try { const v = localStorage.getItem("papers.shut"); if (v) return JSON.parse(v) as string[]; } catch { /* no storage */ }
+    return ["Job", "Accounts and tax"];
+  });
+  const flip = (g: string) => setShut((a) => {
+    const n = a.includes(g) ? a.filter((x) => x !== g) : [...a, g];
+    try { localStorage.setItem("papers.shut", JSON.stringify(n)); } catch { /* no storage */ }
+    return n;
+  });
   const inUse = useSectionsInUse();
   // a section turned off still shows when the trial balance puts balances into it
   const off = new Set([...sectionsOff(data.papers, c.Key, period)].filter((k) => !inUse.has(k)));
   const used = SECTIONS.filter((x) => !off.has(x.key));
-  const sec = used.find((x) => x.key === pick) || used[0] || SECTIONS[0];
+  const sec = used.find((x) => x.key === pick) || used.find((x) => !shut.includes(x.group)) || used[0] || SECTIONS[0];
   const prog = progress(c.Key, period, data.papers);
   const i = used.findIndex((x) => x.key === sec.key);
   const next = () => i >= 0 && i < used.length - 1 && setPick(used[i + 1].key);
@@ -211,10 +216,14 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
         ) : GROUPS.map((g) => {
           const list = used.filter((x) => x.group === g);
           if (!list.length) return null;
+          const closed = shut.includes(g) && !list.some((x) => x.key === sec.key);
           return (
             <div key={g} className="paper-group">
-              <div className="paper-group-name">{g}</div>
-              <ul>
+              <button type="button" className="paper-group-name" aria-expanded={!closed} onClick={() => flip(g)}>
+                <span aria-hidden="true">{closed ? "▸" : "▾"}</span> {g}
+                {closed && <span className="muted paper-group-n">{list.filter((x) => stateOf(data.papers, c.Key, period, x.key).status === "done").length}/{list.length}</span>}
+              </button>
+              {!closed && <ul>
                 {list.map((it) => {
                   const st = stateOf(data.papers, c.Key, period, it.key);
                   return (
@@ -228,7 +237,7 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
                     </li>
                   );
                 })}
-              </ul>
+              </ul>}
             </div>
           );
         })}
@@ -305,7 +314,11 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
           <div className="stack" style={{ gap: 2 }}>
             <span className="eyebrow">{sec.group}</span>
             <h2 id="paper-h" style={{ margin: 0 }}>{sec.title}</h2>
-            <span className="muted" style={{ fontSize: 13 }}>{client.Title} · for the year ended {fmtDate(period)}</span>
+          </div>
+          <div className="seg" role="group" aria-label="Status of this section">
+            {(Object.keys(STATUS_LABEL) as PaperStatus[]).map((s) => (
+              <button key={s} type="button" aria-pressed={st.status === s} onClick={() => void onWrite({ Status: s })}>{STATUS_LABEL[s]}</button>
+            ))}
           </div>
           <div className="signoffs">
             {(["Prepared", "Reviewed"] as const).map((k) => {
@@ -319,11 +332,6 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
               );
             })}
           </div>
-        </div>
-        <div className="seg" role="group" aria-label="Status of this section">
-          {(Object.keys(STATUS_LABEL) as PaperStatus[]).map((s) => (
-            <button key={s} type="button" aria-pressed={st.status === s} onClick={() => void onWrite({ Status: s })}>{STATUS_LABEL[s]}</button>
-          ))}
         </div>
         {isDoc && (
           <label>

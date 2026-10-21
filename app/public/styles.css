@@ -1367,3 +1367,20 @@ tr.tb-check td { border-top: 1px dashed var(--line); font-size: 12.5px; }
 .paper-main > .card:first-child, .paper-main > section.card:first-child { border-top: 4px solid var(--blue); }
 .paper-main > .card:first-child h2, .paper-main > .card:first-child h1 { color: var(--blue-ink); }
 .paper-item.done .paper-name { color: var(--green); }
+
+/* Working papers: a compact top */
+.paper-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.paper-top h1 { font-size: 20px; margin: 0; }
+.paper-top .crumb { font-size: 12px; }
+.paper-top .paper-year { margin-left: auto; }
+.paper-side-head { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 0 8px; }
+.paper-side-head .paper-bar { flex: 1 1 100%; width: 100%; }
+button.paper-group-name { border: 0; border-bottom: 1px solid var(--blue-line); box-shadow: none; display: flex; align-items: center; gap: 6px; width: calc(100% - 16px); background: transparent; border-radius: 0; min-height: 0; cursor: pointer; text-align: left; }
+.paper-group-n { margin-left: auto; font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.paper-main > .card:first-child { padding-top: 10px; padding-bottom: 10px; gap: 8px; }
+.paper-main > .card:first-child .eyebrow { font-size: 10px; }
+.paper-main > .card:first-child h2 { font-size: 17px; }
+.paper-main > .card:first-child .seg { align-self: center; }
+.paper-main > .card:first-child .seg button { padding: 4px 10px; min-height: 30px; font-size: 13px; }
+.paper-main > .card:first-child .signoff { padding: 3px 10px; }
+.paper { gap: 12px; }
