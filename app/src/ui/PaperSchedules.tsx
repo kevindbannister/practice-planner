@@ -13,6 +13,7 @@ import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { Icon, companiesHouseUrl } from "./bits";
 import { readSetting, useData } from "./data";
+import { BookMeta, LedgerTable, bookKeyFor, useXeroBook } from "./XeroLedger";
 import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, IRIS_BUILT_IN, Mapping, accountsFigures, controlNote, mapTb, onSide, paperAccounts, parseChart, savedMaps, tbTotals } from "../lib/tbMap";
 
 // ------------------------------------------------------------------ saving
@@ -216,6 +217,8 @@ function TbItems({ section, sb }: { section: Section; sb: Sub }) {
   const maps = useTbMaps(w.period);
   const writeMaps = useMapWriter();
   const [moving, setMoving] = useState<string>();
+  const [ledger, setLedger] = useState<string>();
+  const { book } = useXeroBook(w.setup("xero/main") as BookMeta);
   if (!maps) return null;
   const base = `${section.key}/${sb.key}`;
   const keys = sb.kind === "register" ? [`${base}#cost`, `${base}#dep`] : sb.split ? [base, `${base}#after`] : [base];
@@ -227,7 +230,9 @@ function TbItems({ section, sb }: { section: Section; sb: Sub }) {
     setMoving(undefined);
     if (dest !== m.dest) await writeMaps([{ key: m.acct.key, iris: m.iris, dest }]);
   };
-  const cols = hasJournals ? 6 : 4;
+  const cols = (hasJournals ? 6 : 4) + (book ? 1 : 0);
+  const ledgerKey = (m: Mapping) => (book ? bookKeyFor(book, m.acct.key, m.acct.code) : undefined);
+  const countOf = (k?: string) => (book && k ? book.lines.reduce((n, l) => n + (l.a === k ? 1 : 0), 0) : 0);
   const side = (n: number, d: (typeof blocks)[number]["dest"]) => onSide(n, d.side);
   return (
     <div className="stack tb-items" style={{ gap: 6 }}>
@@ -239,6 +244,7 @@ function TbItems({ section, sb }: { section: Section; sb: Sub }) {
               <th scope="col">Code</th><th scope="col" className="wide">Account</th><th scope="col">IRIS</th>
               {hasJournals && <><th scope="col" className="num">Software</th><th scope="col" className="num">Journals</th></>}
               <th scope="col" className="num">{hasJournals ? "Final" : "Amount"}</th>
+              {book && <th scope="col" className="num">Xero</th>}
             </tr>
           </thead>
           <tbody>
@@ -265,7 +271,14 @@ function TbItems({ section, sb }: { section: Section; sb: Sub }) {
                           <td className="mono muted" title={m.irisName}>{m.iris || m.irisName}</td>
                           {hasJournals && <><td className="num mono muted">{money(side(m.swBalance, b.dest)) || "–"}</td><td className="num mono muted">{m.jBalance ? money(side(m.jBalance, b.dest)) : "–"}</td></>}
                           <td className="num mono">{money(side(m.balance, b.dest)) || "0.00"}</td>
+                          {book && (() => {
+                            const k = ledgerKey(m), n = countOf(k), isOpen = ledger === m.acct.key;
+                            return <td className="num">{k && (n || book.unreconciled.some((u) => u.a === k) || book.bank.some((x) => x.key === k)) ? <button type="button" className="linkbtn" aria-expanded={isOpen} onClick={() => setLedger(isOpen ? undefined : m.acct.key)}>{n} transaction{n === 1 ? "" : "s"}</button> : <span className="muted">–</span>}</td>;
+                          })()}
                         </tr>
+                        {book && ledger === m.acct.key && ledgerKey(m) && (
+                          <tr className="tb-ledger"><td colSpan={cols}><LedgerTable book={book} accountKey={ledgerKey(m)!} name={m.acct.account} normal={b.dest.side} /></td></tr>
+                        )}
                         {open && (
                           <tr className="tb-move"><td colSpan={cols}>
                             <label>Move {m.acct.account} to
@@ -282,6 +295,7 @@ function TbItems({ section, sb }: { section: Section; sb: Sub }) {
                     <td colSpan={3}>{label}</td>
                     {hasJournals && <><td className="num mono">{money(sum("swBalance")) || "0.00"}</td><td className="num mono">{money(sum("jBalance")) || "–"}</td></>}
                     <td className="num mono">{money(sum("balance")) || "0.00"}</td>
+                    {book && <td />}
                   </tr>
                 </Fragment>
               );

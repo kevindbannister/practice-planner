@@ -4,6 +4,7 @@
 // a Prepared / Reviewed sign-off, notes, and its schedules (see PaperSchedules).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WorkbookImport } from "./PaperImport";
+import { XeroImport } from "./XeroImport";
 import { AddSchedule, AssetSummary, LeadTable, PaperWriter, Schedule, useSectionsInUse, useWriterState } from "./PaperSchedules";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
 import { GROUPS, LEAD_KINDS, PaperStatus, SECTIONS, STATUS_LABEL, Section, progress, sectionsOff, stateOf, subsFor, yearEnds } from "../lib/papers";
@@ -170,7 +171,10 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
         <div className="alert amber"><strong>No year end on this company</strong><span>Add it on the <a href={href("clients", c.Key)}>client page</a> (or Companies House will fill it in) and the papers will appear.</span></div>
       ) : (
         <PaperWriter key={period} client={c} period={period}>
-          <WorkbookImport client={c} period={period} />
+          <div className="row-wrap paper-imports" style={{ gap: 8, alignItems: "flex-start" }}>
+            <WorkbookImport client={c} period={period} />
+            <XeroImport client={c} period={period} />
+          </div>
           <PaperBody client={c} period={period} today={today} />
         </PaperWriter>
       )}

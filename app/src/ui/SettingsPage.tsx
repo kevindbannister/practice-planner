@@ -1,4 +1,5 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
+import { XeroSettings } from "./XeroSettings";
 // due, default hours and its stages); and Companies House checks.
 import React, { useEffect, useRef, useState } from "react";
 import { fmtDate, fmtHours, todayIso } from "../lib/domain";
@@ -26,7 +27,7 @@ declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
 const TABS: [string, string][] = [
-  ["week", "Your week"], ["work", "Types of work"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["backups", "Backups"],
+  ["week", "Your week"], ["work", "Types of work"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["xero", "Xero"], ["backups", "Backups"],
 ];
 
 export function SettingsPage() {
@@ -47,6 +48,7 @@ export function SettingsPage() {
       {tab === "backups" && <BackupSettings />}
       {tab === "calendar" && <CalendarSettings />}
       {tab === "letters" && <CommsSettings />}
+      {tab === "xero" && <XeroSettings />}
     </div>
   );
 }

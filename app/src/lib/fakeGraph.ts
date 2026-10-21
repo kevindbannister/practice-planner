@@ -60,6 +60,7 @@ export class FakeGraph implements Graph {
     const file: DriveFile = { id: `file-${files.length + 1}`, name, path: full, size: data.byteLength, at: new Date().toISOString() };
     // letters and the letterhead keep their bytes, so they can be opened again
     if (full.startsWith("Practice Planner Letters/") && data.byteLength < 1_500_000) file.data64 = toB64(data);
+    if (full.startsWith("Practice Planner Xero/") && data.byteLength < 8_000_000) file.data64 = toB64(data);
     const same = files.findIndex((f) => f.path === full);
     if (same >= 0) files.splice(same, 1, { ...file, id: files[same].id });
     else files.push(file);

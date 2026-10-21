@@ -1394,3 +1394,15 @@ button.paper-group-name { border: 0; border-bottom: 1px solid var(--blue-line); 
 .lead-panel .card { box-shadow: none; border: 0; padding: 0; }
 .lead-split .lead-line.is-open td { background: var(--blue-soft); color: var(--blue-ink); }
 @media (max-width: 800px) { .lead-split .lead-panel { flex-basis: 100%; } }
+
+/* Xero: the ledger behind each trial balance account */
+.paper-imports > * { flex: 0 1 auto; }
+.paper-imports > .import-panel { flex: 1 1 100%; }
+.tb-ledger > td { padding: 8px 0 14px 16px; white-space: normal; background: var(--surface-2); }
+.ledger-wrap { max-height: 520px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.ledger-table { font-size: 13px; }
+.ledger-table thead th { position: sticky; top: 0; z-index: 1; }
+.ledger-table td { padding-top: 6px; padding-bottom: 6px; }
+.ledger-open td { font-style: italic; color: var(--muted); }
+.ledger-bank { padding: 6px 10px; border-radius: 8px; background: var(--blue-soft); color: var(--blue-ink); }
+.paper-main .ledger-table tfoot tr:not(.lead-sub) td { background: none; color: inherit; border-top: 1px solid var(--line); font-weight: 400; }

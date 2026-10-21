@@ -29,7 +29,7 @@ jobs:
           npm install --no-audit --no-fund
           npm test
           npm run build
-      - name: Test the Companies House bridge
+      - name: Test the server functions (Companies House, AI, Xero)
         working-directory: api
         run: npm test
       - name: Deploy
@@ -40,7 +40,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
           action: "upload"
           app_location: "app/dist" # already built above
-          api_location: "api" # Companies House bridge (Azure Functions)
+          api_location: "api" # Companies House, AI and Xero bridges (Azure Functions)
           output_location: ""
           skip_app_build: true
 

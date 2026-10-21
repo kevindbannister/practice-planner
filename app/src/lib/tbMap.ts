@@ -90,6 +90,7 @@ export function guessDest(name: string, type: string, balance: number): string {
   const cls = fixedClass(n);
   if (cls && (!isPl || /fixed|non current asset/.test(ty)) && !liability) return `${cls}#${dep ? "dep" : "cost"}`;
   if (!isPl) {
+    if (ty === "bank") return /deposit|saver|savings|reserve/.test(n) ? "bank/deposit" : /\beur\b|euro/.test(n) ? "bank/eur" : /\busd\b|dollar/.test(n) ? "bank/usd" : "bank/current";
     if (/debtors? control|trade debtors|accounts receivable|^debtors$/.test(n)) return "debtors/trade";
     if (/prepay/.test(n)) return "debtors/prepayments";
     if (/accrued income/.test(n)) return "debtors/accrued";
@@ -368,7 +369,9 @@ export function mapTb(rows: TbRow[], all: { lines: Row[]; papers: Row[] }, clien
     if (fromTb.name) return { ...base, iris, irisName, dest: guessDest(fromTb.name, "", balance || swBalance), saved: false, why: `IRIS: ${fromTb.name}` };
     const other = byName.get(norm(acct.account));
     if (other?.dest) return { ...base, iris: other.iris || "", irisName: (other.iris && chartByCode.get(other.iris)?.name) || "", dest: other.dest, saved: false, why: "As at another company" };
-    const ic = chart.length ? guessIris(acct.account, chart) : undefined;
+    // a near match on the IRIS chart's names is only a guess; when the software says the account's type
+    // (Xero does), the name and type rules are surer, so only an exact name match on the chart is used
+    const ic = !chart.length ? undefined : acct.type ? chart.find((c) => norm(c.name) === norm(acct.account)) : guessIris(acct.account, chart);
     if (ic) return { ...base, iris: ic.code, irisName: ic.name, dest: chartDest(ic, balance || swBalance, acct.account), saved: false, why: `IRIS ${ic.code} ${ic.name} (from the name)` };
     return { ...base, iris: "", irisName: "", dest: guessDest(acct.account, acct.type, balance || swBalance), saved: false, why: "From the name" };
   });
