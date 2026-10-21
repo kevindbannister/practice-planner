@@ -14,7 +14,7 @@ export const STATUS_LABEL: Record<PaperStatus, string> = { todo: "Not started", 
 
 export type Kind =
   | "list" | "register" | "account" | "vat" | "payroll" | "expense" | "tb" | "journals" | "opening" | "finaltb"
-  | "checklist" | "questions" | "budget" | "info" | "report" | "queries";
+  | "checklist" | "questions" | "budget" | "info" | "report" | "queries" | "summary";
 
 export type Sub = {
   key: string; title: string; kind: Kind;
@@ -52,23 +52,27 @@ export const SECTIONS: Section[] = [
   lead("investments", "Investments", "Balance sheet", [sub("main", "Investments")], { offByDefault: true }),
   lead("stock", "Stock and work in progress", "Balance sheet", [sub("stock", "Stock"), sub("wip", "Work in progress")], { offByDefault: true }),
   lead("debtors", "Debtors and prepayments", "Balance sheet", [
-    sub("trade", "Trade debtors"), sub("prepayments", "Prepayments"), sub("accrued", "Accrued income"), sub("other", "Other debtors"),
-    sub("aged", "Aged debtors report", "report"),
+    sub("trade", "Trade debtors"), sub("prepayments", "Prepayments"), sub("accrued", "Accrued income"), sub("group", "Amounts owed by group undertakings"),
+    sub("other", "Other debtors"), sub("aged", "Aged debtors report", "report"),
   ]),
   lead("bank", "Bank balances and cash", "Balance sheet", [
     sub("current", "Current account"), sub("deposit", "Deposit account"), sub("eur", "EUR account"), sub("usd", "USD account"), sub("cash", "Cash in hand"),
   ]),
   lead("creditors", "Creditors and accruals", "Balance sheet", [
-    sub("trade", "Trade creditors"), sub("accruals", "Accruals"), sub("dla", "Directors' current account", "account", { normal: "cr" }),
+    sub("trade", "Trade creditors"), sub("card", "Credit card"), sub("accruals", "Accruals"), sub("dla", "Directors' current account", "account", { normal: "cr" }),
     sub("ssot", "Social security and other taxes"), sub("tax", "Taxation"), sub("other", "Other creditors"),
     sub("hp", "Hire purchase", "account", { normal: "cr", split: true }), sub("loan", "Bank loan", "account", { normal: "cr", split: true }),
     sub("aged", "Aged creditors report", "report"),
   ]),
   lead("loans", "Long term loans", "Balance sheet", [sub("main", "Long term loans", "list", { after: true })], { offByDefault: true }),
-  lead("capital", "Capital and reserves", "Balance sheet", [sub("shares", "Share capital"), sub("reserves", "Reserves"), sub("accounts", "Capital accounts", "account", { normal: "cr" })]),
+  lead("provisions", "Provisions for liabilities", "Balance sheet", [sub("deferred", "Deferred tax"), sub("other", "Other provisions")], { offByDefault: true }),
+  lead("capital", "Capital and reserves", "Balance sheet", [
+    sub("shares", "Share capital"), sub("reserves", "Reserves brought forward"), sub("dividends", "Dividends"), sub("accounts", "Capital accounts", "account", { normal: "cr" }),
+  ]),
   sec("statutory", "Statutory lead schedule", "Balance sheet", [sub("main", "Companies House details and filing history", "report")]),
   lead("income", "Income", "Profit and loss", [sub("sales", "Sales"), sub("interest", "Interest received"), sub("other", "Other income")]),
   lead("expenditure", "Expenditure", "Profit and loss", [sub("cos", "Cost of sales"), sub("tb", "Expenses per trial balance"), sub("accountancy", "Accountancy", "expense")]),
+  lead("taxation", "Tax on profit", "Profit and loss", [sub("current", "Corporation tax"), sub("deferred", "Deferred tax")], { offByDefault: true, canAdd: false }),
   sec("vat", "VAT", "Other schedules", [sub("control", "VAT control account", "account", { normal: "cr" }), sub("returns", "VAT return summary", "vat")]),
   sec("workings", "Accounts working papers", "Other schedules", [sub("receipts", "Receipts"), sub("payments", "Payments"), sub("sundry", "Sundry")], { offByDefault: true, canAdd: true }),
   sec("wages", "Wages and PAYE", "Other schedules", [
@@ -76,8 +80,11 @@ export const SECTIONS: Section[] = [
   ], { offByDefault: true }),
   sec("creditors-ca", "Creditors control account", "Other schedules", [sub("main", "Creditors control account", "account", { normal: "cr" })], { offByDefault: true }),
   sec("debtors-ca", "Debtors control account", "Other schedules", [sub("main", "Debtors control account", "account", { normal: "dr" })], { offByDefault: true }),
+  sec("summary", "Accounts summary", "Trial balance", [sub("main", "Accounts summary", "summary")]),
   sec("tb", "Year end trial balance", "Trial balance", [sub("main", "Trial balance from the software", "tb")]),
-  sec("journals", "Journals", "Trial balance", [sub("main", "Journals", "journals"), sub("review", "Review journals", "journals"), sub("final", "Final journals", "journals")]),
+  sec("journals", "Journals", "Trial balance", [
+    sub("obd", "Opening balance differences", "journals"), sub("main", "Journals", "journals"), sub("review", "Review journals", "journals"), sub("final", "Final journals", "journals"),
+  ]),
   sec("opening", "Opening balances", "Trial balance", [sub("main", "Opening balances", "opening")], { offByDefault: true }),
   sec("final-tb", "Final trial balance", "Trial balance", [sub("main", "Final trial balance", "finaltb")]),
 ];
@@ -221,7 +228,7 @@ export function cell(l: Line, key: string): unknown {
 // ------------------------------------------------------------------ columns of each kind of schedule
 
 export type ColType = "text" | "money" | "int" | "date" | "status" | "pct";
-export type Col = { key: string; label: string; type: ColType; calc?: (l: Line, s: Setup) => number | undefined; total?: boolean; wide?: boolean; options?: string[] };
+export type Col = { key: string; label: string; type: ColType; calc?: (l: Line, s: Setup) => number | undefined; total?: boolean; wide?: boolean; options?: string[]; list?: string };
 
 const m = (key: string, label: string, more: Partial<Col> = {}): Col => ({ key, label, type: "money", total: true, ...more });
 const t = (key: string, label: string, more: Partial<Col> = {}): Col => ({ key, label, type: "text", ...more });
@@ -229,14 +236,34 @@ const v = (l: Line, k: string) => n0(cell(l, k));
 
 /** Depreciation for the year on one asset, as the working paper works it out. */
 export function depreciation(l: Line, s: Setup): number {
+  // a charge typed on the line wins (a disposal in the year, a rounding line, an odd rate)
+  const typed = num(cell(l, "chargeOver"));
+  if (typed !== undefined) return round2(typed);
   const method = String(s.method || "none"), rate = n0(s.rate) / 100;
-  const months = num(cell(l, "months")) ?? 12;
   const costCf = v(l, "costBf") + v(l, "add") - v(l, "disp");
   const nbvLeft = costCf - (v(l, "depBf") - v(l, "depDisp"));
   if (method === "none" || !rate || nbvLeft <= 0) return 0;
+  const share = yearShare(l, s);
   // reducing balance: on what's left; straight line: on cost (an addition from when it was bought)
-  const charge = method === "rb" ? nbvLeft * rate * (months / 12) : costCf * rate * (months / 12);
+  const charge = method === "rb" ? nbvLeft * rate * share : costCf * rate * share;
   return round2(Math.max(0, Math.min(charge, nbvLeft)));
+}
+
+/**
+ * The part of the year an asset is depreciated for. By months: the Months column (12 if blank). By days:
+ * an asset bought in the year from its date to the year end over 365, otherwise the full year.
+ * The year end comes in on the setup as _period.
+ */
+export function yearShare(l: Line, s: Setup): number {
+  if (s.apportion === "days") {
+    const end = String(s._period || ""), bought = String(cell(l, "date") || "");
+    if (/^\d{4}-\d{2}-\d{2}/.test(end) && /^\d{4}-\d{2}-\d{2}/.test(bought)) {
+      const start = priorPeriod(end);
+      if (bought > start && bought <= end) return (Date.parse(end) - Date.parse(bought.slice(0, 10))) / 86400000 / 365;
+    }
+    return 1;
+  }
+  return (num(cell(l, "months")) ?? 12) / 12;
 }
 const regCostCf = (l: Line) => round2(v(l, "costBf") + v(l, "add") - v(l, "disp"));
 const regDepCf = (l: Line, s: Setup) => round2(v(l, "depBf") - v(l, "depDisp") + depreciation(l, s));
@@ -247,7 +274,7 @@ export const KIND_COLS: Partial<Record<Kind, Col[]>> = {
     { key: "date", label: "Date", type: "date" }, t("Detail", "Asset", { wide: true }), t("Remark", "Details"),
     m("costBf", "Cost b/f"), m("depBf", "Dep'n b/f"), m("nbvBf", "NBV b/f", { calc: (l) => round2(v(l, "costBf") - v(l, "depBf")) }),
     m("add", "Additions"), m("disp", "Disposals (cost)"), m("costCf", "Cost c/f", { calc: regCostCf }),
-    m("depDisp", "Dep'n on disposals"), { key: "months", label: "Months", type: "int" },
+    m("depDisp", "Dep'n on disposals"), { key: "months", label: "Months", type: "int" }, m("chargeOver", "Charge (typed)"),
     m("charge", "Charge for year", { calc: depreciation }), m("depCf", "Dep'n c/f", { calc: regDepCf }),
     m("nbvCf", "NBV c/f", { calc: (l, s) => round2(regCostCf(l) - regDepCf(l, s)) }),
   ],
@@ -267,8 +294,11 @@ export const KIND_COLS: Partial<Record<Kind, Col[]>> = {
     t("Code", "Invoice"), t("Detail", "Detail", { wide: true }), m("gross", "Gross"), m("vat", "VAT"),
     m("Amount", "Net", { calc: (l) => (l.f.gross === undefined && l.f.vat === undefined ? l.Amount : round2(v(l, "gross") - v(l, "vat"))) }),
   ],
-  tb: [t("Code", "Code"), t("Detail", "Account", { wide: true }), t("type", "Type"), m("dr", "Debit"), m("cr", "Credit")],
-  journals: [{ key: "no", label: "Journal", type: "int" }, t("Code", "Code"), t("Detail", "Details", { wide: true }), m("dr", "Debit"), m("cr", "Credit")],
+  tb: [t("Code", "Code"), t("Detail", "Account", { wide: true }), t("type", "Type"), m("dr", "Debit"), m("cr", "Credit"), t("iris", "IRIS account")],
+  journals: [
+    { key: "no", label: "Journal", type: "int" }, t("Code", "Code"), t("Detail", "Account", { wide: true, list: "tb-accounts" }), m("dr", "Debit"), m("cr", "Credit"),
+    t("Remark", "Narrative", { wide: true }),
+  ],
   opening: [
     t("Code", "Client code"), t("Detail", "Account", { wide: true }), m("cdr", "Client debit"), m("ccr", "Client credit"),
     m("adr", "Adjustment debit", { calc: (l) => Math.max(0, round2(v(l, "odr") - v(l, "ocr") - (v(l, "cdr") - v(l, "ccr")))) }),
@@ -325,65 +355,122 @@ export function subValue(sb: Sub, lines: Line[], s: Setup): number {
 /** The kinds of schedule that put a figure on the lead schedule (and so open from it). */
 export const LEAD_KINDS = ["list", "register", "account", "expense", "vat"];
 
-export type LeadRow = { sub: Sub; label: string; now: number; before: number | undefined; after: boolean; priorTyped: boolean };
+export type LeadRow = { sub: Sub; label: string; now: number; before: number | undefined; after: boolean; priorTyped: boolean; fromTb?: boolean };
+
+/** Whether a schedule has been filled in (otherwise its lead figure comes from the trial balance). */
+function filledIn(sb: Sub, lines: Line[], s: Setup): boolean {
+  if (lines.length) return true;
+  if (sb.kind === "account" || sb.kind === "vat") return num(s.bf) !== undefined;
+  return false;
+}
 
 /**
- * The rows of a lead schedule, this year and last. Last year comes from last year's paper; with no
- * paper for last year (the first year in the planner), the figure typed on this year's lead is used.
- * A split account (HP, loans) gives two rows: due within one year and after one year.
+ * The rows of a lead schedule, this year and last. A schedule that's been filled in gives its own figure;
+ * one that hasn't gives the trial balance figure (after journals) for the accounts mapped to it. Last year
+ * comes the same way from last year's paper; with nothing for last year, the figure typed on this year's
+ * lead is used. A split account (HP, loans) gives two rows: due within one year and after one year.
  */
 export function leadRows(section: Section, rows: Row[], lines: Row[], clientKey: string, period: string, tb?: { now?: Map<string, number>; prior?: Map<string, number> }): LeadRow[] {
   const prior = priorPeriod(period);
   const out: LeadRow[] = [];
   for (const sb of subsFor(section, rows, clientKey, period)) {
     if (!LEAD_KINDS.includes(sb.kind)) continue;
-    const s = setupOf(rows, clientKey, period, setupKey(section.key, sb.key));
-    const ps = setupOf(rows, clientKey, prior, setupKey(section.key, sb.key));
+    const s: Setup = { ...setupOf(rows, clientKey, period, setupKey(section.key, sb.key)), _period: period };
+    const ps: Setup = { ...setupOf(rows, clientKey, prior, setupKey(section.key, sb.key)), _period: prior };
     const nowLines = linesFor(lines, clientKey, period, section.key, sb.key);
     const priorLines = linesFor(lines, clientKey, prior, section.key, sb.key);
-    const tbKey = `${section.key}/${sb.key}`;
-    // a list schedule's trial balance accounts count as its lines
-    const tbNow = sb.kind === "list" ? tb?.now?.get(tbKey) || 0 : 0, tbPrior = sb.kind === "list" ? tb?.prior?.get(tbKey) : undefined;
-    const hasPrior = priorLines.length > 0 || Object.keys(ps).length > 0 || tbPrior !== undefined;
-    const now = round2(subValue(sb, nowLines, s) + tbNow);
-    const before = hasPrior ? round2(subValue(sb, priorLines, ps) + (tbPrior || 0)) : num(s.prior);
+    const key = `${section.key}/${sb.key}`;
+    const tbOf = (m?: Map<string, number>): number | undefined => {
+      if (!m) return undefined;
+      const pair = (a?: number, b?: number, sign = 1) => (a === undefined && b === undefined ? undefined : round2((a || 0) + sign * (b || 0)));
+      if (sb.kind === "register") return pair(m.get(`${key}#cost`), m.get(`${key}#dep`), -1);
+      if (sb.split) return pair(m.get(key), m.get(`${key}#after`));
+      return m.get(key);
+    };
+    const filled = filledIn(sb, nowLines, s), priorFilled = filledIn(sb, priorLines, ps);
+    const tbNow = tbOf(tb?.now), tbPrior = tbOf(tb?.prior);
+    const now = filled ? subValue(sb, nowLines, s) : tbNow ?? 0;
+    const before = priorFilled ? subValue(sb, priorLines, ps) : tbPrior ?? num(s.prior);
+    const priorTyped = !priorFilled && tbPrior === undefined;
+    const fromTb = !filled && tbNow !== undefined;
     if (sb.split) {
-      const within = n0(s.within), pWithin = hasPrior ? n0(ps.within) : num(s.priorWithin);
-      out.push({ sub: sb, label: `${sb.title} (within one year)`, now: within, before: pWithin, after: false, priorTyped: !hasPrior });
-      out.push({ sub: sb, label: `${sb.title} (after one year)`, now: round2(now - within), before: before === undefined ? undefined : round2(before - (pWithin ?? 0)), after: true, priorTyped: !hasPrior });
-    } else out.push({ sub: sb, label: sb.title, now, before, after: !!sb.after, priorTyped: !hasPrior });
+      const within = filled ? num(s.within) ?? tb?.now?.get(key) ?? 0 : tb?.now?.get(key) ?? 0;
+      const pWithin = priorFilled ? n0(ps.within) : tb?.prior ? tb.prior.get(key) ?? 0 : num(s.priorWithin);
+      out.push({ sub: sb, label: `${sb.title} (within one year)`, now: round2(within), before: pWithin, after: false, priorTyped, fromTb });
+      out.push({ sub: sb, label: `${sb.title} (after one year)`, now: round2(now - within), before: before === undefined ? undefined : round2(before - (pWithin ?? 0)), after: true, priorTyped, fromTb });
+    } else out.push({ sub: sb, label: sb.title, now: round2(now), before, after: !!sb.after, priorTyped, fromTb });
   }
   return out;
 }
 
 // ------------------------------------------------------------------ the final trial balance
 
-export type TbRow = { code: string; account: string; tbDr: number; tbCr: number; jDr: number; jCr: number; dr: number; cr: number };
+export type TbRow = {
+  key: string; code: string; account: string; iris: string; type: string;
+  tbDr: number; tbCr: number; jDr: number; jCr: number; dr: number; cr: number;
+  inTb: boolean; // false: an account only the journals use
+  lines: Line[]; // the software trial balance lines for this account
+};
 
-/** The software's trial balance with the journals put through it, account by account (matched on code, else name). */
+const normName = (x: string) => x.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
+/** An account's key: its code and name together (codes repeat in some software, names repeat across codes). */
+export const acctKey = (code: string, name: string) => `${code.trim().toLowerCase()}|${normName(name)}`;
+
+/**
+ * The software's trial balance with the journals put through it, account by account. A journal line
+ * finds its account by code and name, else by name alone, else by a code used by only one account;
+ * otherwise it's a new account (one only the journals use).
+ */
 export function finalTb(tb: Line[], journals: Line[]): TbRow[] {
   const by = new Map<string, TbRow>();
-  const key = (l: Line) => (l.Code.trim() || l.Detail.trim().toLowerCase());
+  const byName = new Map<string, TbRow[]>(), byCode = new Map<string, TbRow[]>();
+  const add = (m: Map<string, TbRow[]>, k: string, r: TbRow) => { if (k) m.set(k, [...(m.get(k) || []), r]); };
   for (const l of tb) {
-    const k = key(l);
-    if (!k) continue;
-    const r = by.get(k) || { code: l.Code, account: l.Detail, tbDr: 0, tbCr: 0, jDr: 0, jCr: 0, dr: 0, cr: 0 };
+    if (!l.Code.trim() && !l.Detail.trim()) continue;
+    const k = acctKey(l.Code, l.Detail);
+    let r = by.get(k);
+    if (!r) {
+      r = { key: k, code: l.Code.trim(), account: l.Detail.trim(), iris: String(l.f.iris || "").trim(), type: String(l.f.type || ""), tbDr: 0, tbCr: 0, jDr: 0, jCr: 0, dr: 0, cr: 0, inTb: true, lines: [] };
+      by.set(k, r);
+      add(byName, normName(l.Detail), r);
+      add(byCode, l.Code.trim().toLowerCase(), r);
+    }
+    r.lines.push(l);
     r.tbDr = round2(r.tbDr + v(l, "dr"));
     r.tbCr = round2(r.tbCr + v(l, "cr"));
-    by.set(k, r);
   }
   for (const l of journals) {
-    const k = key(l);
-    if (!k || (!v(l, "dr") && !v(l, "cr"))) continue;
-    const r = by.get(k) || { code: l.Code, account: l.Detail || l.Code, tbDr: 0, tbCr: 0, jDr: 0, jCr: 0, dr: 0, cr: 0 };
+    if (!v(l, "dr") && !v(l, "cr")) continue;
+    const r = journalAccount(l, by, byName, byCode);
     r.jDr = round2(r.jDr + v(l, "dr"));
     r.jCr = round2(r.jCr + v(l, "cr"));
-    by.set(k, r);
   }
   return [...by.values()].map((r) => {
     const net = round2(r.tbDr - r.tbCr + r.jDr - r.jCr);
     return { ...r, dr: net > 0 ? net : 0, cr: net < 0 ? -net : 0 };
-  }).sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }) || a.account.localeCompare(b.account));
+  });
+}
+
+function journalAccount(l: Line, by: Map<string, TbRow>, byName: Map<string, TbRow[]>, byCode: Map<string, TbRow[]>): TbRow {
+  const code = l.Code.trim().toLowerCase(), name = normName(l.Detail);
+  const exact = by.get(acctKey(l.Code, l.Detail));
+  if (exact) return exact;
+  const named = name ? byName.get(name) || [] : [];
+  if (named.length === 1) return named[0];
+  if (named.length > 1) return named.find((r) => r.code.toLowerCase() === code) || named[0];
+  const coded = code ? byCode.get(code) || [] : [];
+  if (coded.length === 1 && !name) return coded[0];
+  // a new account, only the journals use it
+  const k = acctKey(l.Code, l.Detail || l.Code);
+  const r: TbRow = { key: k, code: l.Code.trim(), account: (l.Detail || l.Code).trim(), iris: "", type: "", tbDr: 0, tbCr: 0, jDr: 0, jCr: 0, dr: 0, cr: 0, inTb: false, lines: [] };
+  by.set(k, r);
+  if (name) byName.set(name, [r]);
+  return r;
+}
+
+/** Whether a journal line finds an account on the software trial balance. */
+export function journalMatches(l: Line, tb: Line[]): boolean {
+  return finalTb(tb, [{ ...l, f: { ...l.f, dr: 1, cr: 0 } }]).some((r) => r.inTb && r.jDr === 1);
 }
 
 /** Each journal's debits and credits, to show any that don't balance. */
@@ -425,7 +512,7 @@ export function carryLines(kind: Kind, prior: Line[], ps: Setup): { Code?: strin
 /** This year's settings from last year's: depreciation carries on, balances brought forward are last year's carried forward. */
 export function carrySetup(sb: Sub, prior: Line[], ps: Setup): Setup {
   switch (sb.kind) {
-    case "register": return { method: ps.method, rate: ps.rate };
+    case "register": return { method: ps.method, rate: ps.rate, apportion: ps.apportion };
     case "account": return { bf: accountCf(prior, ps, sb.normal) };
     case "vat": return { bf: vatOwed(prior, ps) };
     case "expense": return { openingAccrual: ps.closingAccrual };
@@ -541,4 +628,41 @@ export function progress(clientKey: string, period: string, rows: Row[]): { done
     else if (status === "doing") started++;
   }
   return { done, started, total: totalN };
+}
+
+// ------------------------------------------------------------------ pasting with headings
+
+const HEAD_WORDS: Record<string, RegExp> = {
+  Code: /^(code|n ?c|nominal( code)?|account code|a ?c code|ref(erence)?|invoice( no)?)$|\bn ?c$|\bcode$/,
+  Detail: /^(description|account( name)?|details?|particulars|name|asset|item|narration)$/,
+  iris: /iris/,
+  type: /^(type|account type|class)$/,
+  dr: /^(dr|debit|debits)$/,
+  cr: /^(cr|credit|credits)$/,
+  Amount: /^(amount|balance|value|net|total|£)$/,
+  no: /^(journal|jnl|jrnl|no|number|s ?no|journal no)$/,
+  Remark: /^(narrative|comments?|remarks?|notes?|answer)$/,
+  date: /^(date|invoice date|purchased|bought)$/,
+};
+const headNorm = (x: string) => x.toLowerCase().replace(/[^a-z0-9£]+/g, " ").trim();
+
+/**
+ * When the first pasted row is headings, which column each pasted cell fills (any order, extra columns
+ * left out); otherwise the cells fill the columns in order. Returns where the figures start.
+ */
+export function pasteColumns(rows: string[][], cols: Col[]): { start: number; order: (Col | undefined)[] } {
+  const first = rows[0] || [];
+  const order: (Col | undefined)[] = [];
+  const used = new Set<string>();
+  let hits = 0;
+  for (const cellText of first) {
+    const h = headNorm(cellText);
+    const fits = (c: Col) => headNorm(c.label) === h || (/iris/.test(h) ? c.key === "iris" : !!HEAD_WORDS[c.key]?.test(h));
+    const col = h ? cols.find((c) => !used.has(c.key) && fits(c)) : undefined;
+    if (col) { used.add(col.key); hits++; }
+    order.push(col);
+  }
+  const looksLikeFigures = first.some((x) => parseAmount(x) !== undefined && /\d/.test(x) && !/^(19|20)\d\d$/.test(x.trim()));
+  if (hits >= 2 && !looksLikeFigures) return { start: 1, order };
+  return { start: 0, order: cols };
 }

@@ -44,7 +44,7 @@ test("totals add pence correctly and last year's figures match on the detail", (
   assert.equal(priorFor(rows, "C1", "2026-03-31", "debtors", "trade", "acme ltd"), 80);
   assert.equal(priorFor(rows, "C1", "2026-03-31", "debtors", "trade", "Bolt Ltd"), undefined);
   const lead = leadRows(SECTIONS.find((x) => x.key === "debtors")!, [], rows, "C1", "2026-03-31");
-  assert.deepEqual(lead.map((x) => [x.sub.key, x.now, x.before]), [["trade", 150.5, 100], ["prepayments", 0, undefined], ["accrued", 0, undefined], ["other", 0, undefined]]);
+  assert.deepEqual(lead.map((x) => [x.sub.key, x.now, x.before]), [["trade", 150.5, 100], ["prepayments", 0, undefined], ["accrued", 0, undefined], ["group", 0, undefined], ["other", 0, undefined]]);
 });
 
 const L = (o: any) => {

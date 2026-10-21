@@ -3,7 +3,8 @@
 // down the side; sections not used for a company can be turned off. Each section has a status,
 // a Prepared / Reviewed sign-off, notes, and its schedules (see PaperSchedules).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AddSchedule, AssetSummary, LeadTable, PaperWriter, Schedule, useWriterState } from "./PaperSchedules";
+import { WorkbookImport } from "./PaperImport";
+import { AddSchedule, AssetSummary, LeadTable, PaperWriter, Schedule, useSectionsInUse, useWriterState } from "./PaperSchedules";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
 import { GROUPS, LEAD_KINDS, PaperStatus, SECTIONS, STATUS_LABEL, Section, progress, sectionsOff, stateOf, subsFor, yearEnds } from "../lib/papers";
 import { Row } from "../lib/schema";
@@ -173,6 +174,7 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
         <div className="alert amber"><strong>No year end on this company</strong><span>Add it on the <a href={href("clients", c.Key)}>client page</a> (or Companies House will fill it in) and the papers will appear.</span></div>
       ) : (
         <PaperWriter key={period} client={c} period={period}>
+          <WorkbookImport client={c} period={period} />
           <PaperBody client={c} period={period} today={today} />
         </PaperWriter>
       )}
@@ -185,7 +187,9 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
   const w = useWriterState();
   const [pick, setPick] = useState<string>();
   const [choosing, setChoosing] = useState(false);
-  const off = sectionsOff(data.papers, c.Key, period);
+  const inUse = useSectionsInUse();
+  // a section turned off still shows when the trial balance puts balances into it
+  const off = new Set([...sectionsOff(data.papers, c.Key, period)].filter((k) => !inUse.has(k)));
   const used = SECTIONS.filter((x) => !off.has(x.key));
   const sec = used.find((x) => x.key === pick) || used[0] || SECTIONS[0];
   const prog = progress(c.Key, period, data.papers);
