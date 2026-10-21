@@ -56,10 +56,14 @@ export class XeroError extends Error {
   }
 }
 
+export type ScopeCheck = { accepted: string[]; refused: string[]; unsure: string[]; reliable: boolean; warning?: string };
+
 export interface XeroApi {
   status(): Promise<XeroStatus>;
   /** The Xero sign-in page to send the browser to. */
   start(scopes: string[]): Promise<string>;
+  /** Which scopes Xero accepts for this app (asked one at a time before connecting). */
+  check(scopes: string[]): Promise<ScopeCheck>;
   connections(): Promise<{ tenants: XeroTenant[]; scopes: string[]; since?: string }>;
   disconnect(connectionId?: string): Promise<void>;
   get<T = any>(tenantId: string, api: XeroApiName, path: string, query?: Query): Promise<T>;
@@ -114,6 +118,10 @@ export class HttpXero implements XeroApi {
   }
   async start(scopes: string[]): Promise<string> {
     return (await this.post("start", { scopes })).url;
+  }
+  async check(scopes: string[]): Promise<ScopeCheck> {
+    const r = await this.post("check", { scopes });
+    return { accepted: r.accepted || scopes, refused: r.refused || [], unsure: r.unsure || [], reliable: !!r.reliable, warning: r.warning || undefined };
   }
   connections() {
     return this.serial(async () => {

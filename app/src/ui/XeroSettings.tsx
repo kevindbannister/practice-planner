@@ -125,10 +125,22 @@ export function XeroSettings() {
   }, [back]);
 
   const connect = async () => {
-    setBusy("Opening Xero…");
+    setBusy("Checking which permissions your Xero app is allowed…");
     setError(undefined);
+    setNote(undefined);
     try {
-      window.location.assign(await xero.start(scopesFor(opts)));
+      const wanted = scopesFor(opts);
+      const c = await xero.check(wanted);
+      const required = SCOPE_GROUPS.filter((g) => g.required).flatMap((g) => (opts.classic && g.classic ? g.classic : g.scopes));
+      const blocked = c.refused.filter((s) => required.includes(s));
+      if (blocked.length) {
+        setBusy("");
+        setError(`Xero won't give this app ${blocked.join(", ")}, which Practice Planner needs. Check the app in the Xero developer portal (Configuration), or tick "My Xero app was made before 2 March 2026" below if it's an older app.`);
+        return;
+      }
+      await saveSetting("xero.refused", c.refused);
+      setBusy("Opening Xero…");
+      window.location.assign(await xero.start(c.accepted));
     } catch (e) {
       setBusy("");
       setError(e instanceof XeroError ? e.message : "Couldn't start the Xero sign-in.");
@@ -165,7 +177,9 @@ export function XeroSettings() {
   };
   const copy = (s: string) => void navigator.clipboard?.writeText(s).then(() => setNote("Copied."), () => undefined);
   const granted = new Set(orgs?.scopes || []);
-  const missing = connected && orgs?.scopes?.length ? scopesFor(opts).filter((s) => !granted.has(s)) : [];
+  const refused = readSetting<string[]>(data.settings, "xero.refused") || [];
+  const missing = connected && orgs?.scopes?.length ? scopesFor(opts).filter((s) => !granted.has(s) && !refused.includes(s)) : [];
+  const refusedGroups = SCOPE_GROUPS.filter((g) => !g.required && opts.groups.includes(g.key) && (opts.classic && g.classic ? g.classic : g.scopes).some((s) => refused.includes(s)));
 
   return (
     <div className="stack" style={{ gap: 16, maxWidth: 900 }}>
@@ -186,6 +200,17 @@ export function XeroSettings() {
         {busy && <p className="muted" role="status" style={{ margin: 0 }}>{busy}</p>}
         {note && !busy && <p className="muted" role="status" style={{ margin: 0 }}>{note}</p>}
         {error && <div className="alert red" role="alert"><strong>Xero</strong><span>{error}</span></div>}
+        {refused.length > 0 && (
+          <div className="alert amber">
+            <strong>Your Xero app isn't allowed everything ticked below</strong>
+            <span>
+              Xero refused {refused.join(", ")}, so {refused.length === 1 ? "it was" : "they were"} left out of the connection
+              {refusedGroups.length ? ` (${refusedGroups.map((g) => g.label.split(" (")[0]).join("; ")})` : ""}.
+              {refused.some((s) => s.startsWith("accountdata.")) ? " The nominal ledger will be rebuilt from invoices, bills, payments, bank transactions and journals instead." : ""}
+              {" "}Everything else works. If Xero later switches these on for your app, press Connect again.
+            </span>
+          </div>
+        )}
         {missing.length > 0 && <div className="alert amber"><strong>Connect again to use your choices</strong><span>This connection hasn't got: {missing.join(", ")}.</span></div>}
         {connected && orgs && (
           <div className="stack" style={{ gap: 8 }}>

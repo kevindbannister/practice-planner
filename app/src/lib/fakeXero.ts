@@ -2,7 +2,7 @@
 // invented books (sales, purchases, overheads, payroll, VAT, loan, accruals, depreciation),
 // answered in Xero's own formats so the real import code runs against it. All figures are invented.
 
-import { SCOPE_GROUPS, SealedStore, XeroApi, XeroError, XeroStatus, XeroTenant, Query } from "./xero";
+import { SCOPE_GROUPS, ScopeCheck, SealedStore, XeroApi, XeroError, XeroStatus, XeroTenant, Query } from "./xero";
 
 type Acct = { code: string; name: string; type: string; cls: string; sys: string; id: string };
 type Line = { code: string; amt: number; tax?: number; rate?: string; desc?: string };
@@ -143,6 +143,11 @@ export class FakeXero implements XeroApi {
 
   async status(): Promise<XeroStatus> {
     return { configured: true, redirectUri: `${location.origin}/api/xero/callback` };
+  }
+  async check(scopes: string[]): Promise<ScopeCheck> {
+    // the demo app isn't approved for full journals, like most Xero apps
+    const refused: string[] = scopes.filter((s) => s === "accounting.journals.read");
+    return { accepted: scopes.filter((s) => !refused.includes(s)), refused, unsure: [], reliable: true };
   }
   async start(scopes: string[]): Promise<string> {
     return `#/settings/xero/connected/demo:${btoa(JSON.stringify(scopes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;

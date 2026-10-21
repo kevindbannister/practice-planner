@@ -167,3 +167,23 @@ test("connections lists the organisations", async () => {
 test("query strings keep repeats and drop odd keys", () => {
   assert.equal(queryString({ where: 'Status=="AUTHORISED"', page: 2, "bad key": "x", ids: ["1", "2"], empty: "" }), "?where=Status%3D%3D%22AUTHORISED%22&page=2&ids=1&ids=2");
 });
+
+test("check asks Xero about each scope on its own and reports the refused ones", async () => {
+  const page = (u) => {
+    const scope = new URL(u).searchParams.get("scope");
+    return scope.startsWith("accountdata.")
+      ? { ...res(500, undefined), text: async () => "<html><h1>Error: invalid_scope</h1><p>Invalid scope</p></html>", url: "https://login.xero.com/identity/error?errorId=1" }
+      : { ...res(200, undefined), text: async () => "<html><form>Log in to Xero</form></html>", url: "https://login.xero.com/identity/user/login" };
+  };
+  const fetch = fakeFetch([[(u) => u.startsWith("https://login.xero.com/identity/connect/authorize"), page]]);
+  const r = await call("check", { fetch, body: { scopes: ["accounting.settings.read", "accountdata.transactions.read", "accountdata.balances.read", "payroll.payruns.read"] } });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.reliable, true);
+  assert.deepEqual(r.body.refused, ["accountdata.transactions.read", "accountdata.balances.read"]);
+  assert.deepEqual(r.body.accepted, ["accounting.settings.read", "payroll.payruns.read"]);
+  // if even openid looks refused, nothing is left out
+  const odd = fakeFetch([[(u) => u.includes("/connect/authorize"), { ...res(500, undefined), text: async () => "invalid_scope", url: "x" }]]);
+  const r2 = await call("check", { fetch: odd, body: { scopes: ["accounting.settings.read"] } });
+  assert.equal(r2.body.reliable, false);
+  assert.deepEqual(r2.body.accepted, ["accounting.settings.read"]);
+});

@@ -185,7 +185,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       return;
     }
 
-    if (!["start", "connections", "call", "disconnect"].includes(action) || method !== "POST") {
+    if (!["start", "check", "connections", "call", "disconnect"].includes(action) || method !== "POST") {
       context.res = reply(400, { error: "bad-request", message: "That isn't something this app asks for." });
       return;
     }
@@ -204,6 +204,37 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       return;
     }
     const b = body(req);
+
+    // Which scopes Xero will accept for this app. Xero shows a refused scope on its own error page
+    // (it doesn't send the browser back), so ask Xero's sign-in page about each scope on its own
+    // first and leave out any it refuses.
+    if (action === "check") {
+      const asked = Array.isArray(b.scopes) ? b.scopes.filter((s) => typeof s === "string" && SCOPE.test(s) && s.length < 80).slice(0, 40) : [];
+      const probe = async (scope) => {
+        const url = `${AUTHORIZE}?${new URLSearchParams({ response_type: "code", client_id: env.XERO_CLIENT_ID.trim(), redirect_uri: redirectUri(req, env), scope, state: "check" }).toString()}`;
+        try {
+          const res = await fetch(url, { redirect: "follow", headers: { Accept: "text/html" } });
+          const text = (await res.text()).slice(0, 200000);
+          const where = String(res.url || "");
+          const err = (text.match(/\b(invalid_scope|unauthorized_client|invalid_client|invalid_request|unsupported_response_type)\b/) || [])[1] || (/error/i.test(where) && /invalid[_ ]scope/i.test(text) ? "invalid_scope" : "");
+          return { scope, error: err };
+        } catch {
+          return { scope, error: "unreachable" };
+        }
+      };
+      // openid is always allowed: if it looks refused, the check can't be trusted
+      const base = await probe("openid");
+      if (base.error) {
+        const hint = /client/.test(base.error) ? "Xero didn't recognise the client ID in Azure (XERO_CLIENT_ID)."
+          : /request|response_type/.test(base.error) ? "Xero may not accept the app's redirect URI: check it matches the one in Settings › Xero exactly." : "";
+        context.res = reply(200, { accepted: asked, refused: [], unsure: asked, reliable: false, warning: hint });
+        return;
+      }
+      const results = [];
+      for (let i = 0; i < asked.length; i += 4) results.push(...(await Promise.all(asked.slice(i, i + 4).map(probe))));
+      context.res = reply(200, { accepted: results.filter((r) => r.error !== "invalid_scope").map((r) => r.scope), refused: results.filter((r) => r.error === "invalid_scope").map((r) => r.scope), unsure: results.filter((r) => r.error && r.error !== "invalid_scope").map((r) => r.scope), reliable: true });
+      return;
+    }
 
     if (action === "start") {
       const asked = Array.isArray(b.scopes) ? b.scopes.filter((s) => typeof s === "string" && SCOPE.test(s) && s.length < 80) : [];
