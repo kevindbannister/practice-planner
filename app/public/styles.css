@@ -1604,3 +1604,4 @@ button.paper-group-name { min-height: 44px; }
   .missed-what { white-space: normal; }
   .missed-list li { flex-wrap: wrap; padding: 0 12px 8px 0; }
 }
+a.chip { text-decoration: none; } a.chip:hover { text-decoration: underline; }
