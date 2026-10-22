@@ -244,7 +244,12 @@ function WeekView() {
   const unplanned = trayAll
     .filter((i) => !activeTypes.length || activeTypes.includes(typeKey(i)))
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
-  const missed = unplanned.filter((i) => i.planned && i.planned < today);
+  // planned on an earlier day and not finished: still has a day in the planner, so it can be taken back off
+  const missed = visible
+    .filter((i) => i.planned && i.planned < today)
+    .sort((a, b) => String(a.planned).localeCompare(String(b.planned)) || (a.deadline || "9999").localeCompare(b.deadline || "9999"));
+  const [missedOpen, setMissedOpen] = useState(true);
+  const [unplanning, setUnplanning] = useState(false);
 
   const cal = useCalendar();
   const usualHours = (d: string) => settings.hours[String(weekday(d)) as keyof typeof settings.hours] ?? 0;
@@ -310,6 +315,22 @@ function WeekView() {
       }
     } catch {
       setError("That move didn't save. It's been put back; try again.");
+    }
+  };
+
+  /** Takes work off its (past) day and puts it back in Unplanned, ready to be planned again. */
+  const unplanAll = async (list: Item[]) => {
+    if (!list.length) return;
+    const before = list.map((i) => ({ item: i, patch: { PlannedDate: i.planned || "", DayOrder: i.row.DayOrder ?? "", StartTime: (i.row.StartTime as string) || "" } as Row }));
+    setError(undefined);
+    setUnplanning(true);
+    try {
+      await saveOrder(list.map((i) => ({ item: i, patch: { PlannedDate: "", DayOrder: "", StartTime: "" } })));
+      say(`${list.length} item${list.length === 1 ? "" : "s"} back to unplanned`, () => saveOrder(before).then(() => setToast(undefined)));
+    } catch {
+      setError("Not everything moved back. Try again.");
+    } finally {
+      setUnplanning(false);
     }
   };
 
@@ -596,6 +617,42 @@ function WeekView() {
         })}
       </div>
 
+      {missed.length > 0 && (
+        <section className="missed-box" aria-labelledby="missed-h">
+          <div className="missed-head">
+            <button type="button" className="missed-toggle" aria-expanded={missedOpen} onClick={() => setMissedOpen(!missedOpen)}>
+              <span aria-hidden="true">{missedOpen ? "▾" : "▸"}</span>
+              <span id="missed-h"><strong>{missed.length} planned on an earlier day but not finished</strong></span>
+              <span className="muted">{fmtHours(missed.reduce((t, i) => t + i.hours, 0))}</span>
+            </button>
+            <button type="button" className="btn small" disabled={unplanning} onClick={() => void unplanAll(missed)}>
+              {unplanning ? "Moving…" : `Move ${missed.length === 1 ? "it" : "all"} back to unplanned`}
+            </button>
+          </div>
+          {missedOpen && (
+            <>
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                These still sit on a day that's gone. Put them back in Unplanned to plan them again, or drag one straight onto a new day.
+              </p>
+              <ul className="missed-list">
+                {missed.map((i) => (
+                  <li key={i.key}>
+                    <button type="button" className="missed-item" onClick={() => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key })}>
+                      <span className="missed-when">{fmtDate(String(i.planned), { weekday: true, year: false })}</span>
+                      <span className="missed-what"><strong>{i.client || i.title}</strong>{i.client ? <span className="muted"> · {i.title}</span> : null}</span>
+                      <span className="missed-meta muted">
+                        {fmtHours(i.hours)}{i.deadline ? ` · due ${fmtDate(i.deadline, { year: false })}` : ""}
+                      </span>
+                    </button>
+                    <button type="button" className="linkbtn" disabled={unplanning} onClick={() => void move(i.key, undefined)}>Back to unplanned</button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
+
       <div className="plan-body">
         <aside className={`tray${dropTarget === "tray" ? " drop" : ""}`} aria-label="Unplanned work" data-drop="tray">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
@@ -620,11 +677,6 @@ function WeekView() {
               ? "Hold a card, or drag its handle, onto a day above to plan it. Hold it at the screen's edge to change week. Tap a card to open it. Swipe the days left or right to change week."
               : "Drag onto a day to plan it, or hold it at the screen's left or right edge to change week. Open a card to pick a date."}
           </p>
-          {missed.length > 0 && (
-            <p style={{ margin: 0, fontSize: 12, color: "var(--amber-ink)", fontWeight: 600 }}>
-              {missed.length} planned on an earlier day but not finished
-            </p>
-          )}
           {withClient.length > 0 && (
             <details className="wait-list" open={speakDue > 0}>
               <summary>
@@ -824,7 +876,7 @@ function PlanCard({
   return (
     <button
       type="button"
-      className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.done ? " done" : ""}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}`}
+      className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.done ? " done" : ""}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}${!i.done && !i.held && i.planned && i.planned < today ? " missed" : ""}`}
       {...(dragProps || {})}
       {...(onDay ? { "data-card": i.key } : {})}
       onClick={onOpen}

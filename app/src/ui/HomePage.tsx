@@ -273,7 +273,7 @@ export function HomePage() {
               {missed.length > 0 && (
                 <li><a href="#/plan">
                   <span className="dot amber" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}><strong>{missed.length} planned on an earlier day, not finished</strong><span className="muted">Move them to a new day</span></span>
+                  <span className="stack" style={{ gap: 1 }}><strong>{missed.length} planned on an earlier day, not finished</strong><span className="muted">Put them back in Unplanned, or move them to a new day</span></span>
                 </a></li>
               )}
               {!late.length && !ch.openFlags.length && !heldAlerts.length && !missed.length && !speakNow.length && !noSpeakDate.length && !reminders && !meetingsToday.length && (
