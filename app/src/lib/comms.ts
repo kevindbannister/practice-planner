@@ -13,6 +13,7 @@ export type CommsPrefs = {
   emailSignature: string; // added under emails
   style: string; // told to the AI every time: house style, practice details
   model: string; // OpenAI model; blank = the server's choice
+  effort?: "" | "minimal" | "low" | "medium" | "high"; // how hard reasoning models think; blank = low
   letterhead?: { name: string; size: number; uploaded: string; placeholder: boolean; example?: boolean; webUrl?: string };
 };
 

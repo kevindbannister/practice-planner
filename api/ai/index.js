@@ -17,6 +17,7 @@ const OPENAI = "https://api.openai.com/v1";
 // tried in this order when no model is chosen in Settings or OPENAI_MODEL
 const PREFERRED = ["gpt-5-mini", "gpt-5.1-mini", "gpt-5", "gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini", "gpt-4o"];
 const NOT_TEXT = /audio|realtime|image|dall|tts|transcribe|whisper|embedding|search|moderation|codex|computer|instruct|vision|preview/i;
+const EFFORTS = ["minimal", "low", "medium", "high"];
 const MODELS_FOR_MS = 60 * 60 * 1000;
 
 const LIMITS = { brief: 4000, instruction: 2000, style: 2000, subject: 300, body: 20000, context: 20000 };
@@ -314,21 +315,21 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
   }
 
-  async function complete(key, model, message, system = SYSTEM, messages) {
+  async function complete(key, model, message, system = SYSTEM, messages, effort = "low") {
     const base = {
       model,
       messages: messages || [{ role: "system", content: system }, { role: "user", content: message }],
       response_format: { type: "json_object" },
     };
     // reasoning models answer faster with low effort; others don't take the option
-    const attempts = [{ ...base, reasoning_effort: "low" }, base, { model, messages: base.messages }];
+    const attempts = [{ ...base, reasoning_effort: effort }, base, { model, messages: base.messages }];
     let last;
     for (const body of attempts) {
       last = await fetch(`${OPENAI}/chat/completions`, {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(40000),
+        signal: AbortSignal.timeout(effort === "high" || effort === "medium" ? 120000 : 40000),
       });
       if (last.status !== 400) return last;
       const err = await last.clone().json().catch(() => ({}));
@@ -378,6 +379,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
 
     const b = typeof req.body === "string" ? safeJson(req.body) : req.body || {};
+    const effort = b && EFFORTS.includes(b.effort) ? b.effort : "low";
     const assist = action === "assist";
     if (action === "bank") {
       const pack = bankMessage(b || {});
@@ -388,7 +390,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       const model = pickModel(await listModels(key), typeof b.model === "string" && /^[a-z0-9.\-:_]{1,64}$/i.test(b.model) ? b.model : "", env);
       let r;
       try {
-        r = await complete(key, model, pack.text, SYSTEM_BANK);
+        r = await complete(key, model, pack.text, SYSTEM_BANK, undefined, effort);
       } catch (e) {
         const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
         context.res = reply(timeout ? 504 : 502, { error: timeout ? "timeout" : "unreachable", message: timeout ? "OpenAI took too long to answer. Try again." : "OpenAI didn't answer. Try again shortly." });
@@ -416,7 +418,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       const model = pickModel(await listModels(key), typeof b.model === "string" && /^[a-z0-9.\-:_]{1,64}$/i.test(b.model) ? b.model : "", env);
       let r;
       try {
-        r = await complete(key, model, pack.text, SYSTEM_EMAILS);
+        r = await complete(key, model, pack.text, SYSTEM_EMAILS, undefined, effort);
       } catch (e) {
         const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
         context.res = reply(timeout ? 504 : 502, { error: timeout ? "timeout" : "unreachable", message: timeout ? "OpenAI took too long to answer. Try again." : "OpenAI didn't answer. Try again shortly." });
@@ -467,8 +469,8 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     let res;
     try {
       res = assist
-        ? await complete(key, model, "", SYSTEM_ASSIST, assistMessages(b))
-        : meeting ? await complete(key, model, meetingMessage(b), SYSTEM_MEETING) : await complete(key, model, userMessage(b));
+        ? await complete(key, model, "", SYSTEM_ASSIST, assistMessages(b), effort)
+        : meeting ? await complete(key, model, meetingMessage(b), SYSTEM_MEETING, undefined, effort) : await complete(key, model, userMessage(b), SYSTEM, undefined, effort);
     } catch (e) {
       const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
       context.res = reply(timeout ? 504 : 502, {

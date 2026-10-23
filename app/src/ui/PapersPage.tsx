@@ -4,7 +4,6 @@
 // a Prepared / Reviewed sign-off, notes, and its schedules (see PaperSchedules).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WorkbookImport } from "./PaperImport";
-import { BankImport } from "./BankImport";
 import { XeroImport } from "./XeroImport";
 import { AddSchedule, AssetSummary, LeadTable, PaperWriter, Schedule, useSectionsInUse, useWriterState } from "./PaperSchedules";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
@@ -175,7 +174,6 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
           <div className="row-wrap paper-imports" style={{ gap: 8, alignItems: "flex-start" }}>
             <WorkbookImport client={c} period={period} />
             <XeroImport client={c} period={period} />
-            <BankImport client={c} period={period} />
           </div>
           <PaperBody client={c} period={period} today={today} />
         </PaperWriter>

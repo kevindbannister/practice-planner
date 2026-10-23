@@ -2,6 +2,7 @@
 // of schedule (list, asset register, account, VAT, payroll, expense, trial balance, journals...),
 // the settings each kind needs (depreciation method and rate, balance brought forward, accruals,
 // fee), and the summaries (lead schedule, fixed asset summary, final trial balance).
+import { AccountsWorkingPapers } from "./AccountsWorkingPapers";
 import { Fragment, ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Client, fmtDate } from "../lib/domain";
 import {
@@ -322,6 +323,7 @@ export function Schedule({ section, sb }: { section: Section; sb: Sub }) {
   else if (sb.kind === "report") body = <Report itemKey={itemKey} s={s} statutory={section.key === "statutory"} />;
   else if (sb.kind === "finaltb") body = <FinalTb />;
   else if (sb.kind === "summary") body = <AccountsSummary />;
+  else if (sb.kind === "bank") body = <AccountsWorkingPapers client={w.client} period={w.period} />;
   else if (sb.kind === "queries") body = <Grid section={section} sb={sb} lines={lines} s={s} cols={[
     { key: "Detail", label: "Notes", type: "text", wide: true }, { key: "Remark", label: "Comments back", type: "text", wide: true },
   ]} done />;

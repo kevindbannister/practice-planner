@@ -34,6 +34,9 @@ export type BankVerdict = { id: string; cat: string; why?: string };
 
 export type EmailVerdict = { id: string; needsAction: boolean; title?: string; due?: string; hours?: number; why?: string };
 
+/** The model and effort chosen in Settings, added to every request that doesn't name its own. */
+export const aiDefaults: { model?: string; effort?: string } = {};
+
 export class AiError extends Error {
   constructor(public code: string, message: string) {
     super(message);
@@ -54,6 +57,18 @@ export class HttpAi implements AiApi {
 
   private async call(path: string, init: RequestInit = {}): Promise<any> {
     let res: Response;
+    if (typeof init.body === "string") {
+      try {
+        const b = JSON.parse(init.body);
+        if (b && typeof b === "object" && !Array.isArray(b)) {
+          if (aiDefaults.effort && !b.effort) b.effort = aiDefaults.effort;
+          if (aiDefaults.model && !b.model) b.model = aiDefaults.model;
+          init = { ...init, body: JSON.stringify(b) };
+        }
+      } catch {
+        /* send as it is */
+      }
+    }
     try {
       res = await fetch(`/api/ai/${path}`, {
         ...init,

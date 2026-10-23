@@ -852,6 +852,17 @@ export function CommsSettings() {
             </label>
           )}
           <label>
+            Effort
+            <select className="input" value={form.effort || ""} onChange={f("effort")}>
+              <option value="">Automatic (low: quick answers)</option>
+              <option value="minimal">Minimal: fastest</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium: more careful, slower</option>
+              <option value="high">High: most careful, slowest</option>
+            </select>
+            <span className="muted" style={{ fontSize: 12 }}>How hard the model thinks before answering. Used for letters, emails, Ask and bank statements. Only models that reason (the gpt-5 family and similar) use it; others ignore it. Higher effort costs more and can take a minute or two.</span>
+          </label>
+          <label>
             House style for the AI (optional)
             <textarea className="input" rows={4} value={form.style} onChange={f("style")}
               placeholder={"e.g. We're a small friendly practice in Leeds. Use first names. Keep letters to one page. Always offer a call if they have questions."} />

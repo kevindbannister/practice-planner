@@ -2098,3 +2098,6 @@ body { display: flow-root; }
 .bank-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bank-table tr.needs td { background: color-mix(in srgb, var(--warn, #b45309) 9%, transparent); }
 .bank-table select.input { width: auto; min-width: 200px; margin-right: 6px; }
+.rec-table td:first-child { width: 70%; }
+.rec-table tr.total td { font-weight: 700; border-top: 2px solid var(--line, rgba(0,0,0,.2)); }
+.bank-table tfoot td { font-weight: 700; border-top: 2px solid var(--line, rgba(0,0,0,.2)); border-bottom: 0; }

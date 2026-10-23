@@ -23,11 +23,19 @@ import { CommsPage } from "./Comms";
 import { PapersPage } from "./PapersPage";
 import { SearchButton } from "./Search";
 import { readSetting } from "./data";
+import { aiDefaults } from "../lib/ai";
+import { readCommsPrefs } from "../lib/comms";
 import { adoptWaitingJobs, initialWaitStages } from "../lib/waiting";
 
 export function App({ demo }: { demo: boolean }) {
-  const { status, error, reload, saveSetting } = useData();
+  const { status, error, reload, saveSetting, data } = useData();
   const { parts } = useRoute();
+  // the model and effort chosen in Settings go with every AI request
+  useEffect(() => {
+    const p = readCommsPrefs(data.settings);
+    aiDefaults.model = p.model || undefined;
+    aiDefaults.effort = p.effort || undefined;
+  }, [data.settings]);
   useWaitStageSetup(status === "ready");
   const section = parts[0] || "home";
   const path = parts.join("/");

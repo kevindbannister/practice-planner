@@ -188,3 +188,15 @@ test("bank: sends descriptions and amounts and returns categories", async () => 
   assert.match(fetch.calls.find((c) => c.url.endsWith("/chat/completions")).body.messages[1].content, /LANDLORD LTD/);
   assert.equal((await call({ action: "bank", body: { items: [] } })).status, 400);
 });
+
+test("effort: passed to reasoning models, and a bad value falls back to low", async () => {
+  const ok = () => res(200, { choices: [{ message: { content: JSON.stringify({ items: [{ id: "t1", cat: "rent" }] }) } }] });
+  const body = (effort) => ({ effort, company: "A", categories: [{ key: "rent", name: "Rent", hint: "" }], items: [{ id: "t1", detail: "X", amount: -1 }] });
+  const sent = async (effort) => {
+    const fetch = fakeFetch({ answers: [ok()] });
+    await call({ action: "bank", body: body(effort), fetch });
+    return fetch.calls.find((c) => c.url.endsWith("/chat/completions")).body.reasoning_effort;
+  };
+  assert.equal(await sent("high"), "high");
+  assert.equal(await sent("sideways"), "low");
+});
