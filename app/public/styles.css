@@ -2062,3 +2062,11 @@ body { display: flow-root; }
 :root[data-theme="dark"] .home-hero .home-tile.red .value { color: var(--red-solid); }
 :root[data-theme="dark"] .home-hero .home-tile.amber .value { color: var(--amber-solid); }
 :root[data-theme="dark"] .home-hero .home-tile.green .value { color: var(--green); }
+
+/* the logo in the reference's colours: the logo shape filled with its navy-to-cyan gradient */
+.brand-logo { display: block; height: 24px; width: auto; aspect-ratio: 439 / 96; filter: none !important; background: linear-gradient(110deg, #103b75 10%, #0aa6b9 95%); -webkit-mask: url(/logo.png) center / contain no-repeat; mask: url(/logo.png) center / contain no-repeat; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-logo { background: linear-gradient(110deg, #cfe9ff 5%, #4fd3e8 95%); } }
+:root[data-theme="dark"] .brand-logo { background: linear-gradient(110deg, #cfe9ff 5%, #4fd3e8 95%); }
+.brand-logo { width: 110px; max-width: none; flex: none; }
+@media (max-width: 720px) { .brand-logo { width: 82px; } }
+@media (max-width: 380px) { .brand-logo { width: 69px; } }
