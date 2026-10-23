@@ -155,6 +155,7 @@ export function HomePage() {
           <section className="card" aria-labelledby="today-h">
             <div className="card-head">
               <h2 className="with-icon" id="today-h"><span className="h-icon hue-blue" aria-hidden="true"><Icon name="plan" size={15} /></span>Today</h2>
+              <a href="#/plan/today" style={{ fontSize: 13 }}>Start my day</a>
               <span className="muted" style={{ fontSize: 13 }}>
                 {todayCap ? `${fmtHours(todayHours) || "0h"} of ${fmtHours(todayCap)}` : "Not a working day"}
                 {cal.meetingsOn(today) ? ` · meetings ${fmtHours(cal.meetingsOn(today))}` : ""}

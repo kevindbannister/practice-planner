@@ -8,6 +8,7 @@ import { dayHours, usualTypeKey } from "../lib/dayTypes";
 import { Icon, PlanTabs, useRoute } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { DoneView } from "./DoneView";
+import { TodayView } from "./TodayView";
 import { ProjectsView } from "./ProjectsView";
 import { categoryOf, isBusinessTask } from "../lib/projects";
 import { DeadlinesView } from "./DeadlinesView";
@@ -75,6 +76,7 @@ type Horizon = "30" | "90" | "all";
 
 export function PlanPage() {
   const { parts } = useRoute();
+  if (parts[1] === "today") return <TodayView />;
   if (parts[1] === "months") return <MonthsView />;
   if (parts[1] === "deadlines") return <DeadlinesView />;
   if (parts[1] === "done") return <DoneView />;

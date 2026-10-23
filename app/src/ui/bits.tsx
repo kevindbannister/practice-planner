@@ -140,8 +140,8 @@ export function companiesHouseUrl(number?: string): string | undefined {
 }
 
 /** The Plan section's heading and its views. */
-export function PlanTabs({ current }: { current: "week" | "months" | "deadlines" | "done" | "projects" }) {
-  const tabs: [string, string, string][] = [["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"], ["done", "Completed", "#/plan/done"], ["projects", "Projects", "#/plan/projects"]];
+export function PlanTabs({ current }: { current: "today" | "week" | "months" | "deadlines" | "done" | "projects" }) {
+  const tabs: [string, string, string][] = [["today", "Today", "#/plan/today"], ["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"], ["done", "Completed", "#/plan/done"], ["projects", "Projects", "#/plan/projects"]];
   // on a narrow screen the tabs scroll sideways: bring the one you're on into view
   const nav = useRef<HTMLElement>(null);
   useEffect(() => {
