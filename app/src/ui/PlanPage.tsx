@@ -8,6 +8,8 @@ import { dayHours, usualTypeKey } from "../lib/dayTypes";
 import { Icon, PlanTabs, useRoute } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { DoneView } from "./DoneView";
+import { ProjectsView } from "./ProjectsView";
+import { categoryOf, isBusinessTask } from "../lib/projects";
 import { DeadlinesView } from "./DeadlinesView";
 import { MonthsView } from "./MonthsView";
 import { useData, useIndex } from "./data";
@@ -54,6 +56,8 @@ type Item = {
   urgent: boolean;
   compliance: boolean;
   held: boolean;
+  business?: boolean; // a task of a business project: counts against business hours, not client capacity
+  cat?: string; // its category colour
   stage?: string; // the stage's name, e.g. "Records received"
   stageNo?: number;
   stageCount?: number;
@@ -74,6 +78,7 @@ export function PlanPage() {
   if (parts[1] === "months") return <MonthsView />;
   if (parts[1] === "deadlines") return <DeadlinesView />;
   if (parts[1] === "done") return <DoneView />;
+  if (parts[1] === "projects") return <ProjectsView />;
   return <WeekView />;
 }
 
@@ -193,13 +198,18 @@ function WeekView() {
       note: (j.CardNote as string) || "", recordsIn: !!j.RecordsReceived,
     };
   };
-  const mapTask = (t: Task): Item => ({
-    kind: "task", key: t.Key, row: t, title: t.Title,
-    client: (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "",
-    tag: t.Type || "Task", hours: t.EstimateHours || 1, planned: t.PlannedDate, deadline: t.DueDate,
-    urgent: false, compliance: false, held: isOnHold(t), note: (t.CardNote as string) || "",
-  });
-  const items: Item[] = useMemo(() => [...idx.openJobs.map(mapJob), ...idx.openTasks.map(mapTask)], [idx, data.services]);
+  const mapTask = (t: Task): Item => {
+    const proj = isBusinessTask(t) ? data.projects.find((p) => p.Key === t.ProjectKey) : undefined;
+    const cat = proj ? categoryOf(proj) : isBusinessTask(t) ? categoryOf({}) : undefined;
+    return {
+      kind: "task", key: t.Key, row: t, title: t.Title,
+      client: proj ? String(proj.Title) : (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "",
+      tag: cat ? cat.name : t.Type || "Task", hours: t.EstimateHours || 1, planned: t.PlannedDate, deadline: t.DueDate,
+      urgent: false, compliance: false, held: isOnHold(t), note: (t.CardNote as string) || "",
+      business: isBusinessTask(t), cat: cat?.colour,
+    };
+  };
+  const items: Item[] = useMemo(() => [...idx.openJobs.map(mapJob), ...idx.openTasks.map(mapTask)], [idx, data.services, data.projects]);
 
   const shownKind = items.filter((i) => (show === "all" ? true : show === "compliance" ? i.compliance : !i.compliance));
   const visible = shownKind.filter((i) => !i.held); // on-hold work is off the board
@@ -264,7 +274,15 @@ function WeekView() {
     else next[d] = key;
     await saveSetting("dayOverrides", next);
   };
-  const load = (d: string) => (byDay.get(d) || []).reduce((t, i) => t + i.hours, 0) + preparedLoad(d) + doneOn(d).reduce((t, i) => t + i.hours, 0);
+  // client work counts against the day's client hours; business project tasks against its business hours
+  const load = (d: string) => (byDay.get(d) || []).filter((i) => !i.business).reduce((t, i) => t + i.hours, 0) + preparedLoad(d) + doneOn(d).filter((i) => !i.business).reduce((t, i) => t + i.hours, 0);
+  const bizLoad = (d: string) => (byDay.get(d) || []).filter((i) => i.business).reduce((t, i) => t + i.hours, 0) + doneOn(d).filter((i) => i.business).reduce((t, i) => t + i.hours, 0);
+  /** "1h of 7h 30m for the business", shown only when the day has business hours or business work on it. */
+  const bizText = (d: string) => {
+    const used = bizLoad(d), avail = dayHours(d, settings).business;
+    if (!used && !avail) return "";
+    return `${fmtHours(used) || "0h"} of ${fmtHours(avail) || "0h"} for the business${used > avail ? ` · ${fmtHours(used - avail)} over` : ""}`;
+  };
   const suggestedLoad = (d: string) => suggestedOn(d).reduce((t, x) => t + x.item.hours, 0);
   const weekHours = days.reduce((t, d) => t + load(d), 0);
   const weekCapacity = days.reduce((t, d) => t + capacity(d), 0);
@@ -392,7 +410,7 @@ function WeekView() {
   );
 
   const runSuggest = (includeWaiting = plan?.includeWaiting ?? false) => {
-    const cands: Candidate[] = shownKind.map((i) => ({
+    const cands: Candidate[] = shownKind.filter((i) => !i.business).map((i) => ({
       key: i.key, kind: i.kind, hours: i.hours, deadline: i.deadline, urgent: i.urgent, held: i.held,
       planned: i.planned, suggestedSlot: i.kind === "job" && !i.finalise ? ((i.row as Job).SuggestedSlot as string | undefined) : undefined,
       waitingForClient: !!i.waiting, notBefore: i.waiting ? i.speakOn : undefined,
@@ -446,6 +464,7 @@ function WeekView() {
       return {
         key: i.key, title: i.title, client: i.client, tag: i.tag, hours: i.hours, task: i.kind === "task",
         svc: i.compliance ? svcClass((i.row as Job).ServiceKey) : "task", start: (i.row.StartTime as string) || undefined,
+        biz: i.business, cat: i.cat,
         flags: [st === "overdue" ? "late" : st === "tight" ? "tight" : "", i.urgent ? "urgent" : ""].filter(Boolean),
         subtasks: subs.total ? `${subs.done}/${subs.total} subtasks` : undefined,
         ...extra,
@@ -490,7 +509,7 @@ function WeekView() {
             {over ? <strong> · {fmtHours(used - cap)} over</strong> : null}
           </span>
           {meet > 0 && <span className="dhead-meet">{fmtHours(meet)} in meetings</span>}
-          {dh.business > 0 && <span className="dhead-biz">{fmtHours(dh.business)} for the business</span>}
+          {bizText(d) && <span className={`dhead-biz${bizLoad(d) > dh.business ? " over" : ""}`}>{bizText(d)}</span>}
         </div>
         {typePick(d)}
       </div>
@@ -802,7 +821,7 @@ function WeekView() {
                   {over && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red-ink)" }}>{fmtHours(used - cap)} over</span>}
                   {sHours > 0 && <span style={{ fontSize: 12, color: "var(--blue-ink)" }}>+{fmtHours(sHours)} suggested</span>}
                   {cal.meetingsOn(d) > 0 && <span className="muted" style={{ fontSize: 12 }}>Meetings {fmtHours(cal.meetingsOn(d))}</span>}
-                  {dayHours(d, settings).business > 0 && <span className="dhead-biz">{fmtHours(dayHours(d, settings).business)} for the business</span>}
+                  {bizText(d) && <span className={`dhead-biz${bizLoad(d) > dayHours(d, settings).business ? " over" : ""}`}>{bizText(d)}</span>}
                   {typePick(d)}
                 </div>
                 {preparedOn(d).map((i) => (
@@ -905,7 +924,8 @@ function PlanCard({
   return (
     <button
       type="button"
-      className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.done ? " done" : ""}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}${!i.done && !i.held && i.planned && i.planned < today ? " missed" : ""}`}
+      style={i.business ? ({ ["--cat" as string]: i.cat } as React.CSSProperties) : undefined}
+      className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.business ? " biz" : ""}${i.done ? " done" : ""}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}${!i.done && !i.held && i.planned && i.planned < today ? " missed" : ""}`}
       {...(dragProps || {})}
       {...(onDay ? { "data-card": i.key } : {})}
       onClick={onOpen}

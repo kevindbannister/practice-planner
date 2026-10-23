@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { backupDue, backupName, backupSheets, buildBackup } from "../src/lib/backup";
 import { colName, crc32, sheetNames, workbook } from "../src/lib/xlsx";
 import { FakeGraph } from "../src/lib/fakeGraph";
+import { LISTS } from "../src/lib/schema";
 import { uploadBackup } from "../src/lib/backup";
 
 test("zip checksums and column letters", () => {
@@ -41,7 +42,7 @@ test("backup has a contents sheet and one sheet per list, every column", () => {
   const clients = sheets.find((s) => s.name === "Clients")!;
   assert.deepEqual(clients.rows[0].slice(0, 3), ["Title", "Key", "Kind"]);
   assert.deepEqual(clients.rows.slice(1).map((r) => r[0]), ["Alpha", "Beta", "Gamma"]);
-  assert.equal(sheets.length, 1 + 19);
+  assert.equal(sheets.length, 1 + LISTS.length);
 });
 
 test("backup counts rows", async () => {

@@ -5,8 +5,10 @@ import { chaseItems, groupByClient } from "../lib/chase";
 import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, todayIso } from "../lib/domain";
 import { forecast } from "../lib/forecast";
 import { addDays, mondayOf, weekday } from "../lib/planning";
-import { clientHoursOn } from "../lib/dayTypes";
+import { clientHoursOn, dayHours } from "../lib/dayTypes";
+import { isBusinessTask } from "../lib/projects";
 import { TimeToLog } from "./TimeSpent";
+import { ProjectsToLookAt } from "./ProjectsView";
 import { planHours, waitState, waitingForClient } from "../lib/waiting";
 import { usePaymentReminderCount } from "./TaxPayments";
 import { templateFor } from "../lib/meetings";
@@ -21,7 +23,7 @@ import { Icon, IconName } from "./bits";
 
 type Work = {
   key: string; kind: "job" | "task"; row: Job | Task; title: string; client: string; serviceKey?: string;
-  hours: number; deadline?: string; planned?: string; urgent: boolean; held: boolean; records?: string; periodEnd?: string; typeName: string; waiting?: boolean;
+  hours: number; deadline?: string; planned?: string; urgent: boolean; held: boolean; records?: string; periodEnd?: string; typeName: string; waiting?: boolean; business?: boolean;
 };
 
 const greeting = (h: number) => (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
@@ -49,13 +51,17 @@ export function HomePage() {
         waiting: waitingForClient(j, idx.stagesByService.get(j.ServiceKey || "") || []),
       })),
       ...idx.openTasks.map((t): Work => ({
-        key: t.Key, kind: "task", row: t, title: t.Title, client: name(t.ClientKey), hours: t.EstimateHours || 1, deadline: t.DueDate,
-        planned: t.PlannedDate, urgent: false, held: isOnHold(t), serviceKey: "TASK", typeName: "Tasks",
+        key: t.Key, kind: "task", row: t, title: t.Title,
+        client: isBusinessTask(t) ? String(data.projects.find((p) => p.Key === t.ProjectKey)?.Title || "Business project") : name(t.ClientKey),
+        hours: t.EstimateHours || 1, deadline: t.DueDate,
+        planned: t.PlannedDate, urgent: false, held: isOnHold(t), serviceKey: "TASK", typeName: "Tasks", business: isBusinessTask(t),
       })),
     ];
-  }, [idx, data.services]);
+  }, [idx, data.services, data.projects]);
 
-  const active = work.filter((w) => !w.held);
+  // business project tasks sit apart from client work: they count against business hours, not the client figures below
+  const activeAll = work.filter((w) => !w.held);
+  const active = activeAll.filter((w) => !w.business);
   const late = active.filter((w) => w.deadline && w.deadline < today).sort((a, b) => a.deadline!.localeCompare(b.deadline!));
   const next7 = active.filter((w) => w.deadline && w.deadline >= today && w.deadline <= addDays(today, 7));
   // work with the client is off the plan on purpose, so it isn't counted as "not planned"
@@ -66,8 +72,10 @@ export function HomePage() {
     .filter((w) => ["today", "passed"].includes(waitState(w.row, today)) && (!w.planned || w.planned < today))
     .sort((a, b) => String(a.row.SpeakOn).localeCompare(String(b.row.SpeakOn)));
   const noSpeakDate = withClient.filter((w) => waitState(w.row, today) === "nodate");
-  const todays = active.filter((w) => w.planned === today).sort((a, b) => compareInDay(a, b));
-  const todayHours = todays.reduce((t, w) => t + w.hours, 0);
+  const todays = activeAll.filter((w) => w.planned === today).sort((a, b) => compareInDay(a, b));
+  const todayHours = todays.filter((w) => !w.business).reduce((t, w) => t + w.hours, 0);
+  const todayBiz = todays.filter((w) => w.business).reduce((t, w) => t + w.hours, 0);
+  const todayBizCap = dayHours(today, settings).business;
   const todayCap = weekday(today) >= 1 && weekday(today) <= 5 ? capacity(today) : 0;
   const chase = useMemo(() => groupByClient(chaseItems(idx.openJobs, data.services, today, data.stageTemplates)).filter((g) => g.status !== "chased"), [idx.openJobs, data.services, today, data.stageTemplates]);
   const heldAlerts = work.filter((w) => w.held && holdAlert(w.row, w.deadline, today));
@@ -87,7 +95,7 @@ export function HomePage() {
     byDay.get(w.deadline!)!.push(w);
   }
 
-  const f = useMemo(() => forecast(data.jobs, data.tasks, data.services, (d) => clientHoursOn(d, settings), today, 6), [data.jobs, data.tasks, data.services, settings, today]);
+  const f = useMemo(() => forecast(data.jobs, data.tasks.filter((t) => !isBusinessTask(t)), data.services, (d) => clientHoursOn(d, settings), today, 6), [data.jobs, data.tasks, data.services, settings, today]);
   const monthMax = Math.max(1, ...f.months.map((m) => Math.max(m.due, m.capacity)));
 
   // open work by type of work
@@ -150,6 +158,7 @@ export function HomePage() {
               <span className="muted" style={{ fontSize: 13 }}>
                 {todayCap ? `${fmtHours(todayHours) || "0h"} of ${fmtHours(todayCap)}` : "Not a working day"}
                 {cal.meetingsOn(today) ? ` · meetings ${fmtHours(cal.meetingsOn(today))}` : ""}
+                {todayBiz || todayBizCap ? ` · business ${fmtHours(todayBiz) || "0h"} of ${fmtHours(todayBizCap) || "0h"}` : ""}
               </span>
             </div>
             {todayCap > 0 && (
@@ -168,6 +177,8 @@ export function HomePage() {
               </div>
             )}
           </section>
+
+          <ProjectsToLookAt />
 
           <section className="card" aria-labelledby="soon-h">
             <div className="card-head">

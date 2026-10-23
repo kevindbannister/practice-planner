@@ -10,7 +10,7 @@ import { fmtHours } from "../lib/domain";
 import { Icon } from "./bits";
 
 export type HourCard = {
-  key: string; title: string; client: string; tag: string; hours: number; svc: string; start?: string;
+  key: string; title: string; client: string; tag: string; hours: number; svc: string; start?: string; biz?: boolean; cat?: string;
   flags: string[]; // "late", "tight", "urgent", "held"
   suggested?: string; prepared?: boolean; subtasks?: string; task?: boolean; done?: boolean;
 };
@@ -259,8 +259,8 @@ export function HoursView(p: Props) {
                     <button
                       key={`${pl.key}-${n}`}
                       type="button"
-                      className={`hblock ${c.svc}${c.task ? " task" : ""}${c.suggested !== undefined ? " suggested" : ""}${c.prepared ? " prepared" : ""}${c.done ? " done" : ""}${pl.clash ? " clash" : ""}${p.dragKey === c.key ? " dragging" : ""}${small ? " small" : ""}${resizing ? " resizing" : ""}`}
-                      style={{ top: y(s) + 1, height: Math.max(16, h - 2) }}
+                      className={`hblock ${c.svc}${c.task ? " task" : ""}${c.biz ? " biz" : ""}${c.suggested !== undefined ? " suggested" : ""}${c.prepared ? " prepared" : ""}${c.done ? " done" : ""}${pl.clash ? " clash" : ""}${p.dragKey === c.key ? " dragging" : ""}${small ? " small" : ""}${resizing ? " resizing" : ""}`}
+                      style={{ top: y(s) + 1, height: Math.max(16, h - 2), ["--cat" as string]: c.cat }}
                       {...(canEdit ? p.cardProps(c.key) : {})}
                       onClick={() => !justResized.current && p.onOpen(c.key)}
                       aria-label={`${c.client ? `${c.client}: ` : ""}${c.title}, ${clock(s)} to ${clock(f)}${pl.pinned ? ", set time" : ""}${c.suggested !== undefined ? ", suggested" : ""}. Open.`}
@@ -317,7 +317,7 @@ export function HoursView(p: Props) {
                   {x.layout.unfitted.map((k) => {
                     const c = x.cards.find((cc) => cc.key === k)!;
                     return (
-                      <button key={k} type="button" className={`hblock unfit ${c.svc}${c.task ? " task" : ""}${c.suggested !== undefined ? " suggested" : ""}`}
+                      <button key={k} type="button" style={{ ["--cat" as string]: c.cat }} className={`hblock unfit ${c.svc}${c.task ? " task" : ""}${c.biz ? " biz" : ""}${c.suggested !== undefined ? " suggested" : ""}`}
                         {...(c.suggested === undefined && !c.prepared && !c.done ? p.cardProps(c.key) : {})} onClick={() => p.onOpen(c.key)}>
                         <span className="hb-top"><strong>{c.client || c.title}</strong><span className="mono">{fmtHours(c.hours)}</span></span>
                         <span className="hb-sub">{c.client ? c.title : c.tag}</span>

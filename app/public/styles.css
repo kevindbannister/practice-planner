@@ -1648,3 +1648,29 @@ a.chip { text-decoration: none; } a.chip:hover { text-decoration: underline; }
 .timelog .time-entry { padding: 4px 0 8px; }
 .timelog-row { padding: 6px 16px; }
 .timelog .home-list { padding: 0; margin: 0; }
+
+/* ---- business projects ---- */
+.proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.proj-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius, 14px); box-shadow: var(--elev-1); display: flex; flex-direction: column; overflow: hidden; border-top: 4px solid var(--cat, var(--line)); }
+.proj-card.quiet { opacity: 0.75; }
+.proj-main { display: flex; flex-direction: column; gap: 6px; text-align: left; background: none; border: 0; padding: 14px 14px 8px; font: inherit; color: inherit; cursor: pointer; }
+.proj-main:hover .proj-title { text-decoration: underline; }
+.proj-cat { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.proj-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cat); }
+.proj-title { font-size: 16px; line-height: 1.25; }
+.proj-outcome { font-size: 13px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.proj-bar { display: block; height: 6px; border-radius: 3px; background: var(--line-2); overflow: hidden; }
+.proj-bar > span { display: block; height: 100%; background: var(--cat); border-radius: 3px; }
+.proj-meta { font-size: 12px; }
+.proj-next { font-size: 13px; }
+.proj-foot { padding: 0 14px 12px; margin-top: auto; }
+
+/* business project tasks on the planner: category colour */
+.pcard.biz { background: color-mix(in srgb, var(--cat) 9%, var(--surface)); border: 1.5px solid color-mix(in srgb, var(--cat) 40%, var(--line)); border-left: 5px solid var(--cat); }
+.pcard.biz .pcard-tag { color: var(--cat); font-weight: 600; }
+.hblock.biz { background: color-mix(in srgb, var(--cat) 14%, var(--surface)); border-color: color-mix(in srgb, var(--cat) 45%, var(--line)); border-left: 4px solid var(--cat); }
+.dhead-biz.over { color: var(--amber-ink); }
+.proj-look { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; padding: 10px 16px; font: inherit; color: inherit; cursor: pointer; }
+.proj-look:hover { background: var(--surface-2); }
+.proj-look-text { display: flex; flex-direction: column; flex: 1; min-width: 0; font-size: 14px; }
+.proj-look-text .muted { font-size: 12px; }

@@ -11,6 +11,7 @@ import { chaseSummary } from "../lib/chase";
 import { Subtask, progress, readSubtasks, writeSubtasks } from "../lib/subtasks";
 import { finaliseDefault, firstWaitStage, inFinalise, isWaitStage, stageAt, unwaitPatch, waitPatch, waitingForClient } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
+import { CATEGORIES, PROJECT_STATUSES, categoryOf, nextAction, progressOf, projectAttention, sortProjects, statusOf, tasksOf } from "../lib/projects";
 import { TimePicker } from "./TimePicker";
 import { parseDuration, timePatch } from "../lib/timeSpent";
 import { DeadlineChip, ElementsLink, Icon, PapersLink, href } from "./bits";
@@ -18,7 +19,8 @@ import { useData, useIndex } from "./data";
 
 type Open =
   | { kind: "job"; key: string }
-  | { kind: "task"; key?: string; clientKey?: string; plannedDate?: string; startTime?: string }
+  | { kind: "task"; key?: string; clientKey?: string; plannedDate?: string; startTime?: string; projectKey?: string }
+  | { kind: "project"; key?: string }
   | { kind: "newJob"; clientKey: string };
 
 const EditorContext = createContext<{ open: (o: Open) => void; close: () => void } | null>(null);
@@ -37,8 +39,9 @@ export function EditorProvider({ children }: { children: ReactNode }) {
       {children}
       {current?.kind === "job" && <JobPanel jobKey={current.key} onClose={close} />}
       {current?.kind === "task" && (
-        <TaskPanel taskKey={current.key} clientKey={current.clientKey} plannedDate={current.plannedDate} startTime={current.startTime} onClose={close} />
+        <TaskPanel taskKey={current.key} clientKey={current.clientKey} plannedDate={current.plannedDate} startTime={current.startTime} projectKey={current.projectKey} onClose={close} />
       )}
+      {current?.kind === "project" && <ProjectPanel projectKey={current.key} onClose={close} />}
       {current?.kind === "newJob" && <NewJobPanel clientKey={current.clientKey} onClose={close} />}
     </EditorContext.Provider>
   );
@@ -587,14 +590,104 @@ function HoldForm(p: {
   );
 }
 
+// ---------------------------------------------------------------- business projects
+
+/** A business project: what it's for, when it should be done, and its tasks. */
+function ProjectPanel({ projectKey, onClose }: { projectKey?: string; onClose: () => void }) {
+  const { data, update, create } = useData();
+  const { open } = useEditor();
+  const today = todayIso();
+  const existing = projectKey ? data.projects.find((p) => p.Key === projectKey) : undefined;
+  const [draft, setDraft] = useState<Row>({ Category: "marketing", Status: "Active" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+
+  if (existing) {
+    const save = (patch: Row) => update("Projects", existing, { ...patch, Touched: today });
+    const mine = tasksOf(existing, data.tasks).filter((t) => t.Status !== "Cancelled");
+    const prog = progressOf(existing, data.tasks);
+    const attention = projectAttention(existing, data.tasks, today);
+    const next = nextAction(existing, data.tasks);
+    return (
+      <Drawer title={existing.Title as string} eyebrow={`${categoryOf(existing).name} project`} onClose={onClose}>
+        {attention && <div className={`hold-box ${attention.level}`}><strong>{attention.text}</strong></div>}
+        <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <div style={{ gridColumn: "1 / -1" }}><Field label="Project" value={existing.Title as string} onSave={(v) => (v ? save({ Title: v }) : undefined)} /></div>
+          <SelectField label="Category" value={(existing.Category as string) || "other"} onChange={(v) => save({ Category: v })}>
+            {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+          </SelectField>
+          <SelectField label="Status" value={statusOf(existing)} onChange={(v) => save({ Status: v })}>
+            {PROJECT_STATUSES.map((s) => <option key={s}>{s}</option>)}
+          </SelectField>
+          <div style={{ gridColumn: "1 / -1" }}><Field label="What does done look like?" multiline value={existing.Outcome as string} placeholder="e.g. the new website is live and enquiries are coming in" onSave={(v) => save({ Outcome: v })} /></div>
+          <Field label="Target date" type="date" value={existing.TargetDate as string} onSave={(v) => save({ TargetDate: v })} />
+          <div />
+          <div style={{ gridColumn: "1 / -1" }}><Field label="Notes" multiline value={existing.Notes as string} onSave={(v) => save({ Notes: v })} /></div>
+        </div>
+        <section className="stack" aria-labelledby="proj-tasks-h">
+          <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+            <h3 id="proj-tasks-h" style={{ margin: 0, fontSize: 15 }}>Tasks · {prog.done} of {prog.total} done</h3>
+            <button type="button" className="btn small primary" onClick={() => open({ kind: "task", projectKey: existing.Key as string })}>Add a task</button>
+          </div>
+          {next && <span className="muted" style={{ fontSize: 13 }}>Next: {next.Title as string}{next.PlannedDate ? ` · planned ${fmtDate(next.PlannedDate as string, { weekday: true, year: false })}` : " · not planned yet"}</span>}
+          {mine.length ? (
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+              {mine.map((t) => (
+                <li key={t.Key as string}>
+                  <button type="button" className="task-row" onClick={() => open({ kind: "task", key: t.Key as string })}>
+                    <span style={{ fontWeight: 600, textDecoration: isOpen(t) ? "none" : "line-through" }}>{t.Title as string}</span>
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {isOpen(t) ? (t.PlannedDate ? `planned ${fmtDate(t.PlannedDate as string, { weekday: true, year: false })}` : "not planned") : `done ${fmtDate(t.CompletedDate as string, { year: false })}`}
+                      {t.EstimateHours ? ` · ${fmtHours(Number(t.EstimateHours))}` : ""}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="muted" style={{ margin: 0, fontSize: 13 }}>No tasks yet. Add the first step so the project has a next action.</p>}
+        </section>
+      </Drawer>
+    );
+  }
+
+  const submit = async () => {
+    if (!String(draft.Title || "").trim()) return setError("Give the project a name.");
+    setBusy(true);
+    try {
+      const row = await create("Projects", { ...draft, Title: String(draft.Title).trim(), Key: newKey("B"), Status: "Active", Touched: today });
+      open({ kind: "project", key: row.Key as string });
+    } catch {
+      setError("Couldn't add the project. Try again.");
+      setBusy(false);
+    }
+  };
+  return (
+    <Drawer title="New business project" eyebrow="Project" onClose={onClose}>
+      <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+        <label style={{ gridColumn: "1 / -1" }}>Project<input className="input" value={(draft.Title as string) || ""} onChange={(e) => setDraft({ ...draft, Title: e.target.value })} autoFocus placeholder="e.g. Refresh the website" /></label>
+        <SelectField label="Category" value={(draft.Category as string) || "other"} onChange={(v) => setDraft({ ...draft, Category: v })}>
+          {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+        </SelectField>
+        <label>Target date<input className="input" type="date" value={(draft.TargetDate as string) || ""} onChange={(e) => setDraft({ ...draft, TargetDate: e.target.value })} /></label>
+        <label style={{ gridColumn: "1 / -1" }}>What does done look like?<textarea className="input" rows={3} value={(draft.Outcome as string) || ""} onChange={(e) => setDraft({ ...draft, Outcome: e.target.value })} /></label>
+      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      <div className="form-actions">
+        <button type="button" className="btn" onClick={onClose}>Cancel</button>
+        <button type="button" className="btn primary" onClick={submit} disabled={busy}>{busy ? "Adding…" : "Add project"}</button>
+      </div>
+    </Drawer>
+  );
+}
+
 // ---------------------------------------------------------------- tasks
 
 export const TASK_TYPES = ["Advisory", "Client work", "Practice", "Admin", "Other"];
 
-function TaskPanel({ taskKey, clientKey, plannedDate, startTime, onClose }: { taskKey?: string; clientKey?: string; plannedDate?: string; startTime?: string; onClose: () => void }) {
+function TaskPanel({ taskKey, clientKey, plannedDate, startTime, projectKey, onClose }: { taskKey?: string; clientKey?: string; plannedDate?: string; startTime?: string; projectKey?: string; onClose: () => void }) {
   const { data, update, create } = useData();
   const existing = taskKey ? data.tasks.find((t) => t.Key === taskKey) : undefined;
-  const [draft, setDraft] = useState<Row>({ Type: clientKey ? "Client work" : "Practice", ClientKey: clientKey, PlannedDate: plannedDate, StartTime: startTime });
+  const [draft, setDraft] = useState<Row>({ Type: clientKey ? "Client work" : "Practice", ClientKey: clientKey, PlannedDate: plannedDate, StartTime: startTime, ProjectKey: projectKey });
   const [finishing, setFinishing] = useState(false);
   const [took, setTook] = useState("");
   const [busy, setBusy] = useState(false);
@@ -606,7 +699,7 @@ function TaskPanel({ taskKey, clientKey, plannedDate, startTime, onClose }: { ta
     return (
       <Drawer title={existing.Title} eyebrow={existing.Type || "Task"} onClose={onClose}>
         {isOpen(existing) && <HoldSection item={existing} deadline={existing.DueDate} save={save} what="task" />}
-        <TaskFields value={existing} clients={clients} onChange={(patch) => save(patch)} live />
+        <TaskFields value={existing} clients={clients} projects={data.projects} onChange={(patch) => save(patch)} live />
         <SubtaskList value={existing.Subtasks as string} onChange={(v) => save({ Subtasks: v })}
           onAllDone={isOpen(existing) ? () => setFinishing(true) : undefined} />
         {isOpen(existing) && finishing ? (
@@ -658,7 +751,7 @@ function TaskPanel({ taskKey, clientKey, plannedDate, startTime, onClose }: { ta
   };
   return (
     <Drawer title="New task" eyebrow="Task" onClose={onClose}>
-      <TaskFields value={draft} clients={clients} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
+      <TaskFields value={draft} clients={clients} projects={data.projects} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
       <SubtaskList value={draft.Subtasks as string} onChange={(v) => setDraft((d) => ({ ...d, Subtasks: v }))} />
       {error && <p className="error-text" role="alert">{error}</p>}
       <div className="form-actions">
@@ -669,8 +762,16 @@ function TaskPanel({ taskKey, clientKey, plannedDate, startTime, onClose }: { ta
   );
 }
 
-function TaskFields({ value, clients, onChange, live }: { value: Row; clients: Row[]; onChange: (p: Row) => void; live?: boolean }) {
+function TaskFields({ value, clients, projects, onChange, live }: { value: Row; clients: Row[]; projects: Row[]; onChange: (p: Row) => void; live?: boolean }) {
   const num = (v: string) => (v === "" ? "" : Number(v)) as any;
+  // a task can belong to a business project (work on the practice, not for a client); finished projects drop off the list unless it's this task's
+  const choices = sortProjects(projects).filter((p) => statusOf(p) !== "Done" || p.Key === value.ProjectKey);
+  const projectField = (
+    <SelectField label="Business project" value={(value.ProjectKey as string) || ""} onChange={(v) => onChange({ ProjectKey: v })}>
+      <option value="">None (not a business project)</option>
+      {choices.map((p) => <option key={p.Key as string} value={p.Key as string}>{p.Title as string}</option>)}
+    </SelectField>
+  );
   if (live) {
     return (
       <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
@@ -682,6 +783,7 @@ function TaskFields({ value, clients, onChange, live }: { value: Row; clients: R
           <option value="">None</option>
           {clients.map((c) => <option key={c.Key as string} value={c.Key as string}>{c.Title as string}</option>)}
         </SelectField>
+        {projects.length > 0 && <div style={{ gridColumn: "1 / -1" }}>{projectField}</div>}
         <Field label="Planned for" type="date" value={value.PlannedDate as string} onSave={(v) => onChange({ PlannedDate: v, DayOrder: "", StartTime: "" })} />
         <TimeField value={value.StartTime as string} disabled={!value.PlannedDate} onSave={(v) => onChange({ StartTime: v })} />
         <Field label="Due" type="date" value={value.DueDate as string} onSave={(v) => onChange({ DueDate: v })} />
@@ -704,6 +806,7 @@ function TaskFields({ value, clients, onChange, live }: { value: Row; clients: R
         <option value="">None</option>
         {clients.map((c) => <option key={c.Key as string} value={c.Key as string}>{c.Title as string}</option>)}
       </SelectField>
+      {projects.length > 0 && <div style={{ gridColumn: "1 / -1" }}>{projectField}</div>}
       <label>Planned for<input className="input" type="date" value={(value.PlannedDate as string) || ""} onChange={set("PlannedDate")} /></label>
       <label>Start time (optional)<input className="input" type="time" step="900" value={(value.StartTime as string) || ""} onChange={set("StartTime")} /></label>
       <label>Due<input className="input" type="date" value={(value.DueDate as string) || ""} onChange={set("DueDate")} /></label>

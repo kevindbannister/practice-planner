@@ -1,5 +1,5 @@
 // Small shared pieces: routing, client badge, deadline chips, icons.
-import { CSSProperties, useEffect, useState } from "react";
+import { CSSProperties, useEffect, useRef, useState } from "react";
 import { logoSrc } from "../lib/logo";
 import { elementsUrl } from "../lib/elements";
 import { Client, Job, badgeColours, deadlineLabel, initials, jobState, todayIso } from "../lib/domain";
@@ -139,13 +139,19 @@ export function companiesHouseUrl(number?: string): string | undefined {
   return number ? `https://find-and-update.company-information.service.gov.uk/company/${encodeURIComponent(number)}` : undefined;
 }
 
-/** The Plan section's heading and its three views. */
-export function PlanTabs({ current }: { current: "week" | "months" | "deadlines" | "done" }) {
-  const tabs: [string, string, string][] = [["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"], ["done", "Completed", "#/plan/done"]];
+/** The Plan section's heading and its views. */
+export function PlanTabs({ current }: { current: "week" | "months" | "deadlines" | "done" | "projects" }) {
+  const tabs: [string, string, string][] = [["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"], ["done", "Completed", "#/plan/done"], ["projects", "Projects", "#/plan/projects"]];
+  // on a narrow screen the tabs scroll sideways: bring the one you're on into view
+  const nav = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = nav.current?.querySelector<HTMLElement>("[aria-current]");
+    if (el && nav.current && nav.current.scrollWidth > nav.current.clientWidth) nav.current.scrollLeft = el.offsetLeft - (nav.current.clientWidth - el.offsetWidth) / 2;
+  }, [current]);
   return (
     <div className="plan-title">
       <h1>Plan</h1>
-      <nav className="subtabs" aria-label="Plan views">
+      <nav className="subtabs" aria-label="Plan views" ref={nav}>
         {tabs.map(([k, label, to]) => (
           <a key={k} href={to} aria-current={current === k ? "page" : undefined}>{label}</a>
         ))}
