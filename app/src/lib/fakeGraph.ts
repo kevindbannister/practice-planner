@@ -7,7 +7,8 @@ type List = { id: string; displayName: string; description?: string; columns: { 
 type DriveFile = { id: string; name: string; path: string; size: number; at: string; data64?: string };
 type FakeMessage = { id: string; subject: string; to: string[]; html: string; attachments: { name: string; size: number }[] };
 type FakeEvent = { id: string; subject: string; start: string; end: string; showAs: string; isAllDay: boolean; categories: string[]; props: { id: string; value: string }[] };
-type State = { lists: List[]; nextList: number; files?: DriveFile[]; events?: FakeEvent[]; nextEvent?: number; messages?: FakeMessage[] };
+type FakeMail = { id: string; folder: string; name: string; address: string; subject: string; body: string; html: boolean; to: { name: string; address: string }[]; at: string; read: boolean; flagged: boolean; attach: boolean };
+type State = { lists: List[]; nextList: number; files?: DriveFile[]; events?: FakeEvent[]; nextEvent?: number; messages?: FakeMessage[]; mailbox?: FakeMail[] };
 
 const toB64 = (d: Uint8Array) => {
   let s = "";
@@ -95,20 +96,87 @@ export class FakeGraph implements Graph {
     }
     throw new GraphError(404, "Message not found");
   }
-  /** A few inbox messages for the demo: two that ask for something, one flagged, and some noise. */
-  private inbox(): any {
+  /**
+   * A demo mailbox: an inbox with a mix of client mail, official mail and noise, plus Drafts, Sent
+   * Items, an Archive with a sub-folder, Deleted Items and Junk. Flags and read marks are kept.
+   */
+  private mailbox(): FakeMail[] {
+    if (this.state.mailbox) return this.state.mailbox;
     const ago = (h: number) => new Date(Date.now() - h * 3600000).toISOString();
-    const msg = (id: string, name: string, address: string, subject: string, preview: string, hours: number, read = false, flagged = false) => ({
-      id, subject, bodyPreview: preview, receivedDateTime: ago(hours), isRead: read, flag: { flagStatus: flagged ? "flagged" : "notFlagged" },
-      from: { emailAddress: { name, address } }, webLink: `https://outlook.office.com/mail/inbox/id/${id}`,
+    const me = { name: "Demo User", address: "demo@example.com" };
+    const m = (id: string, folder: string, name: string, address: string, subject: string, body: string, hours: number, o: Partial<FakeMail> = {}): FakeMail => ({
+      id, folder, name, address, subject, body, html: true, to: [me], at: ago(hours), read: false, flagged: false, attach: false, ...o,
     });
-    return { value: [
-      msg("in-1", "Jo Bright", "jo@brightbakes.example", "VAT return question", "Hi Kevin, can you let me know by Friday whether the van purchase goes through the VAT return? Thanks, Jo", 5),
-      msg("in-2", "HMRC", "noreply@hmrc.example", "Your VAT return receipt", "Thank you for submitting your return", 8),
-      msg("in-3", "Sam Lee", "sam@leeplumbing.example", "Bank statements", "Attached are the statements for September. Please confirm you have them.", 20, true, true),
-      msg("in-4", "Accounting Weekly", "newsletter@accweekly.example", "This week's newsletter", "Ten tips for your practice", 30),
-      msg("in-5", "A friend", "pal@mail.example", "Lunch on Thursday?", "Fancy a bite at 1?", 3),
-    ] };
+    const out = (id: string, folder: string, to: { name: string; address: string }, subject: string, body: string, hours: number, o: Partial<FakeMail> = {}) =>
+      m(id, folder, me.name, me.address, subject, body, hours, { to: [to], read: true, ...o });
+    this.state.mailbox = [
+      m("in-1", "inbox", "Jo Bright", "jo@brightbakes.example", "VAT return question", "<p>Hi Kevin,</p><p>Can you let me know by Friday whether the van purchase goes through the VAT return?</p><p>Thanks, Jo</p>", 5),
+      m("in-2", "inbox", "HMRC", "noreply@hmrc.example", "Your VAT return receipt", "<p>Thank you for submitting your return.</p>", 8),
+      m("in-3", "inbox", "Sam Lee", "sam@leeplumbing.example", "Bank statements", "<p>Attached are the statements for September. Please confirm you have them.</p>", 20, { read: true, flagged: true, attach: true }),
+      m("in-4", "inbox", "Accounting Weekly", "newsletter@accweekly.example", "This week's newsletter", "<p>Ten tips for your practice.</p>", 30),
+      m("in-5", "inbox", "A friend", "pal@mail.example", "Lunch on Thursday?", "<p>Fancy a bite at 1?</p>", 3),
+      m("in-6", "inbox", "Priya Nair", "priya@orchardphysio.example", "Payroll changes for November", "<p>Hello,</p><p>Two new starters join on 2 November. Can you add them to payroll?</p><ul><li>A. Clarke</li><li>M. Evans</li></ul>", 26, { attach: true }),
+      m("in-7", "inbox", "Jo Bright", "jo@brightbakes.example", "Re: Engagement letter", "<p>Signed and attached, thanks.</p>", 50, { read: true, attach: true }),
+      m("in-8", "inbox", "Companies House", "noreply@companieshouse.example", "Confirmation statement reminder", "<p>Your confirmation statement is due soon.</p>", 60, { read: true }),
+      m("in-9", "inbox", "Elm Street Software", "sales@elmstreet.example", "Your invoice from Elm Street", "<p>Invoice 2291 is attached.</p>", 90, { read: true, attach: true }),
+      m("in-10", "inbox", "Dan Lee", "dan@leeplumbing.example", "Van tax question", "<p>Sam asked me to check: is the van tax deductible?</p>", 100),
+      out("dr-1", "drafts", { name: "Jo Bright", address: "jo@brightbakes.example" }, "Year-end accounts: what I need", "<p>Hi Jo, to finish your accounts I need your bank statements and sales summary.</p>", 6),
+      out("se-1", "sent", { name: "Jo Bright", address: "jo@brightbakes.example" }, "Re: VAT return question", "<p>Hi Jo, yes, it goes through the return. I'll confirm the figures on Friday.</p>", 52),
+      out("se-2", "sent", { name: "Sam Lee", address: "sam@leeplumbing.example" }, "September statements: received", "<p>Thanks Sam, got them.</p>", 70),
+      out("se-3", "sent", { name: "A friend", address: "pal@mail.example" }, "Re: Lunch on Thursday?", "<p>Yes, 1 o'clock works.</p>", 120),
+      m("ar-1", "archive", "Priya Nair", "priya@orchardphysio.example", "Last quarter's payslips", "<p>Thanks for sending these.</p>", 700, { read: true }),
+      m("ar-2", "clients2025", "Jo Bright", "jo@brightbakes.example", "2025 accounts signed", "<p>Signed copy attached.</p>", 5000, { read: true, attach: true }),
+      m("de-1", "deleted", "Accounting Weekly", "newsletter@accweekly.example", "Last week's newsletter", "<p>Old news.</p>", 200, { read: true }),
+      m("ju-1", "junk", "Prize Team", "win@prizes.example", "You've won!", "<p>Click here.</p>", 40),
+      m("rc-1", "receipts", "Cloud Storage", "billing@cloudstore.example", "Receipt for October", "Your receipt is attached.", 300, { read: true, html: false, attach: true }),
+    ];
+    this.save();
+    return this.state.mailbox;
+  }
+  private static FOLDERS = [
+    { id: "inbox", name: "Inbox" }, { id: "drafts", name: "Drafts" }, { id: "sent", name: "Sent Items" }, { id: "archive", name: "Archive", children: [{ id: "clients2025", name: "Clients 2025" }] },
+    { id: "deleted", name: "Deleted Items" }, { id: "junk", name: "Junk Email" }, { id: "receipts", name: "Receipts" },
+  ];
+  private mailFolders(path: string): any {
+    const all = this.mailbox();
+    const shape = (f: { id: string; name: string; children?: unknown[] }) => ({
+      id: `fld-${f.id}`, displayName: f.name, childFolderCount: f.children?.length || 0,
+      totalItemCount: all.filter((x) => x.folder === f.id).length, unreadItemCount: all.filter((x) => x.folder === f.id && !x.read).length,
+    });
+    const kids = path.match(/^\/me\/mailFolders\/fld-([^/]+)\/childFolders$/);
+    if (kids) return { value: (FakeGraph.FOLDERS.find((f) => f.id === kids[1])?.children || []).map(shape) };
+    return { value: FakeGraph.FOLDERS.map(shape) };
+  }
+  private mailItem(x: FakeMail): any {
+    return {
+      id: x.id, subject: x.subject, bodyPreview: x.body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(), receivedDateTime: x.at, sentDateTime: x.at,
+      isRead: x.read, flag: { flagStatus: x.flagged ? "flagged" : "notFlagged" }, hasAttachments: x.attach,
+      from: { emailAddress: { name: x.name, address: x.address } }, toRecipients: x.to.map((t) => ({ emailAddress: t })), ccRecipients: [],
+      body: { contentType: x.html ? "html" : "text", content: x.body }, webLink: `https://outlook.office.com/mail/${x.folder}/id/${x.id}`,
+    };
+  }
+  /** GET a folder's messages (paged with $top and $skip), and GET or PATCH one message. */
+  private mailRoute(method: string, path: string, q: URLSearchParams, body: any): any {
+    const all = this.mailbox();
+    const folder = path.match(/^\/me\/mailFolders\/(?:fld-)?([^/]+)\/messages$/);
+    if (folder && method === "GET") {
+      const mine = all.filter((x) => x.folder === folder[1]).sort((a, b) => b.at.localeCompare(a.at));
+      const top = Number(q.get("$top")) || 50, skip = Number(q.get("$skip")) || 0;
+      const value = mine.slice(skip, skip + top).map((x) => this.mailItem(x));
+      const next = skip + top < mine.length ? `/me/mailFolders/fld-${folder[1]}/messages?$top=${top}&$skip=${skip + top}` : undefined;
+      return next ? { value, "@odata.nextLink": next } : { value };
+    }
+    const one = path.match(/^\/me\/messages\/([^/]+)$/);
+    const x = one && all.find((y) => y.id === one[1]);
+    if (!x) return undefined;
+    if (method === "GET") return this.mailItem(x);
+    if (method === "PATCH") {
+      if (typeof body?.isRead === "boolean") x.read = body.isRead;
+      if (body?.flag?.flagStatus) x.flagged = body.flag.flagStatus === "flagged";
+      this.save();
+      return this.mailItem(x);
+    }
+    return undefined;
   }
   /** A small Outlook calendar for the demo, with a few meetings in the next fortnight. */
   private calendar(method: string, path: string, q: URLSearchParams, body: any): any {
@@ -225,8 +293,15 @@ export class FakeGraph implements Graph {
 
     if (method === "GET" && path === "/me") return { displayName: "Demo User", mail: "demo@example.com" };
     if (path.startsWith("/me/calendarView") || path.startsWith("/me/events")) return this.calendar(method, path, q, body);
-    if (method === "GET" && path.startsWith("/me/mailFolders/inbox/messages")) return this.inbox();
-    if (path.startsWith("/me/messages")) return this.mail(method, path, body);
+    if (path.startsWith("/me/mailFolders")) {
+      if (method === "GET" && path.endsWith("/messages")) return this.mailRoute(method, path.replace("/inbox/", "/fld-inbox/"), q, body);
+      if (method === "GET") return this.mailFolders(path.replace("/fld-fld-", "/fld-"));
+    }
+    if (path.startsWith("/me/messages")) {
+      const done = this.mailRoute(method, path, q, body);
+      if (done !== undefined) return done;
+      return this.mail(method, path, body);
+    }
     if (method === "GET" && (m = path.match(/^\/me\/drive\/root:\/(.+)$/))) {
       const folder = m[1];
       const file = (this.state.files || []).find((f) => f.path === folder);
