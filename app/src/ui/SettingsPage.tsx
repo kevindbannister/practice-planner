@@ -1,4 +1,5 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
+import { EmailSettings } from "./EmailSuggestions";
 import { AssistantSettings } from "./Assistant";
 import { RoutinesCard } from "./Routines";
 import { XeroSettings } from "./XeroSettings";
@@ -54,6 +55,7 @@ export function SettingsPage() {
       {tab === "calendar" && <CalendarSettings />}
       {tab === "letters" && <CommsSettings />}
       {tab === "letters" && <AssistantSettings />}
+      {tab === "letters" && <EmailSettings />}
       {tab === "xero" && <XeroSettings />}
     </div>
   );

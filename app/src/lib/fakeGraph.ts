@@ -95,6 +95,21 @@ export class FakeGraph implements Graph {
     }
     throw new GraphError(404, "Message not found");
   }
+  /** A few inbox messages for the demo: two that ask for something, one flagged, and some noise. */
+  private inbox(): any {
+    const ago = (h: number) => new Date(Date.now() - h * 3600000).toISOString();
+    const msg = (id: string, name: string, address: string, subject: string, preview: string, hours: number, read = false, flagged = false) => ({
+      id, subject, bodyPreview: preview, receivedDateTime: ago(hours), isRead: read, flag: { flagStatus: flagged ? "flagged" : "notFlagged" },
+      from: { emailAddress: { name, address } }, webLink: `https://outlook.office.com/mail/inbox/id/${id}`,
+    });
+    return { value: [
+      msg("in-1", "Jo Bright", "jo@brightbakes.example", "VAT return question", "Hi Kevin, can you let me know by Friday whether the van purchase goes through the VAT return? Thanks, Jo", 5),
+      msg("in-2", "HMRC", "noreply@hmrc.example", "Your VAT return receipt", "Thank you for submitting your return", 8),
+      msg("in-3", "Sam Lee", "sam@leeplumbing.example", "Bank statements", "Attached are the statements for September. Please confirm you have them.", 20, true, true),
+      msg("in-4", "Accounting Weekly", "newsletter@accweekly.example", "This week's newsletter", "Ten tips for your practice", 30),
+      msg("in-5", "A friend", "pal@mail.example", "Lunch on Thursday?", "Fancy a bite at 1?", 3),
+    ] };
+  }
   /** A small Outlook calendar for the demo, with a few meetings in the next fortnight. */
   private calendar(method: string, path: string, q: URLSearchParams, body: any): any {
     if (!this.state.events) {
@@ -210,6 +225,7 @@ export class FakeGraph implements Graph {
 
     if (method === "GET" && path === "/me") return { displayName: "Demo User", mail: "demo@example.com" };
     if (path.startsWith("/me/calendarView") || path.startsWith("/me/events")) return this.calendar(method, path, q, body);
+    if (method === "GET" && path.startsWith("/me/mailFolders/inbox/messages")) return this.inbox();
     if (path.startsWith("/me/messages")) return this.mail(method, path, body);
     if (method === "GET" && (m = path.match(/^\/me\/drive\/root:\/(.+)$/))) {
       const folder = m[1];

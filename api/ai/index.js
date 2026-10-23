@@ -104,6 +104,51 @@ function assistMessages(b) {
   ];
 }
 
+const SYSTEM_EMAILS = [
+  "You help a sole UK accountant decide which of his recent emails need him to do something. For each email you get its id, sender, client (if known), subject and a short preview.",
+  "Use British English. Use only what is given: never invent facts. Judge from the subject and preview whether the email asks for work, a reply, or a decision from him (needsAction true), or is just information, thanks or marketing (false).",
+  "For ones that need action give a short task title that starts with a verb (for example \"Send Acme the VAT figures\"), a due date as YYYY-MM-DD only if the email states or clearly implies one, an estimate in hours (0.25 to 4) and a few words on why.",
+  "Reply with a JSON object only: {\"emails\": [{\"id\": \"...\", \"needsAction\": true, \"title\": \"...\", \"due\": \"YYYY-MM-DD\", \"hours\": 0.5, \"why\": \"...\"}]} with one entry per email given.",
+].join("\n");
+
+/** The AI's verdicts on a batch of emails, checked: only ids that were asked about, sensible values. */
+function parseEmails(text, ids) {
+  let obj = null;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    const m = typeof text === "string" && text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try {
+        obj = JSON.parse(m[0]);
+      } catch {
+        obj = null;
+      }
+    }
+  }
+  if (!obj || !Array.isArray(obj.emails)) return null;
+  const out = [];
+  for (const e of obj.emails) {
+    if (!e || typeof e.id !== "string" || !ids.includes(e.id) || typeof e.needsAction !== "boolean") continue;
+    const v = { id: e.id, needsAction: e.needsAction };
+    if (typeof e.title === "string" && e.title.trim()) v.title = e.title.trim().slice(0, 140);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(e.due || "")) v.due = e.due;
+    const h = Number(e.hours);
+    if (Number.isFinite(h) && h >= 0.25 && h <= 8) v.hours = h;
+    if (typeof e.why === "string" && e.why.trim()) v.why = e.why.trim().slice(0, 160);
+    out.push(v);
+  }
+  return out;
+}
+
+function emailsMessage(b) {
+  const list = (Array.isArray(b.emails) ? b.emails : []).slice(0, 20).map((e) => ({
+    id: clip(e && e.id, 300), from: clip(e && e.from, 120), client: clip(e && e.client, 120), subject: clip(e && e.subject, 200),
+    preview: clip(e && e.preview, 240), received: clip(e && e.received, 10),
+  })).filter((e) => e.id);
+  return { list, text: `Today is ${clip(b.today, 10)}.\nEmails:\n${JSON.stringify(list, null, 1)}` };
+}
+
 const SYSTEM_MEETING = [
   "You tidy up an accountant's rough notes from a meeting or call with a client of a small UK accountancy and advisory practice.",
   "Use British English. Use only what the notes say: never invent figures, dates, decisions or actions. Keep names, amounts and dates exactly as written.",
@@ -276,7 +321,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       return;
     }
 
-    if (action !== "write" && action !== "assist") {
+    if (action !== "write" && action !== "assist" && action !== "emails") {
       context.res = reply(400, { error: "bad-request", message: "That isn't something this app asks for." });
       return;
     }
@@ -291,6 +336,34 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
 
     const b = typeof req.body === "string" ? safeJson(req.body) : req.body || {};
     const assist = action === "assist";
+    if (action === "emails") {
+      const pack = emailsMessage(b || {});
+      if (!pack.list.length) {
+        context.res = reply(400, { error: "bad-request", message: "No emails to look at." });
+        return;
+      }
+      const model = pickModel(await listModels(key), typeof b.model === "string" && /^[a-z0-9.\-:_]{1,64}$/i.test(b.model) ? b.model : "", env);
+      let r;
+      try {
+        r = await complete(key, model, pack.text, SYSTEM_EMAILS);
+      } catch (e) {
+        const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
+        context.res = reply(timeout ? 504 : 502, { error: timeout ? "timeout" : "unreachable", message: timeout ? "OpenAI took too long to answer. Try again." : "OpenAI didn't answer. Try again shortly." });
+        return;
+      }
+      if (!r.ok) {
+        context.res = reply(502, { error: "upstream", status: r.status, message: `OpenAI returned an error (${r.status}).` });
+        return;
+      }
+      const j = await r.json();
+      const verdicts = parseEmails(j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content, pack.list.map((e) => e.id));
+      if (!verdicts) {
+        context.res = reply(502, { error: "bad-answer", message: "OpenAI's answer couldn't be read. Try again." });
+        return;
+      }
+      context.res = reply(200, { emails: verdicts, model });
+      return;
+    }
     if (assist && !clip(b && b.message, 2000).trim()) {
       context.res = reply(400, { error: "bad-request", message: "Type what you want to ask or change." });
       return;
@@ -377,4 +450,5 @@ module.exports.userMessage = userMessage;
 module.exports.pickModel = pickModel;
 module.exports.parseMeeting = parseMeeting;
 module.exports.parseAssist = parseAssist;
+module.exports.parseEmails = parseEmails;
 module.exports.assistMessages = assistMessages;

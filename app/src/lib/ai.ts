@@ -28,6 +28,8 @@ export type AssistTurn = { role: "user" | "assistant"; content: string };
 export type AssistRequest = { message: string; context: Record<string, unknown>; history?: AssistTurn[]; model?: string };
 export type AssistAnswer = { reply: string; actions: unknown[]; model?: string };
 
+export type EmailVerdict = { id: string; needsAction: boolean; title?: string; due?: string; hours?: number; why?: string };
+
 export class AiError extends Error {
   constructor(public code: string, message: string) {
     super(message);
@@ -39,6 +41,7 @@ export interface AiApi {
   write(req: AiRequest): Promise<AiAnswer>;
   tidyMeeting(req: MeetingRequest): Promise<MeetingTidy>;
   assist(req: AssistRequest): Promise<AssistAnswer>;
+  emails(req: { today: string; emails: Record<string, unknown>[]; model?: string }): Promise<{ emails: EmailVerdict[] }>;
 }
 
 export class HttpAi implements AiApi {
@@ -71,6 +74,9 @@ export class HttpAi implements AiApi {
   write(req: AiRequest): Promise<AiAnswer> {
     return this.call("write", { method: "POST", body: JSON.stringify(req) });
   }
+  emails(req: { today: string; emails: Record<string, unknown>[]; model?: string }): Promise<{ emails: EmailVerdict[] }> {
+    return this.call("emails", { method: "POST", body: JSON.stringify(req) });
+  }
   assist(req: AssistRequest): Promise<AssistAnswer> {
     return this.call("assist", { method: "POST", body: JSON.stringify(req) });
   }
@@ -81,6 +87,11 @@ export class HttpAi implements AiApi {
 
 /** Demo stand-in: writes plausible text from the brief, and applies a few simple changes. */
 export class FakeAi implements AiApi {
+  /** Demo stand-in: says every email needs action, tidying the title. */
+  async emails(req: { emails: Record<string, unknown>[] }): Promise<{ emails: EmailVerdict[] }> {
+    await new Promise((r) => setTimeout(r, 300));
+    return { emails: req.emails.map((e) => ({ id: String(e.id), needsAction: !/lunch/i.test(String(e.subject)), why: "Demo: the AI would judge this from the preview" })) };
+  }
   /** Demo stand-in for the chat: understands "add a task to …" and "what's urgent". */
   async assist(req: AssistRequest): Promise<AssistAnswer> {
     await new Promise((r) => setTimeout(r, 400));

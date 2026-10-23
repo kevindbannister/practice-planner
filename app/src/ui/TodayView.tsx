@@ -15,6 +15,7 @@ import { useData, useIndex } from "./data";
 import { useEditor } from "./Editors";
 import { useCalendar } from "./Calendar";
 import { useCompaniesHouse } from "./CompaniesHouse";
+import { EmailSuggestions } from "./EmailSuggestions";
 import { useTodayModel } from "./useTodayModel";
 import { ConflictCard, useMakeClientDay } from "./Conflicts";
 import { TimeToLog } from "./TimeSpent";
@@ -140,6 +141,7 @@ export function TodayView() {
         </section>
       )}
 
+      <EmailSuggestions />
       <TimeToLog />
       <ProjectsToLookAt />
       {ch.openFlags.length > 0 && (

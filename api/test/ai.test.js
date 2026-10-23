@@ -148,3 +148,26 @@ test("assist: needs a message, and a sign-in", async () => {
   assert.equal((await call({ action: "assist", body: { message: "hi" }, tok: "" })).status, 401);
   assert.equal(assistMessages({ message: "x" }).length, 2);
 });
+
+// ---- email suggestions
+const { parseEmails } = require("../ai/index.js");
+
+test("emails: only asked-about ids and sensible values are kept", () => {
+  const out = parseEmails(JSON.stringify({ emails: [
+    { id: "a", needsAction: true, title: "Send figures", due: "2026-10-30", hours: 1, why: "asks" },
+    { id: "zzz", needsAction: true, title: "x" },
+    { id: "b", needsAction: false, hours: 99, due: "soon" },
+    { id: "c", needsAction: "yes" },
+  ] }), ["a", "b", "c"]);
+  assert.deepEqual(out.map((e) => e.id), ["a", "b"]);
+  assert.equal(out[0].due, "2026-10-30"); assert.equal(out[1].hours, undefined); assert.equal(out[1].due, undefined);
+});
+
+test("emails: sends the previews and returns verdicts", async () => {
+  const fetch = fakeFetch({ answers: [res(200, { choices: [{ message: { content: JSON.stringify({ emails: [{ id: "m1", needsAction: true, title: "Ring Bob" }] }) } }] })] });
+  const r = await call({ action: "emails", body: { today: "2026-10-23", emails: [{ id: "m1", subject: "Call me", preview: "please", from: "Bob" }] }, fetch });
+  assert.equal(r.status, 200); assert.equal(r.body.emails[0].title, "Ring Bob");
+  const sent = fetch.calls.find((c) => c.url.endsWith("/chat/completions")).body.messages[1].content;
+  assert.match(sent, /Call me/);
+  assert.equal((await call({ action: "emails", body: { emails: [] } })).status, 400);
+});
