@@ -5,6 +5,7 @@ import { chaseItems, groupByClient } from "../lib/chase";
 import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, todayIso } from "../lib/domain";
 import { forecast } from "../lib/forecast";
 import { addDays, mondayOf, weekday } from "../lib/planning";
+import { clientHoursOn } from "../lib/dayTypes";
 import { planHours, waitState, waitingForClient } from "../lib/waiting";
 import { usePaymentReminderCount } from "./TaxPayments";
 import { templateFor } from "../lib/meetings";
@@ -34,7 +35,7 @@ export function HomePage() {
   const today = todayIso();
   const monday = mondayOf(today);
   const week = [0, 1, 2, 3, 4].map((i) => addDays(monday, i));
-  const usual = (d: string) => settings.hours[String(weekday(d)) as keyof typeof settings.hours] ?? 0;
+  const usual = (d: string) => clientHoursOn(d, settings);
   const capacity = (d: string) => cal.capacityFor(d, usual(d));
 
   const work = useMemo((): Work[] => {
@@ -85,7 +86,7 @@ export function HomePage() {
     byDay.get(w.deadline!)!.push(w);
   }
 
-  const f = useMemo(() => forecast(data.jobs, data.tasks, data.services, settings.hours, today, 6), [data.jobs, data.tasks, data.services, settings.hours, today]);
+  const f = useMemo(() => forecast(data.jobs, data.tasks, data.services, (d) => clientHoursOn(d, settings), today, 6), [data.jobs, data.tasks, data.services, settings, today]);
   const monthMax = Math.max(1, ...f.months.map((m) => Math.max(m.due, m.capacity)));
 
   // open work by type of work

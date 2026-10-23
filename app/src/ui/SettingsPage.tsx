@@ -7,6 +7,7 @@ import {
   BUILT_IN_RULES, DEFAULT_HOURS, Hours, Rule, deadlineByRule, describeRule, newKey, nextPeriod, ruleFields, ruleFor,
 } from "../lib/planning";
 import { Row } from "../lib/schema";
+import { DEFAULT_DAY_TYPES, DEFAULT_WEEK, DayType } from "../lib/dayTypes";
 import { Icon, href, useRoute } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
 import { DEFAULT_FILL } from "../lib/autoplan";
@@ -42,6 +43,7 @@ export function SettingsPage() {
         ))}
       </nav>
       {tab === "week" && <HoursCard />}
+      {tab === "week" && <DayTypesCard />}
       {tab === "week" && <AppearanceCard />}
       {tab === "work" && <TypesOfWork />}
       {tab === "companies-house" && <CompaniesHouseSettings />}
@@ -80,7 +82,8 @@ function HoursCard() {
     <section className="card pad stack" aria-labelledby="hours-h" style={{ maxWidth: 560 }}>
       <h2 id="hours-h">Your week</h2>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-        Hours you can give to client work each day. 9:00 to 17:30 with an hour for lunch is 7.5.
+        Hours you work each day. 9:00 to 17:30 with an hour for lunch is 7.5. The kind of day (below) decides how
+        much of that is for client work.
       </p>
       <div className="form" style={{ gridTemplateColumns: "1fr 1fr" }}>
         {DAYS.map(([k, label]) => (
@@ -103,6 +106,84 @@ function HoursCard() {
         {state === "saved" && !changed && <span className="muted" style={{ fontSize: 13 }}>Saved</span>}
         {state === "error" && <span className="error-text">Couldn't save</span>}
         <button type="button" className="btn primary" onClick={save} disabled={!changed || state === "saving"}>
+          {state === "saving" ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// ------------------------------------------------------------------ kinds of day
+
+/**
+ * What a day is for. Client days are for client work, business days for working on the practice,
+ * mixed days split the hours, and days off have none. Each kind can hold back a buffer for
+ * interruptions and admin. Any one day can be changed from the planner.
+ */
+function DayTypesCard() {
+  const { settings, saveSetting } = useData();
+  const [types, setTypes] = useState<DayType[]>(settings.dayTypes);
+  const [week, setWeek] = useState<Record<string, string>>({ ...DEFAULT_WEEK, ...settings.week });
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const changed = JSON.stringify(types) !== JSON.stringify(settings.dayTypes) || JSON.stringify(week) !== JSON.stringify({ ...DEFAULT_WEEK, ...settings.week });
+  const over = types.some((t) => t.client + t.business > 100);
+  const edit = (key: string, patch: Partial<DayType>) => setTypes(types.map((t) => (t.key === key ? { ...t, ...patch } : t)));
+  const num = (v: string) => Math.min(100, Math.max(0, Math.round(Number(v) || 0)));
+
+  const save = async () => {
+    setState("saving");
+    try {
+      await saveSetting("dayTypes", types);
+      await saveSetting("week", week);
+      setState("saved");
+    } catch {
+      setState("error");
+    }
+  };
+  const reset = () => {
+    setTypes(DEFAULT_DAY_TYPES.map((d) => ({ ...d })));
+    setWeek({ ...DEFAULT_WEEK });
+  };
+
+  return (
+    <section className="card pad stack" aria-labelledby="dtypes-h" style={{ maxWidth: 720 }}>
+      <h2 id="dtypes-h">Kinds of day and your usual week</h2>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+        Only the client share of a day counts as room for client work on the planner. The business share is time
+        for working on the practice itself. The buffer is held back from both for interruptions and admin.
+        You can change any single day from the planner.
+      </p>
+      <div className="dtypes-table" role="group" aria-label="Kinds of day">
+        <div className="dtypes-row dtypes-head" aria-hidden="true">
+          <span>Kind</span><span>Colour</span><span>Client %</span><span>Business %</span><span>Buffer %</span>
+        </div>
+        {types.map((t) => (
+          <div key={t.key} className="dtypes-row">
+            <input className="input" aria-label={`Name of ${t.key} day`} value={t.name} onChange={(e) => edit(t.key, { name: e.target.value })} />
+            <input type="color" className="dtypes-colour" aria-label={`Colour for ${t.name}`} value={t.colour} onChange={(e) => edit(t.key, { colour: e.target.value })} />
+            <label className="dtypes-cell"><span className="dtypes-lab" aria-hidden="true">Client %</span><input className="input" type="number" min="0" max="100" step="5" aria-label={`Client share of ${t.name}`} value={t.client} onChange={(e) => edit(t.key, { client: num(e.target.value) })} /></label>
+            <label className="dtypes-cell"><span className="dtypes-lab" aria-hidden="true">Business %</span><input className="input" type="number" min="0" max="100" step="5" aria-label={`Business share of ${t.name}`} value={t.business} onChange={(e) => edit(t.key, { business: num(e.target.value) })} /></label>
+            <label className="dtypes-cell"><span className="dtypes-lab" aria-hidden="true">Buffer %</span><input className="input" type="number" min="0" max="60" step="5" aria-label={`Buffer for ${t.name}`} value={t.buffer} onChange={(e) => edit(t.key, { buffer: Math.min(60, num(e.target.value)) })} /></label>
+          </div>
+        ))}
+      </div>
+      {over && <p className="error-text" role="alert" style={{ margin: 0 }}>Client and business shares can't add up to more than 100%.</p>}
+      <h3 style={{ margin: "6px 0 0", fontSize: 14 }}>Your usual week</h3>
+      <div className="form" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+        {DAYS.map(([k, label]) => (
+          <label key={k}>
+            {label}
+            <select className="input" value={week[k] || "client"} onChange={(e) => setWeek({ ...week, [k]: e.target.value })}>
+              {types.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+      <div className="form-actions" style={{ alignItems: "center" }}>
+        {state === "saved" && !changed && <span className="muted" style={{ fontSize: 13 }}>Saved</span>}
+        {state === "error" && <span className="error-text">Couldn't save</span>}
+        <button type="button" className="btn" onClick={reset} disabled={state === "saving"}>Back to the usual</button>
+        <button type="button" className="btn primary" onClick={save} disabled={!changed || over || state === "saving"}>
           {state === "saving" ? "Saving…" : "Save"}
         </button>
       </div>

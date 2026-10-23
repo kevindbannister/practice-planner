@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { fmtDate, fmtHours, todayIso } from "../lib/domain";
 import { ForecastItem, Month, forecast } from "../lib/forecast";
+import { clientHoursOn } from "../lib/dayTypes";
 import { PlanTabs } from "./bits";
 import { FAMILY_NAMES, FAMILY_ORDER, serviceSlot, svcClass } from "../lib/serviceColour";
 import { useData, useIndex } from "./data";
@@ -18,7 +19,7 @@ export function MonthsView() {
   const [count, setCount] = useState(12);
   const [byType, setByType] = useState(true);
   const [openKey, setOpenKey] = useState<string>();
-  const f = useMemo(() => forecast(data.jobs, data.tasks, data.services, settings.hours, today, count), [data.jobs, data.tasks, data.services, settings.hours, today, count]);
+  const f = useMemo(() => forecast(data.jobs, data.tasks, data.services, (d) => clientHoursOn(d, settings), today, count), [data.jobs, data.tasks, data.services, settings, today, count]);
 
   const scale = Math.max(1, ...f.months.map((m) => Math.max(m.capacity, m.due)));
   const over = f.months.filter((m) => m.due > m.capacity);

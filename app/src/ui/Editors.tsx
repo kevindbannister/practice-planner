@@ -3,7 +3,7 @@
 // soon as it's changed.
 import { createContext, ReactNode, useContext, useEffect, useId, useRef, useState } from "react";
 import {
-  HOLD_WARN_DAYS, Job, Task, fmtDate, fmtHours, holdAlert, holdPatch, isOnHold, isOpen, jobState, resumePatch, todayIso,
+  HOLD_WARN_DAYS, Job, Task, WAIT_KINDS, fmtDate, fmtHours, holdAlert, holdLabel, holdPatch, isOnHold, isOpen, jobState, resumePatch, todayIso,
 } from "../lib/domain";
 import { deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
@@ -243,7 +243,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       </div>
       <div className="row-wrap" style={{ gap: 6 }}>
         {job.Priority === "urgent" && <span className="chip red">Urgent</span>}
-        {isOnHold(job) && <span className="chip hold">On hold</span>}
+        {isOnHold(job) && <span className="chip hold">{holdLabel(job)}</span>}
         {waiting && <span className="chip wait">With the client</span>}
         {serviceOff && isOpen(job) && <span className="chip hold" title="Complete it yourself; no next job will be created">Service turned off</span>}
         {inFinalise(job) && !waiting && isOpen(job) && <span className="chip wait">Ready to finalise</span>}
@@ -485,6 +485,7 @@ function HoldSection({ item, deadline, save, what }: { item: Job | Task; deadlin
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
   const [until, setUntil] = useState("");
+  const [kind, setKind] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const run = async (patch: Row) => {
@@ -495,6 +496,7 @@ function HoldSection({ item, deadline, save, what }: { item: Job | Task; deadlin
       setAsking(false);
       setReason("");
       setUntil("");
+      setKind("");
     } catch {
       setError("Couldn't save that. Try again.");
     } finally {
@@ -505,23 +507,25 @@ function HoldSection({ item, deadline, save, what }: { item: Job | Task; deadlin
   if (isOnHold(item)) {
     const alert = holdAlert(item, deadline, today);
     return (
-      <section className={`hold-box${alert ? ` ${alert.level}` : ""}`} aria-label="On hold">
+      <section className={`hold-box${alert ? ` ${alert.level}` : ""}`} aria-label={holdLabel(item)}>
         <div className="stack" style={{ gap: 2 }}>
-          <strong>On hold{item.HeldOn ? ` since ${fmtDate(item.HeldOn as string)}` : ""}</strong>
+          <strong>{holdLabel(item)}{item.HeldOn ? ` since ${fmtDate(item.HeldOn as string)}` : ""}</strong>
           {item.HoldReason ? <span>{item.HoldReason as string}</span> : <span className="muted">No reason given</span>}
           <span className="muted" style={{ fontSize: 12 }}>
-            {item.HoldUntil ? `Look again on ${fmtDate(item.HoldUntil as string, { weekday: true })}` : "No date to look again"}
+            {item.HoldKind
+              ? (item.HoldUntil ? `Chase on ${fmtDate(item.HoldUntil as string, { weekday: true })}` : "No date to chase")
+              : (item.HoldUntil ? `Look again on ${fmtDate(item.HoldUntil as string, { weekday: true })}` : "No date to look again")}
             {alert ? ` · ${alert.text}` : ""}
           </span>
         </div>
         {error && <span className="error-text" role="alert">{error}</span>}
         <div className="row-wrap">
-          <button type="button" className="btn small primary" disabled={busy} onClick={() => run(resumePatch(item, today))}>Take off hold</button>
-          <button type="button" className="btn small" disabled={busy} onClick={() => { setReason(String(item.HoldReason || "")); setUntil(String(item.HoldUntil || "")); setAsking(true); }}>Change</button>
+          <button type="button" className="btn small primary" disabled={busy} onClick={() => run(resumePatch(item, today))}>{item.HoldKind ? "Got it, take off" : "Take off hold"}</button>
+          <button type="button" className="btn small" disabled={busy} onClick={() => { setReason(String(item.HoldReason || "")); setUntil(String(item.HoldUntil || "")); setKind(String(item.HoldKind || "")); setAsking(true); }}>Change</button>
         </div>
         {asking && (
-          <HoldForm reason={reason} until={until} setReason={setReason} setUntil={setUntil} busy={busy}
-            onCancel={() => setAsking(false)} onSave={() => run({ HoldReason: reason.trim(), HoldUntil: until })} label="Save" />
+          <HoldForm reason={reason} until={until} setReason={setReason} setUntil={setUntil} kind={kind} setKind={setKind} busy={busy}
+            onCancel={() => setAsking(false)} onSave={() => run({ HoldReason: reason.trim(), HoldUntil: until, HoldKind: kind })} label="Save" />
         )}
       </section>
     );
@@ -529,20 +533,21 @@ function HoldSection({ item, deadline, save, what }: { item: Job | Task; deadlin
 
   if (!asking) {
     return (
-      <div>
-        <button type="button" className="btn small" onClick={() => setAsking(true)}>Put on hold…</button>
+      <div className="row-wrap">
+        <button type="button" className="btn small" onClick={() => { setKind(WAIT_KINDS[0]); setAsking(true); }}>Waiting on someone…</button>
+        <button type="button" className="btn small" onClick={() => { setKind(""); setAsking(true); }}>Put on hold…</button>
       </div>
     );
   }
   return (
-    <section className="hold-box" aria-label="Put on hold">
-      <strong>Put this {what} on hold</strong>
+    <section className="hold-box" aria-label={kind ? "Waiting on someone" : "Put on hold"}>
+      <strong>{kind ? `This ${what} is waiting on someone` : `Put this ${what} on hold`}</strong>
       <span className="muted" style={{ fontSize: 13 }}>
         It stays on the client's record but comes off the plan and out of the alerts. You'll be reminded on the date you pick,
         or if the deadline gets within {HOLD_WARN_DAYS} days.
       </span>
-      <HoldForm reason={reason} until={until} setReason={setReason} setUntil={setUntil} busy={busy}
-        onCancel={() => setAsking(false)} onSave={() => run(holdPatch(reason, until, today))} label="Put on hold" />
+      <HoldForm reason={reason} until={until} setReason={setReason} setUntil={setUntil} kind={kind} setKind={setKind} busy={busy}
+        onCancel={() => setAsking(false)} onSave={() => run(holdPatch(reason, until, today, kind))} label={kind ? "Mark as waiting" : "Put on hold"} />
       {error && <span className="error-text" role="alert">{error}</span>}
     </section>
   );
@@ -550,17 +555,25 @@ function HoldSection({ item, deadline, save, what }: { item: Job | Task; deadlin
 
 function HoldForm(p: {
   reason: string; until: string; setReason: (v: string) => void; setUntil: (v: string) => void;
+  kind: string; setKind: (v: string) => void;
   busy: boolean; onCancel: () => void; onSave: () => void; label: string;
 }) {
   return (
     <>
       <div className="form" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
         <label>
-          Why (optional)
-          <input className="input" value={p.reason} placeholder="e.g. waiting for the client's bank statements" onChange={(e) => p.setReason(e.target.value)} />
+          Why this is held
+          <select className="input" value={p.kind} onChange={(e) => p.setKind(e.target.value)}>
+            <option value="">Parked (nothing to wait for)</option>
+            {WAIT_KINDS.map((k) => <option key={k} value={k}>Waiting on {k}</option>)}
+          </select>
         </label>
         <label>
-          Look again on (optional)
+          {p.kind ? "What for (optional)" : "Why (optional)"}
+          <input className="input" value={p.reason} placeholder={p.kind ? "e.g. the year's bank statements" : "e.g. client away until the new year"} onChange={(e) => p.setReason(e.target.value)} />
+        </label>
+        <label>
+          {p.kind ? "Chase on (optional)" : "Look again on (optional)"}
           <input className="input" type="date" value={p.until} onChange={(e) => p.setUntil(e.target.value)} />
         </label>
       </div>

@@ -1,6 +1,6 @@
 // Clients list with filters, and the quick look panel for the selected client.
 import { useMemo, useState } from "react";
-import { Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtMoney, isOnHold, jobState, loeLabel, recordGaps, todayIso } from "../lib/domain";
+import { Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtMoney, holdLabel, importanceLabel, importanceOf, isOnHold, jobState, loeLabel, recordGaps, todayIso } from "../lib/domain";
 import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, companiesHouseUrl, go, href, useRoute } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { ElementsImport } from "./ElementsImport";
@@ -127,7 +127,7 @@ export function ClientsPage() {
                           >
                             {c.Title}
                           </a>
-                          <div className="cell-sub">{KIND_LABEL[c.Kind || ""] || c.Kind}</div>
+                          <div className="cell-sub">{KIND_LABEL[c.Kind || ""] || c.Kind}{importanceOf(c) !== "normal" ? ` · ${importanceLabel(c)}` : ""}</div>
                         </div>
                       </div>
                     </td>
@@ -238,7 +238,7 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
                   <div style={{ fontWeight: 600 }}><span className={`svc-dot ${svcClass(j.ServiceKey)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />{j.Title}</div>
                   <div className="muted" style={{ fontSize: 12 }}>
                     {j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)} · ` : ""}
-                    {isOnHold(j) ? "on hold" : j.PlannedDate ? `planned ${fmtDate(j.PlannedDate, { year: false })}` : "not planned"}
+                    {isOnHold(j) ? holdLabel(j).toLowerCase() : j.PlannedDate ? `planned ${fmtDate(j.PlannedDate, { year: false })}` : "not planned"}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>

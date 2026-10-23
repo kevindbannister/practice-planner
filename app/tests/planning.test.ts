@@ -110,7 +110,7 @@ test("on hold: reminders when the look-again date comes or the deadline gets clo
 
 test("on hold: putting on and taking off keeps a note of the hold", () => {
   assert.deepEqual(holdPatch(" Client abroad ", "2026-12-01", "2026-10-09"), {
-    Status: "On hold", HoldReason: "Client abroad", HoldUntil: "2026-12-01", HeldOn: "2026-10-09", PlannedDate: "",
+    Status: "On hold", HoldReason: "Client abroad", HoldUntil: "2026-12-01", HeldOn: "2026-10-09", HoldKind: "", PlannedDate: "",
   });
   const back = resumePatch({ Status: "On hold", HoldReason: "Client abroad", HeldOn: "2026-10-09", Notes: "Called 3 Oct" }, "2026-11-02");
   assert.equal(back.Status, "Open");

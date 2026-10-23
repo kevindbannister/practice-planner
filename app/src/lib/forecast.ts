@@ -39,12 +39,19 @@ function monthEnd(key: string): string {
   return toIso(new Date(Date.UTC(y, m, 0)));
 }
 
-/** Working hours from `from` to `to` inclusive, using your hours per weekday. */
-export function capacityBetween(from: string, to: string, hours: Hours): number {
+/** Hours available for client work on one day, given its ISO date. */
+export type DayCapacity = (iso: string) => number;
+
+/**
+ * Working hours from `from` to `to` inclusive: your hours per weekday, or (when given a
+ * function) whatever each day offers, so business days and days off count for nothing.
+ */
+export function capacityBetween(from: string, to: string, hours: Hours | DayCapacity): number {
   let total = 0;
   for (let d = from; d <= to; d = addDays(d, 1)) {
     const wd = parseIso(d).getUTCDay();
-    if (wd >= 1 && wd <= 5) total += hours[String(wd) as keyof Hours] || 0;
+    if (typeof hours === "function") total += hours(d) || 0;
+    else if (wd >= 1 && wd <= 5) total += hours[String(wd) as keyof Hours] || 0;
   }
   return total;
 }
@@ -70,7 +77,7 @@ export function expectedAfter(job: Job, services: Row[], until: string): Forecas
 
 export type Forecast = { late: ForecastItem[]; lateHours: number; months: Month[] };
 
-export function forecast(jobs: Job[], tasks: Task[], services: Row[], hours: Hours, today: string, count = 12): Forecast {
+export function forecast(jobs: Job[], tasks: Task[], services: Row[], hours: Hours | DayCapacity, today: string, count = 12): Forecast {
   const firstKey = monthKey(today);
   const keys: string[] = [];
   for (let i = 0, d = `${firstKey}-01`; i < count; i++) {

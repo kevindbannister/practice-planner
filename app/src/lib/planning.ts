@@ -1,17 +1,28 @@
 // Planning rules: working week, hours per job, capacity per day, and how a completed
 // job rolls forward into the next period.
 import { Job } from "./domain";
+import { DEFAULT_DAY_TYPES, DEFAULT_WEEK, DayType, mergeDayTypes } from "./dayTypes";
 import { Row } from "./schema";
 
 /** Hours of work per weekday (1 = Monday … 5 = Friday). */
 export type Hours = Record<"1" | "2" | "3" | "4" | "5", number>;
 
-export type PlannerSettings = { hours: Hours; tightDays: number };
+export type PlannerSettings = {
+  hours: Hours;
+  tightDays: number;
+  /** The kinds of day (client, business, mixed, off), the usual week, and one-off changes to single days. */
+  dayTypes: DayType[];
+  week: Record<string, string>;
+  overrides: Record<string, string>;
+};
 
 /** 9:00 to 17:30 with an hour for lunch. */
 export const DEFAULT_SETTINGS: PlannerSettings = {
   hours: { "1": 7.5, "2": 7.5, "3": 7.5, "4": 7.5, "5": 7.5 },
   tightDays: 21,
+  dayTypes: DEFAULT_DAY_TYPES.map((d) => ({ ...d })),
+  week: { ...DEFAULT_WEEK },
+  overrides: {},
 };
 
 /** Starting estimates per type of work until changed in Settings. */
@@ -22,12 +33,18 @@ export const DEFAULT_HOURS: Record<string, number> = {
 };
 
 export function readSettings(rows: Row[]): PlannerSettings {
-  const out: PlannerSettings = { hours: { ...DEFAULT_SETTINGS.hours }, tightDays: DEFAULT_SETTINGS.tightDays };
+  const out: PlannerSettings = {
+    hours: { ...DEFAULT_SETTINGS.hours }, tightDays: DEFAULT_SETTINGS.tightDays,
+    dayTypes: DEFAULT_DAY_TYPES.map((d) => ({ ...d })), week: { ...DEFAULT_WEEK }, overrides: {},
+  };
   for (const r of rows) {
     try {
       const v = JSON.parse(String(r.Value ?? ""));
       if (r.Key === "hours" && v && typeof v === "object") Object.assign(out.hours, v);
       if (r.Key === "tightDays" && typeof v === "number") out.tightDays = v;
+      if (r.Key === "dayTypes") out.dayTypes = mergeDayTypes(v);
+      if (r.Key === "week" && v && typeof v === "object") Object.assign(out.week, v);
+      if (r.Key === "dayOverrides" && v && typeof v === "object") out.overrides = { ...(v as Record<string, string>) };
     } catch {
       /* ignore a malformed setting */
     }

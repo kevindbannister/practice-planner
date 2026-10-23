@@ -18,6 +18,12 @@ export type Task = Row & {
   EstimateHours?: number; DueDate?: string; Status?: string; CompletedDate?: string; Notes?: string;
 };
 
+/** How much a client matters when deciding what to do first. Blank means normal. */
+export type Importance = "key" | "normal" | "low";
+export const IMPORTANCE: [Importance, string][] = [["key", "Key client"], ["normal", "Normal"], ["low", "Low-touch"]];
+export const importanceOf = (c: Record<string, unknown>): Importance => (c.Importance === "key" || c.Importance === "low" ? c.Importance : "normal");
+export const importanceLabel = (c: Record<string, unknown>): string => IMPORTANCE.find(([k]) => k === importanceOf(c))![1];
+
 export const isOpen = (j: { Status?: string }) => j.Status !== "Complete" && j.Status !== "Done" && j.Status !== "Cancelled";
 
 // ------------------------------------------------------------------ on hold
@@ -27,34 +33,50 @@ export const isOpen = (j: { Status?: string }) => j.Status !== "Complete" && j.S
 
 export const ON_HOLD = "On hold";
 export const HOLD_WARN_DAYS = 14;
-type Holdable = { Status?: string; HoldReason?: unknown; HoldUntil?: unknown; HeldOn?: unknown; Notes?: unknown };
+type Holdable = { Status?: string; HoldReason?: unknown; HoldUntil?: unknown; HeldOn?: unknown; HoldKind?: unknown; Notes?: unknown };
 
 export const isOnHold = (j: { Status?: string }) => j.Status === ON_HOLD;
+
+// "Waiting on" is a kind of hold: the ball is with someone else (the client, HMRC, Companies
+// House...) and the look-again date is the day to chase them. Parked work has no HoldKind.
+export const WAIT_KINDS = ["Client", "HMRC", "Companies House", "Someone else"];
+
+/** Who the job or task is waiting on, or "" when it is simply parked (or not on hold). */
+export const waitingOn = (j: { Status?: string; HoldKind?: unknown }): string => (isOnHold(j) ? String(j.HoldKind || "") : "");
+
+/** "On hold" for parked work, "Waiting on HMRC" for work waiting on someone. */
+export const holdLabel = (j: { Status?: string; HoldKind?: unknown }): string => (waitingOn(j) ? `Waiting on ${waitingOn(j)}` : "On hold");
+
+/** Text that starts every alert about held work (so the bell can count them separately). */
+export const isHoldText = (text: string) => /^(On hold|Waiting on)/.test(text);
 
 /** Why something on hold needs a look now, or null. `deadline` is the job's deadline or task's due date. */
 export function holdAlert(item: Holdable, deadline: string | undefined, today: string): { level: "red" | "amber"; text: string } | null {
   if (!isOnHold(item)) return null;
-  if (deadline && deadline < today) return { level: "red", text: `On hold and past its deadline (${fmtDate(deadline)})` };
+  const label = holdLabel(item);
+  if (deadline && deadline < today) return { level: "red", text: `${label} and past its deadline (${fmtDate(deadline)})` };
   if (deadline && daysBetween(today, deadline) <= HOLD_WARN_DAYS) {
     const n = daysBetween(today, deadline);
-    return { level: "amber", text: `On hold, but due ${n === 0 ? "today" : `in ${n} day${n === 1 ? "" : "s"}`}` };
+    return { level: "amber", text: `${label}, but due ${n === 0 ? "today" : `in ${n} day${n === 1 ? "" : "s"}`}` };
   }
   const until = item.HoldUntil as string | undefined;
-  if (until && until <= today) return { level: "amber", text: `On hold: time to look again (from ${fmtDate(until)})` };
+  if (until && until <= today) {
+    return { level: "amber", text: waitingOn(item) ? `${label}: time to chase (from ${fmtDate(until)})` : `${label}: time to look again (from ${fmtDate(until)})` };
+  }
   return null;
 }
 
 /** Fields to save when putting something on hold. It comes off the board. */
-export function holdPatch(reason: string, until: string, today: string): Row {
-  return { Status: ON_HOLD, HoldReason: reason.trim(), HoldUntil: until, HeldOn: today, PlannedDate: "" };
+export function holdPatch(reason: string, until: string, today: string, kind = ""): Row {
+  return { Status: ON_HOLD, HoldReason: reason.trim(), HoldUntil: until, HeldOn: today, HoldKind: kind, PlannedDate: "" };
 }
 
 /** Fields to save when taking something off hold; the hold is noted in its Notes for the record. */
 export function resumePatch(item: Holdable, today: string): Row {
   const from = item.HeldOn ? fmtDate(item.HeldOn as string) : "";
-  const line = `On hold${from ? ` ${from} to ${fmtDate(today)}` : ` until ${fmtDate(today)}`}${item.HoldReason ? `: ${item.HoldReason}` : ""}`;
+  const line = `${holdLabel(item)}${from ? ` ${from} to ${fmtDate(today)}` : ` until ${fmtDate(today)}`}${item.HoldReason ? `: ${item.HoldReason}` : ""}`;
   const notes = item.Notes ? `${String(item.Notes).trimEnd()}\n${line}` : line;
-  return { Status: "Open", HoldReason: "", HoldUntil: "", HeldOn: "", Notes: notes };
+  return { Status: "Open", HoldReason: "", HoldUntil: "", HeldOn: "", HoldKind: "", Notes: notes };
 }
 
 export function todayIso(now = new Date()): string {

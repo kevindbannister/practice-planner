@@ -1,6 +1,6 @@
 // App shell: top bar, save indicator, and routing between pages.
 import { useEffect, useRef, useState } from "react";
-import { fmtDate, holdAlert, isOnHold, jobState, todayIso } from "../lib/domain";
+import { fmtDate, holdAlert, isHoldText, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { signOut } from "../lib/auth";
 import { Brand, ClientBadge, Icon, IconName, href, useRoute } from "./bits";
@@ -282,9 +282,9 @@ function Alerts() {
             <strong>Needs attention</strong>
             <span className="muted" style={{ fontSize: 12 }}>
               {[
-                `${alerts.filter((a) => (a.kind === "job" || a.kind === "task") && !a.detail.startsWith("On hold") && a.level === "red").length} late`,
-                `${alerts.filter((a) => (a.kind === "job" || a.kind === "task") && !a.detail.startsWith("On hold") && a.level === "amber").length} due this week, unplanned`,
-                ...(alerts.some((a) => a.detail.startsWith("On hold")) ? [`${alerts.filter((a) => a.detail.startsWith("On hold")).length} on hold to look at`] : []),
+                `${alerts.filter((a) => (a.kind === "job" || a.kind === "task") && !isHoldText(a.detail) && a.level === "red").length} late`,
+                `${alerts.filter((a) => (a.kind === "job" || a.kind === "task") && !isHoldText(a.detail) && a.level === "amber").length} due this week, unplanned`,
+                ...(alerts.some((a) => isHoldText(a.detail)) ? [`${alerts.filter((a) => isHoldText(a.detail)).length} on hold to look at`] : []),
                 ...(chCount ? [`${chCount} from Companies House`] : []),
               ].join(" · ")}
             </span>

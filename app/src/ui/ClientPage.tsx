@@ -1,7 +1,7 @@
 // The full client page: overview and work tabs, with editable contact and references.
 import { ReactNode, useRef, useState } from "react";
 import {
-  Client, Job, KIND_LABEL, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
+  Client, IMPORTANCE, Importance, Job, KIND_LABEL, holdLabel, importanceLabel, importanceOf, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
 } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { jobHours, newKey } from "../lib/planning";
@@ -53,6 +53,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
           <div className="row-wrap" style={{ gap: 6 }}>
             <span className="chip green">{c.Status === "active" || !c.Status ? "Active" : String(c.Status)}</span>
             <span className="chip">{KIND_LABEL[c.Kind || ""] || c.Kind}</span>
+            {importanceOf(c) !== "normal" && <span className={`chip ${importanceOf(c) === "key" ? "amber" : ""}`}>{importanceLabel(c)}</span>}
             {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}<CopyButton value={c.CompanyNumber} label="company number" /></span>}
             {c.YearEnd && <span className="chip">Year end {fmtDate(`2000-${c.YearEnd}`, { year: false })}</span>}
             {c.Incorporated && <span className="chip">Incorporated {fmtDate(c.Incorporated as string)}</span>}
@@ -237,11 +238,45 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
         </section>
         <section className="card pad stack" aria-labelledby="team-h">
           <h2 id="team-h">Team</h2>
+          <ImportanceRow client={c} />
           <div className="kv"><span>Partner</span><span>{(c.Partner as string) || "—"}</span></div>
           <div className="kv"><span>Manager</span><span>{(c.Manager as string) || "—"}</span></div>
           {c.Engaged && <div className="kv"><span>Client since</span><span>{fmtDate(c.Engaged as string)}</span></div>}
         </section>
       </div>
+    </div>
+  );
+}
+
+/** Key, normal or low-touch: how much this client matters when the planner decides what comes first. */
+function ImportanceRow({ client: c }: { client: Client }) {
+  const { update } = useData();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const now = importanceOf(c);
+  const set = async (v: Importance) => {
+    if (v === now) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      await update("Clients", c, { Importance: v === "normal" ? "" : v });
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="kv" style={{ alignItems: "center" }}>
+      <span>Importance</span>
+      <span className="row-wrap" style={{ gap: 6 }}>
+        <span className="seg" role="group" aria-label="How important this client is" style={{ maxWidth: "100%" }}>
+          {IMPORTANCE.map(([k, label]) => (
+            <button key={k} type="button" aria-pressed={now === k} disabled={busy} onClick={() => set(k)}>{label}</button>
+          ))}
+        </span>
+        {failed && <span className="error-text" role="alert">Couldn't save</span>}
+      </span>
     </div>
   );
 }
@@ -367,7 +402,7 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
               {tasks.map((t) => (
                 <li key={t.Key}>
                   <button type="button" className="task-row" onClick={() => open({ kind: "task", key: t.Key })}>
-                    <span style={{ fontWeight: 600 }}>{t.Title}{isOnHold(t) && <span className="chip hold" style={{ marginLeft: 6 }}>On hold</span>}</span>
+                    <span style={{ fontWeight: 600 }}>{t.Title}{isOnHold(t) && <span className="chip hold" style={{ marginLeft: 6 }}>{holdLabel(t)}</span>}</span>
                     <span className="muted" style={{ fontSize: 12 }}>
                       {t.Type}{isOnHold(t) ? (t.HoldReason ? ` · ${t.HoldReason}` : "") : t.PlannedDate ? ` · planned ${fmtDate(t.PlannedDate, { weekday: true, year: false })}` : " · not planned"}
                       {t.DueDate ? ` · due ${fmtDate(t.DueDate, { year: false })}` : ""}
@@ -450,7 +485,7 @@ function JobCard({ job: j }: { job: Job }) {
           <div className="row-wrap">
             <h2>{j.Title}</h2>
             {j.Priority === "urgent" && <span className="chip red">Urgent</span>}
-            {isOnHold(j) && <span className="chip hold">On hold</span>}
+            {isOnHold(j) && <span className="chip hold">{holdLabel(j)}</span>}
             {waitingForClient(j, templates) && <span className="chip wait">With the client{j.SpeakOn ? ` · speaking ${fmtDate(j.SpeakOn as string, { year: false })}` : ""}</span>}
             {inFinalise(j) && !waitingForClient(j, templates) && <span className="chip wait">Ready to finalise</span>}
             <DeadlineChip job={j} today={today} />
@@ -465,8 +500,8 @@ function JobCard({ job: j }: { job: Job }) {
           {(j.CardNote as string) && <span className="pcard-note" style={{ alignSelf: "flex-start" }}>{j.CardNote as string}</span>}
           {isOnHold(j) && (
             <span style={{ fontSize: 13 }}>
-              {(j.HoldReason as string) || "On hold"}
-              {j.HoldUntil ? <span className="muted"> · look again {fmtDate(j.HoldUntil as string, { year: false })}</span> : null}
+              {(j.HoldReason as string) || holdLabel(j)}
+              {j.HoldUntil ? <span className="muted"> · {j.HoldKind ? "chase" : "look again"} {fmtDate(j.HoldUntil as string, { year: false })}</span> : null}
             </span>
           )}
         </div>

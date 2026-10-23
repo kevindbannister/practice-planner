@@ -2,8 +2,9 @@
 // work. Drag cards between days (or back to the tray); click a card to edit it.
 // On a phone the week becomes a strip of days: tap one to see it, or drag a card onto it.
 import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
+import { Job, Task, fmtDate, fmtHours, holdAlert, holdLabel, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
 import { addDays, mondayOf, weekday } from "../lib/planning";
+import { dayHours, usualTypeKey } from "../lib/dayTypes";
 import { Icon, PlanTabs, useRoute } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { DoneView } from "./DoneView";
@@ -77,7 +78,7 @@ export function PlanPage() {
 }
 
 function WeekView() {
-  const { data, settings, update, updateMany } = useData();
+  const { data, settings, update, updateMany, saveSetting } = useData();
   const idx = useIndex();
   const { open } = useEditor();
   const today = todayIso();
@@ -252,8 +253,17 @@ function WeekView() {
   const [unplanning, setUnplanning] = useState(false);
 
   const cal = useCalendar();
-  const usualHours = (d: string) => settings.hours[String(weekday(d)) as keyof typeof settings.hours] ?? 0;
+  const usualHours = (d: string) => dayHours(d, settings).client; // the day's type decides how much is for client work
   const capacity = (d: string) => cal.capacityFor(d, usualHours(d)); // less meetings, when the calendar is connected
+  // change what kind of day one day is; going back to the usual type for that weekday clears the change
+  const setDayType = async (d: string, key: string) => {
+    const next = { ...settings.overrides };
+    const keep = addDays(today, -30);
+    for (const k of Object.keys(next)) if (k < keep) delete next[k]; // old changes no longer matter
+    if (key === usualTypeKey(weekday(d), settings)) delete next[d];
+    else next[d] = key;
+    await saveSetting("dayOverrides", next);
+  };
   const load = (d: string) => (byDay.get(d) || []).reduce((t, i) => t + i.hours, 0) + preparedLoad(d) + doneOn(d).reduce((t, i) => t + i.hours, 0);
   const suggestedLoad = (d: string) => suggestedOn(d).reduce((t, x) => t + x.item.hours, 0);
   const weekHours = days.reduce((t, d) => t + load(d), 0);
@@ -449,14 +459,26 @@ function WeekView() {
     ];
   };
 
+  /** Pick what kind of day this is (client, business, mixed, off); a change only affects this day. */
+  const typePick = (d: string) => (
+    <label className="dtype-pick">
+      <span className="dtype-dot" aria-hidden="true" />
+      <select aria-label={`Type of day for ${fmtDate(d, { weekday: true, year: false })}`} value={dayHours(d, settings).type.key} onChange={(e) => void setDayType(d, e.target.value).catch(() => setError("That didn't save. Try again."))}>
+        {settings.dayTypes.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
+      </select>
+      {settings.overrides[d] !== undefined && <span className="muted" style={{ fontSize: 11 }}>this day only</span>}
+    </label>
+  );
+
   const dayHeadFor = (d: string) => {
     const used = load(d), cap = capacity(d);
     const over = used > cap;
-    const pct = cap ? Math.min(100, Math.round((used / cap) * 100)) : 100;
+    const pct = cap ? Math.min(100, Math.round((used / cap) * 100)) : used > 0 ? 100 : 0;
     const [weekdayName, , monthName] = fmtDate(d, { weekday: true, year: false }).split(" ");
     const meet = cal.meetingsOn(d);
+    const dh = dayHours(d, settings);
     return (
-      <div className={`dhead${d === today ? " today" : ""}${over ? " over" : ""}`}>
+      <div className={`dhead dtyped${d === today ? " today" : ""}${over ? " over" : ""}`} style={{ ["--dt" as string]: dh.type.colour }}>
         <div className="dhead-date">
           <span className="dhead-num">{Number(d.slice(8))}</span>
           <span className="dhead-names"><strong>{weekdayName}</strong><span>{monthName}</span></span>
@@ -468,7 +490,9 @@ function WeekView() {
             {over ? <strong> · {fmtHours(used - cap)} over</strong> : null}
           </span>
           {meet > 0 && <span className="dhead-meet">{fmtHours(meet)} in meetings</span>}
+          {dh.business > 0 && <span className="dhead-biz">{fmtHours(dh.business)} for the business</span>}
         </div>
+        {typePick(d)}
       </div>
     );
   };
@@ -604,13 +628,15 @@ function WeekView() {
               type="button"
               data-drop={d}
               className={`daypill${d === today ? " today" : ""}${dropTarget === d ? " drop" : ""}`}
+              style={{ ["--dt" as string]: dayHours(d, settings).type.colour }}
               aria-pressed={shownDay === d}
-              aria-label={`${fmtDate(d, { weekday: true, year: false })}, ${fmtHours(used) || "0h"} of ${fmtHours(cap)} planned${suggestedLoad(d) ? `, ${fmtHours(suggestedLoad(d))} suggested` : ""}`}
+              aria-label={`${fmtDate(d, { weekday: true, year: false })}, ${fmtHours(used) || "0h"} of ${fmtHours(cap) || "0h"} planned${suggestedLoad(d) ? `, ${fmtHours(suggestedLoad(d))} suggested` : ""}`}
               onClick={() => setPicked(d)}
             >
               <span className="dw">{fmtDate(d, { weekday: true, year: false }).split(" ")[0]}</span>
               <span className="dn">{Number(d.slice(8))}</span>
-              <span className="cap" aria-hidden="true"><span className={over ? "over" : ""} style={{ width: `${cap ? Math.min(100, Math.round((used / cap) * 100)) : 100}%` }} /></span>
+              <span className="dt-bar" aria-hidden="true" />
+              <span className="cap" aria-hidden="true"><span className={over ? "over" : ""} style={{ width: `${cap ? Math.min(100, Math.round((used / cap) * 100)) : used > 0 ? 100 : 0}%` }} /></span>
               <span className={`dh${over ? " over" : ""}`}>{fmtHours(used) || "0h"}{suggestedLoad(d) ? `+${fmtHours(suggestedLoad(d))}` : ""}</span>
             </button>
           );
@@ -692,7 +718,7 @@ function WeekView() {
           {held.length > 0 && (
             <details className="held-list">
               <summary>
-                On hold ({held.length})
+                On hold or waiting ({held.length})
                 {held.some((i) => holdAlert(i.row, i.deadline, today)) && (
                   <span className="chip amber" style={{ marginLeft: 6 }}>{held.filter((i) => holdAlert(i.row, i.deadline, today)).length} to look at</span>
                 )}
@@ -743,7 +769,7 @@ function WeekView() {
             const list = byDay.get(d) || [];
             const used = load(d), cap = capacity(d);
             const over = used > cap;
-            const pct = cap ? Math.min(100, Math.round((used / cap) * 100)) : 100;
+            const pct = cap ? Math.min(100, Math.round((used / cap) * 100)) : used > 0 ? 100 : 0;
             const sugg = suggestedOn(d);
             const sHours = suggestedLoad(d);
             const sPct = cap ? Math.max(0, Math.min(100 - pct, Math.round((sHours / cap) * 100))) : 0;
@@ -753,19 +779,20 @@ function WeekView() {
                 role="listitem"
                 data-drop={d}
                 data-order=""
-                className={`day${d === today ? " today" : ""}${dropTarget === d ? " drop" : ""}${d === shownDay ? " shown" : ""}`}
+                className={`day dtyped${d === today ? " today" : ""}${dropTarget === d ? " drop" : ""}${d === shownDay ? " shown" : ""}`}
+                style={{ ["--dt" as string]: dayHours(d, settings).type.colour }}
               >
                 <div className="day-title">
                   <h2 style={{ margin: 0, fontSize: 16 }}>{fmtDate(d, { weekday: true, year: false })}</h2>
                   <span className="mono" style={{ fontSize: 12, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>
-                    {fmtHours(used) || "0h"} / {fmtHours(cap)}{over ? ` · ${fmtHours(used - cap)} over` : ""}
+                    {fmtHours(used) || "0h"} / {fmtHours(cap) || "0h"}{over ? ` · ${fmtHours(used - cap)} over` : ""}
                   </span>
                 </div>
                 <div className="day-head">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                     <span style={{ fontWeight: 700 }}>{fmtDate(d, { weekday: true, year: false })}</span>
                     <span className="mono" style={{ fontSize: 12, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>
-                      {fmtHours(used) || "0h"} / {fmtHours(cap)}
+                      {fmtHours(used) || "0h"} / {fmtHours(cap) || "0h"}
                     </span>
                   </div>
                   <div className="cap" aria-hidden="true" style={{ display: "flex" }}>
@@ -775,6 +802,8 @@ function WeekView() {
                   {over && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red-ink)" }}>{fmtHours(used - cap)} over</span>}
                   {sHours > 0 && <span style={{ fontSize: 12, color: "var(--blue-ink)" }}>+{fmtHours(sHours)} suggested</span>}
                   {cal.meetingsOn(d) > 0 && <span className="muted" style={{ fontSize: 12 }}>Meetings {fmtHours(cal.meetingsOn(d))}</span>}
+                  {dayHours(d, settings).business > 0 && <span className="dhead-biz">{fmtHours(dayHours(d, settings).business)} for the business</span>}
+                  {typePick(d)}
                 </div>
                 {preparedOn(d).map((i) => (
                   <PreparedCard key={`p-${i.key}`} item={i} onOpen={() => open({ kind: "job", key: i.key })} />
@@ -934,7 +963,7 @@ function PlanCard({
       )}
       {i.held && (
         <span className="pcard-foot">
-          <span className="chip hold">On hold</span>
+          <span className="chip hold">{holdLabel(i.row)}</span>
           {(i.row.HoldReason as string) && <span style={{ fontSize: 12 }}>{i.row.HoldReason as string}</span>}
         </span>
       )}
