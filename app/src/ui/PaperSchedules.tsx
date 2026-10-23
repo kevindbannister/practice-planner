@@ -3,6 +3,7 @@
 // the settings each kind needs (depreciation method and rate, balance brought forward, accruals,
 // fee), and the summaries (lead schedule, fixed asset summary, final trial balance).
 import { AccountsWorkingPapers } from "./AccountsWorkingPapers";
+import { OpeningBalances } from "./OpeningBalances";
 import { Fragment, ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Client, fmtDate } from "../lib/domain";
 import {
@@ -154,7 +155,7 @@ function Stat({ label, value, warn }: { label: string; value: ReactNode; warn?: 
 
 /** The IRIS chart: Kevin's loaded chart, topped up with the codes the system already knows. */
 let chartCache: { settings: unknown; chart: ChartRow[] } | undefined;
-function useChart(): ChartRow[] {
+export function useChart(): ChartRow[] {
   const { data } = useData();
   return useMemo(() => {
     if (chartCache && chartCache.settings === data.settings) return chartCache.chart;
@@ -323,6 +324,7 @@ export function Schedule({ section, sb }: { section: Section; sb: Sub }) {
   else if (sb.kind === "report") body = <Report itemKey={itemKey} s={s} statutory={section.key === "statutory"} />;
   else if (sb.kind === "finaltb") body = <FinalTb />;
   else if (sb.kind === "summary") body = <AccountsSummary />;
+  else if (sb.kind === "openbal") body = <OpeningBalances client={w.client} period={w.period} />;
   else if (sb.kind === "bank") body = <AccountsWorkingPapers client={w.client} period={w.period} />;
   else if (sb.kind === "queries") body = <Grid section={section} sb={sb} lines={lines} s={s} cols={[
     { key: "Detail", label: "Notes", type: "text", wide: true }, { key: "Remark", label: "Comments back", type: "text", wide: true },

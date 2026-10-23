@@ -4,6 +4,8 @@
 //
 // Nothing here guesses at figures. Amounts come straight from the statement and every row is checked
 // against the running balance; categories are suggested (rules first, then AI) and reviewed by you.
+import type { OpeningAcct } from "./openingBalances";
+import { irisRangeDest } from "./tbMap";
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 // ------------------------------------------------------------------ reading a statement
@@ -383,7 +385,7 @@ export function sortTxns(txns: Txn[], saved: Record<string, string> = {}): Sorte
 
 // ------------------------------------------------------------------ the papers
 
-export type TbOut = { Code: string; Detail: string; f: { dr?: number; cr?: number; type?: string; iris?: string } };
+export type TbOut = { Code: string; Detail: string; f: { dr?: number; cr?: number; type?: string; iris?: string; dest?: string } };
 
 export type Built = {
   tb: TbOut[];
@@ -401,7 +403,7 @@ export type Built = {
  * `priorReserves` is the prior year's retained profit, if known: any difference is then shown as unexplained.
  * VAT is not split out: a statement only shows the gross amounts.
  */
-export function buildPapers(items: Sorted[], opening: number | undefined, bankName: string, bankIris = "692"): Built {
+export function buildPapers(items: Sorted[], opening: number | undefined, bankName: string, bankIris = "692", openingAccts: OpeningAcct[] = []): Built {
   const by = new Map<string, number>();
   let unsorted = 0;
   for (const t of items) {
@@ -414,18 +416,40 @@ export function buildPapers(items: Sorted[], opening: number | undefined, bankNa
   const tb: TbOut[] = [];
   let dr = 0, cr = 0;
   const put = (Code: string, Detail: string, f: TbOut["f"]) => { tb.push({ Code, Detail, f }); dr = r2(dr + (f.dr || 0)); cr = r2(cr + (f.cr || 0)); };
-  // bank at the end: a positive balance is a debit
-  put("BANK", bankName, closing >= 0 ? { dr: closing, type: "Bank", iris: bankIris } : { cr: -closing, type: "Bank", iris: bankIris });
+  const side = (bal: number) => (bal >= 0 ? { dr: bal } : { cr: -bal });
+
+  // last year's closing balance sheet comes in as the opening position; this year's movements are added to the matching accounts
+  const accts = openingAccts.map((a) => ({ ...a, bal: a.balance }));
+  const bankAcct = accts.find((a) => a.dest.startsWith("bank/"));
+  const NO_MERGE = new Set(["suspense", "dividends", "transfer"]);
+  const lines: { key: string; v: number }[] = [];
   for (const c of CATEGORIES) {
     const v = by.get(c.key);
     if (v === undefined || v === 0) continue;
+    const dest = c.type === "balance" && !NO_MERGE.has(c.key) ? irisRangeDest(c.iris, c.irisName, -v) : undefined;
+    const into = dest ? accts.find((a) => a !== bankAcct && a.dest === dest) : undefined;
+    if (into) into.bal = r2(into.bal - v); // money in credits the account, money out debits it
+    else lines.push({ key: c.key, v });
+  }
+  // the bank at the end of the year, on the opening bank account's line if there is one
+  if (bankAcct) put(bankAcct.Code || "BANK", bankAcct.Detail, { ...side(closing), type: "Bank", iris: bankAcct.iris || bankIris, dest: bankAcct.dest });
+  else put("BANK", bankName, { ...side(closing), type: "Bank", iris: bankIris });
+  for (const a of accts) {
+    if (a === bankAcct || !a.bal) continue;
+    put(a.Code || a.Detail, a.Detail, { ...side(a.bal), type: /^capital\//.test(a.dest) ? "Equity" : "Balance sheet", iris: a.iris || undefined, dest: a.dest });
+  }
+  for (const { key, v } of lines) {
+    const c = CATEGORY_BY_KEY.get(key)!;
     // money in credits an account (income, loans received); money out debits it
     const f: TbOut["f"] = v > 0 ? { cr: v } : { dr: -v };
-    put(c.key.toUpperCase(), c.name, { ...f, type: c.type === "income" ? "Revenue" : c.type === "expense" ? "Expense" : "Balance sheet", iris: c.iris });
+    put(key.toUpperCase(), c.name, { ...f, type: c.type === "income" ? "Revenue" : c.type === "expense" ? "Expense" : "Balance sheet", iris: c.iris });
   }
-  // what's left to make it balance is the position before the period (retained profit b/fwd), if the books started earlier
+  // what's left to make it balance: with no opening balances it is the position before the period; with them, a difference to look at
   const diff = r2(dr - cr);
-  if (Math.abs(diff) > 0.004) put("BFWD", "Opening position (balancing figure)", diff > 0 ? { cr: diff, type: "Equity", iris: "968/1" } : { dr: -diff, type: "Equity", iris: "968/1" });
+  if (Math.abs(diff) > 0.004) {
+    const label = openingAccts.length ? "Difference on opening balances" : "Opening position (balancing figure)";
+    put("BFWD", label, diff > 0 ? { cr: diff, type: "Equity", iris: openingAccts.length ? undefined : "968/1" } : { dr: -diff, type: "Equity", iris: openingAccts.length ? undefined : "968/1" });
+  }
   const cash = CATEGORIES.map((c) => ({ c, v: by.get(c.key) || 0 })).filter((x) => x.v !== 0).map(({ c, v }) => ({
     Detail: c.name, Amount: v, Remark: `${items.filter((t) => t.cat === c.key).length} transaction${items.filter((t) => t.cat === c.key).length === 1 ? "" : "s"}`, f: { in: v > 0 ? v : 0, out: v < 0 ? -v : 0 },
   }));

@@ -12,6 +12,7 @@ import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { useData } from "./data";
 import { downloadFile, useAi } from "./commsKit";
+import { useOpeningBalances } from "./OpeningBalances";
 import { useWriterState } from "./PaperSchedules";
 
 const SEC = "accwp", SUB = "main", KEY = setupKey(SEC, SUB);
@@ -55,12 +56,15 @@ export function AccountsWorkingPapers({ client, period }: { client: Client; peri
   const receipts = txs.filter((t) => t.amount > 0), payments = txs.filter((t) => t.amount < 0);
   const sum = (l: Tx[]) => r2(l.reduce((a, t) => a + t.amount, 0));
   const unsorted = txs.filter((t) => !t.cat || t.cat === "suspense");
+  const ob = useOpeningBalances(client, period);
+  const obBank = ob?.accounts.find((a) => a.dest.startsWith("bank/"));
   const openingStmt = typeof s.opening === "number" ? s.opening : undefined;
-  const openingUsed = s.openBal !== undefined && s.openBal !== "" && Number.isFinite(num(s.openBal)) ? num(s.openBal) : openingStmt;
+  const openingUsed = s.openBal !== undefined && s.openBal !== "" && Number.isFinite(num(s.openBal)) ? num(s.openBal) : openingStmt ?? obBank?.balance;
+  const bankDiff = obBank && openingStmt !== undefined ? r2(obBank.balance - openingStmt) : undefined;
   const closingBooks = r2((openingUsed ?? 0) + sum(txs));
   const closingStmt = typeof s.closing === "number" ? s.closing : undefined;
   const diff = closingStmt === undefined ? undefined : r2(closingBooks - closingStmt);
-  const built = useMemo(() => buildPapers(txs.map((t) => ({ ...t, cat: t.cat || undefined })) as Sorted[], openingUsed, bankName), [txs, openingUsed, bankName]);
+  const built = useMemo(() => buildPapers(txs.map((t) => ({ ...t, cat: t.cat || undefined })) as Sorted[], openingUsed, bankName, "692", ob?.accounts), [txs, openingUsed, bankName, ob]);
   const outside = txs.filter((t) => t.date < start || t.date > period).length;
 
   const byCat = useMemo(() => {
@@ -291,6 +295,7 @@ export function AccountsWorkingPapers({ client, period }: { client: Client; peri
             <ul className="import-list warn">
               {(s.problems || []).map((x) => <li key={x}>{x}</li>)}
               {diff !== undefined && diff !== 0 && <li>The transactions don't agree to the closing balance by {money(Math.abs(diff))}. Check the balance at the start, or whether a statement is missing.</li>}
+              {bankDiff !== undefined && bankDiff !== 0 && <li>The bank at the start of the year is {money(obBank!.balance)} in last year's trial balance but {money(openingStmt!)} on the statement (a difference of {money(Math.abs(bankDiff))}). It goes to "Difference on opening balances" in the trial balance: a rounded trial balance usually explains it.</li>}
               {outside > 0 && <li>{outside} transaction{outside === 1 ? " is" : "s are"} outside the year {dmy(start)} to {dmy(period)}. They're included here; remove them from the file if they shouldn't be.</li>}
             </ul>
           </div>
@@ -322,7 +327,7 @@ export function AccountsWorkingPapers({ client, period }: { client: Client; peri
           </div>
 
           <div className="stack" style={{ gap: 6 }}>
-            <strong style={{ fontSize: 14 }}>Trial balance created from these</strong>
+            <strong style={{ fontSize: 14 }}>Trial balance created from these{ob ? " and the opening balances" : ""}</strong>
             <table className="bank-table">
               <thead><tr><th>Account</th><th className="num">Debit</th><th className="num">Credit</th></tr></thead>
               <tbody>
@@ -330,7 +335,9 @@ export function AccountsWorkingPapers({ client, period }: { client: Client; peri
               </tbody>
             </table>
             <ul className="import-list warn">
-              {built.balancingFigure !== 0 && <li>"Opening position" of {money(Math.abs(built.balancingFigure))} is a balancing figure: it makes the trial balance agree. Replace it with last year's balance sheet figures when you have them.</li>}
+              {!ob && <li>There are no opening balances yet: read in last year's trial balance in "Opening balances" to start from the real position.</li>}
+              {!ob && built.balancingFigure !== 0 && <li>"Opening position" of {money(Math.abs(built.balancingFigure))} is a balancing figure: it makes the trial balance agree.</li>}
+              {ob && built.balancingFigure !== 0 && <li>"Difference on opening balances" of {money(Math.abs(built.balancingFigure))}: the opening balances and the bank statement don't quite agree. Look at the bank at the start.</li>}
               {built.uncategorised > 0 && <li>{built.uncategorised} transaction{built.uncategorised === 1 ? " is" : "s are"} not categorised yet and sit in "Unknown / query for client".</li>}
               <li>This is a cash-basis trial balance: no debtors, creditors, accruals, VAT split, depreciation or tax. Those come from journals and the schedules.</li>
             </ul>

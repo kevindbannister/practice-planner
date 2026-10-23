@@ -14,7 +14,7 @@ export const STATUS_LABEL: Record<PaperStatus, string> = { todo: "Not started", 
 
 export type Kind =
   | "list" | "register" | "account" | "vat" | "payroll" | "expense" | "tb" | "journals" | "opening" | "finaltb"
-  | "checklist" | "questions" | "budget" | "info" | "report" | "queries" | "summary" | "bank";
+  | "checklist" | "questions" | "budget" | "info" | "report" | "queries" | "summary" | "bank" | "openbal";
 
 export type Sub = {
   key: string; title: string; kind: Kind;
@@ -82,6 +82,7 @@ export const SECTIONS: Section[] = [
   sec("debtors-ca", "Debtors control account", "Other schedules", [sub("main", "Debtors control account", "account", { normal: "dr" })], { offByDefault: true }),
   sec("summary", "Accounts summary", "Trial balance", [sub("main", "Accounts summary", "summary")]),
   sec("tb", "Year end trial balance", "Trial balance", [sub("main", "Trial balance from the software", "tb")]),
+  sec("openbal", "Opening balances", "Trial balance", [sub("main", "Opening balances", "openbal")]),
   sec("accwp", "Accounts working papers", "Trial balance", [sub("main", "Accounts working papers", "bank")]),
   sec("journals", "Journals", "Trial balance", [
     sub("obd", "Opening balance differences", "journals"), sub("main", "Journals", "journals"), sub("review", "Review journals", "journals"), sub("final", "Final journals", "journals"),
@@ -503,7 +504,7 @@ export function carryLines(kind: Kind, prior: Line[], ps: Setup): { Code?: strin
       return prior.map((l) => ({ Detail: l.Detail, Remark: l.Remark }));
     case "budget":
       return prior.map((l) => ({ Detail: l.Detail, f: { budget: l.f.budget } }));
-    case "account": case "vat": case "payroll": case "tb": case "journals": case "opening": case "expense": case "report": case "finaltb": case "info": case "queries": case "bank":
+    case "account": case "vat": case "payroll": case "tb": case "journals": case "opening": case "expense": case "report": case "finaltb": case "info": case "queries": case "bank": case "openbal":
       return [];
     default:
       return prior.filter((l) => l.Detail.trim()).map((l) => ({ Code: l.Code, Detail: l.Detail }));
