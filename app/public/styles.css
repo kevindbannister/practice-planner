@@ -2025,3 +2025,13 @@ body { display: flow-root; }
 .bar-toggle:hover { background: var(--blue-soft); }
 @media (min-width: 721px) { .bar-actions.collapsed { display: none; } }
 @media (max-width: 720px) { .bar-actions { gap: 8px; } }
+/* smooth fold: the tools' width eases to nothing while they fade, and the pill follows */
+.bar-actions { display: grid; grid-template-columns: 1fr; transition: grid-template-columns 0.35s cubic-bezier(.4, 0, .2, 1), margin 0.35s cubic-bezier(.4, 0, .2, 1); }
+.bar-actions-in { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; opacity: 1; transition: opacity 0.25s ease 0.08s, visibility 0s; }
+@media (min-width: 721px) {
+  .bar-actions.collapsed { display: grid; grid-template-columns: 0fr; margin-right: -8px; }
+  .bar-actions.collapsed .bar-actions-in { opacity: 0; visibility: hidden; transition: opacity 0.15s ease, visibility 0s linear 0.35s; }
+}
+@media (prefers-reduced-motion: reduce) { .bar-actions, .bar-actions-in { transition: none !important; } }
+.bar-actions-in { white-space: nowrap; }
+.bar-actions-in > * { flex: none; }

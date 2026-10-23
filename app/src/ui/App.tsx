@@ -125,6 +125,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
           <span className="save error" role="alert"><Icon name="alert" size={14} /><span className="save-text">Not saved: {save.error}</span></span>
         )}
         <div className={`bar-actions${tools ? "" : " collapsed"}`} id="bar-actions">
+          <div className="bar-actions-in">
           {ready && <SearchButton />}
           {ready && <Alerts />}
           {ready && (
@@ -137,10 +138,11 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
               </button>
             </>
           )}
+          </div>
         </div>
         {ready && (
           <button type="button" className="bar-toggle hide-phone" aria-expanded={tools} aria-controls="bar-actions" aria-label={tools ? "Hide search, alerts, Ask and New task" : "Show search, alerts, Ask and New task"} title={tools ? "Hide tools" : "Search, alerts, Ask, New task"} onClick={toggleTools}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform: tools ? "none" : "rotate(180deg)", transformOrigin: "8px 8px", transition: "transform .2s" }} /></svg>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform: tools ? "rotate(180deg)" : "none", transformOrigin: "8px 8px", transition: "transform .2s" }} /></svg>
           </button>
         )}
         <ProfileMenu user={user} demo={demo} />
