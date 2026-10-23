@@ -15,7 +15,7 @@ export type Job = Row & {
 };
 export type Task = Row & {
   Key: string; Title: string; ClientKey?: string; GroupKey?: string; Type?: string; PlannedDate?: string;
-  EstimateHours?: number; DueDate?: string; Status?: string; CompletedDate?: string; Notes?: string;
+  EstimateHours?: number; DueDate?: string; Status?: string; CompletedDate?: string; Notes?: string; ActualHours?: number;
 };
 
 /** How much a client matters when deciding what to do first. Blank means normal. */

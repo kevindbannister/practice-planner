@@ -1629,3 +1629,22 @@ a.chip { text-decoration: none; } a.chip:hover { text-decoration: underline; }
   .dtypes-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .dtypes-lab { display: block; font-size: 11px; color: var(--muted); }
 }
+
+/* ---- time actually spent ---- */
+.time-picker { display: flex; flex-direction: column; gap: 6px; }
+.time-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.time-pick { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+.time-pick:hover { background: var(--surface-2); }
+.time-pick[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+.time-est { font-size: 11px; opacity: 0.7; }
+.time-input { max-width: 220px; }
+.time-entry { display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
+.time-row > td { background: var(--surface-2); }
+.timelog-row { display: flex; flex-direction: column; gap: 6px; }
+.timelog-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.timelog-line .linklike { flex: 1 1 220px; text-align: left; }
+.linklike { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); cursor: pointer; text-decoration: none; }
+.linklike:hover { color: var(--primary); text-decoration: underline; }
+.timelog .time-entry { padding: 4px 0 8px; }
+.timelog-row { padding: 6px 16px; }
+.timelog .home-list { padding: 0; margin: 0; }

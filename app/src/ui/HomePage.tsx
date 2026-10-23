@@ -6,6 +6,7 @@ import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, todayIso }
 import { forecast } from "../lib/forecast";
 import { addDays, mondayOf, weekday } from "../lib/planning";
 import { clientHoursOn } from "../lib/dayTypes";
+import { TimeToLog } from "./TimeSpent";
 import { planHours, waitState, waitingForClient } from "../lib/waiting";
 import { usePaymentReminderCount } from "./TaxPayments";
 import { templateFor } from "../lib/meetings";
@@ -142,6 +143,7 @@ export function HomePage() {
 
       <div className="home-grid">
         <div className="home-col">
+          <TimeToLog />
           <section className="card" aria-labelledby="today-h">
             <div className="card-head">
               <h2 className="with-icon" id="today-h"><span className="h-icon hue-blue" aria-hidden="true"><Icon name="plan" size={15} /></span>Today</h2>

@@ -11,6 +11,8 @@ import { chaseSummary } from "../lib/chase";
 import { Subtask, progress, readSubtasks, writeSubtasks } from "../lib/subtasks";
 import { finaliseDefault, firstWaitStage, inFinalise, isWaitStage, stageAt, unwaitPatch, waitPatch, waitingForClient } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
+import { TimePicker } from "./TimePicker";
+import { parseDuration, timePatch } from "../lib/timeSpent";
 import { DeadlineChip, ElementsLink, Icon, PapersLink, href } from "./bits";
 import { useData, useIndex } from "./data";
 
@@ -195,7 +197,12 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     setBusy(true);
     setError(undefined);
     try {
-      const hours = actual ? Number(actual) : undefined;
+      const hours = actual.trim() ? parseDuration(actual) : undefined;
+      if (actual.trim() && hours === undefined) {
+        setError("I couldn't read that time. Try 1.5, 1h30 or 90m, or leave it blank.");
+        setBusy(false);
+        return;
+      }
       const finished = { ...job, ActualHours: hours ?? job.ActualHours } as Job;
       const nextRow = serviceOff ? null : rollForward(finished, rule, today, newKey("J"));
       // create the next job first, so nothing is lost if the second step fails
@@ -203,7 +210,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         nextRow.StageName = (stages[0]?.Title as string) || "";
         await create("Jobs", nextRow);
       }
-      await save({ Status: "Complete", CompletedDate: today, ...(hours !== undefined ? { ActualHours: hours } : {}) });
+      await save({ Status: "Complete", CompletedDate: today, ...(hours !== undefined ? timePatch(hours) : {}) });
       setDone(nextRow);
     } catch {
       setError("Couldn't complete the job. Nothing has been lost; try again.");
@@ -385,12 +392,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
             </>
           ) : (
             <>
-              <div className="form" style={{ gridTemplateColumns: "1fr" }}>
-                <label>
-                  Hours it actually took (optional, sets next year's estimate)
-                  <input className="input" type="number" step="0.25" value={actual} onChange={(e) => setActual(e.target.value)} />
-                </label>
-              </div>
+              <TimePicker value={actual} onChange={setActual} estimate={jobHours(job, data.services)} label="How long did it take? (optional, sets next year's estimate; you can add it later)" />
               {error && <p className="error-text" role="alert">{error}</p>}
               <div className="form-actions">
                 <button type="button" className="btn" onClick={() => setCompleting(false)} disabled={busy}>Cancel</button>
@@ -593,6 +595,8 @@ function TaskPanel({ taskKey, clientKey, plannedDate, startTime, onClose }: { ta
   const { data, update, create } = useData();
   const existing = taskKey ? data.tasks.find((t) => t.Key === taskKey) : undefined;
   const [draft, setDraft] = useState<Row>({ Type: clientKey ? "Client work" : "Practice", ClientKey: clientKey, PlannedDate: plannedDate, StartTime: startTime });
+  const [finishing, setFinishing] = useState(false);
+  const [took, setTook] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const clients = data.clients;
@@ -604,11 +608,32 @@ function TaskPanel({ taskKey, clientKey, plannedDate, startTime, onClose }: { ta
         {isOpen(existing) && <HoldSection item={existing} deadline={existing.DueDate} save={save} what="task" />}
         <TaskFields value={existing} clients={clients} onChange={(patch) => save(patch)} live />
         <SubtaskList value={existing.Subtasks as string} onChange={(v) => save({ Subtasks: v })}
-          onAllDone={isOpen(existing) ? () => save({ Status: "Done", CompletedDate: todayIso() }).then(onClose) : undefined} />
-        {isOpen(existing) ? (
+          onAllDone={isOpen(existing) ? () => setFinishing(true) : undefined} />
+        {isOpen(existing) && finishing ? (
+          <section className="stack complete-box" aria-label="Finish this task">
+            <h3 style={{ margin: 0, fontSize: 15 }}>Finish this task</h3>
+            <TimePicker value={took} onChange={setTook} estimate={Number(existing.EstimateHours) || undefined} label="How long did it take? (optional; you can add it later)" />
+            {error && <p className="error-text" role="alert">{error}</p>}
+            <div className="form-actions">
+              <button type="button" className="btn" disabled={busy} onClick={() => { setFinishing(false); setError(undefined); }}>Cancel</button>
+              <button type="button" className="btn primary" disabled={busy} onClick={async () => {
+                const hours = took.trim() ? parseDuration(took) : undefined;
+                if (took.trim() && hours === undefined) return setError("I couldn't read that time. Try 1.5, 1h30 or 90m, or leave it blank.");
+                setBusy(true);
+                try {
+                  await save({ Status: "Done", CompletedDate: todayIso(), ...(hours !== undefined ? timePatch(hours) : {}) });
+                  onClose();
+                } catch {
+                  setError("Couldn't save that. Try again.");
+                  setBusy(false);
+                }
+              }}>{busy ? "Saving…" : "Finish"}</button>
+            </div>
+          </section>
+        ) : isOpen(existing) ? (
           <div className="form-actions" style={{ justifyContent: "space-between" }}>
             <button type="button" className="btn" onClick={() => save({ Status: "Cancelled" }).then(onClose)}>Cancel task</button>
-            <button type="button" className="btn primary" onClick={() => save({ Status: "Done", CompletedDate: todayIso() }).then(onClose)}>Mark done</button>
+            <button type="button" className="btn primary" onClick={() => setFinishing(true)}>Mark done…</button>
           </div>
         ) : (
           <div className="form-actions">

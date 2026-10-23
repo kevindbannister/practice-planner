@@ -78,7 +78,7 @@ export const LISTS: ListDef[] = [
       t("SuggestedSlot"), t("LastCompleted"), t("Priority"), t("Status"), t("CompletedDate"),
       n("ActualHours"), n("Fee"), t("FeePeriod"), t("Source"), t("EngagerClient"), note("Notes"),
       t("HoldReason"), t("HoldUntil"), t("HeldOn"), t("HoldKind"), t("LastChased"), n("ChaseCount"), note("ChaseLog"), note("CardNote"),
-      t("WaitingSince"), t("SpeakOn"), n("FinaliseHours"), t("PreparedOn"), n("PreparedHours"), n("DayOrder"), t("StartTime"),
+      t("WaitingSince"), t("SpeakOn"), n("FinaliseHours"), t("PreparedOn"), n("PreparedHours"), n("DayOrder"), t("StartTime"), t("TimeSkipped"),
     ],
   },
   {
@@ -93,7 +93,7 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("ClientKey", true), t("GroupKey"), t("Type"), t("PlannedDate", true), n("EstimateHours"),
       t("DueDate"), t("Status"), t("CompletedDate"), note("Notes"), t("HoldReason"), t("HoldUntil"), t("HeldOn"), t("HoldKind"), note("CardNote"),
-      n("DayOrder"), note("Subtasks"), t("StartTime"),
+      n("DayOrder"), note("Subtasks"), t("StartTime"), n("ActualHours"), t("TimeSkipped"),
     ],
   },
   {
