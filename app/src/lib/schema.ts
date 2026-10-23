@@ -93,7 +93,7 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("ClientKey", true), t("GroupKey"), t("Type"), t("PlannedDate", true), n("EstimateHours"),
       t("DueDate"), t("Status"), t("CompletedDate"), note("Notes"), t("HoldReason"), t("HoldUntil"), t("HeldOn"), t("HoldKind"), note("CardNote"),
-      n("DayOrder"), note("Subtasks"), t("StartTime"), n("ActualHours"), t("TimeSkipped"), t("ProjectKey"),
+      n("DayOrder"), note("Subtasks"), t("StartTime"), n("ActualHours"), t("TimeSkipped"), t("ProjectKey"), t("RoutineKey"), t("RoutineDate"),
     ],
   },
   {

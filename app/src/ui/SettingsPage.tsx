@@ -1,4 +1,5 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
+import { RoutinesCard } from "./Routines";
 import { XeroSettings } from "./XeroSettings";
 // due, default hours and its stages); and Companies House checks.
 import React, { useEffect, useRef, useState } from "react";
@@ -44,6 +45,7 @@ export function SettingsPage() {
       </nav>
       {tab === "week" && <HoursCard />}
       {tab === "week" && <DayTypesCard />}
+      {tab === "week" && <RoutinesCard />}
       {tab === "week" && <AppearanceCard />}
       {tab === "work" && <TypesOfWork />}
       {tab === "companies-house" && <CompaniesHouseSettings />}

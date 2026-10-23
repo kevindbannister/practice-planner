@@ -9,6 +9,10 @@ import { Icon, PlanTabs, useRoute } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { DoneView } from "./DoneView";
 import { TodayView } from "./TodayView";
+import { RoutineBar } from "./Routines";
+import { ConflictCard, useMakeClientDay } from "./Conflicts";
+import { useTodayModel } from "./useTodayModel";
+import { findConflicts } from "../lib/today";
 import { ProjectsView } from "./ProjectsView";
 import { categoryOf, isBusinessTask } from "../lib/projects";
 import { DeadlinesView } from "./DeadlinesView";
@@ -455,6 +459,9 @@ function WeekView() {
     }
   };
   const canSuggest = days.some((d) => d >= today);
+  const mk = useMakeClientDay();
+  const model = useTodayModel();
+  const weekConflicts = findConflicts(model.input, model.work.filter((w) => !w.held)).filter((c) => c.deadline <= addDays(days[4], 7));
   const waitingCount = activePlan?.skipped.filter((s) => s.reason === "Waiting for records").length || 0;
   const noRoomCount = activePlan?.skipped.filter((s) => s.reason !== "Waiting for records").length || 0;
 
@@ -594,7 +601,7 @@ function WeekView() {
             )}
             {canSuggest && (
               <button type="button" className="btn" onClick={() => runSuggest()} aria-describedby="suggest-help">
-                <Icon name="spark" /><span className="tb-text">Suggest a plan</span>
+                <Icon name="spark" /><span className="tb-text">Suggest my week</span>
               </button>
             )}
           </div>
@@ -607,6 +614,10 @@ function WeekView() {
           Calendar didn't refresh: {cal.state.error} <a href="#/settings/calendar">Calendar settings</a>
         </p>
       )}
+      <RoutineBar from={days[0] < today ? today : days[0]} to={days[4]} onAdded={(n) => say(`Added ${n} routine task${n === 1 ? "" : "s"} to the week`)} />
+      {week >= mondayOf(today) && weekConflicts.map((c) => <div key={c.deadline} style={{ padding: "0 24px" }}><ConflictCard c={c} busy={mk.busy} onMake={(d) => void mk.make(d)} /></div>)}
+      {mk.note && <p role="status" style={{ padding: "0 24px", margin: 0 }}>{mk.note}</p>}
+      {mk.error && <p className="error-text" role="alert" style={{ padding: "0 24px", margin: 0 }}>{mk.error}</p>}
       {activePlan && (
         <section className="suggest-bar" aria-label="Suggested plan">
           <div className="stack" style={{ gap: 2 }}>

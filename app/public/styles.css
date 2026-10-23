@@ -1687,3 +1687,7 @@ a.chip { text-decoration: none; } a.chip:hover { text-decoration: underline; }
 .today-sub { margin: 4px 16px 0; font-size: 13px; color: var(--muted); font-weight: 600; }
 .today-conflict { border-left: 4px solid var(--red-solid); }
 @media (max-width: 720px) { .today-row { flex-wrap: wrap; padding: 0 12px 8px; } .today-main { padding: 9px 4px; } }
+
+/* Routine work */
+.routine-row { display: grid; grid-template-columns: minmax(160px, 2fr) repeat(4, minmax(90px, 1fr)) auto; gap: 8px; align-items: end; padding: 10px 0; border-top: 1px solid var(--line-2); }
+@media (max-width: 720px) { .routine-row { grid-template-columns: 1fr 1fr; } .routine-row > :first-child { grid-column: 1 / -1; } }
