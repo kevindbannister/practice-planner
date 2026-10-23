@@ -2009,3 +2009,12 @@ section[aria-labelledby="soon-h"] .home-date { background: linear-gradient(90deg
 /* client page: same tight spacing as the working papers */
 .client-page { gap: 12px; padding-top: 16px; }
 .client-page .page-head h1 { font-size: 26px; }
+/* no band above the floating menu (its margin was showing the plain page colour); menu sits a little lower */
+body { display: flow-root; }
+@media (min-width: 721px) {
+  .topbar { margin-top: 26px; top: 18px; }
+  .quick { top: 100px; }
+  .tray { top: 104px; }
+  .lead-split .lead-panel { top: 108px; }
+  .hours-head { top: 96px; }
+}
