@@ -21,7 +21,14 @@ test("wrong later deadline is red with apply", () => {
   assert.equal(p.type, "deadline-rule"); assert.equal(p.severity, "red");
   assert.deepEqual(p.action, { do: "deadline", jobKey: "J1", Deadline: "2027-03-31" });
 });
-test("earlier manual deadline is a deliberate buffer", () => assert.equal(run([c()], [j({ Deadline: "2027-02-01", DeadlineSource: "Manual" })]).length, 0));
+test("an earlier deadline is never flagged (a buffer, or CT's payment date)", () => {
+  assert.equal(run([c()], [j({ Deadline: "2027-02-01", DeadlineSource: "Manual" })]).length, 0);
+  assert.equal(run([c()], [j({ Deadline: "2027-01-01", DeadlineSource: "Engager" })]).length, 0);
+});
+test("company accounts are left to Companies House (first accounts, changed year ends)", () => {
+  assert.equal(run([c({ CompanyNumber: "12345678" })], [j({ ServiceKey: "ACCS_LTD", Deadline: "2027-12-31" })]).length, 0);
+  assert.equal(run([c()], [j({ ServiceKey: "ACCS_LTD", Deadline: "2027-12-31" })])[0].type, "deadline-rule");
+});
 test("missing deadline and before-period deadline", () => {
   assert.equal(run([c()], [j({ Deadline: "" })])[0].type, "deadline-missing");
   assert.equal(run([c()], [j({ Deadline: "2026-01-01" })])[0].type, "deadline-order");
@@ -30,14 +37,20 @@ test("Companies House governed accounts are left to it", () => assert.equal(run(
 test("duplicates", () => assert.equal(run([c()], [j(), j({ Key: "J2" })]).filter((p) => p.type === "duplicate").length, 1));
 test("SA period must end 5 April", () => assert.ok(run([c()], [j({ ServiceKey: "SA100", PeriodEnd: "2026-03-31", Deadline: "2027-01-31" })]).some((p) => p.type === "period")));
 test("custom rule that breaks statutory", () => {
-  const svc = [{ Key: "CT600", Title: "CT600", ...ruleFields({ repeatMonths: 12, deadline: "after", months: 9, days: 0, keepMonthEnd: true }) }];
+  const svc = [{ Key: "CT600", Title: "CT600", ...ruleFields({ repeatMonths: 12, deadline: "after", months: 13, days: 0, keepMonthEnd: true }) }];
   const p = run([c()], [], svc).find((x) => x.type === "service-rule");
   assert.ok(p); assert.deepEqual(p!.action, { do: "service-rule", serviceKey: "CT600" });
+  const early = [{ Key: "CT600", Title: "CT600", ...ruleFields({ repeatMonths: 12, deadline: "after", months: 9, days: 1, keepMonthEnd: true }) }];
+  assert.equal(run([c()], [], early).filter((x) => x.type === "service-rule").length, 0);
 });
-test("AML and LoE before work due", () => {
-  const out = run([c({ XamaStatus: "", LoEStatus: "" })], [j({ Deadline: "2026-11-30" })]);
-  assert.ok(out.some((p) => p.type === "aml") || out.some((p) => p.type === "loe"));
-  assert.equal(run([c({ XamaStatus: "", LoEStatus: "" })], [j({ Deadline: "2027-03-31" })]).filter((p) => p.type === "aml" || p.type === "loe").length, 0);
+test("AML and engagement letter gaps: one finding per client, only when work is close", () => {
+  const out = run([c({ XamaStatus: "", LoEStatus: "" })], [j({ Deadline: "2026-11-10", PeriodEnd: "2025-11-10", ServiceKey: "OTHER" })]);
+  const comp = out.filter((p) => p.type === "compliance");
+  assert.equal(comp.length, 1);
+  assert.match(comp[0].title, /AML check and engagement letter/);
+  assert.equal((comp[0].action as any).do, "task");
+  assert.equal(run([c({ XamaStatus: "Low risk", LoEStatus: "Finalised" })], [j({ Deadline: "2026-11-10", ServiceKey: "OTHER" })]).filter((p) => p.type === "compliance").length, 0);
+  assert.equal(run([c({ XamaStatus: "", LoEStatus: "" })], [j({ Deadline: "2026-12-31", ServiceKey: "OTHER" })]).filter((p) => p.type === "compliance").length, 0);
 });
 test("reconcile keeps CH and planner flags apart", () => {
   const flags = [{ Key: "C1|filed", ClientKey: "C1", Type: "filed", Status: "Open" }, { Key: "C1|aml", ClientKey: "C1", Type: "aml", Status: "Open" }];

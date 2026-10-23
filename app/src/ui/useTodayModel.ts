@@ -17,6 +17,11 @@ export function useTodayModel(): { today: string; work: Work[]; dh: ReturnType<t
   const idx = useIndex();
   const cal = useCalendar();
   const today = todayIso();
+  const blockedBy = (j: Job): { blocked: boolean; blockedWhy?: string } => {
+    if (waitingForClient(j, idx.stagesByService.get(j.ServiceKey || "") || [])) return { blocked: true, blockedWhy: "With the client for approval" };
+    if (!inFinalise(j) && waitingForRecords(j, data.services, data.stageTemplates)) return { blocked: true, blockedWhy: "Records not in yet" };
+    return { blocked: false };
+  };
   const work = useMemo((): Work[] => {
     const name = (k?: string) => (k && idx.clientByKey.get(k)?.Title) || "";
     const imp = (k?: string) => (k && idx.clientByKey.get(k) ? importanceOf(idx.clientByKey.get(k)!) : "normal");
@@ -26,7 +31,7 @@ export function useTodayModel(): { today: string; work: Work[]; dh: ReturnType<t
         key: j.Key, kind: "job", title: j.Title, client: name(j.ClientKey) || (j.ClientName as string) || "",
         hours: planHours(j, data.services), deadline: j.Deadline, planned: j.PlannedDate, urgent: j.Priority === "urgent",
         importance: imp(j.ClientKey), business: false, ...held(j),
-        blocked: waitingForClient(j, idx.stagesByService.get(j.ServiceKey || "") || []) || (!inFinalise(j) && waitingForRecords(j, data.services, data.stageTemplates)),
+        ...blockedBy(j),
       })),
       ...idx.openTasks.map((t: Task): Work => {
         const proj = isBusinessTask(t) ? data.projects.find((p) => p.Key === t.ProjectKey) : undefined;

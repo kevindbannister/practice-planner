@@ -43,3 +43,12 @@ test("task from a suggestion, and pruning", () => {
   assert.equal(t.ClientName, "Acme Ltd"); assert.equal(t.PlannedDate, "2026-10-26"); assert.match(String(t.Notes), /https:\/\/o\/1/);
   assert.deepEqual(Object.keys(pruneHandled({ a: { how: "added", on: "2026-01-01" }, b: { how: "added", on: "2026-10-20" } }, "2026-10-23")), ["b"]);
 });
+
+test("a colleague at the client's company counts; gmail and shared domains don't", async () => {
+  const { matchClient } = await import("../src/lib/emailTasks");
+  const cs: any[] = [{ Key: "C1", Title: "Acme Ltd", Email: "bob@acme.example" }, { Key: "C2", Title: "Jo", Email: "jo@gmail.com" }, { Key: "C3", Title: "Shared A", Email: "a@shared.example" }, { Key: "C4", Title: "Shared B", Email: "b@shared.example" }];
+  assert.deepEqual(matchClient("finance@acme.example", cs), { key: "C1", by: "domain" });
+  assert.equal(matchClient("someone@gmail.com", cs), undefined);
+  assert.equal(matchClient("x@shared.example", cs), undefined);
+  assert.deepEqual(matchClient("jo@gmail.com", cs), { key: "C2", by: "address" });
+});

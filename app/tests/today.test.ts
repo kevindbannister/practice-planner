@@ -39,3 +39,23 @@ test("work that can't fit suggests turning business days into client days", () =
   assert.deepEqual(t.conflicts[0].days[0].businessWork, ["Update website"]);
 });
 test("no conflict when it fits", () => assert.equal(run([W({ hours: 4, deadline: "2026-10-24" })]).conflicts.length, 0));
+
+test("late work you put on a later day stays there", () => {
+  const t = run([W({ key: "l", deadline: "2026-10-19", planned: "2026-10-26" })]);
+  assert.equal(t.lines.length, 0);
+});
+test("work waiting on the client shows to chase when due soon, and counts in clashes", () => {
+  const t = run([W({ key: "w", blocked: true, blockedWhy: "Records not in yet", deadline: "2026-10-27" }), W({ key: "far", blocked: true, deadline: "2026-12-28" })]);
+  assert.deepEqual(t.chase.map((l) => l.key), ["w"]);
+  assert.equal(t.chase[0].reasons[0], "Records not in yet");
+  assert.equal(t.suggested.length, 0);
+  const c = run([W({ key: "w", blocked: true, hours: 14, deadline: "2026-10-24" })]);
+  assert.equal(c.conflicts.length, 1);
+});
+test("blocked work you planned for today still shows, with why", () => {
+  const t = run([W({ key: "p", blocked: true, blockedWhy: "Records not in yet", planned: today })]);
+  assert.equal(t.lines.length, 1); assert.ok(t.lines[0].reasons.includes("Records not in yet"));
+});
+test("long-late work doesn't raise a clash every day", () => {
+  assert.equal(run([W({ key: "old", hours: 30, deadline: "2026-03-20" })]).conflicts.length, 0);
+});

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildContext, toPlan, withNames, addLog, LOG_LIMIT } from "../src/lib/assist";
+import { buildContext, toPlan, withNames, addLog, LOG_LIMIT, freshUndo } from "../src/lib/assist";
 import { DEFAULT_SETTINGS } from "../src/lib/planning";
 
 const s: any = {
@@ -41,7 +41,7 @@ test("waiting, resume, time, urgent, day type", () => {
   assert.equal((toPlan({ type: "set_urgent", item: "J1", urgent: true }, s) as any).ops[0].patch.Priority, "urgent");
   assert.ok((toPlan({ type: "set_urgent", item: "T1", urgent: true }, s) as any).error);
   const d: any = toPlan({ type: "set_day_type", date: "2026-10-29", dayType: "business" }, s);
-  assert.deepEqual(d.ops[0].value, { "2026-10-29": "business" }); assert.deepEqual(d.undo[0].value, {});
+  assert.deepEqual(d.ops[0], { op: "dayType", date: "2026-10-29", type: "business" }); assert.equal(d.undo[0].type, undefined);
   assert.ok((toPlan({ type: "set_day_type", date: "2026-10-29", dayType: "zzz" }, s) as any).error);
   assert.ok((toPlan({ type: "plan", item: "NOPE", date: "2026-10-27" }, s) as any).error);
 });
@@ -49,4 +49,18 @@ test("the log keeps the newest entries", () => {
   let log: any[] = [];
   for (let i = 0; i < LOG_LIMIT + 5; i++) log = addLog(log, { at: String(i), asked: "", reply: "", applied: [], names: true });
   assert.equal(log.length, LOG_LIMIT); assert.equal(log[0].at, String(LOG_LIMIT + 4));
+});
+
+test("undo is taken from the planner as it is when you press Apply", () => {
+  const p: any = toPlan({ type: "plan", item: "J1", date: "2026-10-27" }, s);
+  const later = { ...s, jobs: s.jobs.map((j: any) => (j.Key === "J1" ? { ...j, PlannedDate: "2026-10-25" } : j)), settings: { ...s.settings, overrides: { "2026-10-29": "mixed" } } };
+  assert.equal(freshUndo(p, later)[0].patch.PlannedDate, "2026-10-25");
+  const d: any = toPlan({ type: "set_day_type", date: "2026-10-29", dayType: "business" }, s);
+  assert.equal((freshUndo(d, later)[0] as any).type, "mixed");
+});
+test("your tasks are always sent, even with many jobs", () => {
+  const many: any = { ...s, jobs: Array.from({ length: 400 }, (_, i) => ({ Key: `J${i}`, Title: "Job", Status: "Open", Deadline: "2026-11-01" })) };
+  const ctx: any = buildContext(many, { names: true });
+  assert.ok(ctx.work.some((w: any) => w.key === "T1"));
+  assert.equal(ctx.work.length, 200);
 });

@@ -49,18 +49,43 @@ export async function fetchInbox(graph: Graph, today: string, days: number): Pro
   }));
 }
 
-/** The client an email's sender belongs to: their own address, or a contact's, never a guess from the name. */
+/** Email providers anyone can use: sharing one of these says nothing about who someone works for. */
+const PUBLIC_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "hotmail.com", "hotmail.co.uk", "outlook.com", "outlook.co.uk", "live.com", "live.co.uk", "msn.com",
+  "yahoo.com", "yahoo.co.uk", "ymail.com", "icloud.com", "me.com", "mac.com", "aol.com", "aol.co.uk", "btinternet.com", "btopenworld.com",
+  "sky.com", "talktalk.net", "virginmedia.com", "ntlworld.com", "blueyonder.co.uk", "protonmail.com", "proton.me", "gmx.com", "gmx.co.uk",
+  "mail.com", "zoho.com", "tiscali.co.uk", "plus.net", "orange.net", "fastmail.com",
+]);
+const emailsOf = (v: unknown) => String(v || "").toLowerCase().split(/[;,\s]+/).filter((x) => x.includes("@"));
+const domainOf = (a: string) => a.slice(a.lastIndexOf("@") + 1);
+
+/**
+ * Who an email is from: a client by their own address, else by a company email domain that only one
+ * client uses (a colleague of your contact). Never a guess from the name, never a public domain like gmail.
+ */
+export function matchClient(address: string, clients: Client[]): { key: string; by: "address" | "domain" } | undefined {
+  const a = address.toLowerCase();
+  if (!a.includes("@")) return undefined;
+  const direct = clients.find((c) => emailsOf(c.Email).includes(a));
+  if (direct) return { key: direct.Key, by: "address" };
+  const dom = domainOf(a);
+  if (PUBLIC_DOMAINS.has(dom)) return undefined;
+  const same = clients.filter((c) => emailsOf(c.Email).some((e) => domainOf(e) === dom));
+  return same.length === 1 ? { key: same[0].Key, by: "domain" } : undefined;
+}
+
+/** The client an email's sender belongs to (see matchClient), or a linked contact's. */
 export function clientOf(address: string, clients: Client[], contacts: Row[], links: Row[] = []): string | undefined {
   const a = address.toLowerCase();
   if (!a) return undefined;
-  const direct = clients.find((c) => String(c.Email || "").toLowerCase().split(/[;,\s]+/).includes(a));
+  const direct = clients.find((c) => emailsOf(c.Email).includes(a));
   if (direct) return direct.Key;
   const contact = contacts.find((c) => String(c.Email || "").toLowerCase().split(/[;,\s]+/).includes(a));
   if (contact) {
     const link = links.find((l) => l.MemberKey === contact.Key || l.ContactKey === contact.Key);
     if (link && (link.ClientKey as string)) return link.ClientKey as string;
   }
-  return undefined;
+  return matchClient(a, clients)?.key;
 }
 
 const NOISE_SENDER = /(no-?reply|do-?not-?reply|notifications?@|newsletter|mailer|marketing|updates?@|bounce|alerts?@)/i;
@@ -71,12 +96,12 @@ const TAXY = /(hmrc|companies house|vat|self assessment|payroll|accounts|tax ret
 export const THRESHOLD = 2;
 
 /** Score one email by the rules, with the reasons it gives. Exposed so the rules can be tested. */
-export function scoreMail(m: Mail, clientKey?: string): { score: number; reasons: string[] } {
+export function scoreMail(m: Mail, clientKey?: string, byDomain = false): { score: number; reasons: string[] } {
   const reasons: string[] = [];
   let score = 0;
   const text = `${m.subject} ${m.preview}`;
   if (NOISE_SENDER.test(m.address) || NOISE_SUBJECT.test(m.subject)) return { score: -5, reasons: ["Looks automatic"] };
-  if (clientKey) { score += 1.5; reasons.push("From a client"); }
+  if (clientKey) { score += 1.5; reasons.push(byDomain ? "From a client's company" : "From a client"); }
   if (m.flagged) { score += 2; reasons.push("Flagged in Outlook"); }
   if (ASKS.test(text)) { score += 1.5; reasons.push("Asks for something"); }
   if (TAXY.test(text)) { score += 0.5; reasons.push("About tax or filings"); }
@@ -90,7 +115,8 @@ export function suggest(mails: Mail[], clients: Client[], contacts: Row[], handl
   for (const m of mails) {
     if (handled[m.id]) continue;
     const clientKey = clientOf(m.address, clients, contacts, links);
-    const { score, reasons } = scoreMail(m, clientKey);
+    const byDomain = !!clientKey && matchClient(m.address, clients)?.by === "domain";
+    const { score, reasons } = scoreMail(m, clientKey, byDomain);
     if (score < THRESHOLD) continue;
     const who = clientKey ? clients.find((c) => c.Key === clientKey)?.Title : m.from;
     out.push({ mail: m, clientKey, score, why: reasons.join(" · "), title: `Reply to ${who || "email"}: ${m.subject}`.slice(0, 120) });

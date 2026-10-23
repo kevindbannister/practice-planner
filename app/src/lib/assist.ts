@@ -21,7 +21,7 @@ export type Op =
   | { op: "update"; list: "Jobs" | "Tasks"; key: string; patch: Row }
   | { op: "create"; list: "Tasks"; row: Row }
   | { op: "remove"; list: "Tasks"; key: string }
-  | { op: "setting"; key: string; value: unknown };
+  | { op: "dayType"; date: string; type?: string };
 
 export type Plan = { label: string; ops: Op[]; undo: Op[] } | { error: string };
 
@@ -40,6 +40,8 @@ export type Privacy = { names: boolean };
 export const DEFAULT_PRIVACY: Privacy = { names: true };
 
 const WAIT_KINDS = ["Client", "HMRC", "Companies House", "Someone else"];
+/** Most open items sent with a question. */
+export const CONTEXT_LIMIT = 200;
 
 /** The snapshot sent with each question: open work, the plan for today and the kinds of day. Names are left out if switched off. */
 export function buildContext(s: Snapshot, privacy: Privacy, todayInput?: TodayInput): Record<string, unknown> {
@@ -51,10 +53,12 @@ export function buildContext(s: Snapshot, privacy: Privacy, todayInput?: TodayIn
     return k;
   };
   const fin = (r: Row) => String(r.CompletedDate || "");
-  const open = [...s.jobs.filter(isOpen).map((j) => ({ k: "job", r: j as Row })), ...s.tasks.filter(isOpen).map((t) => ({ k: "task", r: t as Row }))];
+  // your own tasks always go in (they're what you're most likely to talk about), then jobs by deadline
   const dl = (r: Row) => String(r.Deadline || r.DueDate || "9999");
-  open.sort((a, b) => dl(a.r).localeCompare(dl(b.r)));
-  const work = open.slice(0, 120).map(({ k, r }) => ({
+  const byDl = (a: { r: Row }, b: { r: Row }) => dl(a.r).localeCompare(dl(b.r));
+  const tasks = s.tasks.filter(isOpen).map((t) => ({ k: "task", r: t as Row })).sort(byDl).slice(0, CONTEXT_LIMIT);
+  const jobs = s.jobs.filter(isOpen).map((j) => ({ k: "job", r: j as Row })).sort(byDl).slice(0, Math.max(0, CONTEXT_LIMIT - tasks.length));
+  const work = [...jobs, ...tasks].map(({ k, r }) => ({
     key: r.Key, kind: k, title: r.Title, client: client(r.ClientKey as string), project: r.ProjectKey || undefined,
     deadline: r.Deadline || r.DueDate || undefined, planned: r.PlannedDate || undefined, hours: r.EstimateHours || undefined,
     status: r.Status === "On hold" ? `${r.HoldKind ? `waiting on ${r.HoldKind}` : "on hold"}${r.HoldUntil ? ` until ${r.HoldUntil}` : ""}` : undefined,
@@ -113,6 +117,18 @@ const nameOf = (s: Snapshot, r: Row) => {
 const before = (row: Row, patch: Row): Row => Object.fromEntries(Object.keys(patch).map((k) => [k, row[k] ?? ""]));
 const dayName = (d: string) => fmtDate(d, { weekday: true, year: false });
 
+/** Undo for changes about to be applied, read from the planner as it is now (not when the AI answered). */
+export function freshUndo(plan: { ops: Op[]; undo: Op[] }, s: Snapshot): Op[] {
+  return plan.ops.map((o, i) => {
+    if (o.op === "update") {
+      const row = (o.list === "Jobs" ? s.jobs : s.tasks).find((r) => r.Key === o.key);
+      return row ? { ...o, patch: before(row, o.patch) } : plan.undo[i];
+    }
+    if (o.op === "dayType") return { op: "dayType", date: o.date, type: s.settings.overrides[o.date] };
+    return plan.undo[i];
+  });
+}
+
 /** What one proposed action would do: a label for the card, the changes, and how to undo them. */
 export function toPlan(a: AssistAction, s: Snapshot, makeKey: (prefix: string) => string = newKey): Plan {
   const item = "item" in a ? rowOf(s, a.item) : undefined;
@@ -147,9 +163,8 @@ export function toPlan(a: AssistAction, s: Snapshot, makeKey: (prefix: string) =
     case "set_day_type": {
       const type = s.settings.dayTypes.find((d) => d.key === a.dayType);
       if (!type) return { error: "I don't know that kind of day." };
-      const prev = s.settings.overrides;
-      const next = { ...prev, [a.date]: a.dayType };
-      return { label: `${dayName(a.date)} becomes a ${type.name.toLowerCase()}`, ops: [{ op: "setting", key: "dayOverrides", value: next }], undo: [{ op: "setting", key: "dayOverrides", value: prev }] };
+      // only that one day is touched, so undoing it can't wipe a change made to another day since
+      return { label: `${dayName(a.date)} becomes a ${type.name.toLowerCase()}`, ops: [{ op: "dayType", date: a.date, type: a.dayType }], undo: [{ op: "dayType", date: a.date, type: s.settings.overrides[a.date] }] };
     }
     case "log_time":
       if (!item) return { error: "That item isn't on the planner any more." };

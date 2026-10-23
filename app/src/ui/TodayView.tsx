@@ -21,6 +21,8 @@ import { ConflictCard, useMakeClientDay } from "./Conflicts";
 import { TimeToLog } from "./TimeSpent";
 import { ProjectsToLookAt } from "./ProjectsView";
 
+const CHASE_SHOWN = 5;
+
 const greeting = (h: number) => (h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
 
 export function TodayView() {
@@ -32,6 +34,7 @@ export function TodayView() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [note, setNote] = useState<string>();
+  const [allChase, setAllChase] = useState(false);
 
   const { today, work, dh, capacity, input } = useTodayModel();
   const t = buildToday(input);
@@ -42,17 +45,34 @@ export function TodayView() {
   const nextDay = nextClientDay(today, (d) => capacity(d));
 
   const run = async (work: () => Promise<void>, message?: string) => {
-    setBusy(true); setError(undefined); setNote(undefined);
-    try { await work(); if (message) setNote(message); } catch { setError("Couldn't save that. Nothing was changed; try again."); } finally { setBusy(false); }
+    setBusy(true); setError(undefined); setNote(undefined); setMoved(undefined);
+    try { await work(); if (message) setNote(message); } catch { setError("Couldn't save all of that. Check the list and try again."); } finally { setBusy(false); }
   };
   const openLine = (l: Line) => open(l.kind === "job" ? { kind: "job", key: l.key } : { kind: "task", key: l.key });
   const rowOf = (l: Line) => (l.kind === "job" ? data.jobs : data.tasks).find((r) => r.Key === l.key)!;
   const list = (l: Line) => (l.kind === "job" ? "Jobs" : "Tasks");
   const addToToday = (l: Line) => run(() => update(list(l), rowOf(l), { PlannedDate: today }), `${l.client || l.title} added to today.`);
+  const [moved, setMoved] = useState<{ kind: "job" | "task"; key: string; before: Row }[]>();
   const rollForward = () => run(async () => {
     if (!nextDay) return;
-    for (const l of unfinished) await update(list(l), rowOf(l), { PlannedDate: nextDay, DayOrder: "", StartTime: "" });
+    const done: { kind: "job" | "task"; key: string; before: Row }[] = [];
+    try {
+      for (const l of unfinished) {
+        const row = rowOf(l);
+        await update(list(l), row, { PlannedDate: nextDay, DayOrder: "", StartTime: "" });
+        done.push({ kind: l.kind, key: l.key, before: { PlannedDate: row.PlannedDate || "", DayOrder: row.DayOrder ?? "", StartTime: row.StartTime || "" } });
+      }
+    } finally {
+      setMoved(done.length ? done : undefined);
+    }
   }, nextDay ? `${unfinished.length} moved to ${fmtDate(nextDay, { weekday: true, year: false })}.` : undefined);
+  const undoMove = () => run(async () => {
+    for (const m of moved || []) {
+      const row = (m.kind === "job" ? data.jobs : data.tasks).find((r) => r.Key === m.key);
+      if (row) await update(m.kind === "job" ? "Jobs" : "Tasks", row, m.before);
+    }
+    setMoved(undefined);
+  }, "Put back where they were.");
   const mk = useMakeClientDay();
 
   const row = (l: Line, action?: { label: string; on: () => void }) => (
@@ -89,7 +109,12 @@ export function TodayView() {
           {cal.meetingsOn(today) ? ` · meetings ${fmtHours(cal.meetingsOn(today))}` : ""}
           {dh.business ? ` · ${fmtHours(t.businessUsed) || "0h"} of ${fmtHours(dh.business)} for the business` : ""}
         </span>
-        {note && <div className="alert" role="status" style={{ borderColor: "var(--green)" }}><strong>{note}</strong></div>}
+        {note && (
+          <div className="alert row-wrap" role="status" style={{ borderColor: "var(--green)", justifyContent: "space-between" }}>
+            <strong>{note}</strong>
+            {moved && <button type="button" className="btn small" disabled={busy} onClick={() => void undoMove()}>Undo</button>}
+          </div>
+        )}
         {error && <div className="alert red" role="alert"><strong>{error}</strong></div>}
       </section>
 
@@ -106,13 +131,6 @@ export function TodayView() {
                 <span className="mono muted">{hhmm(e.start)}–{hhmm(e.end)}</span><span>{e.subject || "Busy"}</span></span></li>
             ))}
           </ul>
-        </section>
-      )}
-
-      {t.chase.length > 0 && (
-        <section className="card" aria-labelledby="td-chase">
-          <div className="card-head"><h2 id="td-chase">Time to chase</h2><span className="muted" style={{ fontSize: 13 }}>{t.chase.length}</span></div>
-          <ul className="today-list">{t.chase.map((l) => row(l))}</ul>
         </section>
       )}
 
@@ -138,6 +156,21 @@ export function TodayView() {
         <section className="card" aria-labelledby="td-biz">
           <div className="card-head"><h2 id="td-biz">For the business</h2><span className="muted" style={{ fontSize: 13 }}>{fmtHours(t.businessUsed)} of {fmtHours(dh.business) || "0h"}</span></div>
           <ul className="today-list">{t.business.map((l) => row(l, l.planned === today ? undefined : { label: "Add to today", on: () => void addToToday(l) }))}</ul>
+        </section>
+      )}
+
+      {t.chase.length > 0 && (
+        <section className="card" aria-labelledby="td-chase">
+          <div className="card-head">
+            <h2 id="td-chase">Time to chase</h2>
+            <span className="muted" style={{ fontSize: 13 }}>{t.chase.length} · <a href="#/chase">Chase page</a></span>
+          </div>
+          <ul className="today-list">{(allChase ? t.chase : t.chase.slice(0, CHASE_SHOWN)).map((l) => row(l))}</ul>
+          {t.chase.length > CHASE_SHOWN && (
+            <div style={{ padding: "0 16px 12px" }}>
+              <button type="button" className="btn small" onClick={() => setAllChase(!allChase)}>{allChase ? "Show fewer" : `Show all ${t.chase.length}`}</button>
+            </div>
+          )}
         </section>
       )}
 

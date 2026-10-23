@@ -4,7 +4,7 @@
 // close with no AML or engagement letter in place. Each finding is a proposal for you to apply
 // or ignore, in the same list as Companies House's changes. Nothing here writes anything.
 import { Client, Job, amlLabel, fmtDate, isOpen, loeLabel } from "./domain";
-import { Proposal } from "./companiesHouse";
+import { Proposal, isCompany } from "./companiesHouse";
 import { addDays, addMonths, deadlineByRule, isMonthEnd, parseIso, ruleFor } from "./planning";
 import { Row } from "./schema";
 
@@ -39,7 +39,7 @@ export const statutoryDate = (serviceKey: string | undefined, periodEnd: string 
 export type CheckInput = { clients: Client[]; jobs: Job[]; services: Row[]; today: string };
 
 /** Work that is due within this many days needs its AML and engagement letter sorted. */
-export const PREPARE_DAYS = 60;
+export const PREPARE_DAYS = 30;
 
 const d = (iso?: string) => (iso ? fmtDate(iso) : "not set");
 const inactive = (c: Client) => /archiv|former|ceased|inactive|left/i.test(String(c.Status || ""));
@@ -56,7 +56,10 @@ export function plannerChecks({ clients, jobs, services, today }: CheckInput): P
     const ck = c.Key;
     const sd = statutoryDate(j.ServiceKey, j.PeriodEnd);
     const stat = j.ServiceKey ? STATUTORY[j.ServiceKey] : undefined;
-    const governed = !!stat?.companiesHouse && (j.DeadlineSource === "Companies House" || !!j.CHDeadline || c.CHChecked === true || (c.CHChecked as unknown) === "true");
+    // accounts and confirmation statements for a company follow Companies House's own dates (first
+    // accounts are due 21 months after incorporation, year ends get changed), so the daily Companies
+    // House check looks after those, not this rule of thumb
+    const governed = !!stat?.companiesHouse && (isCompany(c) || j.DeadlineSource === "Companies House" || !!j.CHDeadline || c.CHChecked === true || (c.CHChecked as unknown) === "true");
     const name = `${c.Title}: ${j.Title}`;
     const apply = (Deadline: string) => ({ do: "deadline" as const, jobKey: j.Key, Deadline });
 
@@ -78,14 +81,13 @@ export function plannerChecks({ clients, jobs, services, today }: CheckInput): P
         detail: `${name}: no deadline is set. The statutory date is ${d(sd)} (${stat!.basis}). Apply sets it.`,
         current: "Not set", action: apply(sd),
       });
-    } else if (j.Deadline !== sd) {
-      const later = j.Deadline > sd;
-      // a deadline you set yourself that is earlier than the law's is a deliberate buffer, so leave it alone
-      if (!later && j.DeadlineSource === "Manual") continue;
+    } else if (j.Deadline > sd) {
+      // only a deadline later than the law's is a problem: an earlier one is a buffer you chose, or a
+      // date like corporation tax's payment date, and moving it later would lose that
       out.push({
-        key: `${ck}|deadline-rule|${j.Key}`, type: "deadline-rule", clientKey: ck, jobKey: j.Key, severity: later ? "red" : "amber",
-        title: later ? "Deadline is later than the statutory date" : "Deadline differs from the statutory date",
-        detail: `${name}: the job says ${d(j.Deadline)}, but the statutory date is ${d(sd)} (${stat!.basis}).${later ? " Working to the job's date would miss it." : ""} Apply sets ${d(sd)}.`,
+        key: `${ck}|deadline-rule|${j.Key}`, type: "deadline-rule", clientKey: ck, jobKey: j.Key, severity: "red",
+        title: "Deadline is later than the statutory date",
+        detail: `${name}: the job says ${d(j.Deadline)}, but the statutory date is ${d(sd)} (${stat!.basis}). Working to the job's date would miss it. Apply sets ${d(sd)}.`,
         current: `Due ${d(j.Deadline)}${j.DeadlineSource ? ` (${j.DeadlineSource})` : ""}`, action: apply(sd),
       });
     }
@@ -120,65 +122,53 @@ export function plannerChecks({ clients, jobs, services, today }: CheckInput): P
     });
   }
 
-  // 3. a deadline rule saved in Settings that no longer matches the statutory one
+  // 3. a deadline rule saved in Settings that gives a later date than the statutory one (an earlier
+  // rule is a buffer you chose, and a "same gap as last time" rule can't be judged on its own)
   for (const [serviceKey, stat] of Object.entries(STATUTORY)) {
     const row = services.find((s) => s.Key === serviceKey);
     if (!row || row.RepeatMonths === undefined || row.RepeatMonths === null) continue; // uses the built-in rule
     const rule = ruleFor(serviceKey, services);
-    const bad = stat.samples.find((pe) => deadlineByRule(rule, pe) !== stat.date(pe));
+    if (rule.deadline === "gap") continue;
+    const bad = stat.samples.find((pe) => deadlineByRule(rule, pe) > stat.date(pe));
     if (!bad) continue;
     const title = String(row.Title || serviceKey);
     out.push({
-      key: `rule|${serviceKey}`, type: "service-rule", clientKey: "", severity: "amber",
-      title: `${title}: your deadline rule differs from the statutory one`,
+      key: `rule|${serviceKey}`, type: "service-rule", clientKey: "", severity: "red",
+      title: `${title}: your deadline rule gives a later date than the law`,
       detail: `For a period to ${d(bad)}, your rule in Settings › Types of work gives ${d(deadlineByRule(rule, bad))}, but the statutory date is ${d(stat.date(bad))} (${stat.basis}). Apply puts back the standard rule.`,
       current: "Your own rule", action: { do: "service-rule", serviceKey },
     });
   }
 
-  // 4. work that's close, with no AML check or engagement letter in place
+  // 4. work that's close, with the AML check or engagement letter not in place: one finding per client
   const soon = addDays(today, PREPARE_DAYS);
   for (const c of clients) {
     if (inactive(c)) continue;
-    const due = open.filter((j) => j.ClientKey === c.Key && j.Status !== "On hold" && j.Deadline && j.Deadline <= soon).map((j) => j.Deadline!).sort();
+    const due = open.filter((j) => j.ClientKey === c.Key && j.Status !== "On hold" && j.Deadline && j.Deadline >= today && j.Deadline <= soon).map((j) => j.Deadline!).sort();
     if (!due.length) continue;
-    const first = due[0];
     const aml = amlLabel(c.XamaStatus as string | undefined);
-    if (aml.warn) {
-      out.push({
-        key: `${c.Key}|aml`, type: "aml", clientKey: c.Key, severity: "amber",
-        title: "AML check not complete",
-        detail: `AML status: ${aml.text}. Work is due by ${d(first)}. Apply adds a task to sort it.`,
-        current: aml.text, action: { do: "task", title: `Complete AML check for ${c.Title}`, clientKey: c.Key, dueInDays: 14, hours: 0.5 },
-      });
-    }
     const loe = loeLabel(c.LoEStatus as string | undefined);
-    if (loe.warn) {
-      out.push({
-        key: `${c.Key}|loe`, type: "loe", clientKey: c.Key, severity: "amber",
-        title: loe.text === "Sent, not signed" ? "Engagement letter not signed" : "No engagement letter on file",
-        detail: `Engagement letter: ${loe.text.toLowerCase()}. Work is due by ${d(first)}. Apply adds a task to ${loe.text === "Sent, not signed" ? "chase it" : "send one"}.`,
-        current: loe.text,
-        action: { do: "task", title: `${loe.text === "Sent, not signed" ? "Chase engagement letter for" : "Send engagement letter to"} ${c.Title}`, clientKey: c.Key, dueInDays: 14, hours: 0.5 },
-      });
-    }
+    const gaps = [aml.warn ? `AML check: ${aml.text.toLowerCase()}` : "", loe.warn ? `engagement letter: ${loe.text.toLowerCase()}` : ""].filter(Boolean);
+    if (!gaps.length) continue;
+    const todo = [aml.warn ? "complete the AML check" : "", loe.warn ? (loe.text === "Sent, not signed" ? "chase the engagement letter" : "send an engagement letter") : ""].filter(Boolean);
+    const what = aml.warn && loe.warn ? "AML check and engagement letter" : aml.warn ? "AML check" : "Engagement letter";
+    out.push({
+      key: `${c.Key}|compliance`, type: "compliance", clientKey: c.Key, severity: "amber",
+      title: `${what} not in place`,
+      detail: `${gaps.join("; ").replace(/^./, (x) => x.toUpperCase())}. Work is due by ${d(due[0])}. Apply adds a task to ${todo.join(" and ")}.`,
+      current: gaps.join("; "),
+      action: { do: "task", title: `${todo.join(" and ").replace(/^./, (x) => x.toUpperCase())} for ${c.Title}`, clientKey: c.Key, dueInDays: 14, hours: aml.warn && loe.warn ? 1 : 0.5 },
+    });
   }
   return out;
 }
 
-/** The "how is each deadline set" table: every type of work with its rule and where the date comes from. */
-export function deadlineBasis(services: Row[]): { key: string; title: string; rule: string; basis: string; custom: boolean }[] {
-  return services
-    .filter((s) => s.Key !== "TASK")
-    .map((s) => {
-      const key = String(s.Key);
-      const stat = STATUTORY[key];
-      const custom = s.RepeatMonths !== undefined && s.RepeatMonths !== null;
-      return {
-        key, title: String(s.Title || key), custom,
-        rule: "", // filled in by the screen, which owns the wording of a rule
-        basis: stat ? `${stat.basis}${stat.companiesHouse ? " (Companies House's own date is used once checked)" : ""}` : "Your own rule",
-      };
-    })
-    .sort((a, b) => a.title.localeCompare(b.title));
+/** Where a type of work's deadline comes from, in words, for Settings › Types of work. */
+export function deadlineSource(serviceKey: string, customRule: boolean): string {
+  const stat = STATUTORY[serviceKey];
+  if (!stat) return "Your own rule below. There's no statutory date to check it against.";
+  const law = `The law: ${stat.basis}.`;
+  const ch = stat.companiesHouse ? " For companies, the date Companies House gives is used once the daily check has run, so first accounts and changed year ends come out right." : "";
+  const yours = customRule ? " You've set your own rule below; the planner warns you if it gives a later date than the law." : " New jobs get this date; the planner warns you if a job's deadline is later.";
+  return law + ch + yours;
 }

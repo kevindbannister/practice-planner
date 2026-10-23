@@ -122,10 +122,10 @@ export function statusText(p: ChProfile): string {
 
 export type FlagType =
   | "filed" | "dates" | "missing" | "not-filed" | "overdue" | "status" | "office" | "name" | "officers" | "pscs" | "not-found"
-  | "deadline-order" | "deadline-missing" | "deadline-rule" | "period" | "duplicate" | "service-rule" | "aml" | "loe";
+  | "deadline-order" | "deadline-missing" | "deadline-rule" | "period" | "duplicate" | "service-rule" | "aml" | "loe" | "compliance";
 
 /** The findings that come from the planner's own checks rather than Companies House. */
-export const PLANNER_TYPES: FlagType[] = ["deadline-order", "deadline-missing", "deadline-rule", "period", "duplicate", "service-rule", "aml", "loe"];
+export const PLANNER_TYPES: FlagType[] = ["deadline-order", "deadline-missing", "deadline-rule", "period", "duplicate", "service-rule", "aml", "loe", "compliance"];
 export const isPlannerType = (t: unknown) => PLANNER_TYPES.includes(t as FlagType);
 
 /** What Apply does, stored with the flag. Info-only flags have no action. */

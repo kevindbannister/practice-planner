@@ -1,5 +1,6 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
 import { EmailSettings } from "./EmailSuggestions";
+import { deadlineSource } from "../lib/plannerChecks";
 import { AssistantSettings } from "./Assistant";
 import { RoutinesCard } from "./Routines";
 import { XeroSettings } from "./XeroSettings";
@@ -368,6 +369,9 @@ function RuleCard({ service: s }: { service: Row }) {
   return (
     <section className="card pad stack" aria-labelledby="rule-h">
       <h2 id="rule-h">{s.Title as string}</h2>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+        <strong style={{ color: "var(--ink)" }}>Where the deadline comes from.</strong> {deadlineSource(s.Key as string, s.RepeatMonths !== undefined && s.RepeatMonths !== null)}
+      </p>
       <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <label style={{ gridColumn: "1 / -1" }}>
           Name

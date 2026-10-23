@@ -3,7 +3,8 @@
 //   planned     put on today
 //   suggested   not planned anywhere, picked to fill the day's remaining client hours:
 //               nearest deadline first, with a lift for work marked urgent and for key clients
-//   chase       waiting on someone and the chase date has come
+//   chase       waiting on someone and the chase date has come, or waiting for the client's
+//               records or approval with the deadline a week away or less
 // A day with no client hours (a business day) shows business project work against its business
 // hours instead. If the work due soon can't fit in the client hours before it's due, it says so
 // and suggests turning business days into client days; nothing changes until you agree.
@@ -27,6 +28,8 @@ export type Work = {
   heldLabel?: string;
   /** With the client for records or approval: can't be worked on yet. */
   blocked: boolean;
+  /** Why it's blocked, e.g. "Waiting for records". */
+  blockedWhy?: string;
   projectTitle?: string;
 };
 
@@ -71,6 +74,8 @@ export type Today = {
 };
 
 const FILL = 0.9; // suggestions fill the day to this level, to leave a little slack
+/** Work waiting on the client shows under "Time to chase" once its deadline is this close. */
+export const CHASE_BLOCKED_DAYS = 7;
 
 const imp = { key: 15, normal: 0, low: -5 } as const;
 
@@ -117,18 +122,22 @@ export function buildToday(input: TodayInput): Today {
     return { ...w, reasons: [...r.reasons, ...extra], level: r.level };
   };
 
-  // client work: late, missed or planned for today, in that order, then what's suggested
-  const client = open.filter((w) => !w.business && !w.blocked);
+  // client work: what you planned for today (or earlier and didn't finish), and late work you
+  // haven't put on a later day; then what's suggested to fill the day
+  const active = open.filter((w) => !w.business);
   const isLate = (w: Work) => !!w.deadline && w.deadline < today;
-  const mine = client.filter((w) => isLate(w) || (w.planned && w.planned <= today)).sort(byScore(today));
-  const lines = mine.map((w) => line(w));
+  const plannedLater = (w: Work) => !!w.planned && w.planned > today;
+  const mine = active
+    .filter((w) => (w.planned && w.planned <= today) || (!w.blocked && isLate(w) && !plannedLater(w)))
+    .sort(byScore(today));
+  const lines = mine.map((w) => line(w, w.blocked && w.blockedWhy ? [w.blockedWhy] : []));
   const clientUsed = lines.reduce((t, l) => t + l.hours, 0);
 
   let room = day.client * FILL - clientUsed;
   const suggested: Line[] = [];
   if (day.client > 0) {
-    const pool = client
-      .filter((w) => !mine.includes(w) && !w.planned && w.deadline && daysBetween(today, w.deadline) <= 45)
+    const pool = active
+      .filter((w) => !w.blocked && !mine.includes(w) && !w.planned && w.deadline && daysBetween(today, w.deadline) <= 45)
       .sort(byScore(today));
     for (const w of pool) {
       // a piece too big for what's left is skipped, unless it's the only thing and fits an empty day
@@ -153,10 +162,19 @@ export function buildToday(input: TodayInput): Today {
     }
   }
 
-  const chase = input.work
+  const chaseHeld: Line[] = input.work
     .filter((w) => w.held && w.chaseOn && w.chaseOn <= today)
     .sort((a, b) => String(a.chaseOn).localeCompare(String(b.chaseOn)))
     .map((w) => ({ ...w, reasons: [`${w.heldLabel || "On hold"}: time to chase (from ${fmtDate(w.chaseOn, { weekday: true, year: false })})`], level: "amber" as const }));
+  // work stuck with the client while its deadline gets close: chase them before it's too late
+  const chaseBlocked: Line[] = active
+    .filter((w) => w.blocked && !mine.includes(w) && w.deadline && daysBetween(today, w.deadline) <= CHASE_BLOCKED_DAYS)
+    .sort((a, b) => String(a.deadline).localeCompare(String(b.deadline)))
+    .map((w) => {
+      const r = reasonsFor(w, today);
+      return { ...w, reasons: [w.blockedWhy || "Waiting on the client", ...r.reasons], level: r.level || "amber" };
+    });
+  const chase = [...chaseBlocked, ...chaseHeld];
 
   const conflicts = findConflicts(input, open);
 
@@ -164,7 +182,9 @@ export function buildToday(input: TodayInput): Today {
   const late = lines.filter((l) => isLate(l)).length;
   let headline: string;
   if (day.client === 0 && day.business === 0) headline = `${day.typeName}: nothing planned.`;
-  else if (day.client === 0) headline = `${day.typeName}: ${business.length ? `${business.length} thing${business.length === 1 ? "" : "s"} for the business` : "no business work lined up"}.`;
+  else if (day.client === 0) {
+    headline = `${day.typeName}: ${business.length ? `${business.length} thing${business.length === 1 ? "" : "s"} for the business` : "no business work lined up"}${lines.length ? `, and ${lines.length} piece${lines.length === 1 ? "" : "s"} of client work ${late ? "late or " : ""}planned` : ""}.`;
+  }
   else {
     const n = lines.length + suggested.length;
     headline = `${n} thing${n === 1 ? "" : "s"} for today, about ${Math.round(used * 10) / 10}h of ${day.client}h${late ? `, ${late} already late` : ""}.`;
@@ -182,8 +202,10 @@ export const CONFLICT_DAYS = 21;
 export function findConflicts(input: TodayInput, open: Work[]): Conflict[] {
   const { today } = input;
   const horizon = addDays(today, CONFLICT_DAYS);
+  // late work is already shown in red on Today; this looks at work that's still on time but won't be.
+  // Work waiting on the client counts: it still needs its hours before the deadline.
   const due = open
-    .filter((w) => !w.business && !w.blocked && w.deadline && w.deadline <= horizon)
+    .filter((w) => !w.business && w.deadline && w.deadline >= today && w.deadline <= horizon)
     .sort((a, b) => String(a.deadline).localeCompare(String(b.deadline)));
   const out: Conflict[] = [];
   const turned = new Set<string>();
@@ -196,7 +218,7 @@ export function findConflicts(input: TodayInput, open: Work[]): Conflict[] {
   const deadlines = [...new Set(due.map((w) => w.deadline as string))];
   for (const dl of deadlines) {
     demand += due.filter((w) => w.deadline === dl).reduce((t, w) => t + w.hours, 0);
-    const to = dl < today ? today : dl;
+    const to = dl;
     const base = capacityTo(to);
     let short = demand - base;
     if (short <= 0.01) continue;

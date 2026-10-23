@@ -4,7 +4,7 @@
 // applied change has an Undo. What was asked and applied is kept in a log (Settings).
 import { ReactNode, createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AiError, AiStatus } from "../lib/ai";
-import { AssistAction, DEFAULT_PRIVACY, LogEntry, Op, Plan, Privacy, Snapshot, addLog, buildContext, toPlan, validActions, withNames } from "../lib/assist";
+import { AssistAction, freshUndo, DEFAULT_PRIVACY, LogEntry, Op, Plan, Privacy, Snapshot, addLog, buildContext, toPlan, validActions, withNames } from "../lib/assist";
 import { todayIso } from "../lib/domain";
 import { Icon } from "./bits";
 import { isDemo, useAi } from "./commsKit";
@@ -92,7 +92,12 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
       else if (o.op === "remove") {
         const row = data.tasks.find((r) => r.Key === o.key);
         if (row) await remove("Tasks", row);
-      } else await saveSetting(o.key, o.value);
+      } else {
+        const next = { ...latest.current.settings.overrides };
+        if (o.type) next[o.date] = o.type;
+        else delete next[o.date];
+        await saveSetting("dayOverrides", next);
+      }
     }
   };
 
@@ -102,9 +107,12 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
   const apply = async (msg: Msg, card: Card) => {
     if ("error" in card.plan) return;
     try {
-      await run(card.plan.ops);
+      // undo puts back what's there now, not what was there when the AI answered
+      const plan = { ...card.plan, undo: freshUndo(card.plan, snapshot()) };
+      setMsgs((m: Msg[]) => m.map((x) => (x.id === msg.id ? { ...x, cards: x.cards?.map((c) => (c.id === card.id ? { ...c, plan } : c)) } : x)));
+      await run(plan.ops);
       setCard(msg.id, card.id, "applied");
-      const label = card.plan.label;
+      const label = plan.label;
       if (msg.turn !== undefined) await saveLog(msg.turn, (e) => ({ ...e, applied: [...e.applied, label] }));
     } catch {
       setCard(msg.id, card.id, "failed");
@@ -239,7 +247,7 @@ export function AssistantSettings() {
       </p>
       <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
         <input type="checkbox" checked={privacy.names} onChange={(e) => void saveSetting("ai.assist", { ...privacy, names: e.target.checked })} />
-        Send client names with each question (switch off to send only client codes; names are put back in the answers)
+        Send client names with each question (switch off to send only client codes; names are put back in the answers). Task titles you've typed are sent as written, so a name in a task title still goes.
       </label>
       <h3 style={{ margin: "6px 0 0", fontSize: 14 }}>What it was asked, and what you approved</h3>
       {log.length === 0 ? <p className="muted" style={{ margin: 0 }}>Nothing yet.</p> : (
