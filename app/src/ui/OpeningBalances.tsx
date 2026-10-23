@@ -3,12 +3,12 @@
 // spreadsheet or CSV, or pasted) and kept as last year's trial balance.
 import { useMemo, useRef, useState } from "react";
 import { Client } from "../lib/domain";
-import { OpeningAcct, RollForward, TbImportLine, parseTbRows, rollForward, statutoryDest } from "../lib/openingBalances";
-import { money, priorPeriod } from "../lib/papers";
+import { OpeningAcct, RollForward, TbImportLine, isProfitAndLoss, parseTbRows, rollForward, statutoryDest } from "../lib/openingBalances";
+import { money, priorPeriod, setupOf } from "../lib/papers";
 import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { parseCsvRows } from "../lib/bankStatement";
-import { DEST_BY_KEY, guessDest, mapTb, paperAccounts } from "../lib/tbMap";
+import { DESTS, DEST_BY_KEY, guessDest, mapTb, paperAccounts } from "../lib/tbMap";
 import { readXlsx } from "../lib/xlsxRead";
 import { useData } from "./data";
 import { useChart, useWriterState } from "./PaperSchedules";
@@ -16,16 +16,20 @@ import { useChart, useWriterState } from "./PaperSchedules";
 const dmy = (d: string) => d.split("-").reverse().join("/");
 
 /** Last year's closing position rolled forward as this year's opening balances (undefined if there's no trial balance for last year). */
-export function useOpeningBalances(client: Client, period: string): (RollForward & { prior: string; imported?: string }) | undefined {
+export function useOpeningBalances(client: Client, period: string): (RollForward & { prior: string; custom: boolean; derived: OpeningAcct[] }) | undefined {
   const { data } = useData();
   const chart = useChart();
   const prior = priorPeriod(period);
   return useMemo(() => {
     const rows = paperAccounts(data.paperLines, client.Key, prior);
-    if (!rows.length) return undefined;
-    const maps = mapTb(rows, { lines: data.paperLines, papers: data.papers }, client.Key, prior, chart);
-    return { ...rollForward(maps), prior };
-  }, [data.paperLines, data.papers, chart, client.Key, prior]);
+    const custom = setupOf(data.papers, client.Key, period, "openbal/main").custom;
+    if (!rows.length && !Array.isArray(custom)) return undefined;
+    const maps = rows.length ? mapTb(rows, { lines: data.paperLines, papers: data.papers }, client.Key, prior, chart) : [];
+    const rolled = rollForward(maps);
+    // accounts you've changed by hand replace the figures worked out from last year
+    const accounts = Array.isArray(custom) ? (custom as OpeningAcct[]) : rolled.accounts;
+    return { ...rolled, accounts, prior, custom: Array.isArray(custom), derived: rolled.accounts };
+  }, [data.paperLines, data.papers, chart, client.Key, period, prior]);
 }
 
 export type { OpeningAcct };
@@ -100,6 +104,11 @@ export function OpeningBalances({ client, period }: { client: Client; period: st
     }
   };
 
+  const destOptions = DESTS.filter((d) => d.key !== "ignore" && !isProfitAndLoss(d.key));
+  const saveRows = (next: OpeningAcct[]) => w.writeSetup("openbal/main", { custom: next.filter((a) => a.Detail.trim() || a.balance) });
+  const accounts = opening?.accounts || [];
+  const change = (i: number, patch: Partial<OpeningAcct>) => void saveRows(accounts.map((a, j) => (j === i ? { ...a, ...patch } : a)));
+  const amount = (raw: string) => { const n = Number(raw.replace(/[£,\s]/g, "")); return Number.isFinite(n) ? Math.round(Math.abs(n) * 100) / 100 : 0; };
   const where = (a: { dest: string }) => DEST_BY_KEY.get(a.dest)?.label || a.dest;
   const diffOf = (lines: TbImportLine[]) => Math.round(lines.reduce((a, l) => a + l.dr - l.cr, 0) * 100) / 100;
 
@@ -160,21 +169,37 @@ export function OpeningBalances({ client, period }: { client: Client; period: st
         <div className="stack" style={{ gap: 6 }}>
           <strong style={{ fontSize: 14 }}>Opening balances for the year to {dmy(period)}</strong>
           <table className="bank-table">
-            <thead><tr><th>Account</th><th>Goes to</th><th className="num">Debit</th><th className="num">Credit</th></tr></thead>
+            <thead><tr><th>Account</th><th>Goes to</th><th className="num">Debit</th><th className="num">Credit</th><th /></tr></thead>
             <tbody>
-              {opening.accounts.map((a) => (
-                <tr key={`${a.Code}|${a.Detail}`}><td>{a.Detail}</td><td className="muted">{where(a)}</td><td className="num">{a.balance > 0 ? money(a.balance) : ""}</td><td className="num">{a.balance < 0 ? money(-a.balance) : ""}</td></tr>
+              {accounts.map((a, i) => (
+                <tr key={`${i}|${a.Detail}|${a.balance}|${a.dest}`}>
+                  <td><input className="input" style={{ width: "100%", minWidth: 200 }} aria-label={`Account ${i + 1} name`} defaultValue={a.Detail} onBlur={(e) => e.target.value !== a.Detail && change(i, { Detail: e.target.value })} /></td>
+                  <td>
+                    <select className="input" aria-label={`Where ${a.Detail} goes`} value={a.dest} onChange={(e) => change(i, { dest: e.target.value })}>
+                      {!destOptions.some((d) => d.key === a.dest) && <option value={a.dest}>{where(a)}</option>}
+                      {destOptions.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                    </select>
+                  </td>
+                  <td className="num"><input className="input" style={{ width: 110, textAlign: "right" }} inputMode="decimal" aria-label={`${a.Detail} debit`} defaultValue={a.balance > 0 ? a.balance.toFixed(2) : ""} onBlur={(e) => { const v = amount(e.target.value); if (v > 0 && v !== a.balance) change(i, { balance: v }); else if (v === 0 && a.balance > 0) change(i, { balance: 0 }); }} /></td>
+                  <td className="num"><input className="input" style={{ width: 110, textAlign: "right" }} inputMode="decimal" aria-label={`${a.Detail} credit`} defaultValue={a.balance < 0 ? (-a.balance).toFixed(2) : ""} onBlur={(e) => { const v = amount(e.target.value); if (v > 0 && -v !== a.balance) change(i, { balance: -v }); else if (v === 0 && a.balance < 0) change(i, { balance: 0 }); }} /></td>
+                  <td><button type="button" className="linkbtn" aria-label={`Remove ${a.Detail}`} onClick={() => void saveRows(accounts.filter((_, j) => j !== i))}>Remove</button></td>
+                </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr><td colSpan={2}>Total</td><td className="num">{money(opening.accounts.reduce((a, x) => a + Math.max(0, x.balance), 0))}</td><td className="num">{money(-opening.accounts.reduce((a, x) => a + Math.min(0, x.balance), 0))}</td></tr>
+              <tr><td colSpan={2}>Total</td><td className="num">{money(accounts.reduce((a, x) => a + Math.max(0, x.balance), 0))}</td><td className="num">{money(-accounts.reduce((a, x) => a + Math.min(0, x.balance), 0))}</td><td /></tr>
             </tfoot>
           </table>
+          <div className="row-wrap" style={{ gap: 10 }}>
+            <button type="button" className="btn small" onClick={() => void saveRows([...accounts, { Code: "", Detail: "New account", balance: 0, iris: "", dest: "debtors/other" }])}>Add an account</button>
+            {opening.custom && <button type="button" className="btn small" onClick={() => void w.writeSetup("openbal/main", { custom: undefined })}>Go back to last year's figures</button>}
+            {opening.custom && <span className="muted" style={{ fontSize: 12 }}>Changed by hand: these no longer follow last year's trial balance.</span>}
+          </div>
           <ul className="import-list">
             <li>Last year's result: {opening.result >= 0 ? "profit" : "loss"} of {money(Math.abs(opening.result))} after tax, dividends of {money(opening.dividends)}. Together they {opening.toReserves >= 0 ? "added" : "took"} {money(Math.abs(opening.toReserves))} {opening.toReserves >= 0 ? "to" : "from"} reserves.</li>
-            {Math.abs(opening.accounts.reduce((a, x) => a + x.balance, 0)) > 0.004 && <li style={{ color: "var(--red-ink)" }}>The opening balances don't balance: check last year's trial balance.</li>}
+            {Math.abs(accounts.reduce((a, x) => a + x.balance, 0)) > 0.004 && <li style={{ color: "var(--red-ink)" }}>The opening balances don't balance: they're out by {money(Math.abs(accounts.reduce((a, x) => a + x.balance, 0)))}.</li>}
           </ul>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>"Goes to" comes from the account's name. Change where an account goes in last year's Year end trial balance. These balances are used when the Accounts working papers create this year's trial balance.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Change an account's name, where it goes or its balance, add one, or remove one. Edits are saved as you leave each box. These balances are used when the Accounts working papers create this year's trial balance.</p>
         </div>
       ) : (
         <p className="muted" style={{ margin: 0 }}>No trial balance for last year yet, so there are no opening balances. Read one in above.</p>
