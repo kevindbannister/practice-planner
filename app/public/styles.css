@@ -2082,3 +2082,11 @@ body { display: flow-root; }
     -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
 }
 @media print { body::before { display: none; } }
+
+/* Companies House review: grouped into tabs */
+.review-tabs { padding: 12px 16px 4px; }
+.review-tabs .subtabs { display: flex; flex-wrap: wrap; max-width: 100%; }
+.review-tabs .subtab { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13.5px; }
+.tab-n { min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--line-2); color: var(--muted); font: 600 11.5px var(--sans); line-height: 20px; text-align: center; }
+.tab-n.has { background: var(--amber-soft); color: var(--amber-ink); }
+@media (max-width: 720px) { .review-tabs .subtabs { flex-wrap: nowrap; overflow-x: auto; } }

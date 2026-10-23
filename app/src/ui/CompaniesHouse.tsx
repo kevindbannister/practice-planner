@@ -4,7 +4,7 @@
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getAccessToken } from "../lib/auth";
 import {
-  ChApi, ChError, HttpCh, Proposal, chDeadlines, chNumber, compareCompany, flagAction, isCompany, isPlannerType, people, reconcile, statusText,
+  ChApi, ChError, HttpCh, Proposal, chDeadlines, chNumber, compareCompany, FLAG_GROUPS, FlagGroup, flagAction, flagGroup, isCompany, isPlannerType, people, reconcile, statusText,
 } from "../lib/companiesHouse";
 import { plannerChecks } from "../lib/plannerChecks";
 import { Client, fmtDate, isOpen, todayIso } from "../lib/domain";
@@ -249,6 +249,7 @@ export function CompaniesHouseSettings() {
   const idx = useIndex();
   const ch = useCompaniesHouse();
   const [testing, setTesting] = useState<{ ok?: string; error?: ChError | Error }>();
+  const [tab, setTab] = useState<FlagGroup | "all">("all");
   const companies = data.clients.filter(isCompany);
   const open = [...ch.openFlags].sort(
     (a, b) => (RANK[a.Severity as string] ?? 3) - (RANK[b.Severity as string] ?? 3) ||
@@ -258,6 +259,12 @@ export function CompaniesHouseSettings() {
     .filter((f) => f.Status !== "Open")
     .sort((a, b) => String(b.Resolved || b.Found || "").localeCompare(String(a.Resolved || a.Found || "")))
     .slice(0, 60);
+
+  const counts = Object.fromEntries(FLAG_GROUPS.map((g) => [g.key, open.filter((f) => flagGroup(f.Type) === g.key).length])) as Record<FlagGroup, number>;
+  const inTab = (f: Row) => tab === "all" || flagGroup(f.Type) === tab;
+  const shownOpen = open.filter(inTab);
+  const shownEarlier = earlier.filter(inTab);
+  const tabHint = FLAG_GROUPS.find((g) => g.key === tab)?.hint;
 
   const runTest = async () => {
     setTesting({});
@@ -313,22 +320,33 @@ export function CompaniesHouseSettings() {
           <h2 id="ch-review-h">To review</h2>
           <span className="muted" style={{ fontSize: 13 }}>{open.length ? `${open.length} change${open.length === 1 ? "" : "s"}` : "Nothing to review"}</span>
         </div>
-        {open.length ? (
+        <div className="review-tabs" role="group" aria-label="Group the review list">
+          <div className="subtabs">
+            <button type="button" className="subtab" aria-pressed={tab === "all"} onClick={() => setTab("all")}>All<span className="tab-n">{open.length}</span></button>
+            {FLAG_GROUPS.map((g) => (
+              <button key={g.key} type="button" className="subtab" aria-pressed={tab === g.key} onClick={() => setTab(g.key)}>
+                {g.label}<span className={`tab-n${counts[g.key] ? " has" : ""}`}>{counts[g.key]}</span>
+              </button>
+            ))}
+          </div>
+          {tabHint && <p className="muted" style={{ margin: "8px 0 0", fontSize: 13 }}>{tabHint}</p>}
+        </div>
+        {shownOpen.length ? (
           <ul className="ch-list">
-            {open.map((f) => <FlagRow key={f.Key as string} flag={f} />)}
+            {shownOpen.map((f) => <FlagRow key={f.Key as string} flag={f} />)}
           </ul>
         ) : (
           <p className="muted" style={{ margin: 0, padding: 16 }}>
-            {ch.lastRun ? "The planner agrees with Companies House." : "Run a check to compare your companies with Companies House."}
+            {open.length ? "Nothing to review in this group." : ch.lastRun ? "The planner agrees with Companies House." : "Run a check to compare your companies with Companies House."}
           </p>
         )}
       </section>
 
-      {earlier.length > 0 && (
+      {shownEarlier.length > 0 && (
         <details className="card">
           <summary className="card-head" style={{ cursor: "pointer" }}><h2 style={{ display: "inline" }}>Earlier changes</h2></summary>
           <ul className="ch-list">
-            {earlier.map((f) => <FlagRow key={f.Key as string} flag={f} past />)}
+            {shownEarlier.map((f) => <FlagRow key={f.Key as string} flag={f} past />)}
           </ul>
         </details>
       )}

@@ -128,6 +128,22 @@ export type FlagType =
 export const PLANNER_TYPES: FlagType[] = ["deadline-order", "deadline-missing", "deadline-rule", "period", "duplicate", "service-rule", "aml", "loe", "compliance"];
 export const isPlannerType = (t: unknown) => PLANNER_TYPES.includes(t as FlagType);
 
+/** How the review list is grouped into tabs. */
+export type FlagGroup = "filings" | "company" | "deadlines" | "compliance";
+export const FLAG_GROUPS: { key: FlagGroup; label: string; hint: string }[] = [
+  { key: "filings", label: "Filings", hint: "Accounts and confirmation statements: filed, missing, overdue or with different dates at Companies House." },
+  { key: "company", label: "Company details", hint: "Status, registered office, name, directors and people with significant control." },
+  { key: "deadlines", label: "Deadlines and set-up", hint: "Planner checks on job deadlines, periods, duplicates and deadline rules." },
+  { key: "compliance", label: "AML and engagement letters", hint: "Clients with work coming up but no AML check or engagement letter in place." },
+];
+const GROUP_OF: Record<string, FlagGroup> = {
+  filed: "filings", dates: "filings", missing: "filings", "not-filed": "filings", overdue: "filings",
+  status: "company", office: "company", name: "company", officers: "company", pscs: "company", "not-found": "company",
+  "deadline-order": "deadlines", "deadline-missing": "deadlines", "deadline-rule": "deadlines", period: "deadlines", duplicate: "deadlines", "service-rule": "deadlines",
+  aml: "compliance", loe: "compliance", compliance: "compliance",
+};
+export const flagGroup = (type: unknown): FlagGroup => GROUP_OF[String(type)] || "company";
+
 /** What Apply does, stored with the flag. Info-only flags have no action. */
 export type FlagAction =
   | { do: "complete"; jobKey: string; next?: { PeriodEnd: string; Deadline: string } }

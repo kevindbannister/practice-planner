@@ -149,3 +149,14 @@ test("officer changes aren't resolved just because the next check is quiet", () 
   const flag = { _id: "1", Key: "C1|officers", ClientKey: "C1", Type: "officers", Status: "Open", Proposed: "{}" };
   assert.deepEqual(reconcile([], [flag], new Set(["C1"]), "2026-10-12"), { create: [], update: [] });
 });
+
+test("every finding type belongs to a review group; planner types are never in the Companies House ones", async () => {
+  const { flagGroup, FLAG_GROUPS, PLANNER_TYPES } = await import("../src/lib/companiesHouse");
+  const all = ["filed", "dates", "missing", "not-filed", "overdue", "status", "office", "name", "officers", "pscs", "not-found", "deadline-order", "deadline-missing", "deadline-rule", "period", "duplicate", "service-rule", "aml", "loe", "compliance"];
+  const keys = new Set(FLAG_GROUPS.map((g) => g.key));
+  for (const t of all) assert.ok(keys.has(flagGroup(t)), t);
+  assert.equal(flagGroup("aml"), "compliance");
+  assert.equal(flagGroup("filed"), "filings");
+  assert.equal(flagGroup("deadline-order"), "deadlines");
+  for (const t of PLANNER_TYPES) assert.ok(["deadlines", "compliance"].includes(flagGroup(t)), t);
+});
