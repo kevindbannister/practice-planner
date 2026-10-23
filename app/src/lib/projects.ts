@@ -8,12 +8,12 @@ import { Row } from "./schema";
 export type Category = { key: string; name: string; colour: string };
 
 export const CATEGORIES: Category[] = [
-  { key: "marketing", name: "Marketing", colour: "#ff2d55" },
-  { key: "systems", name: "Systems and software", colour: "#5e5ce6" },
-  { key: "people", name: "People and training", colour: "#30b0c7" },
-  { key: "finance", name: "Finance and admin", colour: "#ff9f0a" },
-  { key: "strategy", name: "Strategy and planning", colour: "#34c759" },
-  { key: "other", name: "Other", colour: "#8e8e93" },
+  { key: "marketing", name: "Marketing", colour: "#b3499f" },
+  { key: "systems", name: "Systems and software", colour: "#4a55b5" },
+  { key: "people", name: "People and training", colour: "#14919b" },
+  { key: "finance", name: "Finance and admin", colour: "#c0643e" },
+  { key: "strategy", name: "Strategy and planning", colour: "#2e9d6f" },
+  { key: "other", name: "Other", colour: "#8d9bb0" },
 ];
 
 export const categoryOf = (p: Record<string, unknown>): Category =>

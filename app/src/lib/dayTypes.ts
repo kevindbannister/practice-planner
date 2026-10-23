@@ -17,10 +17,10 @@ export type DayType = {
 };
 
 export const DEFAULT_DAY_TYPES: DayType[] = [
-  { key: "client", name: "Client day", colour: "#0a84ff", client: 100, business: 0, buffer: 0 },
-  { key: "business", name: "Business day", colour: "#af52de", client: 0, business: 100, buffer: 0 },
-  { key: "mixed", name: "Mixed day", colour: "#ff9f0a", client: 50, business: 50, buffer: 0 },
-  { key: "off", name: "Day off", colour: "#8e8e93", client: 0, business: 0, buffer: 0 },
+  { key: "client", name: "Client day", colour: "#0c83b2", client: 100, business: 0, buffer: 0 },
+  { key: "business", name: "Business day", colour: "#7c5cc9", client: 0, business: 100, buffer: 0 },
+  { key: "mixed", name: "Mixed day", colour: "#4a55b5", client: 50, business: 50, buffer: 0 },
+  { key: "off", name: "Day off", colour: "#8d9bb0", client: 0, business: 0, buffer: 0 },
 ];
 
 /** Monday to Friday are client days until changed. */
@@ -39,6 +39,9 @@ const pct = (v: unknown, fallback: number) => {
   return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : fallback;
 };
 
+/** The first colours (bright blue, purple, orange, grey): saved ones still set to these move to the new palette. */
+const OLD_COLOURS: Record<string, string> = { client: "#0a84ff", business: "#af52de", mixed: "#ff9f0a", off: "#8e8e93" };
+
 /** The built-in types with anything saved in Settings laid over them (matched by key). */
 export function mergeDayTypes(saved: unknown): DayType[] {
   const list = Array.isArray(saved) ? (saved as Partial<DayType>[]) : [];
@@ -48,7 +51,7 @@ export function mergeDayTypes(saved: unknown): DayType[] {
     return {
       key: d.key,
       name: typeof s.name === "string" && s.name.trim() ? s.name.trim() : d.name,
-      colour: typeof s.colour === "string" && /^#[0-9a-f]{6}$/i.test(s.colour) ? s.colour : d.colour,
+      colour: typeof s.colour === "string" && /^#[0-9a-f]{6}$/i.test(s.colour) && s.colour.toLowerCase() !== OLD_COLOURS[d.key] ? s.colour : d.colour,
       client: pct(s.client, d.client),
       business: pct(s.business, d.business),
       buffer: pct(s.buffer, d.buffer),

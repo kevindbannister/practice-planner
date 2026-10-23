@@ -47,7 +47,7 @@ test("bad saved day types fall back to the built-in ones", () => {
   assert.equal(t.length, DEFAULT_DAY_TYPES.length);
   const c = t.find((x) => x.key === "client")!;
   assert.equal(c.name, "Client day");
-  assert.equal(c.colour, "#0a84ff");
+  assert.equal(c.colour, DEFAULT_DAY_TYPES[0].colour);
   assert.equal(c.client, 100);
   assert.equal(c.buffer, 100); // clamped
   assert.deepEqual(mergeDayTypes(undefined), DEFAULT_DAY_TYPES);
