@@ -129,217 +129,226 @@ export function HomePage() {
 
   return (
     <div className="page home">
-      <div className="home-head">
-        <div>
-          <h1>{greeting(new Date().getHours())}{first ? `, ${first}` : ""}</h1>
-          <p className="muted" style={{ margin: "4px 0 0" }}>{fmtDate(today, { weekday: true })} · {summary}</p>
-        </div>
-        <div className="row-wrap">
-          <a className="btn" href="#/plan/deadlines">Deadlines</a>
-          <a className="btn primary" href="#/plan">Open the plan</a>
-        </div>
-      </div>
-
-      <div className="home-tiles">
-        <Tile href="#/plan/deadlines" tone={late.length ? "red" : ""} label="Late" icon="alert" hue="hue-red" value={String(late.length)} sub={late.length ? `${fmtHours(late.reduce((t, w) => t + w.hours, 0))} of work` : "All on time"} />
-        <Tile href="#/plan/deadlines" tone={next7Unplanned.length ? "amber" : ""} label="Due in 7 days" icon="plan" hue="hue-blue" value={String(next7.length)} sub={next7Unplanned.length ? `${next7Unplanned.length} not planned` : next7.length ? "All planned" : "Nothing due"} />
-        <Tile href="#/plan" tone={due30Unplanned.length ? "amber" : ""} label="Due in 30 days, not planned" icon="clock" hue="hue-amber" value={String(due30Unplanned.length)} sub={`${fmtHours(due30Unplanned.reduce((t, w) => t + w.hours, 0)) || "0h"} to fit in`} />
-        <Tile href="#/chase" tone={chase.some((g) => g.status === "late") ? "amber" : ""} label="Records to chase" icon="mail" hue="hue-pink" value={String(chase.length)} sub={chase.length ? `${chase.filter((g) => g.status === "late").length} late` : "Nobody to chase"} />
-        <Tile href="#/settings/companies-house" tone={ch.openFlags.length ? "amber" : ""} label="Checks" icon="building" hue="hue-aqua" value={String(ch.openFlags.length)} sub={ch.openFlags.length ? "to review" : "Nothing to review"} />
-        <Tile href="#/plan" tone={doneThisWeek ? "green" : ""} label="Done this week" icon="check" hue="hue-green" value={String(doneThisWeek)} sub="jobs and tasks completed" />
-      </div>
-
-      <div className="home-grid">
-        <div className="home-col">
-          <TimeToLog />
-          <section className="card" aria-labelledby="today-h">
-            <div className="card-head">
-              <h2 className="with-icon" id="today-h"><span className="h-icon hue-blue" aria-hidden="true"><Icon name="plan" size={15} /></span>Today</h2>
-              <a href="#/plan/today" style={{ fontSize: 13 }}>Start my day</a>
-              <span className="muted" style={{ fontSize: 13 }}>
-                {todayCap ? `${fmtHours(todayHours) || "0h"} of ${fmtHours(todayCap)}` : "Not a working day"}
-                {cal.meetingsOn(today) ? ` · meetings ${fmtHours(cal.meetingsOn(today))}` : ""}
-                {todayBiz || todayBizCap ? ` · business ${fmtHours(todayBiz) || "0h"} of ${fmtHours(todayBizCap) || "0h"}` : ""}
-              </span>
-            </div>
-            {todayCap > 0 && (
-              <div className="meter" role="img" aria-label={`${fmtHours(todayHours) || "0h"} planned of ${fmtHours(todayCap)} available today`}>
-                <span className={todayHours > todayCap ? "over" : ""} style={{ width: `${Math.min(100, (todayHours / todayCap) * 100)}%` }} />
+      <section className="home-hero" aria-label="Summary">
+        <div className="hero-top">
+          <div>
+            <div className="hero-date">{fmtDate(today, { weekday: true })}</div>
+            <h1>{greeting(new Date().getHours())}{first ? `, ${first}` : ""}</h1>
+            <p className="hero-sum">{summary}</p>
+          </div>
+          <div className="hero-side">
+            {todayCap > 0 ? (
+              <div className="hero-hours">
+                <span className="hero-big mono">{fmtHours(todayHours) || "0h"}</span>
+                <div className="hero-hours-tx">
+                  <span>
+                    of {fmtHours(todayCap)} today
+                    {cal.meetingsOn(today) ? ` · meetings ${fmtHours(cal.meetingsOn(today))}` : ""}
+                    {todayBiz || todayBizCap ? ` · business ${fmtHours(todayBiz) || "0h"} of ${fmtHours(todayBizCap) || "0h"}` : ""}
+                  </span>
+                  <div className="meter" role="img" aria-label={`${fmtHours(todayHours) || "0h"} planned of ${fmtHours(todayCap)} available today`}>
+                    <span className={todayHours > todayCap ? "over" : ""} style={{ width: `${Math.min(100, (todayHours / todayCap) * 100)}%` }} />
+                  </div>
+                </div>
               </div>
-            )}
-            {todays.length ? (
-              <ul className="home-list">
-                {todays.map((w) => <WorkRow key={w.key} w={w} today={today} onOpen={() => openWork(w)} show="deadline" />)}
-              </ul>
             ) : (
-              <div className="home-empty">
-                <p style={{ margin: 0 }}>Nothing planned for today{missed.length ? `, and ${missed.length} item${missed.length === 1 ? " was" : "s were"} planned on an earlier day but not finished` : ""}.</p>
-                <a className="btn small" href="#/plan">Plan the week, or use Suggest a plan</a>
-              </div>
+              <div className="hero-hours"><div className="hero-hours-tx"><span>Not a working day{todayBizCap ? ` · business ${fmtHours(todayBiz) || "0h"} of ${fmtHours(todayBizCap)}` : ""}</span></div></div>
             )}
-          </section>
-
-          <ProjectsToLookAt />
-
-          <section className="card" aria-labelledby="soon-h">
-            <div className="card-head">
-              <h2 className="with-icon" id="soon-h"><span className="h-icon hue-amber" aria-hidden="true"><Icon name="clock" size={15} /></span>Due in the next 14 days</h2>
-              <a href="#/plan/deadlines" style={{ fontSize: 13 }}>All deadlines</a>
+            <div className="row-wrap">
+              <a className="btn" href="#/plan/deadlines">Deadlines</a>
+              <a className="btn primary" href="#/plan">Open the plan</a>
             </div>
-            {byDay.size ? (
-              <div className="home-days">
-                {[...byDay.entries()].map(([d, list]) => (
-                  <div key={d} className="home-day">
-                    <div className="home-date">
-                      <strong>{fmtDate(d, { weekday: true, year: false })}</strong>
-                      <span className="muted">{d === today ? "today" : `in ${Math.round((Date.parse(d) - Date.parse(today)) / 86400000)}d`}</span>
-                    </div>
-                    <div className="svc-groups">
-                      {groupByType(list).map((g) => <TypeGroup key={g.key} group={g} today={today} onOpen={openWork} />)}
-                    </div>
+          </div>
+        </div>
+
+        <div className="home-tiles">
+          <Tile href="#/plan/deadlines" tone={late.length ? "red" : ""} label="Late" icon="alert" hue="hue-red" value={String(late.length)} sub={late.length ? `${fmtHours(late.reduce((t, w) => t + w.hours, 0))} of work` : "All on time"} />
+          <Tile href="#/plan/deadlines" tone={next7Unplanned.length ? "amber" : ""} label="Due in 7 days" icon="plan" hue="hue-blue" value={String(next7.length)} sub={next7Unplanned.length ? `${next7Unplanned.length} not planned` : next7.length ? "All planned" : "Nothing due"} />
+          <Tile href="#/plan" tone={due30Unplanned.length ? "amber" : ""} label="Due in 30 days, not planned" icon="clock" hue="hue-amber" value={String(due30Unplanned.length)} sub={`${fmtHours(due30Unplanned.reduce((t, w) => t + w.hours, 0)) || "0h"} to fit in`} />
+          <Tile href="#/chase" tone={chase.some((g) => g.status === "late") ? "amber" : ""} label="Records to chase" icon="mail" hue="hue-pink" value={String(chase.length)} sub={chase.length ? `${chase.filter((g) => g.status === "late").length} late` : "Nobody to chase"} />
+          <Tile href="#/settings/companies-house" tone={ch.openFlags.length ? "amber" : ""} label="Checks" icon="building" hue="hue-aqua" value={String(ch.openFlags.length)} sub={ch.openFlags.length ? "to review" : "Nothing to review"} />
+          <Tile href="#/plan" tone={doneThisWeek ? "green" : ""} label="Done this week" icon="check" hue="hue-green" value={String(doneThisWeek)} sub="jobs and tasks completed" />
+        </div>
+      </section>
+
+      <div className="home-g2">
+        <section className="card" aria-labelledby="today-h">
+          <div className="card-head">
+            <h2 className="with-icon" id="today-h"><span className="h-icon hue-blue" aria-hidden="true"><Icon name="plan" size={15} /></span>Today</h2>
+            <a href="#/plan/today" style={{ fontSize: 13 }}>Start my day</a>
+          </div>
+          {todays.length ? (
+            <ul className="home-list">
+              {todays.map((w) => <WorkRow key={w.key} w={w} today={today} onOpen={() => openWork(w)} show="deadline" />)}
+            </ul>
+          ) : (
+            <div className="home-empty">
+              <p style={{ margin: 0 }}>Nothing planned for today{missed.length ? `, and ${missed.length} item${missed.length === 1 ? " was" : "s were"} planned on an earlier day but not finished` : ""}.</p>
+              <a className="btn small" href="#/plan">Plan the week, or use Suggest a plan</a>
+            </div>
+          )}
+        </section>
+        <section className="card" aria-labelledby="att-h">
+          <div className="card-head"><h2 className="with-icon" id="att-h"><span className="h-icon hue-red" aria-hidden="true"><Icon name="flag" size={15} /></span>Needs a decision</h2></div>
+          <ul className="home-list attention">
+            {late.slice(0, 4).map((w) => (
+              <li key={w.key}><button type="button" onClick={() => openWork(w)}>
+                <span className="dot red" aria-hidden="true" />
+                <span className="stack" style={{ gap: 1 }}><strong>{w.client ? `${w.client}: ` : ""}{w.title}</strong><span className="muted">Was due {fmtDate(w.deadline, { year: false })}</span></span>
+              </button></li>
+            ))}
+            {late.length > 4 && <li className="muted more"><a href="#/plan/deadlines">{late.length - 4} more late</a></li>}
+            {ch.openFlags.length > 0 && (
+              <li><a href="#/settings/companies-house">
+                <span className="dot amber" aria-hidden="true" />
+                <span className="stack" style={{ gap: 1 }}><strong>{ch.openFlags.length} planner and Companies House check{ch.openFlags.length === 1 ? "" : "s"} to review</strong><span className="muted">Apply or ignore each one</span></span>
+              </a></li>
+            )}
+            {heldAlerts.map((w) => (
+              <li key={w.key}><button type="button" onClick={() => openWork(w)}>
+                <span className="dot amber" aria-hidden="true" />
+                <span className="stack" style={{ gap: 1 }}><strong>{w.client ? `${w.client}: ` : ""}{w.title}</strong><span className="muted">{holdAlert(w.row, w.deadline, today)!.text}</span></span>
+              </button></li>
+            ))}
+            {speakNow.slice(0, 4).map((w) => (
+              <li key={`s-${w.key}`}><button type="button" onClick={() => openWork(w)}>
+                <span className="dot wait" aria-hidden="true" />
+                <span className="stack" style={{ gap: 1 }}>
+                  <strong>{w.client ? `${w.client}: ` : ""}{w.title}</strong>
+                  <span className="muted">
+                    {waitState(w.row, today) === "today" ? "Speaking to them today: plan the finalising" : `Spoke to them ${fmtDate(w.row.SpeakOn as string, { year: false })}? Approved, or a new date`}
+                  </span>
+                </span>
+              </button></li>
+            ))}
+            {noSpeakDate.length > 0 && (
+              <li><a href="#/plan">
+                <span className="dot wait" aria-hidden="true" />
+                <span className="stack" style={{ gap: 1 }}><strong>{noSpeakDate.length} with the client, no date to speak</strong><span className="muted">Add a date on each job so it comes back to finalise</span></span>
+              </a></li>
+            )}
+            {meetingsToday.map((m) => (
+              <li key={`m-${m.Key}`}><a href={`#/comms/meetings/${encodeURIComponent(String(m.Key))}`}>
+                <span className="dot blue" aria-hidden="true" />
+                <span className="stack" style={{ gap: 1 }}>
+                  <strong>{String(m.When).slice(11, 16)} {idx.clientByKey.get(String(m.ClientKey))?.Title || ""}</strong>
+                  <span className="muted">{templateFor(String(m.Template)).name}: open the agenda</span>
+                </span>
+              </a></li>
+            ))}
+            {reminders > 0 && (
+              <li><a href="#/comms/payments">
+                <span className="dot amber" aria-hidden="true" />
+                <span className="stack" style={{ gap: 1 }}><strong>{reminders} tax payment reminder{reminders === 1 ? "" : "s"} to send</strong><span className="muted">Payments due in the next 30 days</span></span>
+              </a></li>
+            )}
+            {missed.length > 0 && (
+              <li><a href="#/plan">
+                <span className="dot amber" aria-hidden="true" />
+                <span className="stack" style={{ gap: 1 }}><strong>{missed.length} planned on an earlier day, not finished</strong><span className="muted">Put them back in Unplanned, or move them to a new day</span></span>
+              </a></li>
+            )}
+            {!late.length && !ch.openFlags.length && !heldAlerts.length && !missed.length && !speakNow.length && !noSpeakDate.length && !reminders && !meetingsToday.length && (
+              <li className="muted" style={{ padding: "12px 16px" }}>Nothing waiting on you.</li>
+            )}
+          </ul>
+        </section>
+      </div>
+
+        <section className="card" aria-labelledby="soon-h">
+          <div className="card-head">
+            <h2 className="with-icon" id="soon-h"><span className="h-icon hue-amber" aria-hidden="true"><Icon name="clock" size={15} /></span>Due in the next 14 days</h2>
+            <a href="#/plan/deadlines" style={{ fontSize: 13 }}>All deadlines</a>
+          </div>
+          {byDay.size ? (
+            <div className="home-days">
+              {[...byDay.entries()].map(([d, list]) => (
+                <div key={d} className="home-day">
+                  <div className="home-date">
+                    <strong>{fmtDate(d, { weekday: true, year: false })}</strong>
+                    <span className="muted">{d === today ? "today" : `in ${Math.round((Date.parse(d) - Date.parse(today)) / 86400000)}d`}</span>
                   </div>
+                  <div className="svc-groups">
+                    {groupByType(list).map((g) => <TypeGroup key={g.key} group={g} today={today} onOpen={openWork} />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <p className="muted" style={{ margin: 0, padding: 16 }}>Nothing due in the next fortnight.</p>}
+        </section>
+
+      <div className="home-g3">
+        <section className="card pad stack" aria-labelledby="week-h">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+            <h2 className="with-icon" id="week-h"><span className="h-icon hue-violet" aria-hidden="true"><Icon name="chart" size={15} /></span>This week</h2>
+            <a href="#/plan" style={{ fontSize: 13 }}>Plan</a>
+          </div>
+          <div className="weekbars" role="list" aria-label="Hours planned each day this week">
+            {week.map((d) => {
+              const used = weekLoad(d), cap = capacity(d);
+              const label = `${fmtDate(d, { weekday: true, year: false })}: ${fmtHours(used) || "0h"} planned of ${fmtHours(cap)}${cal.meetingsOn(d) ? `, meetings ${fmtHours(cal.meetingsOn(d))}` : ""}`;
+              return (
+                <div key={d} role="listitem" className={`weekbar${d === today ? " today" : ""}${d < today ? " past" : ""}`} title={label} aria-label={label}>
+                  <span className="wb-val mono">{fmtHours(used) || "0h"}</span>
+                  <div className="wb-track">
+                    <span className="wb-cap" style={{ height: `${(cap / weekMax) * 100}%` }} />
+                    <span className={`wb-fill${used > cap ? " over" : ""}`} style={{ height: `${(Math.min(used, weekMax) / weekMax) * 100}%` }} />
+                  </div>
+                  <span className="wb-day">{fmtDate(d, { weekday: true, year: false }).split(" ")[0]}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+            Bars are hours planned; the outline is the hours you have{cal.prefs.enabled ? " after meetings" : ""}.
+          </p>
+        </section>
+        <section className="card pad stack" aria-labelledby="mon-h">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+            <h2 className="with-icon" id="mon-h"><span className="h-icon hue-aqua" aria-hidden="true"><Icon name="chart" size={15} /></span>Next 6 months</h2>
+            <a href="#/plan/months" style={{ fontSize: 13 }}>Months ahead</a>
+          </div>
+          <ul className="minimonths">
+            {f.months.map((m) => {
+              const over = m.due > m.capacity;
+              const label = `${new Date(`${m.key}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" })}: ${fmtHours(m.due) || "0h"} due, ${fmtHours(m.capacity)} available`;
+              return (
+                <li key={m.key} title={label} aria-label={label}>
+                  <span className="mm-name">{new Date(`${m.key}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" })}</span>
+                  <span className="mm-track">
+                    <span className={`mm-fill${over ? " over" : ""}`} style={{ width: `${(m.due / monthMax) * 100}%` }} />
+                    <span className="mm-cap" style={{ left: `${(m.capacity / monthMax) * 100}%` }} />
+                  </span>
+                  <span className="mm-val mono">{Math.round((m.due / Math.max(1, m.capacity)) * 100)}%</span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Hours due each month as a share of the hours you have (the line), including next periods of recurring work.</p>
+        </section>
+        <section className="card" aria-labelledby="type-h">
+          <div className="card-head"><h2 className="with-icon" id="type-h"><span className="h-icon hue-green" aria-hidden="true"><Icon name="list" size={15} /></span>Open work by type</h2><span className="muted" style={{ fontSize: 13 }}>{active.length} open</span></div>
+          <div className="table-wrap">
+            <table className="grid">
+              <thead><tr><th scope="col">Type of work</th><th scope="col" className="num">Open</th><th scope="col" className="num">Due in 30 days</th><th scope="col" className="num">Late</th></tr></thead>
+              <tbody>
+                {byType.slice(0, 10).map((r) => (
+                  <tr key={r.name}>
+                    <td>{r.name}</td>
+                    <td className="num mono">{r.open}</td>
+                    <td className="num mono">{r.soon || <span className="muted">0</span>}</td>
+                    <td className="num mono" style={r.late ? { color: "var(--red-ink)", fontWeight: 600 } : undefined}>{r.late || <span className="muted">0</span>}</td>
+                  </tr>
                 ))}
-              </div>
-            ) : <p className="muted" style={{ margin: 0, padding: 16 }}>Nothing due in the next fortnight.</p>}
-          </section>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
 
-        <div className="home-col">
-          <section className="card pad stack" aria-labelledby="week-h">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-              <h2 className="with-icon" id="week-h"><span className="h-icon hue-violet" aria-hidden="true"><Icon name="chart" size={15} /></span>This week</h2>
-              <a href="#/plan" style={{ fontSize: 13 }}>Plan</a>
-            </div>
-            <div className="weekbars" role="list" aria-label="Hours planned each day this week">
-              {week.map((d) => {
-                const used = weekLoad(d), cap = capacity(d);
-                const label = `${fmtDate(d, { weekday: true, year: false })}: ${fmtHours(used) || "0h"} planned of ${fmtHours(cap)}${cal.meetingsOn(d) ? `, meetings ${fmtHours(cal.meetingsOn(d))}` : ""}`;
-                return (
-                  <div key={d} role="listitem" className={`weekbar${d === today ? " today" : ""}${d < today ? " past" : ""}`} title={label} aria-label={label}>
-                    <span className="wb-val mono">{fmtHours(used) || "0h"}</span>
-                    <div className="wb-track">
-                      <span className="wb-cap" style={{ height: `${(cap / weekMax) * 100}%` }} />
-                      <span className={`wb-fill${used > cap ? " over" : ""}`} style={{ height: `${(Math.min(used, weekMax) / weekMax) * 100}%` }} />
-                    </div>
-                    <span className="wb-day">{fmtDate(d, { weekday: true, year: false }).split(" ")[0]}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>
-              Bars are hours planned; the outline is the hours you have{cal.prefs.enabled ? " after meetings" : ""}.
-            </p>
-          </section>
-
-          <section className="card" aria-labelledby="att-h">
-            <div className="card-head"><h2 className="with-icon" id="att-h"><span className="h-icon hue-red" aria-hidden="true"><Icon name="flag" size={15} /></span>Needs a decision</h2></div>
-            <ul className="home-list attention">
-              {late.slice(0, 4).map((w) => (
-                <li key={w.key}><button type="button" onClick={() => openWork(w)}>
-                  <span className="dot red" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}><strong>{w.client ? `${w.client}: ` : ""}{w.title}</strong><span className="muted">Was due {fmtDate(w.deadline, { year: false })}</span></span>
-                </button></li>
-              ))}
-              {late.length > 4 && <li className="muted more"><a href="#/plan/deadlines">{late.length - 4} more late</a></li>}
-              {ch.openFlags.length > 0 && (
-                <li><a href="#/settings/companies-house">
-                  <span className="dot amber" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}><strong>{ch.openFlags.length} planner and Companies House check{ch.openFlags.length === 1 ? "" : "s"} to review</strong><span className="muted">Apply or ignore each one</span></span>
-                </a></li>
-              )}
-              {heldAlerts.map((w) => (
-                <li key={w.key}><button type="button" onClick={() => openWork(w)}>
-                  <span className="dot amber" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}><strong>{w.client ? `${w.client}: ` : ""}{w.title}</strong><span className="muted">{holdAlert(w.row, w.deadline, today)!.text}</span></span>
-                </button></li>
-              ))}
-              {speakNow.slice(0, 4).map((w) => (
-                <li key={`s-${w.key}`}><button type="button" onClick={() => openWork(w)}>
-                  <span className="dot wait" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}>
-                    <strong>{w.client ? `${w.client}: ` : ""}{w.title}</strong>
-                    <span className="muted">
-                      {waitState(w.row, today) === "today" ? "Speaking to them today: plan the finalising" : `Spoke to them ${fmtDate(w.row.SpeakOn as string, { year: false })}? Approved, or a new date`}
-                    </span>
-                  </span>
-                </button></li>
-              ))}
-              {noSpeakDate.length > 0 && (
-                <li><a href="#/plan">
-                  <span className="dot wait" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}><strong>{noSpeakDate.length} with the client, no date to speak</strong><span className="muted">Add a date on each job so it comes back to finalise</span></span>
-                </a></li>
-              )}
-              {meetingsToday.map((m) => (
-                <li key={`m-${m.Key}`}><a href={`#/comms/meetings/${encodeURIComponent(String(m.Key))}`}>
-                  <span className="dot blue" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}>
-                    <strong>{String(m.When).slice(11, 16)} {idx.clientByKey.get(String(m.ClientKey))?.Title || ""}</strong>
-                    <span className="muted">{templateFor(String(m.Template)).name}: open the agenda</span>
-                  </span>
-                </a></li>
-              ))}
-              {reminders > 0 && (
-                <li><a href="#/comms/payments">
-                  <span className="dot amber" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}><strong>{reminders} tax payment reminder{reminders === 1 ? "" : "s"} to send</strong><span className="muted">Payments due in the next 30 days</span></span>
-                </a></li>
-              )}
-              {missed.length > 0 && (
-                <li><a href="#/plan">
-                  <span className="dot amber" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}><strong>{missed.length} planned on an earlier day, not finished</strong><span className="muted">Put them back in Unplanned, or move them to a new day</span></span>
-                </a></li>
-              )}
-              {!late.length && !ch.openFlags.length && !heldAlerts.length && !missed.length && !speakNow.length && !noSpeakDate.length && !reminders && !meetingsToday.length && (
-                <li className="muted" style={{ padding: "12px 16px" }}>Nothing waiting on you.</li>
-              )}
-            </ul>
-          </section>
-
-          <section className="card pad stack" aria-labelledby="mon-h">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-              <h2 className="with-icon" id="mon-h"><span className="h-icon hue-aqua" aria-hidden="true"><Icon name="chart" size={15} /></span>Next 6 months</h2>
-              <a href="#/plan/months" style={{ fontSize: 13 }}>Months ahead</a>
-            </div>
-            <ul className="minimonths">
-              {f.months.map((m) => {
-                const over = m.due > m.capacity;
-                const label = `${new Date(`${m.key}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" })}: ${fmtHours(m.due) || "0h"} due, ${fmtHours(m.capacity)} available`;
-                return (
-                  <li key={m.key} title={label} aria-label={label}>
-                    <span className="mm-name">{new Date(`${m.key}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" })}</span>
-                    <span className="mm-track">
-                      <span className={`mm-fill${over ? " over" : ""}`} style={{ width: `${(m.due / monthMax) * 100}%` }} />
-                      <span className="mm-cap" style={{ left: `${(m.capacity / monthMax) * 100}%` }} />
-                    </span>
-                    <span className="mm-val mono">{Math.round((m.due / Math.max(1, m.capacity)) * 100)}%</span>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>Hours due each month as a share of the hours you have (the line), including next periods of recurring work.</p>
-          </section>
-
-          <section className="card" aria-labelledby="type-h">
-            <div className="card-head"><h2 className="with-icon" id="type-h"><span className="h-icon hue-green" aria-hidden="true"><Icon name="list" size={15} /></span>Open work by type</h2><span className="muted" style={{ fontSize: 13 }}>{active.length} open</span></div>
-            <div className="table-wrap">
-              <table className="grid">
-                <thead><tr><th scope="col">Type of work</th><th scope="col" className="num">Open</th><th scope="col" className="num">Due in 30 days</th><th scope="col" className="num">Late</th></tr></thead>
-                <tbody>
-                  {byType.slice(0, 10).map((r) => (
-                    <tr key={r.name}>
-                      <td>{r.name}</td>
-                      <td className="num mono">{r.open}</td>
-                      <td className="num mono">{r.soon || <span className="muted">0</span>}</td>
-                      <td className="num mono" style={r.late ? { color: "var(--red-ink)", fontWeight: 600 } : undefined}>{r.late || <span className="muted">0</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
+      <div className="home-two">
+        <TimeToLog />
+        <ProjectsToLookAt />
       </div>
 
       <p className="muted home-foot">
