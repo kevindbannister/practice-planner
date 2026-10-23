@@ -675,11 +675,11 @@ table.grid th.num, table.grid td.num { text-align: right; }
 .home-list li > button > .stack { flex: 1 1 auto; }
 
 /* ---------- colours for types of work (validated categorical order) ---------- */
-:root { --svc-0: #9a9890; --svc-1: #2a78d6; --svc-2: #eb6834; --svc-3: #1baf7a; --svc-4: #eda100; --svc-5: #e87ba4; --svc-6: #008300; --svc-7: #6250d6; }
+:root { --svc-0: #8d9bb0; --svc-1: #2f6fd6; --svc-2: #c0643e; --svc-3: #14919b; --svc-4: #56708c; --svc-5: #b3499f; --svc-6: #2e9d6f; --svc-7: #7c5cc9; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --svc-0: #6e6d68; --svc-1: #3987e5; --svc-2: #d95926; --svc-3: #199e70; --svc-4: #c98500; --svc-5: #d55181; --svc-6: #008300; --svc-7: #9085e9; }
+  :root:not([data-theme="light"]) { --svc-0: #6f7f96; --svc-1: #5b95f0; --svc-2: #e08a64; --svc-3: #3cc0c8; --svc-4: #8ba4c2; --svc-5: #dc7fc9; --svc-6: #4cc592; --svc-7: #a58ae8; }
 }
-:root[data-theme="dark"] { --svc-0: #6e6d68; --svc-1: #3987e5; --svc-2: #d95926; --svc-3: #199e70; --svc-4: #c98500; --svc-5: #d55181; --svc-6: #008300; --svc-7: #9085e9; }
+:root[data-theme="dark"] { --svc-0: #6f7f96; --svc-1: #5b95f0; --svc-2: #e08a64; --svc-3: #3cc0c8; --svc-4: #8ba4c2; --svc-5: #dc7fc9; --svc-6: #4cc592; --svc-7: #a58ae8; }
 .svc-0 { --svc: var(--svc-0); } .svc-1 { --svc: var(--svc-1); } .svc-2 { --svc: var(--svc-2); } .svc-3 { --svc: var(--svc-3); }
 .svc-4 { --svc: var(--svc-4); } .svc-5 { --svc: var(--svc-5); } .svc-6 { --svc: var(--svc-6); } .svc-7 { --svc: var(--svc-7); }
 .svc-dot { display: inline-block; width: 10px; height: 10px; border-radius: 4px; background: var(--svc, var(--svc-0)); flex: 0 0 auto; }
@@ -688,7 +688,7 @@ table.grid th.num, table.grid td.num { text-align: right; }
 .pcard.task[class*="svc-"] { box-shadow: none; padding-left: 12px; }
 
 /* home: next 14 days, grouped by type of work within each day */
-.svc-group { border-left: 3px solid var(--svc); margin: 8px 16px 8px 8px; border-radius: 0 12px 12px 0; background: color-mix(in srgb, var(--svc) 7%, var(--surface)); }
+.svc-group { border-left: 3px solid var(--svc); margin: 8px 16px 8px 8px; border-radius: 0 12px 12px 0; background: color-mix(in srgb, var(--svc) 4%, var(--surface)); }
 .svc-group > summary, .svc-group > .svc-head { display: flex; align-items: center; gap: 12px; padding: 8px 12px; cursor: pointer; list-style: none; color: var(--ink); font-size: 14px; font-weight: 600; }
 .svc-group > .svc-head { cursor: default; }
 .svc-group > summary::-webkit-details-marker { display: none; }
