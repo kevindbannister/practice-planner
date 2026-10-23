@@ -2040,3 +2040,25 @@ body { display: flow-root; }
 /* planner: match the new look */
 .card .today-sub { margin: 16px 16px 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
 .day.today .day-head, .hours-dayhead.today .day-head { background: color-mix(in srgb, var(--blue) 7%, var(--surface)); }
+
+/* anchor the palette to the logo's navy (#1f2c40): text, headings and the start of every gradient */
+:root {
+  --ink: #1f2c40;
+  --ink-2: #394a62;
+  --muted: #5f6f86;
+  --grad-text: linear-gradient(95deg, #1f2c40 10%, #0c83b2);
+  --grad: linear-gradient(120deg, #1f2c40, #0c83b2 70%, #14a9bd);
+  --grad-btn: linear-gradient(110deg, #1f3b5c, #0c83b2 60%, #18b0c0);
+  --glow: 0 6px 20px rgba(31, 44, 64, 0.22);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ink: #e4effc; --ink-2: #c1d2e8; --muted: #8ea3bd; --grad-text: linear-gradient(95deg, #cfe9ff, #5fd6ee); --grad: linear-gradient(120deg, #1475ad, #11afc2); --grad-btn: linear-gradient(110deg, #0c83b2, #18c0c7); --glow: 0 6px 20px rgba(17, 168, 195, 0.27); } }
+:root[data-theme="dark"] { --ink: #e4effc; --ink-2: #c1d2e8; --muted: #8ea3bd; --grad-text: linear-gradient(95deg, #cfe9ff, #5fd6ee); --grad: linear-gradient(120deg, #1475ad, #11afc2); --grad-btn: linear-gradient(110deg, #0c83b2, #18c0c7); --glow: 0 6px 20px rgba(17, 168, 195, 0.27); }
+.nav a[aria-current="page"] { box-shadow: 0 4px 16px rgba(31, 44, 64, 0.22); }
+.profile-btn { box-shadow: 0 4px 14px rgba(31, 44, 64, 0.22); }
+.home-hero .home-tile .value { color: #1f5f86; }
+.hero-big { color: var(--ink); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .home-hero .home-tile .value { color: var(--blue); } :root:not([data-theme="light"]) .home-hero .home-tile.red .value { color: var(--red-solid); } :root:not([data-theme="light"]) .home-hero .home-tile.amber .value { color: var(--amber-solid); } :root:not([data-theme="light"]) .home-hero .home-tile.green .value { color: var(--green); } }
+:root[data-theme="dark"] .home-hero .home-tile .value { color: var(--blue); }
+:root[data-theme="dark"] .home-hero .home-tile.red .value { color: var(--red-solid); }
+:root[data-theme="dark"] .home-hero .home-tile.amber .value { color: var(--amber-solid); }
+:root[data-theme="dark"] .home-hero .home-tile.green .value { color: var(--green); }
