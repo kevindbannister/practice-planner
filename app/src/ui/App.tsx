@@ -101,6 +101,8 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const { open } = useEditor();
   const chase = useChaseCount();
   const assistant = useAssistant();
+  const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
+  const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
   const nav: [string, string, IconName][] = [
     ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
   ];
@@ -122,17 +124,24 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
         {save.state === "error" && (
           <span className="save error" role="alert"><Icon name="alert" size={14} /><span className="save-text">Not saved: {save.error}</span></span>
         )}
-        {ready && <SearchButton />}
-        {ready && <Alerts />}
+        <div className={`bar-actions${tools ? "" : " collapsed"}`} id="bar-actions">
+          {ready && <SearchButton />}
+          {ready && <Alerts />}
+          {ready && (
+            <>
+              <button type="button" className="btn small hide-phone" onClick={assistant.toggle} aria-expanded={assistant.open}><Icon name="spark" size={16} /> Ask</button>
+              <button type="button" className="btn topbar-icon only-phone" aria-label="Ask the assistant" onClick={assistant.toggle}><Icon name="spark" size={20} /></button>
+              <button type="button" className="btn small primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
+              <button type="button" className="btn primary topbar-icon only-phone" aria-label="New task" onClick={() => open({ kind: "task" })}>
+                <Icon name="plus" size={20} />
+              </button>
+            </>
+          )}
+        </div>
         {ready && (
-          <>
-            <button type="button" className="btn small hide-phone" onClick={assistant.toggle} aria-expanded={assistant.open}><Icon name="spark" size={16} /> Ask</button>
-            <button type="button" className="btn topbar-icon only-phone" aria-label="Ask the assistant" onClick={assistant.toggle}><Icon name="spark" size={20} /></button>
-            <button type="button" className="btn small primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
-            <button type="button" className="btn primary topbar-icon only-phone" aria-label="New task" onClick={() => open({ kind: "task" })}>
-              <Icon name="plus" size={20} />
-            </button>
-          </>
+          <button type="button" className="bar-toggle hide-phone" aria-expanded={tools} aria-controls="bar-actions" aria-label={tools ? "Hide search, alerts, Ask and New task" : "Show search, alerts, Ask and New task"} title={tools ? "Hide tools" : "Search, alerts, Ask, New task"} onClick={toggleTools}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform: tools ? "none" : "rotate(180deg)", transformOrigin: "8px 8px", transition: "transform .2s" }} /></svg>
+          </button>
         )}
         <ProfileMenu user={user} demo={demo} />
       </div>

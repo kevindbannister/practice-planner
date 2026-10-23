@@ -2018,3 +2018,10 @@ body { display: flow-root; }
   .lead-split .lead-panel { top: 108px; }
   .hours-head { top: 96px; }
 }
+
+/* the tools (search, alerts, Ask, New task) fold away behind an arrow on desktop */
+.bar-actions { display: flex; align-items: center; gap: 8px; }
+.bar-toggle { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--blue-line); background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--blue-ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.bar-toggle:hover { background: var(--blue-soft); }
+@media (min-width: 721px) { .bar-actions.collapsed { display: none; } }
+@media (max-width: 720px) { .bar-actions { gap: 8px; } }
