@@ -1,4 +1,5 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
+import { AssistantSettings } from "./Assistant";
 import { RoutinesCard } from "./Routines";
 import { XeroSettings } from "./XeroSettings";
 // due, default hours and its stages); and Companies House checks.
@@ -52,6 +53,7 @@ export function SettingsPage() {
       {tab === "backups" && <BackupSettings />}
       {tab === "calendar" && <CalendarSettings />}
       {tab === "letters" && <CommsSettings />}
+      {tab === "letters" && <AssistantSettings />}
       {tab === "xero" && <XeroSettings />}
     </div>
   );

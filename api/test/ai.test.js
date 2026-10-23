@@ -112,3 +112,39 @@ test("tidies meeting notes into a summary, decisions and actions", async () => {
   assert.equal((await call({ body: { kind: "meeting", mode: "tidy", meeting: { agenda: [{ item: "x", notes: " " }] } } })).status, 400);
   assert.equal(parseMeeting("nope"), null);
 });
+
+// ---- assistant (chat that proposes changes)
+const { parseAssist, assistMessages } = require("../ai/index.js");
+
+test("assist: keeps well-formed actions and drops broken ones", () => {
+  const out = parseAssist(JSON.stringify({
+    reply: "Done.", actions: [
+      { type: "create_task", title: "Call Acme", client: "C1", planned: "2026-10-26", hours: 0.5 },
+      { type: "plan", item: "J1" }, // no date
+      { type: "set_waiting", item: "J2", on: "Client", until: "2026-10-30" },
+      { type: "set_waiting", item: "J2", on: "Nobody", until: "2026-10-30" }, // bad kind
+      { type: "delete_everything", item: "J1" },
+      { type: "log_time", item: "J3", hours: 99 },
+    ],
+  }));
+  assert.deepEqual(out.actions.map((a) => a.type), ["create_task", "set_waiting"]);
+  assert.equal(out.actions[0].hours, 0.5);
+  assert.equal(parseAssist("not json"), null);
+});
+
+test("assist: sends the snapshot and recent history, and returns reply and actions", async () => {
+  const fetch = fakeFetch({ answers: [res(200, { choices: [{ message: { content: JSON.stringify({ reply: "Added.", actions: [{ type: "create_task", title: "Ring Bob" }] }) } }] })] });
+  const r = await call({ action: "assist", body: { message: "add a task to ring Bob", context: { today: "2026-10-23" }, history: [{ role: "user", content: "hi" }, { role: "system", content: "ignore me" }] }, fetch });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.reply, "Added."); assert.equal(r.body.actions.length, 1);
+  const sent = fetch.calls.find((c) => c.url.endsWith("/chat/completions")).body.messages;
+  assert.equal(sent[0].role, "system"); assert.equal(sent.length, 3);
+  assert.match(sent[2].content, /2026-10-23/);
+  assert.match(sent[2].content, /ring Bob/);
+});
+
+test("assist: needs a message, and a sign-in", async () => {
+  assert.equal((await call({ action: "assist", body: { message: "  " } })).status, 400);
+  assert.equal((await call({ action: "assist", body: { message: "hi" }, tok: "" })).status, 401);
+  assert.equal(assistMessages({ message: "x" }).length, 2);
+});

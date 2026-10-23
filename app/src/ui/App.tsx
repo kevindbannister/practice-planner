@@ -17,6 +17,7 @@ import { SettingsPage } from "./SettingsPage";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
+import { AssistantProvider, useAssistant } from "./Assistant";
 import { PageBoundary } from "./ErrorBoundary";
 import { CommsPage } from "./Comms";
 import { PapersPage } from "./PapersPage";
@@ -80,10 +81,12 @@ export function App({ demo }: { demo: boolean }) {
       <CompaniesHouseProvider demo={demo}>
         <CalendarProvider demo={demo}>
           <EditorProvider>
-            <TopBar section={section} demo={demo} ready={status === "ready"} />
-            <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
-              {body}
-            </PageBoundary>
+            <AssistantProvider>
+              <TopBar section={section} demo={demo} ready={status === "ready"} />
+              <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
+                {body}
+              </PageBoundary>
+            </AssistantProvider>
           </EditorProvider>
         </CalendarProvider>
       </CompaniesHouseProvider>
@@ -95,6 +98,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const { save, user } = useData();
   const { open } = useEditor();
   const chase = useChaseCount();
+  const assistant = useAssistant();
   const nav: [string, string, IconName][] = [
     ["home", "Home", "home"], ["plan", "Plan", "plan"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["papers", "Papers", "list"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"],
     ["settings", "Settings", "settings"],
@@ -130,6 +134,8 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
         {ready && <Alerts />}
         {ready && (
           <>
+            <button type="button" className="btn small hide-phone" onClick={assistant.toggle} aria-expanded={assistant.open}><Icon name="spark" size={16} /> Ask</button>
+            <button type="button" className="btn topbar-icon only-phone" aria-label="Ask the assistant" onClick={assistant.toggle}><Icon name="spark" size={20} /></button>
             <button type="button" className="btn small primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
             <button type="button" className="btn primary topbar-icon only-phone" aria-label="New task" onClick={() => open({ kind: "task" })}>
               <Icon name="plus" size={20} />

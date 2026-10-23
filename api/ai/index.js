@@ -33,6 +33,77 @@ const SYSTEM = [
   "Reply with a JSON object only: {\"subject\": \"...\", \"body\": \"...\"}. The subject is a short, specific subject line.",
 ].join("\n");
 
+const SYSTEM_ASSIST = [
+  "You are the assistant inside Practice Planner, the planner a sole UK accountant uses to run his day. You answer questions about his work and propose changes to the planner.",
+  "You are given a JSON snapshot: today's date, today's kind of day, his plan for today with reasons, open jobs and tasks (each with a key), clients, business projects, kinds of day, and recently finished work.",
+  "Use British English. Be brief and direct. Use only the snapshot: never invent work, clients, dates or figures. If you aren't sure which item is meant, ask in your reply instead of guessing.",
+  "Propose changes only when he asks for something to be changed or created. He approves each one before anything happens, so propose exactly what he asked for and no more.",
+  "Dates are YYYY-MM-DD. Work out \"tomorrow\", \"Friday\", \"next week\" from today's date in the snapshot. Refer to items and clients only by the keys in the snapshot.",
+  "Reply with a JSON object only: {\"reply\": \"...\", \"actions\": [...]}. actions may be empty. Each action is one of:",
+  "{\"type\":\"create_task\",\"title\":\"...\",\"client\":\"client key, optional\",\"project\":\"project key, optional\",\"planned\":\"date, optional\",\"due\":\"date, optional\",\"hours\":number optional}",
+  "{\"type\":\"plan\",\"item\":\"item key\",\"date\":\"date\"}  (plan it on a day)",
+  "{\"type\":\"set_waiting\",\"item\":\"item key\",\"on\":\"Client|HMRC|Companies House|Someone else\",\"until\":\"chase date\",\"reason\":\"optional\"}",
+  "{\"type\":\"resume\",\"item\":\"item key\"}  (take it off hold or stop waiting)",
+  "{\"type\":\"set_day_type\",\"date\":\"date\",\"dayType\":\"kind-of-day key\"}",
+  "{\"type\":\"log_time\",\"item\":\"item key\",\"hours\":number}",
+  "{\"type\":\"set_urgent\",\"item\":\"item key\",\"urgent\":true or false}",
+].join("\n");
+
+const ASSIST_TYPES = {
+  create_task: ["title"], plan: ["item", "date"], set_waiting: ["item", "on", "until"], resume: ["item"],
+  set_day_type: ["date", "dayType"], log_time: ["item", "hours"], set_urgent: ["item", "urgent"],
+};
+const isDate = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const WAIT_ON = ["Client", "HMRC", "Companies House", "Someone else"];
+
+/** Pull {reply, actions} out of the model's answer, keeping only actions that are complete and well formed. */
+function parseAssist(text) {
+  let obj = null;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    const m = typeof text === "string" && text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try {
+        obj = JSON.parse(m[0]);
+      } catch {
+        obj = null;
+      }
+    }
+  }
+  if (!obj || typeof obj.reply !== "string") return null;
+  const actions = [];
+  for (const a of Array.isArray(obj.actions) ? obj.actions.slice(0, 10) : []) {
+    if (!a || !ASSIST_TYPES[a.type]) continue;
+    const need = ASSIST_TYPES[a.type];
+    if (need.some((f) => a[f] === undefined || a[f] === null || a[f] === "")) continue;
+    const out = { type: a.type };
+    for (const f of ["item", "client", "project", "title", "reason", "dayType"]) if (typeof a[f] === "string" && a[f].trim()) out[f] = a[f].trim().slice(0, 300);
+    for (const f of ["date", "planned", "due", "until"]) if (isDate(a[f])) out[f] = a[f];
+    if (typeof a.on === "string" && WAIT_ON.includes(a.on)) out.on = a.on;
+    if (typeof a.urgent === "boolean") out.urgent = a.urgent;
+    const h = Number(a.hours);
+    if (Number.isFinite(h) && h > 0 && h <= 24) out.hours = h;
+    if (need.some((f) => out[f] === undefined)) continue; // a needed field was malformed
+    actions.push(out);
+  }
+  return { reply: obj.reply.trim(), actions };
+}
+
+/** The messages for one chat turn: the system prompt, a little history, then the snapshot and question. */
+function assistMessages(b) {
+  const history = (Array.isArray(b.history) ? b.history : [])
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .slice(-8)
+    .map((m) => ({ role: m.role, content: clip(m.content, 1500) }));
+  const snapshot = JSON.stringify(b.context && typeof b.context === "object" ? b.context : {}).slice(0, 60000);
+  return [
+    { role: "system", content: SYSTEM_ASSIST },
+    ...history,
+    { role: "user", content: `Snapshot of the planner:\n${snapshot}\n\nHis message: ${clip(b.message, 2000)}` },
+  ];
+}
+
 const SYSTEM_MEETING = [
   "You tidy up an accountant's rough notes from a meeting or call with a client of a small UK accountancy and advisory practice.",
   "Use British English. Use only what the notes say: never invent figures, dates, decisions or actions. Keep names, amounts and dates exactly as written.",
@@ -155,10 +226,10 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
   }
 
-  async function complete(key, model, message, system = SYSTEM) {
+  async function complete(key, model, message, system = SYSTEM, messages) {
     const base = {
       model,
-      messages: [{ role: "system", content: system }, { role: "user", content: message }],
+      messages: messages || [{ role: "system", content: system }, { role: "user", content: message }],
       response_format: { type: "json_object" },
     };
     // reasoning models answer faster with low effort; others don't take the option
@@ -205,7 +276,11 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       return;
     }
 
-    if (action !== "write" || (req.method || "").toUpperCase() !== "POST") {
+    if (action !== "write" && action !== "assist") {
+      context.res = reply(400, { error: "bad-request", message: "That isn't something this app asks for." });
+      return;
+    }
+    if ((req.method || "").toUpperCase() !== "POST") {
       context.res = reply(400, { error: "bad-request", message: "That isn't something this app asks for." });
       return;
     }
@@ -215,7 +290,12 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
 
     const b = typeof req.body === "string" ? safeJson(req.body) : req.body || {};
-    const meeting = !!b && b.kind === "meeting" && b.mode === "tidy";
+    const assist = action === "assist";
+    if (assist && !clip(b && b.message, 2000).trim()) {
+      context.res = reply(400, { error: "bad-request", message: "Type what you want to ask or change." });
+      return;
+    }
+    const meeting = !assist && !!b && b.kind === "meeting" && b.mode === "tidy";
     if (meeting) {
       const m = b.meeting || {};
       const hasNotes = (typeof m.notes === "string" && m.notes.trim()) || (Array.isArray(m.agenda) && m.agenda.some((a) => a && typeof a.notes === "string" && a.notes.trim()));
@@ -223,6 +303,8 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
         context.res = reply(400, { error: "bad-request", message: "Add some notes first." });
         return;
       }
+    } else if (assist) {
+      /* checked above */
     } else if (!b || !["letter", "email"].includes(b.kind) || !["draft", "amend"].includes(b.mode)) {
       context.res = reply(400, { error: "bad-request", message: "Say whether it's a letter or an email, and a draft or a change." });
       return;
@@ -240,7 +322,9 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
 
     let res;
     try {
-      res = meeting ? await complete(key, model, meetingMessage(b), SYSTEM_MEETING) : await complete(key, model, userMessage(b));
+      res = assist
+        ? await complete(key, model, "", SYSTEM_ASSIST, assistMessages(b))
+        : meeting ? await complete(key, model, meetingMessage(b), SYSTEM_MEETING) : await complete(key, model, userMessage(b));
     } catch (e) {
       const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
       context.res = reply(timeout ? 504 : 502, {
@@ -253,7 +337,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (res.ok) {
       const json = await res.json();
       const text = json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
-      const answer = meeting ? parseMeeting(text) : parseAnswer(text);
+      const answer = assist ? parseAssist(text) : meeting ? parseMeeting(text) : parseAnswer(text);
       if (!answer) {
         context.res = reply(502, { error: "bad-answer", message: "OpenAI's answer couldn't be read. Try again." });
         return;
@@ -292,3 +376,5 @@ module.exports.parseAnswer = parseAnswer;
 module.exports.userMessage = userMessage;
 module.exports.pickModel = pickModel;
 module.exports.parseMeeting = parseMeeting;
+module.exports.parseAssist = parseAssist;
+module.exports.assistMessages = assistMessages;

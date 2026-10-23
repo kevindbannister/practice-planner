@@ -24,6 +24,10 @@ export type MeetingRequest = {
   model?: string;
 };
 
+export type AssistTurn = { role: "user" | "assistant"; content: string };
+export type AssistRequest = { message: string; context: Record<string, unknown>; history?: AssistTurn[]; model?: string };
+export type AssistAnswer = { reply: string; actions: unknown[]; model?: string };
+
 export class AiError extends Error {
   constructor(public code: string, message: string) {
     super(message);
@@ -34,6 +38,7 @@ export interface AiApi {
   status(model?: string): Promise<AiStatus>;
   write(req: AiRequest): Promise<AiAnswer>;
   tidyMeeting(req: MeetingRequest): Promise<MeetingTidy>;
+  assist(req: AssistRequest): Promise<AssistAnswer>;
 }
 
 export class HttpAi implements AiApi {
@@ -66,6 +71,9 @@ export class HttpAi implements AiApi {
   write(req: AiRequest): Promise<AiAnswer> {
     return this.call("write", { method: "POST", body: JSON.stringify(req) });
   }
+  assist(req: AssistRequest): Promise<AssistAnswer> {
+    return this.call("assist", { method: "POST", body: JSON.stringify(req) });
+  }
   tidyMeeting(req: MeetingRequest): Promise<MeetingTidy> {
     return this.call("write", { method: "POST", body: JSON.stringify({ kind: "meeting", mode: "tidy", ...req }) });
   }
@@ -73,6 +81,19 @@ export class HttpAi implements AiApi {
 
 /** Demo stand-in: writes plausible text from the brief, and applies a few simple changes. */
 export class FakeAi implements AiApi {
+  /** Demo stand-in for the chat: understands "add a task to …" and "what's urgent". */
+  async assist(req: AssistRequest): Promise<AssistAnswer> {
+    await new Promise((r) => setTimeout(r, 400));
+    const m = req.message.trim();
+    const ctx = req.context as { today?: string; work?: { key: string; title: string; deadline?: string }[] };
+    const add = /^(?:please )?(?:add|create|new)(?: a)? task(?: to| for|:)?\s+(.+)/i.exec(m);
+    if (add) return { reply: `I'll add a task: ${add[1]}.`, actions: [{ type: "create_task", title: add[1].replace(/\.$/, ""), planned: ctx.today }], model: "demo-assistant" };
+    if (/urgent|first|next|today/i.test(m)) {
+      const top = (ctx.work || []).filter((w) => w.deadline).slice(0, 3);
+      return { reply: top.length ? `The nearest deadlines are: ${top.map((w) => `${w.title} (${w.deadline})`).join("; ")}.` : "Nothing has a deadline coming up.", actions: [], model: "demo-assistant" };
+    }
+    return { reply: "In the demo I can add a task (try \"add a task to ring the bank\") or tell you what's urgent. The real assistant understands much more.", actions: [], model: "demo-assistant" };
+  }
   async tidyMeeting(req: MeetingRequest): Promise<MeetingTidy> {
     await new Promise((r) => setTimeout(r, 400));
     const items = req.meeting.agenda.filter((a) => a.notes.trim());
