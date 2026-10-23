@@ -2070,3 +2070,15 @@ body { display: flow-root; }
 .brand-logo { width: 110px; max-width: none; flex: none; }
 @media (max-width: 720px) { .brand-logo { width: 82px; } }
 @media (max-width: 380px) { .brand-logo { width: 69px; } }
+
+/* a soft fade behind the floating menu, so content scrolling up slips away under it */
+:root { --fade: 246, 249, 254; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fade: 6, 16, 29; } }
+:root[data-theme="dark"] { --fade: 6, 16, 29; }
+@media (min-width: 721px) {
+  body::before { content: ""; position: fixed; left: 0; right: 0; top: 0; height: 120px; z-index: 9; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(var(--fade), 0.97) 0, rgba(var(--fade), 0.9) 45%, rgba(var(--fade), 0) 100%);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
+}
+@media print { body::before { display: none; } }
