@@ -46,7 +46,7 @@ export function ClientsPage() {
   });
 
   const selected = selectedKey ? idx.clientByKey.get(selectedKey) : undefined;
-  const select = (key?: string) => go(key ? `/clients?c=${encodeURIComponent(key)}` : "/clients");
+  const select = (key?: string) => go(key ? `/clients/all?c=${encodeURIComponent(key)}` : "/clients/all");
 
   return (
     <div className="split">
@@ -58,7 +58,7 @@ export function ClientsPage() {
               {data.clients.length} clients · {attentionCount} need attention
             </p>
           </div>
-          <ElementsImport />
+          <div className="row-wrap"><a className="btn" href="#/clients">Back to clients</a><ElementsImport /></div>
         </div>
 
         <div className="row-wrap">

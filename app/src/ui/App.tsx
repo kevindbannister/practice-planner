@@ -56,9 +56,11 @@ export function App({ demo }: { demo: boolean }) {
     );
   } else if (status === "needs-setup" || section === "setup") {
     body = <SetupPage />;
+  } else if (section === "clients" && parts[1] === "all") {
+    body = <ClientsPage />;
   } else if (section === "clients" && parts[1]) {
     body = <ClientPage clientKey={parts[1]} tab={(["work", "comms", "meetings", "tax"].includes(parts[2]) ? parts[2] : "overview") as "overview"} />;
-  } else if (section === "groups") {
+  } else if (section === "groups" || section === "clients") {
     body = <GroupsPage />;
   } else if (section === "home") {
     body = <HomePage />;
@@ -100,8 +102,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const chase = useChaseCount();
   const assistant = useAssistant();
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["papers", "Papers", "list"], ["clients", "Clients", "clients"], ["groups", "Groups", "groups"],
-    ["settings", "Settings", "settings"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
   ];
   return (
     <header className="topbar">
@@ -109,7 +110,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
         <Brand />
         <nav className="nav" aria-label="Main">
           {nav.map(([k, label, icon]) => (
-            <a key={k} href={`#/${k}`} aria-current={section === k ? "page" : undefined}>
+            <a key={k} href={`#/${k}`} aria-current={section === k || (k === "clients" && section === "groups") ? "page" : undefined}>
               <Icon name={icon} size={22} />
               {label}
               {k === "chase" && ready && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
@@ -190,7 +191,10 @@ function GroupsPage() {
   const today = todayIso();
   return (
     <div className="page">
-      <div className="page-head"><h1>Groups</h1></div>
+      <div className="page-head">
+        <h1>Clients</h1>
+        <a className="btn" href="#/clients/all">Open full client list</a>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
         {data.groups.map((g) => {
           const members = idx.membersByGroup.get(g.Key as string) || [];

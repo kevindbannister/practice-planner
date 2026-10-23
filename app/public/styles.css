@@ -1571,7 +1571,7 @@ button.paper-group-name { min-height: 44px; }
 .lead-toggle { min-height: 44px; }
 .stage, .day-add { min-height: 44px; }
 @media (max-width: 720px) {
-  .nav { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .nav { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .nav a { font-size: 10.5px; }
   .brand { font-size: 15px; line-height: 1.15; }
 }
