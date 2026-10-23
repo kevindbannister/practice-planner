@@ -28,7 +28,6 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
   if (!c) {
     return (
       <div className="page">
-        <a className="crumb" href="#/clients">Clients</a>
         <div className="card empty">That client couldn't be found.</div>
       </div>
     );
@@ -42,10 +41,9 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
   const loe = loeLabel(c.LoEStatus);
 
   return (
-    <div className="page">
+    <div className="page client-page">
       <div className="page-head">
         <div className="stack" style={{ gap: 8 }}>
-          <a className="crumb" href="#/clients">Clients</a>
           <div className="row-wrap" style={{ gap: "8px 14px" }}>
             <h1>{c.Title}</h1>
             <LogoPicker client={c} />
@@ -64,6 +62,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         </div>
         <div className="row-wrap">
           {ch && <a className="btn" href={ch} target="_blank" rel="noreferrer">Companies House</a>}
+          {elementsUrl(c) && <a className="btn" href={elementsUrl(c)} target="_blank" rel="noreferrer noopener" title="Open this client in Iris Elements">Iris Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span></a>}
           {c.Email && <a className="btn" href={`mailto:${c.Email}`}>Email</a>}
         </div>
       </div>
@@ -654,9 +653,6 @@ function ElementsRow({ client: c }: { client: Client }) {
   };
   return (
     <div className="row-wrap" style={{ gap: 10 }}>
-      <span className="muted" style={{ fontSize: 13 }}>Iris Elements</span>
-      {url ? <ElementsLink client={c} /> : <span className="muted" style={{ fontSize: 13 }}>No link yet</span>}
-      {url && <CopyButton value={url} label="Elements link" />}
       {editing ? (
         <span className="elements-edit">
           <label className="sr-only" htmlFor="elements-link-input">Elements link for {c.Title}</label>
@@ -667,7 +663,7 @@ function ElementsRow({ client: c }: { client: Client }) {
           {error && <span className="error-text" role="alert">{error}</span>}
         </span>
       ) : (
-        <button type="button" className="linkbtn" style={{ minHeight: 0, fontSize: 13 }} onClick={start}>{url ? "Edit link" : "Add link"}</button>
+        <button type="button" className="linkbtn" style={{ minHeight: 0, fontSize: 13 }} onClick={start}>{url ? "Edit Elements link" : "Add Iris Elements link"}</button>
       )}
     </div>
   );
