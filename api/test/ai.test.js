@@ -171,3 +171,20 @@ test("emails: sends the previews and returns verdicts", async () => {
   assert.match(sent, /Call me/);
   assert.equal((await call({ action: "emails", body: { emails: [] } })).status, 400);
 });
+
+// ---- bank statement categories
+const { parseBank } = require("../ai/index.js");
+
+test("bank: only asked-about ids and given category keys are kept", () => {
+  const out = parseBank(JSON.stringify({ items: [{ id: "1", cat: "sales", why: "customer" }, { id: "2", cat: "madeup" }, { id: "9", cat: "sales" }, { id: "3", cat: "rent" }] }), ["1", "2", "3"], ["sales", "rent"]);
+  assert.deepEqual(out.map((e) => e.id), ["1", "3"]);
+});
+
+test("bank: sends descriptions and amounts and returns categories", async () => {
+  const fetch = fakeFetch({ answers: [res(200, { choices: [{ message: { content: JSON.stringify({ items: [{ id: "t1", cat: "rent" }] }) } }] })] });
+  const body = { company: "Acme Ltd", categories: [{ key: "rent", name: "Rent", hint: "premises" }], items: [{ id: "t1", detail: "LANDLORD LTD", amount: -500 }] };
+  const r = await call({ action: "bank", body, fetch });
+  assert.equal(r.status, 200); assert.equal(r.body.items[0].cat, "rent");
+  assert.match(fetch.calls.find((c) => c.url.endsWith("/chat/completions")).body.messages[1].content, /LANDLORD LTD/);
+  assert.equal((await call({ action: "bank", body: { items: [] } })).status, 400);
+});

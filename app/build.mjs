@@ -11,6 +11,9 @@ const demo = process.argv.includes("--demo") || serve;
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
 cpSync("public", "dist", { recursive: true });
+// pdf.js, for reading PDF bank statements: served from the site itself (the security policy allows nothing else)
+mkdirSync("dist/pdf", { recursive: true });
+for (const f of ["pdf.min.mjs", "pdf.worker.min.mjs"]) cpSync(`node_modules/pdfjs-dist/build/${f}`, `dist/pdf/${f}`);
 
 const options = {
   entryPoints: ["src/main.tsx"],

@@ -149,6 +149,49 @@ function emailsMessage(b) {
   return { list, text: `Today is ${clip(b.today, 10)}.\nEmails:\n${JSON.stringify(list, null, 1)}` };
 }
 
+
+const SYSTEM_BANK = [
+  "You sort the transactions on a UK limited company's bank statement into accounting categories, for an accountant preparing working papers from manual records.",
+  "You are given the categories (key, name, what it means) and a list of transactions: an id, the description, the bank's own type and category label, and the amount (positive is money in, negative is money out).",
+  "Choose exactly one category key for each transaction, using only the keys given. If you can't tell what it is, use \"suspense\" rather than guessing, and say why.",
+  "Think as a UK accountant: payments to a director with salary in the description are directors' remuneration; payments to HMRC need the reference to tell PAYE, VAT or corporation tax apart (use \"suspense\" if it isn't clear); money in from customers is sales; transfers between the company's own accounts are \"transfer\".",
+  "Reply with a JSON object only: {\"items\": [{\"id\": \"...\", \"cat\": \"key\", \"why\": \"a few words\"}]} with one entry per transaction.",
+].join("\n");
+
+/** The AI's categories for a batch of transactions, checked: only ids asked about and category keys given. */
+function parseBank(text, ids, keys) {
+  let obj = null;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    const m = typeof text === "string" && text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try {
+        obj = JSON.parse(m[0]);
+      } catch {
+        obj = null;
+      }
+    }
+  }
+  if (!obj || !Array.isArray(obj.items)) return null;
+  const out = [];
+  for (const e of obj.items) {
+    if (!e || typeof e.id !== "string" || !ids.includes(e.id) || typeof e.cat !== "string" || !keys.includes(e.cat)) continue;
+    const v = { id: e.id, cat: e.cat };
+    if (typeof e.why === "string" && e.why.trim()) v.why = e.why.trim().slice(0, 120);
+    out.push(v);
+  }
+  return out;
+}
+
+function bankMessage(b) {
+  const cats = (Array.isArray(b.categories) ? b.categories : []).slice(0, 60).map((c) => ({ key: clip(c && c.key, 30), name: clip(c && c.name, 60), hint: clip(c && c.hint, 140) })).filter((c) => c.key);
+  const list = (Array.isArray(b.items) ? b.items : []).slice(0, 80).map((t) => ({
+    id: clip(t && t.id, 60), description: clip(t && t.detail, 140), type: clip(t && t.type, 40), bankLabel: clip(t && t.bankCategory, 40), amount: Number(t && t.amount) || 0,
+  })).filter((t) => t.id);
+  return { cats, list, text: `Company: ${clip(b.company, 120)}${b.business ? ` (${clip(b.business, 120)})` : ""}\nCategories:\n${JSON.stringify(cats)}\nTransactions:\n${JSON.stringify(list, null, 1)}` };
+}
+
 const SYSTEM_MEETING = [
   "You tidy up an accountant's rough notes from a meeting or call with a client of a small UK accountancy and advisory practice.",
   "Use British English. Use only what the notes say: never invent figures, dates, decisions or actions. Keep names, amounts and dates exactly as written.",
@@ -321,7 +364,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       return;
     }
 
-    if (action !== "write" && action !== "assist" && action !== "emails") {
+    if (action !== "write" && action !== "assist" && action !== "emails" && action !== "bank") {
       context.res = reply(400, { error: "bad-request", message: "That isn't something this app asks for." });
       return;
     }
@@ -336,6 +379,34 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
 
     const b = typeof req.body === "string" ? safeJson(req.body) : req.body || {};
     const assist = action === "assist";
+    if (action === "bank") {
+      const pack = bankMessage(b || {});
+      if (!pack.list.length || !pack.cats.length) {
+        context.res = reply(400, { error: "bad-request", message: "No transactions to sort." });
+        return;
+      }
+      const model = pickModel(await listModels(key), typeof b.model === "string" && /^[a-z0-9.\-:_]{1,64}$/i.test(b.model) ? b.model : "", env);
+      let r;
+      try {
+        r = await complete(key, model, pack.text, SYSTEM_BANK);
+      } catch (e) {
+        const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
+        context.res = reply(timeout ? 504 : 502, { error: timeout ? "timeout" : "unreachable", message: timeout ? "OpenAI took too long to answer. Try again." : "OpenAI didn't answer. Try again shortly." });
+        return;
+      }
+      if (!r.ok) {
+        context.res = reply(502, { error: "upstream", status: r.status, message: `OpenAI returned an error (${r.status}).` });
+        return;
+      }
+      const j = await r.json();
+      const items = parseBank(j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content, pack.list.map((t) => t.id), pack.cats.map((c) => c.key));
+      if (!items) {
+        context.res = reply(502, { error: "bad-answer", message: "OpenAI's answer couldn't be read. Try again." });
+        return;
+      }
+      context.res = reply(200, { items, model });
+      return;
+    }
     if (action === "emails") {
       const pack = emailsMessage(b || {});
       if (!pack.list.length) {
@@ -451,4 +522,5 @@ module.exports.pickModel = pickModel;
 module.exports.parseMeeting = parseMeeting;
 module.exports.parseAssist = parseAssist;
 module.exports.parseEmails = parseEmails;
+module.exports.parseBank = parseBank;
 module.exports.assistMessages = assistMessages;

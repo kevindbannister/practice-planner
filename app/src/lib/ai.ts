@@ -28,6 +28,10 @@ export type AssistTurn = { role: "user" | "assistant"; content: string };
 export type AssistRequest = { message: string; context: Record<string, unknown>; history?: AssistTurn[]; model?: string };
 export type AssistAnswer = { reply: string; actions: unknown[]; model?: string };
 
+export type BankItem = { id: string; detail: string; type?: string; bankCategory?: string; amount: number };
+export type BankRequest = { company: string; business?: string; categories: { key: string; name: string; hint: string }[]; items: BankItem[]; model?: string };
+export type BankVerdict = { id: string; cat: string; why?: string };
+
 export type EmailVerdict = { id: string; needsAction: boolean; title?: string; due?: string; hours?: number; why?: string };
 
 export class AiError extends Error {
@@ -42,6 +46,7 @@ export interface AiApi {
   tidyMeeting(req: MeetingRequest): Promise<MeetingTidy>;
   assist(req: AssistRequest): Promise<AssistAnswer>;
   emails(req: { today: string; emails: Record<string, unknown>[]; model?: string }): Promise<{ emails: EmailVerdict[] }>;
+  bank(req: BankRequest): Promise<{ items: BankVerdict[] }>;
 }
 
 export class HttpAi implements AiApi {
@@ -77,6 +82,9 @@ export class HttpAi implements AiApi {
   emails(req: { today: string; emails: Record<string, unknown>[]; model?: string }): Promise<{ emails: EmailVerdict[] }> {
     return this.call("emails", { method: "POST", body: JSON.stringify(req) });
   }
+  bank(req: BankRequest): Promise<{ items: BankVerdict[] }> {
+    return this.call("bank", { method: "POST", body: JSON.stringify(req) });
+  }
   assist(req: AssistRequest): Promise<AssistAnswer> {
     return this.call("assist", { method: "POST", body: JSON.stringify(req) });
   }
@@ -87,6 +95,11 @@ export class HttpAi implements AiApi {
 
 /** Demo stand-in: writes plausible text from the brief, and applies a few simple changes. */
 export class FakeAi implements AiApi {
+  /** Demo stand-in: money in is sales, everything else is sundry. */
+  async bank(req: BankRequest): Promise<{ items: BankVerdict[] }> {
+    await new Promise((r) => setTimeout(r, 300));
+    return { items: req.items.map((t) => ({ id: t.id, cat: t.amount > 0 ? "sales" : "sundry", why: "Demo: the AI would judge this from the description" })) };
+  }
   /** Demo stand-in: says every email needs action, tidying the title. */
   async emails(req: { emails: Record<string, unknown>[] }): Promise<{ emails: EmailVerdict[] }> {
     await new Promise((r) => setTimeout(r, 300));
