@@ -2035,3 +2035,5 @@ body { display: flow-root; }
 @media (prefers-reduced-motion: reduce) { .bar-actions, .bar-actions-in { transition: none !important; } }
 .bar-actions-in { white-space: nowrap; }
 .bar-actions-in > * { flex: none; }
+/* the fold clips sideways only, so the alert count can overlap the top edge of the bar */
+.bar-actions-in { overflow: visible; clip-path: inset(-14px 0 -14px 0); }
