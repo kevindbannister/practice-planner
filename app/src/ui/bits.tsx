@@ -119,18 +119,8 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
 
 export function Brand() {
   return (
-    <a className="brand" href="#/home">
-      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-        <defs>
-          <linearGradient id="pp-mark" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#2a78d6" />
-            <stop offset="1" stopColor="#6250d6" />
-          </linearGradient>
-        </defs>
-        <rect x="1" y="1" width="24" height="24" rx="6" fill="url(#pp-mark)" />
-        <path d="M7 9h12M7 13h8M7 17h5" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-      <span className="brand-name">Practice Planner</span>
+    <a className="brand" href="#/home" aria-label="xproflow, home">
+      <img className="brand-logo" src="logo.png" alt="xproflow" width={110} height={24} />
     </a>
   );
 }

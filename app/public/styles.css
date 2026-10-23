@@ -1708,3 +1708,13 @@ a.chip { text-decoration: none; } a.chip:hover { text-decoration: underline; }
 .assist-input textarea { flex: 1; resize: none; }
 .assist-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .assist-log li { display: flex; flex-direction: column; gap: 2px; font-size: 13px; padding-bottom: 8px; border-bottom: 1px solid var(--line-2); }
+
+/* Logo: the xproflow wordmark; in dark mode the navy is shown near-white so it can be read */
+.brand-logo { display: block; height: 24px; width: auto; max-width: none; }
+.brand { flex-shrink: 0; }
+@media (max-width: 720px) { .brand-logo { height: 18px; } }
+/* on the narrowest phones the header buttons need the room; a save problem still shows at the bottom */
+@media (max-width: 420px) { .topbar .save.saved, .topbar .save.saving { display: none; } .topbar-right { gap: 6px; } }
+@media (max-width: 380px) { .brand-logo { height: 15px; } .topbar { padding-left: 12px; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-logo { filter: brightness(0) invert(0.94); } }
+:root[data-theme="dark"] .brand-logo { filter: brightness(0) invert(0.94); }
