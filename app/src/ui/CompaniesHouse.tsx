@@ -4,11 +4,12 @@
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getAccessToken } from "../lib/auth";
 import {
-  ChApi, ChError, HttpCh, Proposal, chDeadlines, chNumber, compareCompany, flagAction, isCompany, people, reconcile, statusText,
+  ChApi, ChError, HttpCh, Proposal, chDeadlines, chNumber, compareCompany, flagAction, isCompany, isPlannerType, people, reconcile, statusText,
 } from "../lib/companiesHouse";
+import { plannerChecks } from "../lib/plannerChecks";
 import { Client, fmtDate, isOpen, todayIso } from "../lib/domain";
 import { FakeCh } from "../lib/fakeCh";
-import { newKey, rollForward, ruleFor } from "../lib/planning";
+import { BUILT_IN_RULES, addDays, newKey, rollForward, ruleFields, ruleFor } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { ClientBadge, companiesHouseUrl, href } from "./bits";
 import { useData, useIndex } from "./data";
@@ -24,6 +25,8 @@ type ChCtx = {
   lastRun?: LastRun;
   openFlags: Row[];
   run: (auto?: boolean) => Promise<void>;
+  /** The planner's own checks (no internet needed). */
+  check: () => Promise<number>;
   test: () => Promise<string>;
   apply: (flag: Row) => Promise<void>;
   setStatus: (flag: Row, status: "Ignored" | "Open") => Promise<void>;
@@ -73,6 +76,17 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
     throw e;
   });
 
+  const check = useCallback(async () => {
+    const { data, create, update: upd } = latest.current;
+    const today = todayIso();
+    const found = plannerChecks({ clients: data.clients, jobs: data.jobs, services: data.services, today });
+    const scope = new Set<string>([...data.clients.map((c) => c.Key), ""]);
+    const writes = reconcile(found, data.chFlags, scope, today, isPlannerType);
+    for (const row of writes.create) await create("CHFlags", row);
+    for (const w of writes.update) await upd("CHFlags", w.row, w.patch);
+    return found.length;
+  }, []);
+
   const run = useCallback(async (auto = false) => {
     if (running.current) return;
     running.current = true;
@@ -116,6 +130,7 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
       for (const row of writes.create) await create("CHFlags", row);
       for (const w of writes.update) await upd("CHFlags", w.row, w.patch);
       await saveSetting("ch.people", nextPeople);
+      await check(); // Companies House dates may have changed what the planner's own checks find
       await latest.current.saveSetting("ch.lastRun", {
         at: new Date().toISOString(), companies: companies.length, checked: checked.size, errors, auto,
       } satisfies LastRun);
@@ -126,7 +141,15 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
     } finally {
       running.current = false;
     }
-  }, [demo, get]);
+  }, [demo, get, check]);
+
+  // the planner's own checks, once each time the planner opens
+  const checkedOnce = useRef(false);
+  useEffect(() => {
+    if (ctx.status !== "ready" || checkedOnce.current) return;
+    checkedOnce.current = true;
+    void check();
+  }, [ctx.status, check]);
 
   // the daily check, the first time the planner opens after 20 hours
   useEffect(() => {
@@ -177,6 +200,17 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
       });
     } else if (a.do === "client" && client) {
       await update("Clients", client, a.patch);
+    } else if (a.do === "deadline" && job) {
+      await update("Jobs", job, { Deadline: a.Deadline, DeadlineSource: "Calculated" });
+    } else if (a.do === "service-rule") {
+      const row = data.services.find((s) => s.Key === a.serviceKey);
+      const std = BUILT_IN_RULES[a.serviceKey];
+      if (row && std) await update("Services", row, ruleFields(std));
+    } else if (a.do === "task" && client) {
+      await create("Tasks", {
+        Key: newKey("T"), Title: a.title, ClientKey: client.Key, ClientName: client.Title, Status: "Open",
+        DueDate: addDays(today, a.dueInDays), EstimateHours: a.hours, Notes: "Added from a planner check.",
+      });
     }
     await update("CHFlags", flag, { Status: a.do === "none" ? "Seen" : "Applied", Resolved: today });
   }, []);
@@ -188,8 +222,8 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
   const openFlags = useMemo(() => ctx.data.chFlags.filter((f) => f.Status === "Open"), [ctx.data.chFlags]);
 
   const value = useMemo(
-    () => ({ progress, lastRun, openFlags, run, test, apply, setStatus }),
-    [progress, lastRun, openFlags, run, test, apply, setStatus],
+    () => ({ progress, lastRun, openFlags, run, check, test, apply, setStatus }),
+    [progress, lastRun, openFlags, run, check, test, apply, setStatus],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -308,6 +342,13 @@ export function CompaniesHouseSettings() {
           <li>Registered office and company name</li>
           <li>Directors, officers and people with significant control joining or leaving (from the second check on)</li>
         </ul>
+        <h3 style={{ margin: "8px 0 0", fontSize: 15 }}>Planner checks (every time you open the planner)</h3>
+        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6, fontSize: 14 }}>
+          <li>Job deadlines that differ from the statutory date, are missing, or fall before the period end</li>
+          <li>The same job on the planner twice for one period</li>
+          <li>A deadline rule in Settings that no longer matches the statutory one</li>
+          <li>Work due within 60 days for a client with no AML check or engagement letter (Apply adds a task)</li>
+        </ul>
       </section>
     </div>
   );
@@ -332,7 +373,7 @@ function FlagRow({ flag: f, past }: { flag: Row; past?: boolean }) {
       setBusy(false);
     }
   };
-  const label = `${client?.Title || f.ClientKey}: ${f.Title}`;
+  const label = `${client?.Title || f.ClientKey || "Settings"}: ${f.Title}`;
   const sev = f.Severity === "red" ? "red" : f.Severity === "amber" ? "amber" : "blue";
   const statusChip = { Applied: "green", Ignored: "", Seen: "", Resolved: "green" }[f.Status as string] ?? "";
 
@@ -342,8 +383,8 @@ function FlagRow({ flag: f, past }: { flag: Row; past?: boolean }) {
         {client && <ClientBadge client={client} />}
         <div className="stack" style={{ gap: 4, minWidth: 0 }}>
           <div className="row-wrap" style={{ gap: 6 }}>
-            {client ? <a className="cell-title" href={href("clients", client.Key)}>{client.Title}</a> : <span>{f.ClientKey}</span>}
-            {!past && <span className={`chip ${sev}`}>{f.Severity === "red" ? "Important" : f.Severity === "amber" ? "Planner" : "For info"}</span>}
+            {client ? <a className="cell-title" href={href("clients", client.Key)}>{client.Title}</a> : f.ClientKey ? <span>{f.ClientKey}</span> : <span className="cell-title">Settings</span>}
+            {!past && <span className={`chip ${sev}`}>{f.Severity === "red" ? "Important" : isPlannerType(f.Type) ? "Planner check" : f.Severity === "amber" ? "Planner" : "For info"}</span>}
             {past && <span className={`chip ${statusChip}`}>{f.Status} {f.Resolved ? fmtDate(f.Resolved as string, { year: false }) : ""}</span>}
           </div>
           <strong style={{ fontSize: 14 }}>{f.Title}</strong>
@@ -353,7 +394,7 @@ function FlagRow({ flag: f, past }: { flag: Row; past?: boolean }) {
         </div>
       </div>
       <div className="ch-actions">
-        {client?.CompanyNumber && (
+        {client?.CompanyNumber && !isPlannerType(f.Type) && (
           <a className="linkbtn" href={companiesHouseUrl(chNumber(client))} target="_blank" rel="noreferrer">View at Companies House</a>
         )}
         {past ? (
@@ -402,7 +443,7 @@ export function useChAlerts(): { key: string; level: "red" | "amber"; title: str
     key: f.Key as string,
     level: f.Severity === "red" ? "red" : "amber",
     title: `${idx.clientByKey.get(f.ClientKey as string)?.Title || ""}: ${f.Title}`,
-    detail: "Companies House · review in Settings",
+    detail: `${isPlannerType(f.Type) ? "Planner check" : "Companies House"} · review in Settings`,
   }));
 }
 

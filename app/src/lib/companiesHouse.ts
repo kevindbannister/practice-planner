@@ -121,7 +121,12 @@ export function statusText(p: ChProfile): string {
 // ------------------------------------------------------------------ comparing
 
 export type FlagType =
-  | "filed" | "dates" | "missing" | "not-filed" | "overdue" | "status" | "office" | "name" | "officers" | "pscs" | "not-found";
+  | "filed" | "dates" | "missing" | "not-filed" | "overdue" | "status" | "office" | "name" | "officers" | "pscs" | "not-found"
+  | "deadline-order" | "deadline-missing" | "deadline-rule" | "period" | "duplicate" | "service-rule" | "aml" | "loe";
+
+/** The findings that come from the planner's own checks rather than Companies House. */
+export const PLANNER_TYPES: FlagType[] = ["deadline-order", "deadline-missing", "deadline-rule", "period", "duplicate", "service-rule", "aml", "loe"];
+export const isPlannerType = (t: unknown) => PLANNER_TYPES.includes(t as FlagType);
 
 /** What Apply does, stored with the flag. Info-only flags have no action. */
 export type FlagAction =
@@ -129,6 +134,9 @@ export type FlagAction =
   | { do: "dates"; jobKey: string; PeriodEnd: string; Deadline: string }
   | { do: "create"; serviceKey: string; PeriodEnd: string; Deadline: string }
   | { do: "client"; patch: Record<string, string> }
+  | { do: "deadline"; jobKey: string; Deadline: string }
+  | { do: "service-rule"; serviceKey: string }
+  | { do: "task"; title: string; clientKey: string; dueInDays: number; hours: number }
   | { do: "none"; seen: string };
 
 export type Proposal = {
@@ -353,7 +361,7 @@ const signature = (p: Proposal) => JSON.stringify(p.action);
  * applied stay that way unless Companies House's values change; open ones that no longer
  * apply are marked Resolved. Only companies checked in this run are touched.
  */
-export function reconcile(found: Proposal[], flags: Row[], checkedClients: Set<string>, today: string): FlagWrites {
+export function reconcile(found: Proposal[], flags: Row[], checkedClients: Set<string>, today: string, scope: (type: unknown) => boolean = (t) => !isPlannerType(t)): FlagWrites {
   const writes: FlagWrites = { create: [], update: [] };
   const byKey = new Map(flags.map((f) => [f.Key as string, f]));
   const seen = new Set<string>();
@@ -376,7 +384,7 @@ export function reconcile(found: Proposal[], flags: Row[], checkedClients: Set<s
     }
   }
   for (const f of flags) {
-    if (f.Status !== "Open" || seen.has(f.Key as string) || !checkedClients.has(f.ClientKey as string)) continue;
+    if (f.Status !== "Open" || seen.has(f.Key as string) || !scope(f.Type) || !checkedClients.has(f.ClientKey as string)) continue;
     if (EVENT_TYPES.includes(f.Type as FlagType)) continue;
     writes.update.push({ row: f, patch: { Status: "Resolved", Resolved: today } });
   }

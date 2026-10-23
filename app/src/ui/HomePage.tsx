@@ -145,7 +145,7 @@ export function HomePage() {
         <Tile href="#/plan/deadlines" tone={next7Unplanned.length ? "amber" : ""} label="Due in 7 days" icon="plan" hue="hue-blue" value={String(next7.length)} sub={next7Unplanned.length ? `${next7Unplanned.length} not planned` : next7.length ? "All planned" : "Nothing due"} />
         <Tile href="#/plan" tone={due30Unplanned.length ? "amber" : ""} label="Due in 30 days, not planned" icon="clock" hue="hue-amber" value={String(due30Unplanned.length)} sub={`${fmtHours(due30Unplanned.reduce((t, w) => t + w.hours, 0)) || "0h"} to fit in`} />
         <Tile href="#/chase" tone={chase.some((g) => g.status === "late") ? "amber" : ""} label="Records to chase" icon="mail" hue="hue-pink" value={String(chase.length)} sub={chase.length ? `${chase.filter((g) => g.status === "late").length} late` : "Nobody to chase"} />
-        <Tile href="#/settings/companies-house" tone={ch.openFlags.length ? "amber" : ""} label="Companies House" icon="building" hue="hue-aqua" value={String(ch.openFlags.length)} sub={ch.openFlags.length ? "changes to review" : ch.lastRun ? "No changes" : "Not checked yet"} />
+        <Tile href="#/settings/companies-house" tone={ch.openFlags.length ? "amber" : ""} label="Checks" icon="building" hue="hue-aqua" value={String(ch.openFlags.length)} sub={ch.openFlags.length ? "to review" : "Nothing to review"} />
         <Tile href="#/plan" tone={doneThisWeek ? "green" : ""} label="Done this week" icon="check" hue="hue-green" value={String(doneThisWeek)} sub="jobs and tasks completed" />
       </div>
 
@@ -243,7 +243,7 @@ export function HomePage() {
               {ch.openFlags.length > 0 && (
                 <li><a href="#/settings/companies-house">
                   <span className="dot amber" aria-hidden="true" />
-                  <span className="stack" style={{ gap: 1 }}><strong>{ch.openFlags.length} Companies House change{ch.openFlags.length === 1 ? "" : "s"} to review</strong><span className="muted">Apply or ignore each one</span></span>
+                  <span className="stack" style={{ gap: 1 }}><strong>{ch.openFlags.length} planner and Companies House check{ch.openFlags.length === 1 ? "" : "s"} to review</strong><span className="muted">Apply or ignore each one</span></span>
                 </a></li>
               )}
               {heldAlerts.map((w) => (
