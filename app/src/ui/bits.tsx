@@ -120,7 +120,7 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
 export function Brand() {
   return (
     <a className="brand" href="#/home" aria-label="xproflow, home">
-      <img className="brand-logo" src="logo.png" alt="xproflow" width={110} height={24} />
+      <img className="brand-logo" src="/logo.png" alt="xproflow" width={110} height={24} />
     </a>
   );
 }

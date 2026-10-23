@@ -48,7 +48,7 @@ export function App({ demo }: { demo: boolean }) {
     body = (
       <div className="center">
         <div className="panel" role="alert">
-          <h1>Couldn't load Practice Planner</h1>
+          <h1>Couldn't load xproflow</h1>
           <p style={{ margin: 0 }}>{error}</p>
           <div><button type="button" className="btn primary" onClick={reload}>Try again</button></div>
         </div>
