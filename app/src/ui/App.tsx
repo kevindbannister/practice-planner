@@ -118,19 +118,10 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
         </nav>
       </div>
       <div className="topbar-right">
-        {demo && <span className="chip amber hide-phone">Demo data store</span>}
-        {save.state === "saving" && <span className="save saving"><span className="save-text">Saving…</span></span>}
-        {save.state === "saved" && (
-          <span className="save saved" title={`Saved to SharePoint at ${save.at!.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}>
-            <Icon name="check" size={14} />
-            <span className="save-text">Saved to SharePoint · {save.at!.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
-          </span>
-        )}
         {save.state === "error" && (
           <span className="save error" role="alert"><Icon name="alert" size={14} /><span className="save-text">Not saved: {save.error}</span></span>
         )}
         {ready && <SearchButton />}
-        <ThemeToggle />
         {ready && <Alerts />}
         {ready && (
           <>
@@ -142,25 +133,54 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
             </button>
           </>
         )}
-        {user && <span className="muted hide-phone topbar-user">{user}</span>}
-        {!demo && <button type="button" className="linkbtn hide-phone" onClick={signOut}>Sign out</button>}
+        <ProfileMenu user={user} demo={demo} />
       </div>
     </header>
   );
 }
 
-function ThemeToggle() {
+const initialsOf = (name?: string) => {
+  const w = (name || "").replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean);
+  return ((w[0]?.[0] || "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase() || "?";
+};
+
+/** The profile icon: your name, the save status, light or dark, and sign out. */
+function ProfileMenu({ user, demo }: { user?: string; demo: boolean }) {
+  const { save } = useData();
   const { dark, set } = useTheme();
+  const [shown, setShown] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!shown) return;
+    const onDoc = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setShown(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setShown(false);
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("keydown", onKey); };
+  }, [shown]);
+  const at = save.at ? save.at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
   return (
-    <button
-      type="button"
-      className="iconbtn"
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      title={dark ? "Light mode" : "Dark mode"}
-      onClick={() => set(dark ? "light" : "dark")}
-    >
-      <Icon name={dark ? "sun" : "moon"} size={18} />
-    </button>
+    <div className="profile-wrap" ref={ref}>
+      <button type="button" className="profile-btn" aria-label="Your profile" aria-haspopup="menu" aria-expanded={shown} title={user || "Profile"} onClick={() => setShown((v) => !v)}>
+        {initialsOf(user || (demo ? "Demo" : ""))}
+      </button>
+      {shown && (
+        <div className="profile-panel" role="menu">
+          <div className="profile-who">
+            <strong>{user || (demo ? "Demo user" : "Signed in")}</strong>
+            {demo && <span className="chip amber">Demo data store</span>}
+            <span className="muted">
+              {save.state === "saving" ? "Saving…" : save.state === "saved" ? `Saved to SharePoint · ${at}` : save.state === "error" ? "Not saved" : "SharePoint"}
+            </span>
+          </div>
+          <button type="button" role="menuitem" onClick={() => { set(dark ? "light" : "dark"); setShown(false); }}>
+            <Icon name={dark ? "sun" : "moon"} size={16} /> {dark ? "Light mode" : "Dark mode"}
+          </button>
+          <a role="menuitem" href="#/settings" onClick={() => setShown(false)}><Icon name="settings" size={16} /> Settings</a>
+          {!demo && <button type="button" role="menuitem" onClick={signOut}><Icon name="left" size={16} /> Sign out</button>}
+        </div>
+      )}
+    </div>
   );
 }
 

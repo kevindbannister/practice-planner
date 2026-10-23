@@ -1979,3 +1979,23 @@ section[aria-labelledby="soon-h"] .home-date { background: linear-gradient(90deg
   .week-summary > .ws-load { grid-column: 1 / -1; }
   .week-summary > .ws-stat { flex: none; }
 }
+
+/* ---------- condensed top bar: one row, profile menu ---------- */
+.topbar { flex-wrap: nowrap; }
+.topbar-left { flex-wrap: nowrap; min-width: 0; }
+.nav { flex-wrap: nowrap; }
+.topbar-right { flex-wrap: nowrap; flex: none; }
+.profile-wrap { position: relative; }
+.profile-btn { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--blue-line); background: var(--grad); color: #fff; font: 700 14px var(--sans); letter-spacing: 0.02em; cursor: pointer; box-shadow: 0 4px 14px rgba(23, 165, 197, 0.27); }
+.profile-btn:hover { filter: brightness(1.06); }
+.profile-panel { position: absolute; right: 0; top: 52px; min-width: 240px; padding: 6px; background: var(--surface); border: 1px solid var(--glass-line); border-radius: 16px; box-shadow: var(--elev-2); z-index: 40; display: flex; flex-direction: column; }
+.profile-who { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 13px; }
+.profile-who strong { font-size: 15px; }
+.profile-panel button, .profile-panel a { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 10px; background: none; color: var(--ink); font: 500 14px var(--sans); text-align: left; text-decoration: none; cursor: pointer; }
+.profile-panel button:hover, .profile-panel a:hover { background: var(--blue-soft); color: var(--blue-ink); }
+@media (max-width: 720px) {
+  .profile-btn { width: 40px; height: 40px; font-size: 13px; }
+  .profile-panel { position: fixed; right: 12px; left: auto; top: calc(var(--topbar-h) + 4px); }
+}
+@media (min-width: 721px) { .nav a[href="#/settings"] { display: none; } }
+@media (min-width: 721px) and (max-width: 1000px) { .nav a { padding: 0 9px; font-size: 13px; } .topbar { margin-left: 12px; margin-right: 12px; padding-left: 14px; } .topbar-left { gap: 4px 8px; } .topbar-right { gap: 6px; } }
