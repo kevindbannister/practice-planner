@@ -381,6 +381,12 @@ export class FakeGraph implements Graph {
         return { id: item.id, fields: item.fields };
       }
     }
+    if ((m = path.match(/^\/sites\/site-1\/lists\/([^/]+)\/items\/([^/]+)$/)) && method === "GET") {
+      const list = this.list(m[1]);
+      const item = list.items.find((x) => x.id === m![2]);
+      if (!item) throw new GraphError(404, "Item not found");
+      return { id: item.id, fields: { ...item.fields, id: item.id } };
+    }
     if ((m = path.match(/^\/sites\/site-1\/lists\/([^/]+)\/items\/([^/]+)$/)) && method === "DELETE") {
       const list = this.list(m[1]);
       const i = list.items.findIndex((x) => x.id === m![2]);

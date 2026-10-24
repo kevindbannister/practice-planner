@@ -185,7 +185,8 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
 function PaperBody({ client: c, period, today }: { client: Client; period: string; today: string }) {
   const { data, user } = useData();
   const w = useWriterState();
-  const [pick, setPick] = useState<string>();
+  const { query } = useRoute();
+  const [pick, setPick] = useState<string | undefined>(query.get("section") || undefined);
   const [choosing, setChoosing] = useState(false);
   const [shut, setShut] = useState<string[]>(() => {
     try { const v = localStorage.getItem("papers.shut"); if (v) return JSON.parse(v) as string[]; } catch { /* no storage */ }

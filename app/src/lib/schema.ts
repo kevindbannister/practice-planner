@@ -15,7 +15,8 @@ const note = (name: string): Column => ({ name, type: "note" });
 export type ListKey =
   | "Clients" | "Contacts" | "Groups" | "GroupMembers" | "Services" | "StageTemplates"
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
-  | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities";
+  | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
+  | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog";
 
 export const LISTS: ListDef[] = [
   {
@@ -182,6 +183,42 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("ClientKey", true), t("PeriodEnd", true), t("SectionKey", true), t("SubKey"), t("Code"), t("Detail"),
       n("Amount"), note("Remark"), b("Done"), n("Seq"), t("Updated"), note("Figures"),
     ],
+  },
+  {
+    key: "ChecklistTemplates", displayName: "PP Checklist Templates", description: "Practice Planner: job checklist templates",
+    columns: [
+      t("Key", true), t("JobType", true), note("Description"), t("ClientKinds"), note("Rules"), n("Version"), b("Active"), b("IsDefault"), n("Hours"),
+      note("Body"), t("Starter"), t("Created"), t("Updated"), t("PracticeId"),
+    ],
+  },
+  {
+    key: "ChecklistVersions", displayName: "PP Checklist Template Versions", description: "Practice Planner: earlier versions of checklist templates",
+    columns: [t("Key", true), t("TemplateKey", true), n("Version"), t("Saved"), note("Body"), t("PracticeId")],
+  },
+  {
+    key: "Checklists", displayName: "PP Checklists", description: "Practice Planner: the checklist on each job",
+    columns: [
+      t("Key", true), t("JobKey", true), t("ClientKey", true), t("PeriodEnd"), t("JobType"), t("TemplateKey"), n("TemplateVersion"), t("TemplateName"), t("Status", true),
+      note("Answers"), t("PreparedBy"), t("PreparedOn"), t("ReviewedBy"), t("ReviewedOn"), t("ApprovedBy"), t("ApprovedOn"), t("CreatedBy"), t("Created"), t("Updated"), n("Rev"), t("PracticeId"),
+    ],
+  },
+  {
+    key: "ChecklistItems", displayName: "PP Checklist Items", description: "Practice Planner: the steps of each job's checklist",
+    columns: [
+      t("Key", true), t("ChecklistKey", true), t("JobKey", true), t("ItemId"), t("Section"), n("Seq"), t("Status", true), b("Mandatory"), t("Assignee"), t("Role"), n("Hours"), t("Due"),
+      note("Notes"), t("CompletedBy"), t("CompletedOn"), note("NaReason"), note("Override"), note("After"), note("Detail"), b("Gone"), note("History"), n("Rev"), t("PracticeId"),
+    ],
+  },
+  {
+    key: "ChecklistNotes", displayName: "PP Checklist Review Notes", description: "Practice Planner: review points raised on a checklist",
+    columns: [
+      t("Key", true), t("ChecklistKey", true), t("ItemKey"), note("Text"), t("RaisedBy"), t("RaisedOn"), t("Status", true), note("Response"), t("RespondedBy"),
+      t("ResolvedBy"), t("ResolvedOn"), note("History"), n("Rev"), t("PracticeId"),
+    ],
+  },
+  {
+    key: "ChecklistLog", displayName: "PP Checklist Audit Trail", description: "Practice Planner: what happened on each checklist",
+    columns: [t("Key", true), t("ChecklistKey", true), t("JobKey"), t("ClientKey"), t("ItemKey"), t("At", true), t("Actor"), t("Action"), note("Detail"), t("PracticeId")],
   },
 ];
 

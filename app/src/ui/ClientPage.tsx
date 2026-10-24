@@ -17,6 +17,7 @@ import { useEditor } from "./Editors";
 import { CommsList, NewButtons } from "./Comms";
 import { DocumentHistory } from "./DocsCreate";
 import { ClientTimeline } from "./Timeline";
+import { JobChecklistChip } from "./JobChecklist";
 import { MeetingsTable, NewMeetingButtons } from "./Meetings";
 import { TaxPaymentsTab } from "./TaxPayments";
 
@@ -499,6 +500,7 @@ function JobCard({ job: j }: { job: Job }) {
             <DeadlineChip job={j} today={today} />
             <ElementsLink client={client} />
             <PapersLink job={j} />
+            <JobChecklistChip jobKey={j.Key} />
             {idx.servicesOff.has(`${j.ClientKey}|${j.ServiceKey}`) && <span className="chip hold" title="Complete it yourself; no next job will be created">Service turned off</span>}
           </div>
           <span className="muted">

@@ -4,6 +4,8 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import { Client, Job, Task, isOpen, setTightDays } from "../lib/domain";
 import { PlannerSettings, newKey, readSettings } from "../lib/planning";
 import { changeEvents, createdEvent } from "../lib/timeline";
+import { readConfig, Answer, Template } from "../lib/checklist";
+import { planChecklist, practiceId, templateFromRow } from "../lib/checklistRows";
 import { ListKey, Row } from "../lib/schema";
 import { SharePointStore, friendlyError } from "../lib/sharepoint";
 
@@ -31,6 +33,12 @@ export type Data = {
   docVersions: Row[];
   documents: Row[];
   activities: Row[];
+  checklistTemplates: Row[];
+  checklistVersions: Row[];
+  checklists: Row[];
+  checklistItems: Row[];
+  checklistNotes: Row[];
+  checklistLog: Row[];
 };
 
 type Status = "connecting" | "needs-setup" | "loading" | "ready" | "error";
@@ -48,6 +56,8 @@ type Ctx = {
   update: (list: ListKey, row: Row, patch: Row) => Promise<void>;
   updateMany: (list: ListKey, changes: { row: Row; patch: Row }[]) => Promise<void>;
   create: (list: ListKey, row: Row) => Promise<Row>;
+  /** Gives a job its checklist (from a template, or the default one). Nothing happens if it already has one. */
+  attachChecklist: (job: Row, template?: Template, answers?: Record<string, Answer>) => Promise<{ templateName: string; version: number; questions: string[] } | null>;
   /** Add many rows at once (in batches), then read the list again. */
   createMany: (list: ListKey, rows: Row[]) => Promise<void>;
   /** Delete many rows at once (in batches). */
@@ -59,6 +69,7 @@ type Ctx = {
 const EMPTY: Data = {
   clients: [], contacts: [], groups: [], members: [], services: [], stageTemplates: [],
   clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [], comms: [], taxPayments: [], meetings: [], papers: [], paperLines: [], projects: [], docTemplates: [], docVersions: [], documents: [], activities: [],
+  checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [],
 };
 
 const DataContext = createContext<Ctx | null>(null);
@@ -69,6 +80,7 @@ export const SOURCE: [keyof Data, ListKey][] = [
   ["clientStages", "ClientServiceStages"], ["jobs", "Jobs"], ["history", "JobHistory"], ["tasks", "Tasks"],
   ["settings", "Settings"], ["chFlags", "CHFlags"], ["comms", "Communications"], ["taxPayments", "TaxPayments"], ["meetings", "Meetings"], ["papers", "WorkingPapers"], ["paperLines", "PaperLines"], ["projects", "Projects"],
   ["docTemplates", "DocTemplates"], ["docVersions", "DocVersions"], ["documents", "Documents"], ["activities", "Activities"],
+  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"],
 ];
 const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 
@@ -142,6 +154,34 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       store.create("Activities", full).then((created) => setData((d) => ({ ...d, activities: [...d.activities, { ...full, ...created }] }))).catch(() => logged.current.delete(k));
     }
   }, [store]);
+  const building = useRef(new Set<string>());
+  const attachChecklist = useCallback(
+    async (job: Row, template?: Template, answers?: Record<string, Answer>) => {
+      const d = dataRef.current;
+      if (!store.hasList("Checklists") || !store.hasList("ChecklistItems")) return null;
+      const jobKey = String(job.Key);
+      if (building.current.has(jobKey)) return null;
+      building.current.add(jobKey);
+      try {
+        const plan = planChecklist({
+          job, client: d.clients.find((c) => c.Key === job.ClientKey), serviceName: String(d.services.find((s) => s.Key === job.ServiceKey)?.Title || ""),
+          templates: d.checklistTemplates.map(templateFromRow), paperLines: d.paperLines, checklists: d.checklists, now: new Date().toISOString(), user: user || "", pid: practiceId(d.settings), template, answers,
+        });
+        if (!plan) return null;
+        await store.create("Checklists", plan.checklist);
+        const res = await store.createMany("ChecklistItems", plan.items);
+        if (res.failed) throw new Error(res.error || "Some checklist items couldn't be saved");
+        if (store.hasList("ChecklistLog")) await store.createMany("ChecklistLog", plan.log);
+        const [checklists, items, log] = await Promise.all([store.readAll("Checklists"), store.readAll("ChecklistItems"), store.hasList("ChecklistLog") ? store.readAll("ChecklistLog") : Promise.resolve([] as Row[])]);
+        setData((x) => ({ ...x, checklists, checklistItems: items, checklistLog: log }));
+        return { templateName: plan.template.name, version: plan.template.version, questions: plan.questions };
+      } finally {
+        building.current.delete(jobKey);
+      }
+    },
+    [store, user],
+  );
+
   const update = useCallback(
     async (list: ListKey, row: Row, patch: Row) => {
       const key = keyFor(list);
@@ -189,9 +229,11 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       setData((d) => ({ ...d, [keyFor(list)]: [...(d[keyFor(list)] as Row[]), full] }));
       const made = createdEvent(list, full, { actor: user || "", now: new Date().toISOString(), newKey });
       if (made) log([made]);
+      // a new job gets its checklist; if that can't be done the job itself still stands (it can be attached from the job later)
+      if (list === "Jobs" && readConfig(dataRef.current.settings).auto) attachChecklist(full).catch((e) => console.warn("Couldn't make the checklist", e));
       return full;
     },
-    [store, track, log, user],
+    [store, track, log, user, attachChecklist],
   );
 
   const createMany = useCallback(
@@ -241,8 +283,8 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
   const settings = useMemo(() => readSettings(data.settings), [data.settings]);
 
   const value = useMemo(
-    () => ({ status, error, data, settings, store, user, save, reload, update, updateMany, create, createMany, remove, removeMany, saveSetting }),
-    [status, error, data, settings, store, user, save, reload, update, updateMany, create, createMany, remove, removeMany, saveSetting],
+    () => ({ status, error, data, settings, store, user, save, reload, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist }),
+    [status, error, data, settings, store, user, save, reload, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist],
   );
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

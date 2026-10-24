@@ -90,6 +90,13 @@ export class SharePointStore {
     return items.map((i) => fromFields(list, i.id, i.fields));
   }
 
+  /** One row as it is now, for checking nobody else changed it first. */
+  async readItem(key: ListKey, itemId: string): Promise<Row> {
+    const list = LIST_BY_KEY[key];
+    const item = await this.graph.get<{ id: string; fields: Record<string, unknown> }>(`${this.listPath(key)}/items/${itemId}?$expand=fields`);
+    return fromFields(list, item.id, item.fields || {});
+  }
+
   async create(key: ListKey, row: Row): Promise<Row> {
     const list = LIST_BY_KEY[key];
     const item = await this.graph.post(`${this.listPath(key)}/items`, { fields: toFields(list, row) });

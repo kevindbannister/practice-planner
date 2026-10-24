@@ -1,5 +1,6 @@
 // Home: the first screen. What needs you today, what's due soon, how full your time is,
 // and anything waiting for a decision. Each panel links through to the screen with the detail.
+import { ChecklistsHomeCard } from "./Checklists";
 import { useMemo } from "react";
 import { chaseItems, groupByClient } from "../lib/chase";
 import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, todayIso } from "../lib/domain";
@@ -345,6 +346,8 @@ export function HomePage() {
           </div>
         </section>
       </div>
+
+      <ChecklistsHomeCard />
 
       <div className="home-two">
         <TimeToLog />

@@ -15,6 +15,9 @@ import { CATEGORIES, PROJECT_STATUSES, categoryOf, nextAction, progressOf, proje
 import { TimePicker } from "./TimePicker";
 import { parseDuration, timePatch } from "../lib/timeSpent";
 import { DeadlineChip, ElementsLink, Icon, PapersLink, href } from "./bits";
+import { can as canDo } from "../lib/checklist";
+import { useChecklists } from "./checklistKit";
+import { JobChecklistLine, useJobBlockers } from "./JobChecklist";
 import { useData, useIndex } from "./data";
 
 type Open =
@@ -150,6 +153,9 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const [speak, setSpeak] = useState("");
   const [fin, setFin] = useState("");
   const askRef = useRef<HTMLDivElement>(null);
+  const gate = useJobBlockers(jobKey);
+  const checks = useChecklists();
+  const [why, setWhy] = useState("");
   useEffect(() => {
     if (ask) window.requestAnimationFrame(() => askRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }, [!!ask]);
@@ -205,6 +211,20 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         setError("I couldn't read that time. Try 1.5, 1h30 or 90m, or leave it blank.");
         setBusy(false);
         return;
+      }
+      // a job with mandatory checklist items still open can only be completed by someone authorised, with a reason that is kept
+      if (gate.blockers.length) {
+        if (!canDo(checks.config, checks.me, "override")) {
+          setError("This job still has unresolved checklist items. Finish them, or ask a manager or partner to complete it.");
+          setBusy(false);
+          return;
+        }
+        if (!why.trim()) {
+          setError("Give a reason for completing the job with checklist items still open.");
+          setBusy(false);
+          return;
+        }
+        await checks.overrideCompletion(gate.checklistKey!, why, gate.blockers);
       }
       const finished = { ...job, ActualHours: hours ?? job.ActualHours } as Job;
       const nextRow = serviceOff ? null : rollForward(finished, rule, today, newKey("J"));
@@ -379,6 +399,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         </details>
       ) : null}
 
+      <JobChecklistLine jobKey={job.Key} onNavigate={onClose} />
+
       {isOpen(job) && (
         <section className="stack complete-box" aria-labelledby="complete-h" ref={completeRef}>
           <h3 id="complete-h" style={{ margin: 0, fontSize: 15 }}>Finish this job</h3>
@@ -395,6 +417,16 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
             </>
           ) : (
             <>
+              {gate.blockers.length > 0 && (
+                <div className="import-list warn" role="alert">
+                  <strong>The checklist isn't finished:</strong>
+                  <ul style={{ margin: "4px 0" }}>{gate.blockers.map((b) => <li key={b}>{b}</li>)}</ul>
+                  <a href={href("checklists", "job", job.Key)} onClick={onClose}>Open the checklist</a>
+                  {canDo(checks.config, checks.me, "override")
+                    ? <label className="doc-field" style={{ marginTop: 8 }}><span>To complete anyway, say why (kept on the record)</span><input className="input" value={why} onChange={(e) => setWhy(e.target.value)} /></label>
+                    : <p style={{ margin: "6px 0 0" }}>Only a manager or partner can complete the job with items still open.</p>}
+                </div>
+              )}
               <TimePicker value={actual} onChange={setActual} estimate={jobHours(job, data.services)} label="How long did it take? (optional, sets next year's estimate; you can add it later)" />
               {error && <p className="error-text" role="alert">{error}</p>}
               <div className="form-actions">
