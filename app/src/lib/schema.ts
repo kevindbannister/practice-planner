@@ -15,7 +15,7 @@ const note = (name: string): Column => ({ name, type: "note" });
 export type ListKey =
   | "Clients" | "Contacts" | "Groups" | "GroupMembers" | "Services" | "StageTemplates"
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
-  | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects";
+  | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents";
 
 export const LISTS: ListDef[] = [
   {
@@ -139,6 +139,25 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("ClientKey", true), t("JobKey"), t("Kind"), t("Template"), t("Status"), t("When", true), n("Minutes"),
       t("Location"), t("Attendees"), note("Agenda"), note("Notes"), note("Summary"), note("Decisions"), note("Actions"), t("FollowUp"),
       t("SummaryCommKey"), t("Updated"),
+    ],
+  },
+  {
+    // The practice's own letter and document templates. Body holds the content and page layout as JSON.
+    key: "DocTemplates", displayName: "PP Document Templates", description: "Practice Planner: letter and document templates",
+    columns: [t("Key", true), t("Category"), note("Description"), n("Version"), b("Archived"), b("IsDefault"), t("BrandingId"), t("Updated"), note("Body")],
+  },
+  {
+    // Earlier versions of a template, kept each time the content or layout changes.
+    key: "DocVersions", displayName: "PP Document Template Versions", description: "Practice Planner: earlier versions of document templates",
+    columns: [t("Key", true), t("TemplateKey", true), n("Version"), t("Saved"), note("Body")],
+  },
+  {
+    // A document made for a client: which template and version, the saved PDF, and a copy of exactly what was produced.
+    key: "Documents", displayName: "PP Documents", description: "Practice Planner: documents and letters generated for clients",
+    columns: [
+      t("Key", true), t("ClientKey", true), t("JobKey"), t("TemplateKey"), n("TemplateVersion"), t("TemplateName"), t("Category"), t("Title"),
+      t("Reference"), t("Created", true), t("CreatedBy"), t("BrandingId"), t("FileUrl"), t("FileName"), n("Pages"), t("Status"), t("SentOn"),
+      t("SentTo"), t("OutlookUrl"), note("Snapshot"),
     ],
   },
   {

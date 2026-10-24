@@ -7,6 +7,7 @@ import { AiError, AiStatus } from "../lib/ai";
 import { CommsTabs, MAIL_SCOPE, downloadFile, isDemo, mailAllowed, useAi, useCommsPrefs } from "./commsKit";
 import { MeetingPage, MeetingsList } from "./Meetings";
 import { MailPage } from "./MailPage";
+import { DocumentsPage } from "./Documents";
 import { PaymentReminders } from "./TaxPayments";
 import { paymentsForAi, TaxPayment } from "../lib/taxPayments";
 import {
@@ -41,6 +42,7 @@ export function CommsPage() {
   const { parts, query } = useRoute();
   if (parts[1] === "payments") return <PaymentReminders />;
   if (parts[1] === "mail") return <MailPage />;
+  if (parts[1] === "documents") return <DocumentsPage />;
   if (parts[1] === "meetings" && parts[2] === "new") {
     return <MeetingPage key={`new-${query.toString()}`} initial={{ clientKey: query.get("client") || "", kind: query.get("kind") || "meeting", jobKey: query.get("job") || "" }} />;
   }

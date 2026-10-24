@@ -8,9 +8,19 @@ type PdfJs = {
   GlobalWorkerOptions: { workerSrc: string };
 };
 
+// pdf.js 6 uses Map.getOrInsert / getOrInsertComputed, which older browsers don't have yet
+function polyfill() {
+  for (const C of [Map, WeakMap] as unknown as { prototype: Record<string, unknown> }[]) {
+    const proto = C.prototype as unknown as { has(k: unknown): boolean; get(k: unknown): unknown; set(k: unknown, v: unknown): unknown; getOrInsert?: unknown; getOrInsertComputed?: unknown };
+    if (!proto.getOrInsert) proto.getOrInsert = function (this: typeof proto, k: unknown, v: unknown) { if (!this.has(k)) this.set(k, v); return this.get(k); };
+    if (!proto.getOrInsertComputed) proto.getOrInsertComputed = function (this: typeof proto, k: unknown, f: (k: unknown) => unknown) { if (!this.has(k)) this.set(k, f(k)); return this.get(k); };
+  }
+}
+
 let loaded: Promise<PdfJs> | undefined;
 export function loadPdfJs(): Promise<PdfJs> {
   loaded ||= (async () => {
+    polyfill();
     const url = "/pdf/pdf.min.mjs";
     const mod = (await import(/* webpackIgnore: true */ url)) as PdfJs;
     mod.GlobalWorkerOptions.workerSrc = "/pdf/pdf.worker.min.mjs";
