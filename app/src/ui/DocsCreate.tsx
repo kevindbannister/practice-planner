@@ -20,7 +20,7 @@ import { useRoute } from "./bits";
 import { MAIL_SCOPE, MAIL_SEND_SCOPE, downloadFile, mailAllowed, sendAllowed, useCommsPrefs } from "./commsKit";
 import { DocEditor } from "./DocEditor";
 import { PdfPreview } from "./DocsPreview";
-import { DocRecord, documentFileName, makePdf, nextReference, snapshotOf, useDocs, useFieldCtx } from "./docsKit";
+import { DocRecord, documentFileName, makePdf, nextReference, snapshotOf, useDocs, useFieldCtx, useLeaveGuard } from "./docsKit";
 import { useData, useIndex } from "./data";
 
 const PDF_TYPE = "application/pdf";
@@ -52,6 +52,8 @@ export function CreateDocument() {
   const [saved, setSaved] = useState<{ rev: number; url: string; name: string; bytes: Uint8Array; row: Row; title: string } | null>(null);
   const [rev, setRev] = useState(0);
   const reference = useRef("");
+  const [touched, setTouched] = useState(false); // the text or a value was changed by hand since the last save
+  useLeaveGuard(touched, "This document has changes that haven't been saved. Leave without saving?");
 
   const template: DocTemplate | undefined = templateId ? docs.find(templateId) : undefined;
   const client = data.clients.find((c) => c.Key === clientKey);
@@ -164,6 +166,7 @@ export function CreateDocument() {
       });
       setSaved({ rev, url, name, bytes: out.bytes, row, title: docTitle });
       savedRev.current = rev;
+      setTouched(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save the document.");
     } finally {
@@ -223,8 +226,8 @@ export function CreateDocument() {
                   <span>{label(k)} {!known && <span className="chip red">Unknown field</span>} {empty && <span className="chip amber">No value</span>}</span>
                   {known && (
                     (computed[k] || "").includes("\n") || (overrides[k] || "").includes("\n")
-                      ? <textarea className="input" rows={3} value={overrides[k] ?? computed[k]} onChange={(e) => { setOverrides({ ...overrides, [k]: e.target.value }); bump(); }} />
-                      : <input className="input" value={overrides[k] ?? computed[k]} onChange={(e) => { setOverrides({ ...overrides, [k]: e.target.value }); bump(); }} />
+                      ? <textarea className="input" rows={3} value={overrides[k] ?? computed[k]} onChange={(e) => { setOverrides({ ...overrides, [k]: e.target.value }); setTouched(true); bump(); }} />
+                      : <input className="input" value={overrides[k] ?? computed[k]} onChange={(e) => { setOverrides({ ...overrides, [k]: e.target.value }); setTouched(true); bump(); }} />
                   )}
                   {!known && <small className="muted">{`{{${k}}}`} isn't a field. Fix it in the text.</small>}
                 </label>
@@ -257,7 +260,7 @@ export function CreateDocument() {
               </div>
             )}
             <div hidden={tab !== "edit"}>
-              <DocEditor value={draft} resetKey={resetKey} onChange={(c) => { setDraft(c); bump(); }} layout={layout!} onLayout={(l) => { setLayout(l); bump(); }} fields={allFields} branding={branding} />
+              <DocEditor value={draft} resetKey={resetKey} onChange={(c) => { setDraft(c); setTouched(true); bump(); }} layout={layout!} onLayout={(l) => { setLayout(l); bump(); }} fields={allFields} branding={branding} />
             </div>
             {tab === "preview" && <PdfPreview bytes={pdf?.bytes || null} />}
             <div className="form-actions">

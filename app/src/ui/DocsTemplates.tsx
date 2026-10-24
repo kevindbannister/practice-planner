@@ -9,7 +9,7 @@ import { fmtDate } from "../lib/domain";
 import { go, href } from "./bits";
 import { DocEditor } from "./DocEditor";
 import { PdfPreview } from "./DocsPreview";
-import { TooBig, makePdf, nextReference, useDocs, useFieldCtx } from "./docsKit";
+import { TooBig, makePdf, useDocs, useFieldCtx, useLeaveGuard } from "./docsKit";
 import { useData } from "./data";
 
 const when = (iso?: string) => (iso ? fmtDate(iso.slice(0, 10)) : "");
@@ -108,12 +108,7 @@ export function TemplateEditor({ id }: { id: string }) {
   useEffect(() => {
     if (original && !original.starter && !dirty && original.id !== loadedId) { setT(original); content.current = original.content; setLoadedId(original.id); setCreated(true); setResetKey(original.id); }
   }, [original, dirty, loadedId]);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  useLeaveGuard(dirty);
 
   const branding = docs.brand(t.brandingId);
   const fields = useMemo(() => fieldsFor(branding), [branding]);

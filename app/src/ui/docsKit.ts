@@ -2,7 +2,7 @@
 // documents from the planner's lists, and does the saving: branding to Settings, templates and their
 // earlier versions to their lists, and a generated document to OneDrive and the Documents list.
 // Nothing here draws anything; the pure parts live in lib/doc*.ts.
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { BrandingSet, SETTING_KEY, brandOf, cleanBranding, readBranding, Branding } from "../lib/docBranding";
 import { Category, DocTemplate, TemplateVersion, asCategory, decodeBody, encodeBody, library, saveEdit as applyEdit, STARTERS } from "../lib/docTemplates";
 import { DocContent, DocLayout, allRuns } from "../lib/docModel";
@@ -147,3 +147,27 @@ export function nextReference(documents: { reference: string }[], year = new Dat
 }
 
 export { fillContent, resolveValues };
+
+/** Asks before leaving the page (by a link or by closing it) while there are unsaved changes. */
+export function useLeaveGuard(dirty: boolean, message = "You have unsaved changes. Leave without saving?") {
+  const last = useRef(window.location.hash);
+  useEffect(() => {
+    last.current = window.location.hash;
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    // links inside the app: ask before the page changes (a hash change is too late, the page is already replaced)
+    const click = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a[href^='#']") as HTMLAnchorElement | null;
+      if (!a || a.getAttribute("href") === window.location.hash) return;
+      if (!window.confirm(message)) { e.preventDefault(); e.stopPropagation(); }
+    };
+    const nav = () => {
+      if (window.location.hash === last.current) return;
+      last.current = window.location.hash;
+    };
+    window.addEventListener("beforeunload", warn);
+    window.addEventListener("hashchange", nav);
+    document.addEventListener("click", click, true);
+    return () => { window.removeEventListener("beforeunload", warn); window.removeEventListener("hashchange", nav); document.removeEventListener("click", click, true); };
+  }, [dirty, message]);
+}
