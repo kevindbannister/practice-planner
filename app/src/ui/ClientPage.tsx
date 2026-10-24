@@ -15,6 +15,7 @@ import { LogoError, logoSrc, prepareLogo } from "../lib/logo";
 import { svcClass } from "../lib/serviceColour";
 import { useEditor } from "./Editors";
 import { CommsList, NewButtons } from "./Comms";
+import { DocumentHistory } from "./DocsCreate";
 import { MeetingsTable, NewMeetingButtons } from "./Meetings";
 import { TaxPaymentsTab } from "./TaxPayments";
 
@@ -122,6 +123,11 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
             <NewButtons clientKey={c.Key} />
           </div>
           <CommsList clientKey={c.Key} />
+          <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+            <h3 style={{ margin: 0 }}>Documents</h3>
+            <a className="btn small" href={`#/comms/documents?client=${encodeURIComponent(c.Key)}`}>New document</a>
+          </div>
+          <DocumentHistory clientKey={c.Key} />
         </div>
       )}
     </div>

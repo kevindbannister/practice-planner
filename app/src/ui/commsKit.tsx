@@ -11,6 +11,8 @@ import { useData } from "./data";
 declare const __DEMO__: boolean;
 
 export const MAIL_SCOPE = "Mail.ReadWrite";
+export const MAIL_SEND_SCOPE = "Mail.Send";
+export const sendAllowed = () => isDemo() || hasExtraScope(MAIL_SEND_SCOPE);
 export const isDemo = () => typeof __DEMO__ !== "undefined" && __DEMO__;
 export const mailAllowed = () => isDemo() || hasExtraScope(MAIL_SCOPE);
 

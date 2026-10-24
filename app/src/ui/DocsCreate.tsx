@@ -4,14 +4,20 @@
 // as {{field}} so a letter can't go out with a gap nobody noticed; unknown fields stop the document.
 // Documents › History: everything made so far.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LETTERS_FOLDER, clientFolder } from "../lib/comms";
+import { addScope } from "../lib/auth";
+import { LETTERS_FOLDER, clientFolder, emailGreeting, oneLine, toBase64 } from "../lib/comms";
+import { DOCX_TYPE } from "../lib/docx";
+import { renderDocx } from "../lib/docWord";
+import { toHtml as emailHtml } from "../lib/richText";
+import { Client } from "../lib/domain";
+import { Row } from "../lib/schema";
 import { Category, DocTemplate, CATEGORIES } from "../lib/docTemplates";
 import { DocContent, DocLayout, readContent } from "../lib/docModel";
 import { FieldDef, checkFields, fieldsFor, fieldsUsed, fillContent, fillText, resolveValues } from "../lib/docFields";
 import { fmtDate, isOpen, todayIso } from "../lib/domain";
 import { newKey } from "../lib/planning";
 import { useRoute } from "./bits";
-import { downloadFile } from "./commsKit";
+import { MAIL_SCOPE, MAIL_SEND_SCOPE, downloadFile, mailAllowed, sendAllowed, useCommsPrefs } from "./commsKit";
 import { DocEditor } from "./DocEditor";
 import { PdfPreview } from "./DocsPreview";
 import { DocRecord, documentFileName, makePdf, nextReference, snapshotOf, useDocs, useFieldCtx } from "./docsKit";
@@ -43,7 +49,7 @@ export function CreateDocument() {
   const [ack, setAck] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState<{ rev: number; url: string; name: string } | null>(null);
+  const [saved, setSaved] = useState<{ rev: number; url: string; name: string; bytes: Uint8Array; row: Row; title: string } | null>(null);
   const [rev, setRev] = useState(0);
   const reference = useRef("");
 
@@ -52,7 +58,12 @@ export function CreateDocument() {
   const job = data.jobs.find((j) => j.Key === jobKey);
   const branding = docs.brand(template?.brandingId);
   if (!reference.current) reference.current = nextReference(docs.documents);
-  const bump = () => setRev((r) => r + 1);
+  const savedRev = useRef<number | null>(null);
+  // an edit after saving makes a new document, so it gets the next reference
+  const bump = () => setRev((r) => {
+    if (savedRev.current === r) { reference.current = nextReference([...docs.documents, { reference: reference.current }]); savedRev.current = null; }
+    return r + 1;
+  });
 
   // choosing a template (or arriving with one) starts a working copy of it
   useEffect(() => {
@@ -122,6 +133,15 @@ export function CreateDocument() {
       setError("Couldn't make the PDF.");
     }
   };
+  const downloadWord = async () => {
+    setError("");
+    try {
+      const out = await build();
+      downloadFile(await renderDocx({ content: out.filled, layout: out.lay, branding, title: docTitle }), fileName().replace(/\.pdf$/, ".docx"), DOCX_TYPE);
+    } catch {
+      setError("Couldn't make the Word file.");
+    }
+  };
   const save = async () => {
     if (!client || !template) return;
     setSaving(true);
@@ -137,13 +157,13 @@ export function CreateDocument() {
       } catch {
         throw new Error("Couldn't save the file to OneDrive. The document hasn't been recorded; download it, or try again.");
       }
-      await docs.create("Documents", {
+      const row = await docs.create("Documents", {
         Key: newKey("D"), Title: docTitle, ClientKey: client.Key, JobKey: job?.Key || "", TemplateKey: template.id, TemplateVersion: template.version, TemplateName: template.name,
         Category: template.category, Reference: reference.current, Created: new Date().toISOString(), CreatedBy: docs.user || "", BrandingId: branding.id,
         FileUrl: url, FileName: name, Pages: out.pages, Status: "Saved", Snapshot: snapshotOf(out.filled, out.lay, { values, templateVersion: template.version }),
       });
-      setSaved({ rev, url, name });
-      reference.current = nextReference([...docs.documents, { reference: reference.current }]);
+      setSaved({ rev, url, name, bytes: out.bytes, row, title: docTitle });
+      savedRev.current = rev;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save the document.");
     } finally {
@@ -242,10 +262,12 @@ export function CreateDocument() {
             {tab === "preview" && <PdfPreview bytes={pdf?.bytes || null} />}
             <div className="form-actions">
               <button type="button" className="btn" disabled={blocked} onClick={download}>Download PDF</button>
+              <button type="button" className="btn" disabled={blocked} onClick={downloadWord} title="An editable Word version of the same document">Download Word</button>
               <button type="button" className="btn primary" disabled={blocked || saving || !!justSaved} onClick={save}>{saving ? "Saving…" : justSaved ? "Saved to client" : "Save to client record"}</button>
               {justSaved && <span role="status" className="muted">Saved as {saved!.name}{saved!.url ? <> · <a href={saved!.url} target="_blank" rel="noopener noreferrer">Open in OneDrive</a></> : null} · <a href="#/comms/documents/history">See history</a></span>}
               {error && <span className="error-text" role="alert">{error}</span>}
             </div>
+            {justSaved && client && <EmailPanel key={saved!.row.Key as string} client={client} saved={saved!} signatory={branding.signatoryName} />}
           </>
         )}
       </section>
@@ -299,6 +321,116 @@ export function DocumentHistory({ clientKey }: { clientKey?: string }) {
           </table>
         </div>
       ) : <p className="muted">{docs.documents.length ? "No documents match." : "No documents have been made yet."}</p>}
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ emailing a saved document
+
+/** Email a saved document: a draft in Outlook with the PDF attached, and sending only after an explicit second step. */
+function EmailPanel({ client, saved, signatory }: { client: Client; saved: { name: string; bytes: Uint8Array; row: Row; title: string }; signatory: string }) {
+  const docs = useDocs();
+  const prefs = useCommsPrefs();
+  const [to, setTo] = useState(String(client.Email || ""));
+  const [subject, setSubject] = useState(saved.title);
+  const [message, setMessage] = useState(`${emailGreeting(client)}\n\nPlease find attached ${saved.title.split(" – ")[0].replace(/^./, (c) => c.toLowerCase())}.\n\nKind regards,\n${(signatory || prefs.signName || "").split(" ")[0]}`);
+  const [step, setStep] = useState<"form" | "drafted" | "confirm" | "sent">("form");
+  const [draft, setDraft] = useState<{ id: string; webLink?: string }>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const recipients = to.split(/[;,]\s*/).map((x) => x.trim()).filter(Boolean);
+  const valid = recipients.length > 0 && recipients.every((r) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r));
+
+  const track = async (patch: Row) => { await docs.update("Documents", saved.row, patch); };
+  const fail = (e: unknown, what: string) => {
+    const status = (e as { status?: number })?.status;
+    setError(status === 401 || status === 403 ? "Outlook didn't allow that. Use the Allow button, then try again." : `Couldn't ${what}. Try again.`);
+  };
+  const makeDraft = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const msg = await docs.store.graph.post<{ id: string; webLink?: string }>("/me/messages", {
+        subject: oneLine(subject) || "Document",
+        body: { contentType: "HTML", content: emailHtml(message, prefs.emailSignature) },
+        toRecipients: recipients.map((address) => ({ emailAddress: { address } })),
+      });
+      await docs.store.graph.post(`/me/messages/${encodeURIComponent(msg.id)}/attachments`, {
+        "@odata.type": "#microsoft.graph.fileAttachment", name: saved.name, contentType: "application/pdf", contentBytes: toBase64(saved.bytes),
+      });
+      setDraft(msg);
+      setStep("drafted");
+      await track({ Status: "In Outlook drafts", OutlookUrl: msg.webLink || "", SentTo: recipients.join("; ") });
+    } catch (e) {
+      fail(e, "make the Outlook draft");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const send = async () => {
+    if (!draft) return;
+    setBusy(true);
+    setError("");
+    try {
+      await docs.store.graph.post(`/me/messages/${encodeURIComponent(draft.id)}/send`, {});
+      setStep("sent");
+      await track({ Status: "Sent", SentOn: new Date().toISOString(), SentTo: recipients.join("; ") });
+    } catch (e) {
+      fail(e, "send the email");
+      setStep("drafted");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const allow = async (scope: string) => { await addScope(scope, true); };
+
+  return (
+    <div className="card pad stack">
+      <h3 style={{ margin: 0 }}>Email this document</h3>
+      {step === "form" && (
+        <>
+          <p className="muted" style={{ margin: 0 }}>This puts a draft in your Outlook with the PDF attached. Nothing is sent until you confirm.</p>
+          <label className="doc-field"><span>To</span><input className="input" value={to} onChange={(e) => setTo(e.target.value)} placeholder="name@example.com; another@example.com" /></label>
+          <label className="doc-field"><span>Subject</span><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} /></label>
+          <label className="doc-field"><span>Message</span><textarea className="input" rows={5} value={message} onChange={(e) => setMessage(e.target.value)} /></label>
+          {to.trim() && !valid && <p className="error-text">Check the email address.</p>}
+          <div className="form-actions">
+            {mailAllowed() ? (
+              <button type="button" className="btn primary" disabled={!valid || busy} onClick={makeDraft}>{busy ? "Making draft…" : "Create Outlook draft"}</button>
+            ) : (
+              <button type="button" className="btn primary" onClick={() => allow(MAIL_SCOPE)}>Allow Outlook drafts</button>
+            )}
+          </div>
+        </>
+      )}
+      {(step === "drafted" || step === "confirm") && draft && (
+        <>
+          <p role="status" style={{ margin: 0 }}>The draft is in your Outlook drafts{draft.webLink ? <> · <a href={draft.webLink} target="_blank" rel="noopener noreferrer">Open it in Outlook</a></> : null}. Check it there, or send it from here.</p>
+          {step === "drafted" && (
+            <div className="form-actions">
+              <button type="button" className="btn" onClick={() => setStep("confirm")}>Send…</button>
+            </div>
+          )}
+          {step === "confirm" && (
+            <div className="import-list warn" role="alertdialog" aria-label="Confirm sending">
+              <strong>Send this email now?</strong>
+              <div>To: {recipients.join(", ")}</div>
+              <div>Subject: {subject}</div>
+              <div>Attachment: {saved.name}</div>
+              <div className="form-actions">
+                {sendAllowed() ? (
+                  <button type="button" className="btn primary" disabled={busy} onClick={send}>{busy ? "Sending…" : "Yes, send it"}</button>
+                ) : (
+                  <button type="button" className="btn primary" onClick={() => allow(MAIL_SEND_SCOPE)}>Allow sending from here</button>
+                )}
+                <button type="button" className="btn" disabled={busy} onClick={() => setStep("drafted")}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      {step === "sent" && <p role="status" style={{ margin: 0 }}>Sent to {recipients.join(", ")}. It is recorded in the document history.</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
     </div>
   );
 }

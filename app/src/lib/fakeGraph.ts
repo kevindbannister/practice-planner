@@ -87,6 +87,14 @@ export class FakeGraph implements Graph {
       this.save();
       return { id: msg.id, webLink: `https://outlook.office.com/mail/drafts/id/${msg.id}` };
     }
+    const sendM = path.match(/^\/me\/messages\/([^/]+)\/send$/);
+    if (method === "POST" && sendM) {
+      const i = messages.findIndex((x) => x.id === sendM[1]);
+      if (i < 0) throw new GraphError(404, "Message not found");
+      messages.splice(i, 1); // a sent draft leaves the drafts
+      this.save();
+      return {};
+    }
     const m = path.match(/^\/me\/messages\/([^/]+)\/attachments$/);
     const msg = m && messages.find((x) => x.id === m[1]);
     if (method === "POST" && msg) {
