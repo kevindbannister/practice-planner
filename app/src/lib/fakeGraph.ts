@@ -174,6 +174,12 @@ export class FakeGraph implements Graph {
       const next = skip + top < mine.length ? `/me/mailFolders/fld-${folder[1]}/messages?$top=${top}&$skip=${skip + top}` : undefined;
       return next ? { value, "@odata.nextLink": next } : { value };
     }
+    if (method === "GET" && path === "/me/messages" && q.get("$search")) {
+      // $search="participants:name@example.com": messages from or to that address
+      const want = (/participants:([^"\s]+)/.exec(q.get("$search") || "")?.[1] || "").toLowerCase();
+      const mine = all.filter((x) => x.address.toLowerCase() === want || x.to.some((t) => t.address.toLowerCase() === want)).sort((a, b) => b.at.localeCompare(a.at));
+      return { value: mine.slice(0, Number(q.get("$top")) || 50).map((x) => ({ ...this.mailItem(x), isDraft: x.folder === "drafts" })) };
+    }
     const one = path.match(/^\/me\/messages\/([^/]+)$/);
     const x = one && all.find((y) => y.id === one[1]);
     if (!x) return undefined;

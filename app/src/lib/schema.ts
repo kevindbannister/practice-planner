@@ -15,7 +15,7 @@ const note = (name: string): Column => ({ name, type: "note" });
 export type ListKey =
   | "Clients" | "Contacts" | "Groups" | "GroupMembers" | "Services" | "StageTemplates"
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
-  | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents";
+  | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities";
 
 export const LISTS: ListDef[] = [
   {
@@ -158,6 +158,15 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("ClientKey", true), t("JobKey"), t("TemplateKey"), n("TemplateVersion"), t("TemplateName"), t("Category"), t("Title"),
       t("Reference"), t("Created", true), t("CreatedBy"), t("BrandingId"), t("FileUrl"), t("FileName"), n("Pages"), t("Status"), t("SentOn"),
       t("SentTo"), t("OutlookUrl"), note("Snapshot"),
+    ],
+  },
+  {
+    // Things with no record of their own: calls, notes and other manual entries, meaningful changes to jobs,
+    // and which client an email belongs to (Type "email-link"). Everything else on the client timeline is read from the records that already exist.
+    key: "Activities", displayName: "PP Activities", description: "Practice Planner: client timeline entries",
+    columns: [
+      t("Key", true), t("ClientKey", true), t("JobKey"), t("Type", true), t("Title"), note("Summary"), t("At", true), t("Actor"), t("Source"),
+      t("SourceKey", true), t("EventKey", true), t("Status"), t("Visibility"), t("FollowUp"), note("Meta"), t("Created"), t("PracticeId"),
     ],
   },
   {

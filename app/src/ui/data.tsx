@@ -1,8 +1,9 @@
 // Loads the planner's lists once, keeps them in memory, and saves edits straight
 // back to SharePoint. Components read from here with useData().
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Client, Job, Task, isOpen, setTightDays } from "../lib/domain";
-import { PlannerSettings, readSettings } from "../lib/planning";
+import { PlannerSettings, newKey, readSettings } from "../lib/planning";
+import { changeEvents, createdEvent } from "../lib/timeline";
 import { ListKey, Row } from "../lib/schema";
 import { SharePointStore, friendlyError } from "../lib/sharepoint";
 
@@ -29,6 +30,7 @@ export type Data = {
   docTemplates: Row[];
   docVersions: Row[];
   documents: Row[];
+  activities: Row[];
 };
 
 type Status = "connecting" | "needs-setup" | "loading" | "ready" | "error";
@@ -56,7 +58,7 @@ type Ctx = {
 
 const EMPTY: Data = {
   clients: [], contacts: [], groups: [], members: [], services: [], stageTemplates: [],
-  clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [], comms: [], taxPayments: [], meetings: [], papers: [], paperLines: [], projects: [], docTemplates: [], docVersions: [], documents: [],
+  clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [], comms: [], taxPayments: [], meetings: [], papers: [], paperLines: [], projects: [], docTemplates: [], docVersions: [], documents: [], activities: [],
 };
 
 const DataContext = createContext<Ctx | null>(null);
@@ -66,7 +68,7 @@ export const SOURCE: [keyof Data, ListKey][] = [
   ["services", "Services"], ["stageTemplates", "StageTemplates"], ["clientServices", "ClientServices"],
   ["clientStages", "ClientServiceStages"], ["jobs", "Jobs"], ["history", "JobHistory"], ["tasks", "Tasks"],
   ["settings", "Settings"], ["chFlags", "CHFlags"], ["comms", "Communications"], ["taxPayments", "TaxPayments"], ["meetings", "Meetings"], ["papers", "WorkingPapers"], ["paperLines", "PaperLines"], ["projects", "Projects"],
-  ["docTemplates", "DocTemplates"], ["docVersions", "DocVersions"], ["documents", "Documents"],
+  ["docTemplates", "DocTemplates"], ["docVersions", "DocVersions"], ["documents", "Documents"], ["activities", "Activities"],
 ];
 const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 
@@ -125,6 +127,21 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     }
   }, []);
 
+  // Meaningful changes (a job's status, stage, planned date or deadline; a job or task created by hand) leave a
+  // line on the client timeline. The line is saved quietly: if it can't be, the change itself still stands.
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const logged = useRef(new Set<string>());
+  const log = useCallback((rows: Row[]) => {
+    if (!rows.length || !store.hasList("Activities")) return;
+    for (const r of rows) {
+      const k = String(r.EventKey);
+      if (logged.current.has(k) || dataRef.current.activities.some((a) => a.EventKey === k)) continue;
+      logged.current.add(k);
+      const full = { ...r, Created: new Date().toISOString() };
+      store.create("Activities", full).then((created) => setData((d) => ({ ...d, activities: [...d.activities, { ...full, ...created }] }))).catch(() => logged.current.delete(k));
+    }
+  }, [store]);
   const update = useCallback(
     async (list: ListKey, row: Row, patch: Row) => {
       const key = keyFor(list);
@@ -138,12 +155,13 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       apply(patch); // show the change at once
       try {
         await track(() => store.update(list, row._id!, patch));
+        log(changeEvents(list, row, patch, { actor: user || "", now: new Date().toISOString(), newKey }));
       } catch (e) {
         apply(before); // put it back if SharePoint refused
         throw e;
       }
     },
-    [store, track],
+    [store, track, log, user],
   );
 
   const updateMany = useCallback(
@@ -169,9 +187,11 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       const created = await track(() => store.create(list, row));
       const full = { ...row, ...created };
       setData((d) => ({ ...d, [keyFor(list)]: [...(d[keyFor(list)] as Row[]), full] }));
+      const made = createdEvent(list, full, { actor: user || "", now: new Date().toISOString(), newKey });
+      if (made) log([made]);
       return full;
     },
-    [store, track],
+    [store, track, log, user],
   );
 
   const createMany = useCallback(

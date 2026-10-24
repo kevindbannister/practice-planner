@@ -16,10 +16,11 @@ import { svcClass } from "../lib/serviceColour";
 import { useEditor } from "./Editors";
 import { CommsList, NewButtons } from "./Comms";
 import { DocumentHistory } from "./DocsCreate";
+import { ClientTimeline } from "./Timeline";
 import { MeetingsTable, NewMeetingButtons } from "./Meetings";
 import { TaxPaymentsTab } from "./TaxPayments";
 
-export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" }) {
+export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" }) {
   const idx = useIndex();
   const { data: allData } = useData();
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
@@ -95,6 +96,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         <a href={href("clients", c.Key, "work")} aria-current={tab === "work" ? "page" : undefined}>
           Work <span className="chip" style={{ marginLeft: 4 }}>{jobs.length}</span>
         </a>
+        <a href={href("clients", c.Key, "activity")} aria-current={tab === "activity" ? "page" : undefined}>Activity</a>
         <a href={href("clients", c.Key, "comms")} aria-current={tab === "comms" ? "page" : undefined}>
           Letters and emails{commsCount ? <span className="chip" style={{ marginLeft: 4 }}>{commsCount}</span> : null}
         </a>
@@ -116,7 +118,8 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         </div>
       )}
       {tab === "tax" && <TaxPaymentsTab client={c} />}
-      {tab === "meetings" || tab === "tax" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
+      {tab === "activity" && <ClientTimeline client={c} />}
+      {tab === "meetings" || tab === "tax" || tab === "activity" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>

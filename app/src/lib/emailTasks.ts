@@ -56,6 +56,7 @@ const PUBLIC_DOMAINS = new Set([
   "sky.com", "talktalk.net", "virginmedia.com", "ntlworld.com", "blueyonder.co.uk", "protonmail.com", "proton.me", "gmx.com", "gmx.co.uk",
   "mail.com", "zoho.com", "tiscali.co.uk", "plus.net", "orange.net", "fastmail.com",
 ]);
+export const PUBLIC_DOMAINS_FOR_TIMELINE: ReadonlySet<string> = PUBLIC_DOMAINS;
 export const emailsOf = (v: unknown) => String(v || "").toLowerCase().split(/[;,\s]+/).filter((x) => x.includes("@"));
 const domainOf = (a: string) => a.slice(a.lastIndexOf("@") + 1);
 
