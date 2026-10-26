@@ -30,6 +30,9 @@ export class ApiError extends Error {
 export type InfoRequest = { id: string; title: string; details: string; dueDate: string; status: "open" | "responded" | "complete" | "cancelled"; createdAt: string; assigned: boolean; thread: { at: string; from: "client" | "staff"; name: string; text: string; docs: { id: string; title: string }[] }[]; completedAt: string };
 export type Notice = { id: string; text: string; link: string; at: string; read: boolean };
 
+export type MsgThread = { id: string; subject: string; createdAt: string; lastAt: string; lastFrom: "client" | "staff"; preview: string; started: "client" | "staff"; startedBy: string; count: number; unread: boolean };
+export type Msg = { id: string; at: string; from: "client" | "staff"; name: string; text: string; docs: { id: string; title: string }[] };
+
 export class PortalClient {
   constructor(private cfg: Config, private onSignedOut: (why: string) => void) {}
 
@@ -78,6 +81,10 @@ export class PortalClient {
   declineSigning = (key: string, id: string, reason: string) => this.call<{ request: SignRequest }>("POST", `signing/${encodeURIComponent(key)}/${id}/decline`, { reason });
   infoRequests = (key: string) => this.call<{ requests: InfoRequest[]; canUpload: boolean }>("GET", `requests/${encodeURIComponent(key)}`);
   respondRequest = (key: string, id: string, b: { text: string; files: { fileName: string; content: string }[] }) => this.call<{ request: InfoRequest }>("POST", `requests/${encodeURIComponent(key)}/${id}/respond`, b);
+  messages = (key: string, q = "") => this.call<{ threads: MsgThread[]; unread: number }>("GET", `messages/${encodeURIComponent(key)}${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+  openMessage = (key: string, id: string) => this.call<{ thread: MsgThread; messages: Msg[] }>("GET", `messages/${encodeURIComponent(key)}/${id}`);
+  startMessage = (key: string, b: { subject: string; text: string; files: { fileName: string; content: string }[] }) => this.call<{ thread: MsgThread; messages: Msg[] }>("POST", `messages/${encodeURIComponent(key)}`, b);
+  replyMessage = (key: string, id: string, b: { text: string; files: { fileName: string; content: string }[] }) => this.call<{ thread: MsgThread; messages: Msg[] }>("POST", `messages/${encodeURIComponent(key)}/${id}`, b);
   notices = (key: string) => this.call<{ notices: Notice[]; unread: number }>("GET", `notices/${encodeURIComponent(key)}`);
   readNotices = (key: string, ids?: string[]) => this.call<{ notices: Notice[]; unread: number }>("POST", `notices/${encodeURIComponent(key)}/read`, { ids });
   identity = () => this.call<{ items: IdItem[] }>("GET", "identity");

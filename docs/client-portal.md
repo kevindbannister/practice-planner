@@ -102,3 +102,15 @@ As checked in October 2026, an external tenant offers **email one-time code, SMS
 **Reminders.** One central engine chases signing, information requests, document approvals and change-request questions. Per kind: first reminder after N days, repeat every N days, at most N. Items can be paused, stopped or rescheduled; everything can be paused globally (always respected, including by "Run now"). Reminders go 07:00–19:00 UK time, as one email per person per run, and stop by themselves when the thing is done. Every sent reminder is in the audit trail. The same run also asks for identity renewals one calendar month before expiry.
 
 **Scheduler.** Azure Static Web Apps' built-in functions can't run on a timer, so `.github/workflows/portal-reminders.yml` calls `POST /api/portal/system/sweep` hourly. Set repository secrets `PORTAL_BASE_URL` and `PORTAL_SWEEP_KEY`, and the same `PORTAL_SWEEP_KEY` as an app setting in Azure (a long random string). Until then nothing runs automatically; Portal > Reminders shows when it last ran and warns if that's more than 3 hours ago, and "Run now" works by hand.
+
+## Secure messaging (phase 7b)
+
+Conversations belong to one business and live in the `messages` list (thread records and message records). Staff start or reply from the client's Portal tab; clients use the Messages page. Rules:
+
+- **Who sees what.** Administrators and standard users see the business's conversations (same rule as documents and requests). Restricted users see only conversations they are named in, and conversations they start are private to them and the practice. Signatories and people outside the business get the same "not found" as for a conversation that doesn't exist.
+- **Unread** is per person and counted in messages (not timestamps). Opening a conversation marks it read for that person only; a colleague's reply is unread for the others. The client sees a badge on the Messages menu and a line on the home page; staff see conversations waiting on them in Portal > Overview (filterable by type, searchable) and in the client's Portal tab.
+- **Notifications** say that a message is waiting ("New message from ..."), never what it says. Emails say the same; the message is never in an email. Colleagues get an in-portal line only.
+- **No internal notes.** A conversation has only the written messages, names and times; there is nowhere to store a staff-only note, so none can be shown. The staff box says so.
+- **Attachments** are real documents in the document centre (same type, size and content checks; refused files leave no empty conversation). People who can't upload can't attach. Staff attachments are published to the people the conversation is for.
+- **Search** covers subjects and message text among conversations the person may see.
+- **History** is kept; nothing is deleted from the portal. The audit trail records that a conversation started or a message was sent (with counts), never the text.

@@ -99,3 +99,9 @@ a, .px-link { color: var(--p-primary); }
 .px-consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
 .px-consent input { margin-top: 4px; width: 20px; height: 20px; flex: none; }
 [role=tab][aria-selected=true] { box-shadow: inset 0 -3px 0 var(--p-accent); }
+
+/* messages */
+.px-msgrow { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.px-msgrow:hover { border-color: var(--p-btn); }
+.px-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--p-btn); margin-right: 8px; }
+.px-badge { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 10px; background: var(--p-btn); color: var(--p-btn-ink); font-size: 12px; line-height: 20px; text-align: center; }

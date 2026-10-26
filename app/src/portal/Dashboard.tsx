@@ -32,6 +32,8 @@ export function Dashboard({ ctx }: { ctx: Ctx }) {
   const [notes, setNotes] = useState<{ notices: Notice[]; unread: number }>({ notices: [], unread: 0 });
   useEffect(() => { setNotes({ notices: [], unread: 0 }); void api.notices(biz.clientKey).then(setNotes).catch(() => undefined); }, [api, biz.clientKey]);
   const markRead = () => void api.readNotices(biz.clientKey).then(setNotes).catch(() => undefined);
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
+  useEffect(() => { setUnreadMsgs(0); if (biz.can["messages.use"]) void api.messages(biz.clientKey).then((r) => setUnreadMsgs(r.unread)).catch(() => undefined); }, [api, biz.clientKey, biz.can]);
   const openReqs = reqs.filter((r) => r.status === "open");
   const idTodo = ids.filter((i) => i.canUpload && !i.request?.uploaded);
   const toSign = sign.filter((r) => r.status === "out" && r.you.status === "pending");
@@ -58,6 +60,7 @@ export function Dashboard({ ctx }: { ctx: Ctx }) {
       </section>
       <section className="px-card" aria-labelledby="d-attn">
         <h2 id="d-attn">Needs your attention</h2>
+        {unreadMsgs > 0 && <div className="px-row"><span>You have {unreadMsgs} unread {unreadMsgs === 1 ? "message" : "messages"}.</span><button type="button" className="px-btn small" onClick={() => go("messages")}>Read</button></div>}
         {openReqs.map((r) => (
           <div className="px-row" key={r.id}><span>We need something from you: {r.title}.</span><button type="button" className="px-btn small" onClick={() => go("requests")}>Answer</button></div>
         ))}
@@ -70,7 +73,7 @@ export function Dashboard({ ctx }: { ctx: Ctx }) {
         {toApprove.map((d) => (
           <div className="px-row" key={d.id}><span>"{d.title}" needs your approval.</span><button type="button" className="px-btn small" onClick={() => go("documents")}>Review</button></div>
         ))}
-        {!openReqs.length && !asked.length && !toApprove.length && !toSign.length && !idTodo.length && <p className="px-muted" style={{ margin: 0 }}>Nothing needs your attention right now.</p>}
+        {!unreadMsgs && !openReqs.length && !asked.length && !toApprove.length && !toSign.length && !idTodo.length && <p className="px-muted" style={{ margin: 0 }}>Nothing needs your attention right now.</p>}
         {asked.map((r) => (
           <div className="px-row" key={r.id}><span>We've asked you a question about your requested changes ({r.items.map((i) => i.label.toLowerCase()).join(", ")}).</span><button type="button" className="px-btn small" onClick={() => go("business")}>Answer</button></div>
         ))}

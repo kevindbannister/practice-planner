@@ -43,8 +43,12 @@ export function PortalPage() {
 
 // ---------------------------------------------------------------- overview
 
+const KIND_LABEL: Record<string, string> = { change: "Change requests", document: "Documents", signing: "Signing", identity: "Identity", request: "Information requests", message: "Messages" };
+
 function Overview() {
   const { overview, status } = usePortal();
+  const [kind, setKind] = useState("");
+  const [find, setFind] = useState("");
   if (!overview) return status && !status.configured ? null : <p className="muted">Loading…</p>;
   const c = overview.counts;
   const awaiting = overview.users.filter((u) => u.status === "active" && u.selfRegistered && !u.personKey && u.businesses.length === 0);
@@ -60,9 +64,17 @@ function Overview() {
         <Stat n={`${mfaPct}%`} label={`Using two-step sign-in (${c.mfa} of ${c.active})`} />
       </section>
       <section className="card pad stack" aria-labelledby="attn-h">
-        <h2 id="attn-h" style={{ margin: 0, fontSize: 16 }}>Needs your attention</h2>
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+          <h2 id="attn-h" style={{ margin: 0, fontSize: 16 }}>Needs your attention</h2>
+          {overview.attention.length > 0 && (
+            <div className="row-wrap">
+              <select className="input" aria-label="Show" value={kind} onChange={(e) => setKind(e.target.value)}><option value="">Everything</option>{[...new Set(overview.attention.map((a) => a.kind))].map((k) => <option key={k} value={k}>{KIND_LABEL[k] || k}</option>)}</select>
+              <input className="input" type="search" aria-label="Search what needs attention" placeholder="Search" value={find} onChange={(e) => setFind(e.target.value)} />
+            </div>
+          )}
+        </div>
         {!awaiting.length && !expired.length && !suspended.length && !overview.attention.length && <p className="muted" style={{ margin: 0 }}>Nothing right now.</p>}
-        {overview.attention.map((a, i) => <div className="row-wrap" key={i} style={{ justifyContent: "space-between" }}><span>{a.text}</span><a className="btn small" href={a.link}>Review</a></div>)}
+        {overview.attention.filter((a) => (!kind || a.kind === kind) && (!find.trim() || a.text.toLowerCase().includes(find.trim().toLowerCase()))).map((a, i) => <div className="row-wrap" key={i} style={{ justifyContent: "space-between" }}><span>{a.text}</span><a className="btn small" href={a.link}>Review</a></div>)}
         {awaiting.map((u) => <AttentionRow key={u.id} person={u} text={`${u.name || u.email} registered on their own and can't see anything yet. Match them to a person and give them access, or leave them waiting.`} />)}
         {expired.map((u) => <AttentionRow key={u.id} person={u} text={`${u.name || u.email}'s invitation expired on ${day(u.inviteExpires)}. Resend it to renew it.`} />)}
         {suspended.map((u) => <AttentionRow key={u.id} person={u} text={`${u.name || u.email} is suspended.`} />)}

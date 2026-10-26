@@ -5,13 +5,14 @@ import { Documents } from "./Documents";
 import { Signing } from "./Signing";
 import { Identity } from "./Identity";
 import { Requests } from "./Requests";
+import { Messages } from "./Messages";
 import { Dashboard } from "./Dashboard";
 import { BusinessPage } from "./BusinessPage";
 import { SecurityPage } from "./SecurityPage";
 
 export type Ctx = { cfg: Config; api: PortalClient; me: Me; biz: Biz; go: (page: string) => void };
 
-const PAGES: [string, string][] = [["dashboard", "Home"], ["documents", "Documents"], ["signing", "Signing"], ["requests", "Requests"], ["identity", "Identity"], ["business", "My business"], ["security", "Security"]];
+const PAGES: [string, string][] = [["dashboard", "Home"], ["documents", "Documents"], ["signing", "Signing"], ["messages", "Messages"], ["requests", "Requests"], ["identity", "Identity"], ["business", "My business"], ["security", "Security"]];
 const IDLE_MINUTES = 30;
 
 function usePage(): [string, (p: string) => void] {
@@ -32,12 +33,23 @@ export function PortalApp({ cfg }: { cfg: Config }) {
   const [error, setError] = useState("");
   const [bizKey, setBizKey] = useState(() => { try { return sessionStorage.getItem("px.biz") || ""; } catch { return ""; } });
   const [page, go] = usePage();
+  const [unreadMsgs, setUnread] = useState(0);
 
   useEffect(() => idleGuard(IDLE_MINUTES, () => out("You were signed out because the portal was idle for a while.")), [out]);
   useEffect(() => {
     api.me().then(setMe).catch((e) => setError(e instanceof ApiError ? e.message : "Couldn't load the portal."));
   }, [api]);
 
+  const bizForBadge = me?.businesses.find((b) => b.clientKey === bizKey) || me?.businesses[0];
+  useEffect(() => {
+    setUnread(0);
+    if (bizForBadge?.can["messages.use"]) void api.messages(bizForBadge.clientKey).then((r) => setUnread(r.unread)).catch(() => undefined);
+  }, [api, bizForBadge?.clientKey, page]);
+  useEffect(() => {
+    const on = (e: Event) => setUnread(Number((e as CustomEvent).detail) || 0);
+    window.addEventListener("px:unread", on);
+    return () => window.removeEventListener("px:unread", on);
+  }, []);
   if (error) return <Shell cfg={cfg} out={() => out("")}><main className="px-main"><p className="px-error" role="alert">{error}</p></main></Shell>;
   if (!me) return <Shell cfg={cfg} out={() => out("")}><main className="px-main"><p>Loading…</p></main></Shell>;
 
@@ -57,15 +69,16 @@ export function PortalApp({ cfg }: { cfg: Config }) {
   }
   const choose = (k: string) => { setBizKey(k); try { sessionStorage.setItem("px.biz", k); } catch { /* fine */ } };
   const ctx: Ctx = { cfg, api, me, biz, go };
-  const pages = PAGES.filter(([k]) => (k !== "documents" || biz.can["documents.view"]) && (k !== "signing" || biz.can["signing.sign"]) && (k !== "requests" || biz.can["requests.respond"]) && (k !== "identity" || me.identity?.any));
+  const pages = PAGES.filter(([k]) => (k !== "documents" || biz.can["documents.view"]) && (k !== "signing" || biz.can["signing.sign"]) && (k !== "messages" || biz.can["messages.use"]) && (k !== "requests" || biz.can["requests.respond"]) && (k !== "identity" || me.identity?.any));
   const known = pages.some(([k]) => k === page);
   return (
     <Shell cfg={cfg} me={me} out={() => out("")} switcher={me.businesses.length > 1 ? <Switcher list={me.businesses} value={biz.clientKey} onChange={choose} /> : <span className="px-bizname">{biz.name}</span>}
-      nav={pages.map(([k, label]) => <a key={k} href={`#/${k}`} aria-current={(known ? page : "dashboard") === k ? "page" : undefined}>{label}</a>)}>
+      nav={pages.map(([k, label]) => <a key={k} href={`#/${k}`} aria-current={(known ? page : "dashboard") === k ? "page" : undefined}>{label}{k === "messages" && unreadMsgs > 0 ? <span className="px-badge" aria-label={`, ${unreadMsgs} unread`}>{unreadMsgs}</span> : null}</a>)}>
       <main className="px-main" key={biz.clientKey}>
         {(!known || page === "dashboard") && <Dashboard ctx={ctx} />}
         {page === "documents" && known && <Documents ctx={ctx} />}
         {page === "signing" && known && <Signing ctx={ctx} />}
+        {page === "messages" && known && <Messages ctx={ctx} />}
         {page === "requests" && known && <Requests ctx={ctx} />}
         {page === "identity" && known && <Identity ctx={ctx} />}
         {page === "business" && <BusinessPage ctx={ctx} />}

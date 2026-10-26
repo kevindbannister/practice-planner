@@ -7,10 +7,11 @@ const { createSigning, SignError } = require("./signing.js");
 const { createIdentity, IdError } = require("./identity.js");
 const { createNotices } = require("./notices.js");
 const { createRequests, RequestError } = require("./requests.js");
+const { createMessages, MessageError } = require("./messages.js");
 const { createReminders, ReminderError } = require("./reminders.js");
 const { ServiceError } = require("./service.js");
 
-const asServiceError = (e) => ((e instanceof ChangeError || e instanceof DocError || e instanceof SignError || e instanceof IdError || e instanceof RequestError || e instanceof ReminderError) ? new ServiceError(e.status, e.code, e.message) : e);
+const asServiceError = (e) => ((e instanceof ChangeError || e instanceof DocError || e instanceof SignError || e instanceof IdError || e instanceof RequestError || e instanceof ReminderError || e instanceof MessageError) ? new ServiceError(e.status, e.code, e.message) : e);
 const wrap = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { throw asServiceError(e); } };
 
 function modules(parts, ctx) {
@@ -26,12 +27,14 @@ function modules(parts, ctx) {
   const list = (v, d) => String(v || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).concat(d || []);
   const identity = createIdentity({ ...common, files: parts.files, scanner: ctx.scanner || null, secret: ctx.env.PORTAL_ID_KEY || ctx.env.PORTAL_AUDIT_KEY || "test-key", practiceId: parts.store.practiceId, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "", portalUrl, verifiers: list(ctx.env.PORTAL_ID_VERIFIERS), maxBytes: Number(ctx.env.PORTAL_MAX_UPLOAD_MB) ? Number(ctx.env.PORTAL_MAX_UPLOAD_MB) * 1048576 : undefined });
   const requests = createRequests({ ...common, docs, portalUrl, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "" });
+  const messages = createMessages({ ...common, portalUrl, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "" });
   const reminders = createReminders({ ...common, portalUrl, signing, requests, identity, changes });
-  const attention = [changes.attention, docs.attention, signing.attention, identity.attention, requests.attention];
+  const attention = [changes.attention, docs.attention, signing.attention, identity.attention, requests.attention, messages.attention];
 
   parts.signing = signing;
   parts.identity = identity;
   parts.requests = requests;
+  parts.messages = messages;
   parts.reminders = reminders;
   parts.notices = notices;
   return {
@@ -85,6 +88,21 @@ function modules(parts, ctx) {
         }
         throw new ServiceError(404, "not-found", "Not found");
       }),
+      // GET messages/<business>[?q=]                 conversations this person may see (+ unread count)
+      // GET messages/<business>/<thread>              open one (marks it read for this person)
+      // POST messages/<business>                      { subject, text, files } start a conversation
+      // POST messages/<business>/<thread>             { text, files } reply
+      messages: wrap(async ({ store, user, path, method, body, query }) => {
+        const access = await service.require(store, user, path[0], "messages.use");
+        if (method === "GET" && !path[1]) return messages.listForClient(store, access, user, { q: query?.q });
+        if (method === "GET") return messages.open(store, access, user, path[1]);
+        if (method !== "POST") throw new ServiceError(404, "not-found", "Not found");
+        const up = service.permissionsFor(access)["documents.upload"];
+        if (!up && Array.isArray(body.files) && body.files.length) throw new ServiceError(403, "no-upload", "You can't attach files here. Please send your message without them, or ask the practice.");
+        const uploadAccess = up ? await service.require(store, user, path[0], "documents.upload") : null;
+        const attach = (f, t) => docs.upload(store, uploadAccess, user, { title: `${t.subject}: ${f.fileName || "file"}`, category: "From you", fileName: f.fileName, content: f.content, message: `Attached to a message` });
+        return path[1] ? messages.replyClient(store, access, user, path[1], body, attach) : messages.start(store, access, user, body, attach);
+      }),
       // GET notices/<business>             this person's notifications for the business
       // POST notices/<business>/read       { ids? } mark some (or all) as read
       notices: wrap(async ({ store, user, path, method, body }) => {
@@ -115,6 +133,7 @@ function modules(parts, ctx) {
     adminGet: {
       changes: wrap(async (store, reader, staff, q) => ({ requests: await changes.staffList(store, reader, { status: q.status }) })),
       reminders: wrap(async (store, reader) => reminders.overview(store, reader)),
+      messages: wrap(async (store, reader, staff, q) => (q.id ? messages.staffOpen(store, String(q.id)) : { threads: await messages.staffList(store, { clientKey: q.clientKey ? String(q.clientKey) : "", q: q.q ? String(q.q) : "", unread: q.unread === "1" }) })),
       requests: wrap(async (store, reader, staff, q) => ({ requests: await requests.list(store, q.clientKey ? String(q.clientKey) : "") })),
       identity: wrap(async (store, reader, staff, q) => ({ items: await identity.list(store, reader, { userId: q.userId ? String(q.userId) : undefined }), kinds: identity.KINDS })),
       signing: wrap(async (store, reader, staff, q) => ({ requests: await signing.staffList(store, String(q.clientKey || "")) })),
@@ -125,6 +144,8 @@ function modules(parts, ctx) {
       "reminders-settings": wrap(async (store, reader, staff, b) => ({ settings: await reminders.updateSettings(store, { name: staff }, b) })),
       "reminders-item": wrap(async (store, reader, staff, b) => reminders.setItem(store, { name: staff }, b.key, b)),
       "reminders-run": wrap(async (store, reader) => reminders.sweep(store, reader, { force: true })),
+      "messages-start": wrap(async (store, reader, staff, b) => messages.staffStart(store, { name: staff }, b, (f, t) => docs.staffAdd(store, { name: staff }, { clientKey: t.clientKey, title: `${t.subject}: ${f.fileName || "file"}`, category: "Other", fileName: f.fileName, content: f.content, publish: true, notify: false, assignedTo: t.assignedTo || [], message: "Attached to a message" }, portalUrl))),
+      "messages-reply": wrap(async (store, reader, staff, b) => messages.staffReply(store, { name: staff }, b.id, b, async (f, t) => (await docs.staffAdd(store, { name: staff }, { clientKey: t.clientKey, title: `${t.subject}: ${f.fileName || "file"}`, category: "Other", fileName: f.fileName, content: f.content, publish: true, notify: false, assignedTo: t.assignedTo || [], message: "Attached to a message" }, portalUrl)))),
       "requests-create": wrap(async (store, reader, staff, b) => ({ request: await requests.create(store, { name: staff }, b) })),
       "requests-reply": wrap(async (store, reader, staff, b) => ({ request: await requests.reply(store, { name: staff }, b.id, b) })),
       "requests-complete": wrap(async (store, reader, staff, b) => ({ request: await requests.setStatus(store, { name: staff }, b.id, "complete") })),
