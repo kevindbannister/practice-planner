@@ -1,5 +1,6 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
 import { usePortal } from "./portalKit";
+import { SalesSettings } from "./SalesSettings";
 import { EmailSettings } from "./EmailSuggestions";
 import { deadlineSource } from "../lib/plannerChecks";
 import { AssistantSettings } from "./Assistant";
@@ -35,7 +36,7 @@ declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
 const TABS: [string, string][] = [
-  ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["xero", "Xero"], ["xama", "Xama"], ["backups", "Backups"],
+  ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["xero", "Xero"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
 ];
 // These two have their own pages; they sit with Settings rather than in the main bar.
 const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["portal", "Client portal", "#/portal"]];
@@ -80,6 +81,7 @@ export function SettingsPage() {
       {tab === "xero" && <XeroSettings />}
       {tab === "xama" && <XamaSettings />}
       {tab === "firm" && <FirmSettings />}
+      {tab === "sales" && <SalesSettings />}
     </div>
   );
 }

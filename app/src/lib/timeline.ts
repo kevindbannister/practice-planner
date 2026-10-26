@@ -20,12 +20,13 @@ export type ActivityType =
   | "paper-tb" | "paper-journal" | "paper-prepared" | "paper-reviewed" | "paper-done" | "paper-note" | "paper-note-resolved"
   | "call" | "meeting" | "note" | "conversation" | "follow-up"
   | "info-requested" | "info-received" | "query" | "chase"
-  | "tax-reminder" | "tax-paid";
+  | "tax-reminder" | "tax-paid"
+  | "lead-created" | "opp-created" | "opp-stage" | "opp-won" | "opp-outcome";
 
-export type Group = "emails" | "documents" | "jobs" | "tasks" | "papers" | "notes" | "requests";
+export type Group = "emails" | "documents" | "jobs" | "tasks" | "papers" | "notes" | "requests" | "sales";
 export const GROUPS: { key: Group | "all"; label: string }[] = [
   { key: "all", label: "All activity" }, { key: "emails", label: "Emails" }, { key: "documents", label: "Documents" }, { key: "jobs", label: "Jobs" },
-  { key: "tasks", label: "Tasks" }, { key: "papers", label: "Working papers" }, { key: "notes", label: "Notes and calls" }, { key: "requests", label: "Client requests" },
+  { key: "tasks", label: "Tasks" }, { key: "papers", label: "Working papers" }, { key: "notes", label: "Notes and calls" }, { key: "requests", label: "Client requests" }, { key: "sales", label: "Sales" },
 ];
 
 export const TYPE_INFO: Record<ActivityType, { label: string; group: Group; icon: string }> = {
@@ -60,6 +61,11 @@ export const TYPE_INFO: Record<ActivityType, { label: string; group: Group; icon
   chase: { label: "Chased", group: "requests", icon: "refresh" },
   "tax-reminder": { label: "Tax payment reminder", group: "requests", icon: "clock" },
   "tax-paid": { label: "Tax payment made", group: "requests", icon: "check" },
+  "lead-created": { label: "Lead created", group: "sales", icon: "groups" },
+  "opp-created": { label: "Opportunity created", group: "sales", icon: "list" },
+  "opp-stage": { label: "Pipeline stage changed", group: "sales", icon: "refresh" },
+  "opp-won": { label: "Opportunity won", group: "sales", icon: "check" },
+  "opp-outcome": { label: "Opportunity closed", group: "sales", icon: "flag" },
 };
 
 /** Types a person can record by hand. */

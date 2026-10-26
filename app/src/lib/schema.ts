@@ -17,6 +17,7 @@ export type ListKey =
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
+  | "Leads" | "Opportunities" | "SalesLog"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings";
 
 export const LISTS: ListDef[] = [
@@ -170,7 +171,7 @@ export const LISTS: ListDef[] = [
     key: "Activities", displayName: "PP Activities", description: "Practice Planner: client timeline entries",
     columns: [
       t("Key", true), t("ClientKey", true), t("JobKey"), t("Type", true), t("Title"), note("Summary"), t("At", true), t("Actor"), t("Source"),
-      t("SourceKey", true), t("EventKey", true), t("Status"), t("Visibility"), t("FollowUp"), note("Meta"), t("Created"), t("PracticeId"),
+      t("SourceKey", true), t("EventKey", true), t("Status"), t("Visibility"), t("FollowUp"), note("Meta"), t("Created"), t("PracticeId"), t("OppKey", true), t("LeadKey", true),
     ],
   },
   {
@@ -222,6 +223,26 @@ export const LISTS: ListDef[] = [
   {
     key: "ChecklistLog", displayName: "PP Checklist Audit Trail", description: "Practice Planner: what happened on each checklist",
     columns: [t("Key", true), t("ChecklistKey", true), t("JobKey"), t("ClientKey"), t("ItemKey"), t("At", true), t("Actor"), t("Action"), note("Detail"), t("PracticeId")],
+  },
+  {
+    // People and businesses that are not clients yet. A lead links to a Client once it becomes one; clients are never duplicated here.
+    key: "Leads", displayName: "PP Leads", description: "Practice Planner: sales leads (prospects who are not clients yet)",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("Title", true), t("Kind"), t("ContactName"), t("Email", true), t("Phone"), t("Website"), t("Source"), t("Owner"),
+      t("Received"), note("Notes"), t("Status", true), t("ClientKey", true), t("Created"), t("Updated"),
+    ],
+  },
+  {
+    // One piece of potential work. Belongs to a lead or to an existing client (a client can have several at once).
+    key: "Opportunities", displayName: "PP Opportunities", description: "Practice Planner: sales opportunities and their pipeline stage",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("Title"), t("LeadKey", true), t("ClientKey", true), t("Stage", true), t("StageSince"), note("Services"), n("Value"), t("Owner"),
+      note("NextAction"), t("FollowUp"), t("LastContact"), t("Outcome", true), t("LostReason"), t("DeferUntil"), n("Order"), note("Notes"), t("Created"), t("Updated"),
+    ],
+  },
+  {
+    key: "SalesLog", displayName: "PP Sales Audit Trail", description: "Practice Planner: what happened to each lead and opportunity",
+    columns: [t("Key", true), t("PracticeId", true), t("At", true), t("Actor"), t("Action"), t("EntityType"), t("EntityKey", true), t("LeadKey"), t("ClientKey"), note("Detail")],
   },
   ...portalLists(),
 ];

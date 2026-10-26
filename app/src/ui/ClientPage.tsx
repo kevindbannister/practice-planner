@@ -27,6 +27,7 @@ import { ClientPortalUsers, IndividualPortalAccess } from "./PortalAdmin";
 import { ClientDocuments } from "./PortalDocuments";
 import { ClientRequests } from "./PortalRequests";
 import { ClientMessages } from "./PortalMessages";
+import { ClientOpportunities } from "./SalesPage";
 
 export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "portal" }) {
   const idx = useIndex();
@@ -252,6 +253,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
             </>
           )}
         />
+        <ClientOpportunities clientKey={c.Key} />
         <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
         <section className="card pad stack" aria-labelledby="comp-h">
           <h2 id="comp-h">Compliance</h2>

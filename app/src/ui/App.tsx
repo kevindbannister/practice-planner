@@ -25,6 +25,9 @@ import { AssistantProvider, useAssistant } from "./Assistant";
 import { PageBoundary } from "./ErrorBoundary";
 import { CommsPage } from "./Comms";
 import { PapersPage } from "./PapersPage";
+import { SalesPage } from "./SalesPage";
+import { useSales } from "./salesKit";
+import { salesAlerts } from "../lib/sales";
 import { SearchButton } from "./Search";
 import { readSetting } from "./data";
 import { aiDefaults } from "../lib/ai";
@@ -80,6 +83,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <PlanPage />;
   } else if (section === "settings") {
     body = <SettingsPage />;
+  } else if (section === "sales") {
+    body = <SalesPage />;
   } else if (section === "chase") {
     body = <ChasePage />;
   } else if (section === "comms") {
@@ -123,7 +128,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
   const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["chase", "Chase", "clock"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["chase", "Chase", "clock"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
   ];
   return (
     <header className="topbar">
@@ -263,7 +268,7 @@ function GroupsPage() {
   );
 }
 
-type Alert = { key: string; kind: "job" | "task" | "ch" | "backup"; level: "red" | "amber"; title: string; detail: string };
+type Alert = { key: string; kind: "job" | "task" | "ch" | "backup" | "sales"; href?: string; level: "red" | "amber"; title: string; detail: string };
 
 /** The bell: late work, work due within a week that isn't planned, and Companies House changes to review. */
 function Alerts() {
@@ -273,6 +278,7 @@ function Alerts() {
   const ch = useCompaniesHouse();
   const chAlerts = useChAlerts();
   const backupAlert = useBackupAlert();
+  const sales = useSales();
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -328,6 +334,7 @@ function Alerts() {
   }
   for (const a of chAlerts) alerts.push({ ...a, key: "ch:" + a.key, kind: "ch" });
   if (backupAlert) alerts.push({ ...backupAlert, key: "backup", kind: "backup" });
+  if (sales.can("view")) for (const a of salesAlerts(sales.opps, sales.leads, today, sales.stages[0].key)) alerts.push({ key: a.key, kind: "sales", level: a.level, title: a.title, detail: a.detail, href: a.href });
   // Companies House changes first (they need a decision), then late work, then unplanned
   const rank = (a: Alert) => (a.kind === "backup" ? -2 : a.kind === "ch" ? 0 : 2) + (a.level === "red" ? 0 : 1);
   alerts.sort((a, b) => rank(a) - rank(b));
@@ -369,6 +376,7 @@ function Alerts() {
                     setShown(false);
                     if (a.kind === "ch") window.location.hash = "#/settings/companies-house";
                     else if (a.kind === "backup") window.location.hash = "#/settings/backups";
+                    else if (a.kind === "sales") window.location.hash = a.href || "#/sales";
                     else open(a.kind === "job" ? { kind: "job", key: a.key } : { kind: "task", key: a.key });
                   }}>
                     <span className={`dot ${a.level}`} aria-hidden="true" />
