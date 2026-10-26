@@ -6,7 +6,7 @@ import { PlannerSettings, newKey, readSettings } from "../lib/planning";
 import { changeEvents, createdEvent } from "../lib/timeline";
 import { readConfig, Answer, Template } from "../lib/checklist";
 import { planChecklist, practiceId, templateFromRow } from "../lib/checklistRows";
-import { ListKey, Row } from "../lib/schema";
+import { LISTS, ListKey, Row } from "../lib/schema";
 import { SharePointStore, friendlyError } from "../lib/sharepoint";
 
 export type Data = {
@@ -76,6 +76,13 @@ const EMPTY: Data = {
 
 const DataContext = createContext<Ctx | null>(null);
 
+const schemaSignature = () => {
+  const text = LISTS.map((l) => `${l.key}:${l.columns.map((c) => c.name).join(",")}`).join("|");
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+  return `${LISTS.length}:${h}`;
+};
+
 export const SOURCE: [keyof Data, ListKey][] = [
   ["clients", "Clients"], ["contacts", "Contacts"], ["groups", "Groups"], ["members", "GroupMembers"],
   ["services", "Services"], ["stageTemplates", "StageTemplates"], ["clientServices", "ClientServices"],
@@ -113,9 +120,14 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
         return;
       }
       // New versions of the app may add lists or columns; add them quietly (no data changes).
-      if (schema.some((s) => !s.exists || s.missingColumns.length)) {
+      // A column SharePoint stores under another name (e.g. "Order") shows as missing every time, and trying to add
+      // it again on every start is slow. So this runs once per browser for each version of the lists.
+      const sig = schemaSignature();
+      const tried = (() => { try { return localStorage.getItem("pp.schema.tried") === sig; } catch { return false; } })();
+      if (schema.some((s) => !s.exists) || (!tried && schema.some((s) => s.missingColumns.length))) {
         try {
           await store.ensureSchema();
+          try { localStorage.setItem("pp.schema.tried", sig); } catch { /* fine */ }
         } catch (e) {
           // A list the app couldn't add must not stop everything else loading; its page will say so when used.
           console.warn("Couldn't add a list or column", e);

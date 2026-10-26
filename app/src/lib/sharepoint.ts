@@ -37,19 +37,25 @@ export class SharePointStore {
     return `/sites/${this.siteId}/lists/${id}`;
   }
 
-  /** Which lists and columns are missing. */
+  /** Which lists and columns are missing. The column lists are fetched a few at a time, not one after another. */
   async checkSchema(): Promise<SchemaStatus[]> {
-    const out: SchemaStatus[] = [];
-    for (const list of LISTS) {
-      const id = this.listIds.get(list.key);
-      if (!id) {
-        out.push({ list, exists: false, missingColumns: list.columns.map((c) => c.name) });
-        continue;
+    const out: SchemaStatus[] = new Array(LISTS.length);
+    let next = 0;
+    const worker = async () => {
+      while (next < LISTS.length) {
+        const i = next++;
+        const list = LISTS[i];
+        const id = this.listIds.get(list.key);
+        if (!id) {
+          out[i] = { list, exists: false, missingColumns: list.columns.map((c) => c.name) };
+          continue;
+        }
+        const cols = await this.graph.getAll<{ name: string }>(`/sites/${this.siteId}/lists/${id}/columns?$select=name`);
+        const have = new Set(cols.map((c) => c.name));
+        out[i] = { list, exists: true, missingColumns: list.columns.filter((c) => !have.has(c.name)).map((c) => c.name) };
       }
-      const cols = await this.graph.getAll<{ name: string }>(`/sites/${this.siteId}/lists/${id}/columns?$select=name`);
-      const have = new Set(cols.map((c) => c.name));
-      out.push({ list, exists: true, missingColumns: list.columns.filter((c) => !have.has(c.name)).map((c) => c.name) });
-    }
+    };
+    await Promise.all(Array.from({ length: 6 }, worker));
     return out;
   }
 

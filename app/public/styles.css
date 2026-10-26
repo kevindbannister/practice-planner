@@ -2148,7 +2148,7 @@ body { display: flow-root; }
 .doc-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .doc-meta .wide { grid-column: 1 / -1; }
 .brand-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
-.brand-logo { max-height: 56px; max-width: 200px; border: 1px solid var(--line); border-radius: 6px; padding: 4px; background: #fff; }
+.doc-brand-logo { max-height: 56px; max-width: 200px; border: 1px solid var(--line); border-radius: 6px; padding: 4px; background: #fff; }
 .brand-sample { border: 1px solid var(--line-strong); border-radius: 8px; padding: 16px; background: #fff; max-width: 560px; }
 .brand-sample-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; color: var(--doc-primary); border-bottom: 2px solid var(--doc-secondary); padding-bottom: 8px; white-space: pre-line; }
 .brand-sample-head img { max-height: 44px; }

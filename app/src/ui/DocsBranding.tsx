@@ -113,7 +113,7 @@ export function BrandingScreen() {
           <div className="doc-field">
             <span>Logo</span>
             <span className="row-wrap">
-              {b.logo ? <img src={b.logo} alt="Current logo" className="brand-logo" /> : <span className="muted">No logo yet.</span>}
+              {b.logo ? <img src={b.logo} alt="Current logo" className="doc-brand-logo" /> : <span className="muted">No logo yet.</span>}
               <button type="button" className="btn small" onClick={() => file.current?.click()}>{b.logo ? "Change logo" : "Upload logo"}</button>
               {b.logo && <button type="button" className="btn small" onClick={() => patch({ logo: "" })}>Remove</button>}
               <input ref={file} type="file" accept="image/png,image/jpeg" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; logo(f); }} />
