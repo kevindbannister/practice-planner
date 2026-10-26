@@ -8,6 +8,7 @@ import {
   Aml, CHECK_KINDS, CLIENT_KINDS, Check, ENGAGEMENT_STATE_LABEL, Owner, Risk, StageLine, View, activate, activationPlan, amlProblems, approveAml, approveOnboarding, blockers, cancelOnboarding, clientFromLead, declineAml,
   detailsProblems, engagementState, isLiveOnboarding, onboardingCan, readAml, readOnboardingSettings, readStates, releaseHeld, setStage, saveAml, stageLines, startOnboarding, withdrawAml, withdrawApproval,
 } from "../lib/onboarding";
+import { readFeeSettings } from "../lib/fees";
 import { clientTypeFor, typeLabel } from "../lib/proposals";
 import { Lead, Opp, findDuplicates } from "../lib/sales";
 import { Row } from "../lib/schema";
@@ -36,8 +37,9 @@ export function useOnboarding() {
     const people = portal.forClient(client.Key).map((r) => ({ id: r.person.id, name: r.person.name || r.person.email, status: r.person.status }));
     return { onb, defs: settings.stages, client, engagements: data.engagements, proposals: data.proposals, versions: data.proposalVersions, catalogue: s.catalogue, people, today: todayIso() };
   };
+  const fees = useMemo(() => readFeeSettings(data.settings), [data.settings]);
   const authDone = (onb: Row) => { const d = settings.stages.find((x) => x.key === "agent"); return !d?.enabled || readStates(onb.Stages).agent?.status === "done"; };
-  return { s, data, portal, settings, can, pcan, viewFor, authDone };
+  return { s, data, portal, settings, fees, can, pcan, viewFor, authDone };
 }
 
 // ------------------------------------------------------------------ list
@@ -371,7 +373,7 @@ function AmlPanel(p: Body) {
         <div className="stack" style={{ gap: 6 }}>
           <strong>Beneficial owners{type === "limited" || type === "llp" ? "" : " (if any)"}</strong>
           {owners.map((x, i) => (
-            <div className="row-wrap" key={i}>
+            <div className="inline-form" key={i}>
               <input className="input" aria-label="Owner name" placeholder="Name" value={x.name} onChange={(e) => setOwners(owners.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))} />
               <input className="input" style={{ width: 90 }} aria-label="Percentage held" type="number" min={0} max={100} placeholder="%" value={x.percent ?? ""} onChange={(e) => setOwners(owners.map((y, j) => (j === i ? { ...y, percent: e.target.value === "" ? null : Number(e.target.value) } : y)))} />
               <input className="input" aria-label="Owner note" placeholder="Note (control, nationality…)" value={x.note} onChange={(e) => setOwners(owners.map((y, j) => (j === i ? { ...y, note: e.target.value } : y)))} />
@@ -386,7 +388,7 @@ function AmlPanel(p: Body) {
           <strong>Checks</strong>
           <p className="muted" style={{ margin: 0 }}>Record each check a person has carried out. A specialist AML provider can be recorded here too; the planner doesn't connect to one yet.</p>
           {checks.map((c, i) => (
-            <div className="row-wrap" key={c.id || i}>
+            <div className="inline-form" key={c.id || i}>
               <select className="input" aria-label="Kind of check" value={c.kind} onChange={(e) => setCheck(i, { kind: e.target.value })}>{CHECK_KINDS.map((k) => <option key={k}>{k}</option>)}</select>
               <select className="input" aria-label="Result" value={c.result} onChange={(e) => setCheck(i, { result: e.target.value as Check["result"] })}><option value="pending">Pending</option><option value="pass">Passed</option><option value="fail">Failed</option></select>
               <input className="input" aria-label="Check note" placeholder="Evidence or note" value={c.note} onChange={(e) => setCheck(i, { note: e.target.value })} />
@@ -432,7 +434,7 @@ function ActivationPanel(p: Body) {
   const annual = plan.reduce((a, x) => a + x.annual, 0);
   const go = () => run(async () => {
     if (!ver) return { error: "The accepted proposal version wasn't found." };
-    const w = activate({ onb, lines: p.lines, client: v.client, version: ver, services: data.services, catalogue: s.catalogue, clientServices: data.clientServices, jobs: data.jobs as Row[], engagements: data.engagements, authDone: p.authDone, today: todayIso(), can: s.pcan, independent: p.independent }, s.ctx());
+    const w = activate({ onb, lines: p.lines, client: v.client, version: ver, services: data.services, catalogue: s.catalogue, clientServices: data.clientServices, jobs: data.jobs as Row[], engagements: data.engagements, authDone: p.authDone, today: todayIso(), can: s.pcan, independent: p.independent, charges: data.feeCharges, reviewMonths: o.fees.reviewMonths, proposalRef: str(data.proposals.find((x) => x.Key === onb.ProposalKey)?.Ref) }, s.ctx());
     if ("error" in w) return w;
     await s.apply(w);
     return undefined;
@@ -450,7 +452,7 @@ function ActivationPanel(p: Body) {
         <table className="tbl"><thead><tr><th>Service</th><th>Fee</th><th>What happens</th></tr></thead>
           <tbody>{plan.map((x) => (
             <tr key={x.serviceKey + x.name}>
-              <td>{x.name}</td><td>{money(x.fee)} {x.period}</td>
+              <td>{x.name}</td><td>{money(x.fee)} {x.period || "one-off"}</td>
               <td>{x.action === "start" && x.job ? <>Start a job: period to {fmtDate(x.job.PeriodEnd)}, deadline {fmtDate(x.job.Deadline)}{x.job.note ? <div className="muted">{x.job.note}</div> : null}</> : <><span className={`chip ${x.action === "held" ? "amber" : ""}`}>{x.action === "held" ? "Held" : "No job"}</span> <span className="muted">{x.reason}</span></>}</td>
             </tr>
           ))}</tbody>

@@ -46,6 +46,10 @@ export type Data = {
   proposalVersions: Row[];
   engagements: Row[];
   onboardings: Row[];
+  feeHistory: Row[];
+  feeCharges: Row[];
+  clientCosts: Row[];
+  actions: Row[];
 };
 
 type Status = "connecting" | "needs-setup" | "loading" | "ready" | "error";
@@ -78,7 +82,7 @@ type Ctx = {
 const EMPTY: Data = {
   clients: [], contacts: [], groups: [], members: [], services: [], stageTemplates: [],
   clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [], comms: [], taxPayments: [], meetings: [], papers: [], paperLines: [], projects: [], docTemplates: [], docVersions: [], documents: [], activities: [],
-  checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [],
+  checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [], feeHistory: [], feeCharges: [], clientCosts: [], actions: [],
 };
 
 const DataContext = createContext<Ctx | null>(null);
@@ -96,7 +100,7 @@ export const SOURCE: [keyof Data, ListKey][] = [
   ["clientStages", "ClientServiceStages"], ["jobs", "Jobs"], ["history", "JobHistory"], ["tasks", "Tasks"],
   ["settings", "Settings"], ["chFlags", "CHFlags"], ["comms", "Communications"], ["taxPayments", "TaxPayments"], ["meetings", "Meetings"], ["papers", "WorkingPapers"], ["paperLines", "PaperLines"], ["projects", "Projects"],
   ["docTemplates", "DocTemplates"], ["docVersions", "DocVersions"], ["documents", "Documents"], ["activities", "Activities"],
-  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"],
+  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"], ["feeHistory", "FeeHistory"], ["feeCharges", "FeeCharges"], ["clientCosts", "ClientCosts"], ["actions", "Actions"],
 ];
 const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 

@@ -30,6 +30,7 @@ import { useSales } from "./salesKit";
 import { salesAlerts } from "../lib/sales";
 import { onboardingAlerts } from "../lib/onboarding";
 import { useOnboarding } from "./OnboardingPage";
+import { ActionCentrePage, ActionCentreLink, ActionSync } from "./ActionCentre";
 import { engagementAlerts, readEngagementSettings } from "../lib/engagements";
 import { SearchButton } from "./Search";
 import { readSetting } from "./data";
@@ -88,6 +89,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <SettingsPage />;
   } else if (section === "sales") {
     body = <SalesPage />;
+  } else if (section === "actions") {
+    body = <ActionCentrePage />;
   } else if (section === "chase") {
     body = <ChasePage />;
   } else if (section === "comms") {
@@ -110,6 +113,7 @@ export function App({ demo }: { demo: boolean }) {
             <AssistantProvider>
               <PortalProvider>
                 <TopBar section={section} demo={demo} ready={status === "ready"} />
+                {status === "ready" && <ActionSync />}
                 <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
                   {body}
                 </PageBoundary>
@@ -374,6 +378,7 @@ function Alerts() {
               ].join(" · ")}
             </span>
           </div>
+          <ActionCentreLink onNavigate={() => setShown(false)} />
           {alerts.length ? (
             <ul>
               {alerts.slice(0, 30).map((a) => (

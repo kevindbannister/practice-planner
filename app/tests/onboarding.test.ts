@@ -300,3 +300,15 @@ test("the agent authorisation can still be recorded after activation, but no oth
   assert.ok(!("error" in (setStage(b, agent, "done", "", client(), yes, O) as any)));
   assert.ok("error" in (setStage(b, DEFAULT_STAGES.find((d) => d.key === "info")!, "done", "", client(), yes, O) as any));
 });
+
+test("activation fills in the fee schedule: effective date, review date, history and set-up fee once", () => {
+  const ag = JSON.stringify({ vatRate: 0.2, lines: [{ id: "l0", serviceKey: "ACCS_LTD", name: "ACCS_LTD", frequency: "annual", price: 1200, discount: null, setupFee: 300, vat: "standard", optional: false }] });
+  const w: any = activate(actInput({ version: version({ Agreed: ag }), charges: [], reviewMonths: 12, proposalRef: "P-2026-0001" }), O);
+  const cs = w.creates.find((c: any) => c.list === "ClientServices").row;
+  assert.equal(cs.FeePeriod, "annually"); assert.equal(cs.ProposalKey, "PR1"); assert.equal(cs.VatTreatment, "standard");
+  assert.ok(cs.EffectiveFrom && cs.NextReview > cs.EffectiveFrom);
+  assert.equal(w.creates.filter((c: any) => c.list === "FeeCharges").length, 1);
+  assert.equal(w.creates.filter((c: any) => c.list === "FeeHistory").length, 1);
+  const again: any = activate(actInput({ version: version({ Agreed: ag }), charges: [w.creates.find((c: any) => c.list === "FeeCharges").row] }), O);
+  assert.equal(again.creates.filter((c: any) => c.list === "FeeCharges").length, 0);
+});

@@ -17,7 +17,7 @@ export type ListKey =
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
-  | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings"
+  | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -69,6 +69,7 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("ClientKey", true), t("ServiceKey"), n("Fee"), t("FeePeriod"), b("OneOff"),
       n("AnnualFee"), t("NextDeadline"), b("Off"), t("OffSince"),
+      n("ListFee"), note("DiscountNote"), t("VatTreatment"), t("EffectiveFrom"), t("NextReview"), t("EndedOn"), t("ProposalKey"),
     ],
   },
   {
@@ -282,6 +283,29 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("PracticeId", true), t("Ref", true), t("ClientKey", true), t("LeadKey"), t("OppKey"), t("ProposalKey", true), n("ProposalVersion"), t("Status", true), t("Takeover"), note("Stages"), note("Aml"),
       t("StartDate"), t("Owner"), note("Notes"), t("ApprovedBy"), t("ApprovedOn"), t("ActivatedBy"), t("ActivatedOn"), note("ActivationSummary"), t("Created"), t("CreatedBy"), t("Updated"),
+    ],
+  },
+  {
+    // Every change to what a client is charged, with who and why. See lib/fees.ts.
+    key: "FeeHistory", displayName: "PP Fee History", description: "Practice Planner: changes to client fees",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("ServiceKey"), t("At", true), t("Actor"), t("Action"), note("Old"), note("New"), note("Reason"), t("Source")],
+  },
+  {
+    // One-off agreed charges (set-up fees and the like), kept apart from recurring fees.
+    key: "FeeCharges", displayName: "PP Fee Charges", description: "Practice Planner: one-off agreed charges",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("ServiceKey"), t("Label"), n("Amount"), t("Vat"), t("AgreedOn"), t("Status", true), t("ProposalKey"), note("Notes"), t("Created"), t("CreatedBy")],
+  },
+  {
+    // Direct costs entered by hand, to estimate contribution. Not time recording.
+    key: "ClientCosts", displayName: "PP Client Costs", description: "Practice Planner: direct costs for each client",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Kind", true), t("Label"), n("Amount"), t("Period"), b("Estimate"), b("Active"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated")],
+  },
+  {
+    // What needs doing, kept so resolutions and dismissals have an audit trail. See lib/actions.ts.
+    key: "Actions", displayName: "PP Actions", description: "Practice Planner: Action Centre items and their history",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("Category", true), t("Title"), t("ClientKey", true), t("ClientName"), note("Detail"), t("Assignee"), t("Due"), t("Priority"), b("Dismissible"), t("Href"),
+      t("Status", true), t("FirstSeen"), t("ResolvedAt"), t("ResolvedBy"), t("DismissedBy"), note("History"), t("Updated"),
     ],
   },
   ...portalLists(),

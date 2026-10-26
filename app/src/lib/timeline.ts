@@ -24,7 +24,7 @@ export type ActivityType =
   | "lead-created" | "opp-created" | "opp-stage" | "opp-won" | "opp-outcome"
   | "proposal-created" | "proposal-sent" | "proposal-revised" | "proposal-accepted" | "proposal-rejected"
   | "engagement-created" | "engagement-sent" | "engagement-signed" | "engagement-uploaded" | "engagement-decision"
-  | "onboarding-started" | "onboarding-aml" | "onboarding-approved" | "onboarding-cancelled" | "client-activated";
+  | "onboarding-started" | "onboarding-aml" | "onboarding-approved" | "onboarding-cancelled" | "client-activated" | "fee-changed";
 
 export type Group = "emails" | "documents" | "jobs" | "tasks" | "papers" | "notes" | "requests" | "sales";
 export const GROUPS: { key: Group | "all"; label: string }[] = [
@@ -82,6 +82,7 @@ export const TYPE_INFO: Record<ActivityType, { label: string; group: Group; icon
   "onboarding-aml": { label: "AML approved", group: "sales", icon: "check" },
   "onboarding-approved": { label: "Onboarding approved", group: "sales", icon: "check" },
   "onboarding-cancelled": { label: "Onboarding cancelled", group: "sales", icon: "flag" },
+  "fee-changed": { label: "Fee schedule changed", group: "sales", icon: "check" },
   "client-activated": { label: "Client activated", group: "sales", icon: "check" },
   "engagement-decision": { label: "Engagement review decision", group: "sales", icon: "refresh" },
 };

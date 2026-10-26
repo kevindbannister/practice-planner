@@ -4,10 +4,11 @@
 // and a client can only be activated once the mandatory controls are met.
 import { Config, Role, staffRole } from "./checklist";
 import { Agreed, readAgreed, isInForce, coverageGaps, asEng } from "./engagements";
-import { CatalogueService, ClientType, ProposalAction, clientTypeFor, freqLabel, proposalCan, typeLabel } from "./proposals";
+import { CatalogueService, ClientType, ProposalAction, clientTypeFor, proposalCan, typeLabel } from "./proposals";
 import { Ctx, Written, activityRow, linkToClient, logRow, Lead, Opp } from "./sales";
 import { Row } from "./schema";
 import { addDays, addMonths, deadlineByRule, ruleFor } from "./planning";
+import { periodText, scheduleFields, setupCharge } from "./fees";
 
 const str = (v: unknown): string => (v === undefined || v === null ? "" : String(v));
 const num = (v: unknown): number => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
@@ -350,7 +351,7 @@ export function activationPlan(i: { agreed: Agreed; catalogue: CatalogueService[
     const net = l.discount ? (l.discount.kind === "pct" ? l.price * (1 - l.discount.value / 100) : Math.max(0, l.price - l.discount.value)) : l.price;
     const periods = ({ monthly: 12, quarterly: 4, annual: 1 } as Record<string, number>)[l.frequency] || 0;
     const oneOff = !periods;
-    const base = { serviceKey: l.serviceKey, name: l.name, fee: Math.round(net * 100) / 100, period: freqLabel(l.frequency), oneOff, annual: oneOff ? 0 : Math.round(net * periods * 100) / 100 };
+    const base = { serviceKey: l.serviceKey, name: l.name, fee: Math.round(net * 100) / 100, period: periodText(l.frequency), oneOff, annual: oneOff ? 0 : Math.round(net * periods * 100) / 100 };
     if (!l.serviceKey || !i.services.some((s) => s.Key === l.serviceKey)) { out.push({ ...base, action: "skip", reason: "Not a type of work in the planner, so no job is created. The fee is still recorded." }); continue; }
     if (svc?.requiresAuth && !i.authDone) { out.push({ ...base, action: "held", reason: "Needs an agent authorisation that isn't recorded yet. It will not be started." }); continue; }
     if (i.jobs.some((j) => str(j.ClientKey) === str(i.client.Key) && str(j.ServiceKey) === l.serviceKey && !["Complete", "Done", "Cancelled"].includes(str(j.Status)))) { out.push({ ...base, action: "skip", reason: "The client already has an open job for this." }); continue; }
@@ -359,7 +360,7 @@ export function activationPlan(i: { agreed: Agreed; catalogue: CatalogueService[
   return out;
 }
 
-export type ActivateInput = { onb: Row; lines: StageLine[]; client: Row; version: Row; services: Row[]; catalogue: CatalogueService[]; clientServices: Row[]; jobs: Row[]; engagements: Row[]; authDone: boolean; today: string; can: (a: ProposalAction) => boolean; independent: boolean };
+export type ActivateInput = { onb: Row; lines: StageLine[]; client: Row; version: Row; services: Row[]; catalogue: CatalogueService[]; clientServices: Row[]; jobs: Row[]; engagements: Row[]; authDone: boolean; today: string; can: (a: ProposalAction) => boolean; independent: boolean; /** one-off charges already recorded */ charges?: Row[]; /** months until a new fee is due for review */ reviewMonths?: number; proposalRef?: string };
 export function activate(i: ActivateInput, o: Ctx): Written | { error: string } {
   const { onb } = i;
   const closed = live(onb); if (closed) return { error: closed };
@@ -376,8 +377,15 @@ export function activate(i: ActivateInput, o: Ctx): Written | { error: string } 
   for (const p of plan) {
     const existing = i.clientServices.find((x) => str(x.ClientKey) === str(i.client.Key) && str(x.ServiceKey) === p.serviceKey);
     const held = p.action === "held"; // fee recorded, but the work is switched off until the authorisation is in place
-    const fee: Row = { Fee: p.fee, FeePeriod: p.period, OneOff: p.oneOff, AnnualFee: p.annual, Off: held, OffSince: held ? i.today : "" };
     if (!p.serviceKey) continue;
+    const line = agreed.lines.find((l) => l.serviceKey === p.serviceKey && l.name === p.name);
+    // the fee schedule: fee after discount, how often, VAT, effective and review dates, and where it was agreed
+    const fee: Row = { ...(line ? scheduleFields(line, { effectiveFrom: start, reviewMonths: i.reviewMonths || 12, proposalKey: str(onb.ProposalKey) }) : { Fee: p.fee, OneOff: p.oneOff, AnnualFee: p.annual }), Off: held, OffSince: held ? i.today : "" };
+    if (line) {
+      const ch = setupCharge(line, { clientKey: str(i.client.Key), proposalKey: str(onb.ProposalKey), proposalRef: i.proposalRef || "", effectiveFrom: start, existing: [...(i.charges || []), ...w.creates!.filter((c) => c.list === "FeeCharges").map((c) => c.row)] }, o);
+      if (ch) w.creates!.push({ list: "FeeCharges", row: ch });
+      w.creates!.push({ list: "FeeHistory", row: { Key: o.newKey("FH"), PracticeId: o.pid, ClientKey: str(i.client.Key), ServiceKey: p.serviceKey, At: o.now, Actor: o.actor, Action: "agreed", Old: "null", New: JSON.stringify({ fee: p.fee, period: fee.FeePeriod, held }), Reason: `Agreed in proposal ${i.proposalRef || str(onb.ProposalKey)} and activated`, Source: "Onboarding" } });
+    }
     if (existing) w.patches.push({ list: "ClientServices", row: existing, patch: fee });
     else w.creates!.push({ list: "ClientServices", row: { Key: o.newKey("CS"), ClientKey: str(i.client.Key), ServiceKey: p.serviceKey, ...fee } });
     if (p.action === "start" && p.job) {

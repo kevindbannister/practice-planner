@@ -13,9 +13,11 @@ import { useBoardDrag } from "./useBoardDrag";
 import { ProposalDetail, ProposalLinks, ProposalsList } from "./ProposalsPage";
 import { EngagementDetail, EngagementsList } from "./EngagementsPage";
 import { OnboardingDetail, OnboardingList } from "./OnboardingPage";
+import { RevenuePage } from "./FeesPanel";
+import { ReportsPage } from "./ReportsPage";
 import { TYPE_INFO, ActivityType } from "../lib/timeline";
 
-const TABS: [string, string, string][] = [["", "Overview", "#/sales"], ["pipeline", "Pipeline", "#/sales/pipeline"], ["leads", "Leads", "#/sales/leads"], ["proposals", "Proposals", "#/sales/proposals"], ["engagements", "Engagements", "#/sales/engagements"], ["onboarding", "Onboarding", "#/sales/onboarding"]];
+const TABS: [string, string, string][] = [["", "Overview", "#/sales"], ["pipeline", "Pipeline", "#/sales/pipeline"], ["leads", "Leads", "#/sales/leads"], ["proposals", "Proposals", "#/sales/proposals"], ["engagements", "Engagements", "#/sales/engagements"], ["onboarding", "Onboarding", "#/sales/onboarding"], ["fees", "Fees & revenue", "#/sales/fees"], ["reports", "Reports", "#/sales/reports"]];
 
 export function SalesPage() {
   const { parts } = useRoute();
@@ -44,6 +46,8 @@ export function SalesPage() {
       {sub === "engagements" && <EngagementsList />}
       {sub === "engagement" && parts[2] && <EngagementDetail engKey={parts[2]} />}
       {sub === "onboarding" && <OnboardingList />}
+      {sub === "fees" && <RevenuePage />}
+      {sub === "reports" && <ReportsPage />}
       {sub === "onboard" && parts[2] && <OnboardingDetail onbKey={parts[2]} />}
       {!sub && <Overview />}
     </div>

@@ -2289,3 +2289,8 @@ a.tl-sum:hover, button.tl-sum:hover { border-color: var(--blue-line); background
 .kanban a.pcard:hover { text-decoration: none; }
 .kanban a.pcard span { text-decoration: none; }
 ul.plain { list-style: none; padding: 0; margin: 0; }
+
+/* Phase 5: compact inline forms (filters, add-a-cost, onboarding rows) so fields sit side by side instead of each filling the row */
+.inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.inline-form > .input, .inline-form > select.input, .inline-form .doc-field { width: auto; flex: 1 1 150px; min-width: 120px; max-width: 100%; }
+.inline-form input[type=date].input { flex: 0 1 160px; }

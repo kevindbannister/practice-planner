@@ -1,6 +1,7 @@
 // Settings › Onboarding: which stages the practice uses, which are required, and how long AML approval lasts by risk.
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_STAGES, FIXED_MANDATORY, OnboardingSettings, onboardingCan, readOnboardingSettings } from "../lib/onboarding";
+import { readFeeSettings } from "../lib/fees";
 import { useData } from "./data";
 import { useSales } from "./salesKit";
 
@@ -18,11 +19,15 @@ export function OnboardingSettingsPage() {
   const save = async () => {
     setBusy(true); setMsg(undefined);
     try {
+      await saveSetting("fees.settings", { reviewMonths: Math.max(1, Math.min(60, Math.floor(reviewMonths) || 12)) });
       await saveSetting("onboarding.settings", { stages: draft.stages.map((d) => ({ key: d.key, enabled: d.enabled, mandatory: d.mandatory })), amlMonths: draft.amlMonths });
       setMsg({ ok: true, text: "Saved. It applies to every onboarding, including ones already open." });
     } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : "That didn't save." }); } finally { setBusy(false); }
   };
-  const dirty = JSON.stringify(draft) !== JSON.stringify(current);
+  const feeCurrent = useMemo(() => readFeeSettings(data.settings).reviewMonths, [data.settings]);
+  const [reviewMonths, setReviewMonths] = useState(feeCurrent);
+  useEffect(() => { setReviewMonths(feeCurrent); }, [feeCurrent]);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(current) || reviewMonths !== feeCurrent;
   return (
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Onboarding stages">
@@ -50,6 +55,11 @@ export function OnboardingSettingsPage() {
         <div className="row-wrap">
           {(["low", "medium", "high"] as const).map((k) => <label key={k} className="doc-field"><span>{k[0].toUpperCase() + k.slice(1)} risk (months)</span><input className="input" type="number" min={1} max={120} disabled={!allowed} value={draft.amlMonths[k]} onChange={(e) => months(k, e.target.value)} /></label>)}
         </div>
+      </section>
+      <section className="card pad stack" aria-label="Fee schedules">
+        <h2 style={{ margin: 0 }}>Fee schedules</h2>
+        <p className="muted" style={{ margin: 0 }}>New agreed fees are given a review date this many months after they start. Reviews coming due show in the Action Centre.</p>
+        <label className="doc-field" style={{ maxWidth: 220 }}><span>Review fees every (months)</span><input className="input" type="number" min={1} max={60} disabled={!allowed} value={reviewMonths} onChange={(e) => setReviewMonths(Number(e.target.value))} /></label>
       </section>
       {allowed ? <div className="row-wrap"><button type="button" className="btn primary" disabled={busy || !dirty} onClick={save}>{busy ? "Saving…" : "Save"}</button>{msg && <span role={msg.ok ? "status" : "alert"} style={{ color: msg.ok ? undefined : "var(--red-ink)" }}>{msg.text}</span>}</div> : <p className="muted">Only a manager or partner can change these.</p>}
     </div>
