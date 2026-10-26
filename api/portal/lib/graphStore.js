@@ -102,6 +102,18 @@ function createGraphStore({ tenantId, clientId, clientSecret, siteHost, sitePath
     return out;
   }
 
+  let driveId = null;
+  /** The Graph address of a file in the portal folder. Each path part is encoded; none can climb out. */
+  async function fileUrl(path) {
+    if (!driveId) {
+      const d = await graph(`/sites/${await site()}/drive?$select=id`);
+      if (!d) throw new StoreError("unavailable", "The site's document library wasn't found");
+      driveId = d.id;
+    }
+    const parts = String(path).split("/").filter((p) => p && p !== "." && p !== "..");
+    return `${GRAPH}/drives/${driveId}/root:/${["Client Portal", ...parts].map(encodeURIComponent).join("/")}:/content`;
+  }
+
   const fieldsFor = (coll, doc) => {
     const [a, b] = REF[coll] || [];
     return { Title: String(doc.id).slice(0, 250), Key: doc.id, PracticeId: doc.practiceId, Rev: String(doc.rev || 1), Ref1: String((a && doc[a]) || "").slice(0, 250), Ref2: String((b && doc[b]) || "").slice(0, 250), Json: JSON.stringify(doc) };
@@ -149,6 +161,27 @@ function createGraphStore({ tenantId, clientId, clientSecret, siteHost, sitePath
     },
     async append(pid, coll, doc) {
       return this.insert(pid, coll, doc);
+    },
+    /**
+     * Files, in a "Client Portal" folder of the planner site's document library. The library is the
+     * site's own, so Microsoft 365's malware scanning and version history apply to these files too.
+     */
+    files: {
+      async put(path, bytes, type = "application/octet-stream") {
+        const url = await fileUrl(path);
+        const res = await fetch(url, { method: "PUT", headers: { Authorization: `Bearer ${await bearer()}`, "Content-Type": type }, body: bytes });
+        if (!res.ok) throw new StoreError("unavailable", `The file store answered ${res.status}`);
+      },
+      async get(path) {
+        const res = await fetch(await fileUrl(path), { headers: { Authorization: `Bearer ${await bearer()}` } });
+        if (res.status === 404) return null;
+        if (!res.ok) throw new StoreError("unavailable", `The file store answered ${res.status}`);
+        return Buffer.from(await res.arrayBuffer());
+      },
+      async remove(path) {
+        const res = await fetch((await fileUrl(path)).replace(/:\/content$/, ":"), { method: "DELETE", headers: { Authorization: `Bearer ${await bearer()}` } });
+        if (!res.ok && res.status !== 404) throw new StoreError("unavailable", `The file store answered ${res.status}`);
+      },
     },
     /** Change columns on one row of a planner list, found by its Key. Only ever called with whitelisted columns. */
     async updatePlanner(displayName, key, fields) {

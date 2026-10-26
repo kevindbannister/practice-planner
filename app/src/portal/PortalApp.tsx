@@ -1,13 +1,14 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, Biz, Me, PortalClient } from "./api";
 import { Config, idleGuard, signOut } from "./auth";
+import { Documents } from "./Documents";
 import { Dashboard } from "./Dashboard";
 import { BusinessPage } from "./BusinessPage";
 import { SecurityPage } from "./SecurityPage";
 
 export type Ctx = { cfg: Config; api: PortalClient; me: Me; biz: Biz; go: (page: string) => void };
 
-const PAGES: [string, string][] = [["dashboard", "Home"], ["business", "My business"], ["security", "Security"]];
+const PAGES: [string, string][] = [["dashboard", "Home"], ["documents", "Documents"], ["business", "My business"], ["security", "Security"]];
 const IDLE_MINUTES = 30;
 
 function usePage(): [string, (p: string) => void] {
@@ -53,12 +54,14 @@ export function PortalApp({ cfg }: { cfg: Config }) {
   }
   const choose = (k: string) => { setBizKey(k); try { sessionStorage.setItem("px.biz", k); } catch { /* fine */ } };
   const ctx: Ctx = { cfg, api, me, biz, go };
-  const known = PAGES.some(([k]) => k === page);
+  const pages = PAGES.filter(([k]) => k !== "documents" || biz.can["documents.view"]);
+  const known = pages.some(([k]) => k === page);
   return (
     <Shell cfg={cfg} me={me} out={() => out("")} switcher={me.businesses.length > 1 ? <Switcher list={me.businesses} value={biz.clientKey} onChange={choose} /> : <span className="px-bizname">{biz.name}</span>}
-      nav={PAGES.map(([k, label]) => <a key={k} href={`#/${k}`} aria-current={(known ? page : "dashboard") === k ? "page" : undefined}>{label}</a>)}>
+      nav={pages.map(([k, label]) => <a key={k} href={`#/${k}`} aria-current={(known ? page : "dashboard") === k ? "page" : undefined}>{label}</a>)}>
       <main className="px-main" key={biz.clientKey}>
         {(!known || page === "dashboard") && <Dashboard ctx={ctx} />}
+        {page === "documents" && known && <Documents ctx={ctx} />}
         {page === "business" && <BusinessPage ctx={ctx} />}
         {page === "security" && <SecurityPage ctx={ctx} />}
       </main>

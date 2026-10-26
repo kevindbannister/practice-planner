@@ -20,6 +20,7 @@ const MATRIX = {
   "business.details": { administrator: "all", standard: "all" },
   "business.requestChange": { administrator: "all" },
   "documents.view": { administrator: "all", standard: "all", restricted: "assigned", signatory: "assigned" },
+  "documents.approve": { administrator: "all", standard: "all", restricted: "assigned", signatory: "assigned" },
   "documents.upload": { administrator: "all", standard: "all", restricted: "assigned" },
   "requests.respond": { administrator: "all", standard: "all", restricted: "assigned" },
   "messages.use": { administrator: "all", standard: "all", restricted: "assigned" },

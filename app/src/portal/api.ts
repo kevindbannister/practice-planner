@@ -12,6 +12,11 @@ export type ChangeItem = { key: string; label: string; old: string; new: string;
 export type ChangeRequest = { id: string; clientKey: string; createdAt: string; status: "pending" | "clarification" | "decided"; outcome: string; decidedAt: string; requestedByName: string; note: string; items: ChangeItem[]; thread: { at: string; from: "client" | "staff"; name: string; text: string }[] };
 export type Official = { name: string; number: string; status: string; type: string; incorporated: string; registeredOffice: string; sic: string[]; accountsDue: string; confirmationDue: string; accountingReferenceDate: string; officers: { name: string; role: string; appointed: string }[]; pscs: { name: string; kind: string; control: string[]; notified: string }[] };
 
+export type DocVersion = { n: number; fileName: string; ext: string; size: number; at: string; by: string; byKind: "staff" | "client"; sha256: string };
+export type PortalDoc = { id: string; title: string; category: string; status: string; createdAt: string; updatedAt: string; from: "practice" | "client"; needsApproval: boolean; approval: { status: string; at: string; by: string; note: string } | null; message: string; assigned: boolean; previewable: boolean; versions: DocVersion[]; size: number; ext: string };
+export type DocList = { documents: PortalDoc[]; categories: string[]; canUpload: boolean; canApprove: boolean };
+export type FileOut = { fileName: string; mime: string; size: number; content: string };
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) {
     super(message);
@@ -53,6 +58,13 @@ export class PortalClient {
   propose = (key: string, items: { key: string; value: string }[], note: string) => this.call<{ request: ChangeRequest }>("POST", `changes/${encodeURIComponent(key)}`, { items, note });
   reply = (key: string, id: string, text: string) => this.call<{ request: ChangeRequest }>("POST", `changes/${encodeURIComponent(key)}/${id}/reply`, { text });
   withdraw = (key: string, id: string) => this.call<{ request: ChangeRequest }>("POST", `changes/${encodeURIComponent(key)}/${id}/cancel`, {});
+  documents = (key: string, q: { q?: string; category?: string; status?: string } = {}) => {
+    const qs = new URLSearchParams(Object.entries(q).filter(([, v]) => v) as [string, string][]).toString();
+    return this.call<DocList>("GET", `documents/${encodeURIComponent(key)}${qs ? `?${qs}` : ""}`);
+  };
+  uploadDocument = (key: string, b: { title?: string; category?: string; fileName: string; content: string; message?: string; replaces?: string }) => this.call<{ document: PortalDoc }>("POST", `documents/${encodeURIComponent(key)}`, b);
+  downloadDocument = (key: string, id: string, version?: number) => this.call<FileOut>("POST", `documents/${encodeURIComponent(key)}/${id}/download`, { version });
+  approveDocument = (key: string, id: string, decision: "approved" | "declined", note: string) => this.call<{ document: PortalDoc }>("POST", `documents/${encodeURIComponent(key)}/${id}/approve`, { decision, note });
   official = (key: string) => this.call<{ official: Official | null; configured: boolean; unavailable?: boolean }>("GET", `official/${encodeURIComponent(key)}`);
 }
 

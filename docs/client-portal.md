@@ -58,3 +58,14 @@ As checked in October 2026, an external tenant offers **email one-time code, SMS
 - The server's rate limit is in memory on each server instance. It slows floods but the provider's own sign-in protections are the real brute-force defence.
 - Audit events can't be silently edited, but deleting one is only caught by SharePoint's version history and recycle bin.
 - Permissions are enforced by the portal server; staff screens are for people who already have full access to the planner's site.
+
+## Document centre (phase 4)
+
+- Staff add a document on a client's **Portal** tab. It stays a draft until published; clients see only published documents. Optionally name the people it is for (otherwise all administrators and standard users), and ask for the client's approval.
+- Restricted and Signatory people see only documents assigned to them. Client uploads by a restricted person are visible to that person and administrators/standard users; a signatory can't upload.
+- Files live in a `Client Portal/<practice>/<client>/<document>/` folder of the planner site's document library, written with the same app-only Graph access as the lists. There is no public link: every download is a signed-in call that is permission-checked and audited, and the file is returned inside the response.
+- Checks before storing: size (10 MB, `PORTAL_MAX_UPLOAD_MB`), an allow-list of types (PDF, DOCX, XLSX, PNG, JPG, CSV, TXT), the file's first bytes must match its extension, no double extensions, no macro-enabled Office files, no PDFs with scripts/launch actions. This is format checking, not antivirus. A real scanner can be passed to the handler as `scanner(bytes, info) -> {ok}`; until then the staff screen says "no virus scanner connected".
+- Emails only say a document is waiting; they never carry its name or contents.
+- Versions are never overwritten. A new version resets approval. Approval records who, when and the SHA-256 of the exact version approved.
+- Preview uses the browser's own PDF viewer (blob address); phones that can't show PDFs inline fall back to Download.
+- Not yet: retention/deletion, virus scanning, identity documents (own module, phase 6).

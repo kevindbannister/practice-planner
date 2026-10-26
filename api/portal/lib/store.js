@@ -25,6 +25,8 @@ class StoreError extends Error {
 
 const newId = (prefix = "") => `${prefix}${crypto.randomUUID()}`;
 
+const { createMemoryFiles } = require("./fileStore.js");
+
 function createMemoryStore() {
   const data = new Map(); // `${pid}|${coll}` -> Map(id -> doc)
   const table = (pid, coll) => {
@@ -34,6 +36,7 @@ function createMemoryStore() {
   };
   const copy = (d) => (d ? JSON.parse(JSON.stringify(d)) : null);
   return {
+    files: createMemoryFiles(),
     kind: "memory",
     async list(pid, coll) {
       return [...table(pid, coll).values()].map(copy);

@@ -44,9 +44,13 @@ export const EVENT_LABEL: Record<string, string> = {
   "account.email-change-requested": "Email change requested", "account.email-changed": "Email changed", "auth.login": "Signed in", "auth.sessions-ended": "Signed out everywhere",
   "access.granted": "Business access granted", "access.changed": "Permissions changed", "access.revoked": "Business access removed",
   "change.requested": "Business details change requested", "change.clarification-asked": "Question asked about a change", "change.client-replied": "Client answered a question", "change.withdrawn": "Change request withdrawn",
+  "document.added": "Document added (draft)", "document.published": "Document published", "document.unpublished": "Document unpublished", "document.archived": "Document archived", "document.edited": "Document details edited", "document.version-added": "New version added by the practice", "document.version-uploaded": "New version uploaded by the client", "document.uploaded": "Document uploaded by the client", "document.downloaded": "Document downloaded", "document.approved": "Document approved by the client", "document.declined": "Document declined by the client", "document.refused": "File refused by the security check",
   "change.approved": "Change approved", "change.rejected": "Change rejected", "change.applied": "Approved changes saved to the record",
 };
 export const eventLabel = (t: string) => EVENT_LABEL[t] || t.replace(/[._-]/g, " ");
+
+export type StaffDoc = { id: string; clientKey: string; title: string; category: string; status: string; published: boolean; publishedAt: string; createdAt: string; updatedAt: string; from: "practice" | "client"; needsApproval: boolean; approval: { status: string; at: string; by: string; note: string } | null; message: string; internalNote: string; assignedTo: string[]; assignedNames: string[]; uploadedBy: string; scan: string; versions: { n: number; fileName: string; ext: string; size: number; at: string; by: string; byKind: string; sha256: string }[]; size: number; ext: string };
+export type StaffFile = { fileName: string; mime: string; size: number; content: string };
 
 export class PortalAdminApi {
   constructor(private token: () => Promise<string>) {}
@@ -97,6 +101,15 @@ export class PortalAdminApi {
   changeEmail(userId: string, email: string) { return this.call("POST", "change-email", { userId, email }); }
   endSessions(userId: string) { return this.call("POST", "end-sessions", { userId }); }
   async changes(status = ""): Promise<ChangeRequestStaff[]> { return (await this.call("GET", `changes${status ? `?status=${status}` : ""}`)).requests; }
+  async documents(clientKey: string): Promise<{ documents: StaffDoc[]; categories: string[] }> { return this.call("GET", `documents?clientKey=${encodeURIComponent(clientKey)}`); }
+  addDocument(b: { clientKey: string; title?: string; category?: string; fileName: string; content: string; publish: boolean; notify: boolean; assignedTo: string[]; requiresApproval: boolean; message?: string; internalNote?: string }): Promise<{ document: StaffDoc }> { return this.call("POST", "documents-add", b); }
+  publishDocument(id: string, o: { notify: boolean; assignedTo?: string[]; requiresApproval?: boolean }): Promise<{ document: StaffDoc & { told: number } }> { return this.call("POST", "documents-publish", { id, ...o }); }
+  unpublishDocument(id: string) { return this.call("POST", "documents-unpublish", { id }); }
+  archiveDocument(id: string) { return this.call("POST", "documents-archive", { id }); }
+  documentVersion(id: string, b: { fileName: string; content: string; notify: boolean }) { return this.call("POST", "documents-version", { id, ...b }); }
+  editDocument(id: string, b: { title?: string; category?: string; assignedTo?: string[]; internalNote?: string }) { return this.call("POST", "documents-edit", { id, ...b }); }
+  documentSeen(id: string) { return this.call("POST", "documents-seen", { id }); }
+  downloadDocument(id: string, version?: number): Promise<StaffFile> { return this.call("POST", "documents-download", { id, version }); }
   askChange(id: string, text: string) { return this.call("POST", "changes-ask", { id, text }); }
   decideChange(id: string, decisions: { key: string; decision: "approved" | "rejected"; note?: string }[]): Promise<DecideResult> { return this.call("POST", "changes-decide", { id, decisions }); }
 }

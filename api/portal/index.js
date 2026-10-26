@@ -22,7 +22,7 @@ const { modules } = require("./lib/modules.js");
 const { WRITABLE_COLUMNS } = require("./lib/editable.js");
 
 const REQUIRED = ["PORTAL_IDP_ISSUER", "PORTAL_IDP_JWKS_URL", "PORTAL_IDP_CLIENT_ID", "PORTAL_GRAPH_TENANT_ID", "PORTAL_GRAPH_CLIENT_ID", "PORTAL_GRAPH_CLIENT_SECRET", "PORTAL_AUDIT_KEY"];
-const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "CH_API_KEY", "PORTAL_NOTIFY_EMAIL", "PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS"];
+const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "CH_API_KEY", "PORTAL_NOTIFY_EMAIL", "PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS", "PORTAL_MAX_UPLOAD_MB"];
 const SITE_HOST = "insightinformation.sharepoint.com";
 const SITE_PATH = "/sites/PracticePlanner";
 const CLIENTS_LIST = "PP Clients";
@@ -86,8 +86,8 @@ function createHandler(deps = {}) {
       },
     };
     const service = createService({ audit, mailer, now, portalUrl: env.PORTAL_URL || "", practiceName: env.PORTAL_PRACTICE_NAME || "Your accountant", policy });
-    parts = { raw, verifier, mailer, audit, reader, service, store: bind(raw, practiceId) };
-    parts.mods = modules(parts, { now, env, policy, fetch });
+    parts = { raw, files: deps.files || raw.files, verifier, mailer, audit, reader, service, store: bind(raw, practiceId) };
+    parts.mods = modules(parts, { now, env, policy, fetch, scanner: deps.scanner });
     return parts;
   }
 
