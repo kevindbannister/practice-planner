@@ -860,10 +860,10 @@ h2.with-icon { display: inline-flex; align-items: center; gap: 12px; }
 .seg button svg { margin-right: 8px; vertical-align: -2px; }
 
 /* ---------- search ---------- */
-.search-btn { width: auto; padding: 0 10px; gap: 8px; }
+.search-btn { width: 44px; padding: 0; }
 .search-btn-text { font-size: 14px; color: var(--muted); }
 .search-kbd { font-family: var(--mono); font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; background: var(--surface-2); }
-@media (max-width: 1799px) { .search-btn-text, .search-kbd { display: none; } .search-btn { padding: 0; width: 44px; } }
+.search-btn-text, .search-kbd { display: none; }
 .search-wrap { position: fixed; inset: 0; z-index: 60; background: rgba(10, 14, 20, 0.45); display: flex; justify-content: center; align-items: flex-start; padding: 10vh 16px 16px; }
 .search-dialog { width: min(640px, 100%); background: var(--surface); border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); overflow: hidden; display: flex; flex-direction: column; max-height: 75vh; }
 .search-big { max-width: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; min-height: 56px; flex: 0 0 auto; padding: 0 16px; }
