@@ -21,7 +21,8 @@ export type ActivityType =
   | "call" | "meeting" | "note" | "conversation" | "follow-up"
   | "info-requested" | "info-received" | "query" | "chase"
   | "tax-reminder" | "tax-paid"
-  | "lead-created" | "opp-created" | "opp-stage" | "opp-won" | "opp-outcome";
+  | "lead-created" | "opp-created" | "opp-stage" | "opp-won" | "opp-outcome"
+  | "proposal-created" | "proposal-sent" | "proposal-revised" | "proposal-accepted" | "proposal-rejected";
 
 export type Group = "emails" | "documents" | "jobs" | "tasks" | "papers" | "notes" | "requests" | "sales";
 export const GROUPS: { key: Group | "all"; label: string }[] = [
@@ -66,6 +67,11 @@ export const TYPE_INFO: Record<ActivityType, { label: string; group: Group; icon
   "opp-stage": { label: "Pipeline stage changed", group: "sales", icon: "refresh" },
   "opp-won": { label: "Opportunity won", group: "sales", icon: "check" },
   "opp-outcome": { label: "Opportunity closed", group: "sales", icon: "flag" },
+  "proposal-created": { label: "Proposal started", group: "sales", icon: "letter" },
+  "proposal-sent": { label: "Proposal sent", group: "sales", icon: "mail" },
+  "proposal-revised": { label: "Proposal revised", group: "sales", icon: "refresh" },
+  "proposal-accepted": { label: "Proposal accepted", group: "sales", icon: "check" },
+  "proposal-rejected": { label: "Proposal turned down", group: "sales", icon: "flag" },
 };
 
 /** Types a person can record by hand. */

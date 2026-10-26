@@ -149,9 +149,10 @@ export function orderAt(siblings: Opp[], index: number): number {
 }
 
 export type LogEntry = Row;
-export type Patch = { list: "Leads" | "Opportunities" | "Activities"; row: Row; patch: Row };
-export type Written = { patches: Patch[]; log: LogEntry[]; activities: Row[] };
-type Ctx = { actor: string; now: string; pid: string; newKey: (p: string) => string };
+export type Patch = { list: "Leads" | "Opportunities" | "Activities" | "Proposals" | "ProposalVersions" | "Services"; row: Row; patch: Row };
+export type Created = { list: "Proposals" | "ProposalVersions"; row: Row };
+export type Written = { patches: Patch[]; log: LogEntry[]; activities: Row[]; creates?: Created[] };
+export type Ctx = { actor: string; now: string; pid: string; newKey: (p: string) => string };
 
 export function logRow(o: Ctx, action: string, entityType: string, entityKey: string, refs: { leadKey?: string; clientKey?: string }, detail: unknown): LogEntry {
   return { Key: o.newKey("SL"), PracticeId: o.pid, At: o.now, Actor: o.actor, Action: action, EntityType: entityType, EntityKey: entityKey, LeadKey: refs.leadKey || "", ClientKey: refs.clientKey || "", Detail: JSON.stringify(detail) };

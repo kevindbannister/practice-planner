@@ -331,12 +331,12 @@ export function DocumentHistory({ clientKey }: { clientKey?: string }) {
 // ------------------------------------------------------------------ emailing a saved document
 
 /** Email a saved document: a draft in Outlook with the PDF attached, and sending only after an explicit second step. */
-function EmailPanel({ client, saved, signatory }: { client: Client; saved: { name: string; bytes: Uint8Array; row: Row; title: string }; signatory: string }) {
+export function EmailPanel({ client, saved, signatory, onSent, intro }: { client: Client; saved: { name: string; bytes: Uint8Array; row: Row; title: string }; signatory: string; onSent?: (to: string) => void | Promise<void>; intro?: string }) {
   const docs = useDocs();
   const prefs = useCommsPrefs();
   const [to, setTo] = useState(String(client.Email || ""));
   const [subject, setSubject] = useState(saved.title);
-  const [message, setMessage] = useState(`${emailGreeting(client)}\n\nPlease find attached ${saved.title.split(" – ")[0].replace(/^./, (c) => c.toLowerCase())}.\n\nKind regards,\n${(signatory || prefs.signName || "").split(" ")[0]}`);
+  const [message, setMessage] = useState(`${emailGreeting(client)}\n\n${intro || `Please find attached ${saved.title.split(" – ")[0].replace(/^./, (c) => c.toLowerCase())}.`}\n\nKind regards,\n${(signatory || prefs.signName || "").split(" ")[0]}`);
   const [step, setStep] = useState<"form" | "drafted" | "confirm" | "sent">("form");
   const [draft, setDraft] = useState<{ id: string; webLink?: string }>();
   const [busy, setBusy] = useState(false);
@@ -378,6 +378,7 @@ function EmailPanel({ client, saved, signatory }: { client: Client; saved: { nam
       await docs.store.graph.post(`/me/messages/${encodeURIComponent(draft.id)}/send`, {});
       setStep("sent");
       await track({ Status: "Sent", SentOn: new Date().toISOString(), SentTo: recipients.join("; ") });
+      await onSent?.(recipients.join("; "));
     } catch (e) {
       fail(e, "send the email");
       setStep("drafted");

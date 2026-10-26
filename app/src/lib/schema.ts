@@ -17,7 +17,7 @@ export type ListKey =
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
-  | "Leads" | "Opportunities" | "SalesLog"
+  | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings";
 
 export const LISTS: ListDef[] = [
@@ -55,6 +55,9 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("Recurrence"), t("DeadlineRule"), n("DefaultHours"), n("RepeatMonths"), t("DeadlineMode"),
       n("DeadlineMonths"), n("DeadlineDays"), t("DeadlineFixed"), b("KeepMonthEnd"), t("RecordsNeeded"), n("RecordsLeadDays"), n("FinaliseHours"),
+      // the commercial side (Services & pricing): what a proposal can offer
+      t("Code"), t("Category"), note("Description"), note("ClientDescription"), t("ClientTypes"), n("Price"), t("PriceFrequency"), t("VatTreatment"), n("SetupFee"),
+      note("Scope"), note("Exclusions"), note("ClientResp"), note("PracticeResp"), note("Clauses"), note("Pricing"), b("Offered"), b("Active"),
     ],
   },
   {
@@ -162,7 +165,7 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("ClientKey", true), t("JobKey"), t("TemplateKey"), n("TemplateVersion"), t("TemplateName"), t("Category"), t("Title"),
       t("Reference"), t("Created", true), t("CreatedBy"), t("BrandingId"), t("FileUrl"), t("FileName"), n("Pages"), t("Status"), t("SentOn"),
-      t("SentTo"), t("OutlookUrl"), note("Snapshot"),
+      t("SentTo"), t("OutlookUrl"), note("Snapshot"), t("ProposalKey", true), t("OppKey"), t("LeadKey"),
     ],
   },
   {
@@ -243,6 +246,24 @@ export const LISTS: ListDef[] = [
   {
     key: "SalesLog", displayName: "PP Sales Audit Trail", description: "Practice Planner: what happened to each lead and opportunity",
     columns: [t("Key", true), t("PracticeId", true), t("At", true), t("Actor"), t("Action"), t("EntityType"), t("EntityKey", true), t("LeadKey"), t("ClientKey"), note("Detail")],
+  },
+  {
+    // One commercial offer for one opportunity. The wording and prices live in its versions.
+    key: "Proposals", displayName: "PP Proposals", description: "Practice Planner: proposals (one per offer; see versions)",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("Ref", true), t("Title"), t("OppKey", true), t("LeadKey", true), t("ClientKey", true), n("CurrentVersion"), t("Status", true),
+      n("AcceptedVersion"), t("Created"), t("CreatedBy"), t("Updated"),
+    ],
+  },
+  {
+    // Every version of a proposal, kept for good. A version that has gone out is never changed; the accepted one shows exactly what was agreed.
+    key: "ProposalVersions", displayName: "PP Proposal Versions", description: "Practice Planner: the versions of each proposal, as sent and as accepted",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("ProposalKey", true), n("Version"), t("Status", true), note("Body"), t("Hash"), t("ValidUntil", true), t("Created"), t("CreatedBy"), t("Updated"),
+      t("ReviewedBy"), t("ReviewedOn"), t("ApprovedBy"), t("ApprovedOn"), note("ReturnNote"), t("SentOn"), t("SentBy"), t("SentTo"), t("DocKey"),
+      t("AcceptedBy"), t("AcceptedEmail"), t("AcceptedAt"), t("AcceptMethod"), note("AcceptEvidence"), t("AcceptIp"), note("Agreed"), note("RejectedReason"), t("RejectedAt"),
+      n("FirstYearNet"), n("FirstYearGross"), n("OngoingNet"), n("OngoingGross"),
+    ],
   },
   ...portalLists(),
 ];

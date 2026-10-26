@@ -4,8 +4,9 @@ import { todayIso } from "../lib/domain";
 import { newKey } from "../lib/planning";
 import { practiceId } from "../lib/checklistRows";
 import { Row, ListKey } from "../lib/schema";
+import { CatalogueService, DEFAULT_DISCOUNT_LIMIT, DEFAULT_VAT_RATE, ProposalAction, proposalCan, readCatalogue, readTemplate } from "../lib/proposals";
 import { Lead, Opp, SalesAction, Written, DEFAULT_LOST_REASONS, DEFAULT_SOURCES, logRow, outcomeOf, readPipeline, readStrings, salesCan, salesConfig, wonStage } from "../lib/sales";
-import { useData } from "./data";
+import { readSetting, useData } from "./data";
 
 export function useSales() {
   const { data, user, create, updateMany } = useData();
@@ -15,6 +16,11 @@ export function useSales() {
   const cfg = useMemo(() => salesConfig(data.settings), [data.settings]);
   const me = user || "";
   const can = (a: SalesAction) => salesCan(cfg, me, a);
+  const pcan = (a: ProposalAction) => proposalCan(cfg, me, a);
+  const catalogue: CatalogueService[] = useMemo(() => readCatalogue(data.services), [data.services]);
+  const vatRate = (() => { const v = readSetting<number>(data.settings, "sales.vatRate"); return typeof v === "number" && v >= 0 && v <= 1 ? v : DEFAULT_VAT_RATE; })();
+  const discountLimit = (() => { const v = readSetting<number>(data.settings, "sales.discountLimit"); return typeof v === "number" && v >= 0 && v <= 100 ? v : DEFAULT_DISCOUNT_LIMIT; })();
+  const template = useMemo(() => readTemplate(readSetting<unknown>(data.settings, "proposal.template")), [data.settings]);
   const ctx = () => ({ actor: me, now: new Date().toISOString(), pid: practiceId(data.settings), newKey });
   const opps = data.opportunities as Opp[];
   const leads = data.leads as Lead[];
@@ -23,6 +29,7 @@ export function useSales() {
   const apply = async (w: Written) => {
     const by = new Map<string, { row: Row; patch: Row }[]>();
     for (const p of w.patches) by.set(p.list, [...(by.get(p.list) || []), { row: p.row, patch: p.patch }]);
+    for (const c of w.creates || []) await create(c.list, c.row);
     for (const [list, changes] of by) await updateMany(list as ListKey, changes);
     for (const l of w.log) await create("SalesLog", l);
     for (const a of w.activities) await create("Activities", a);
@@ -44,7 +51,7 @@ export function useSales() {
     if (o.LeadKey) return String(leads.find((l) => l.Key === o.LeadKey)?.Title || "Lead");
     return "";
   };
-  return { data, me, stages, sources, lostReasons, can, ctx, apply, edit, opps, leads, nameOf, won: wonStage(stages), today: todayIso() };
+  return { data, me, stages, sources, lostReasons, can, pcan, cfg, catalogue, vatRate, discountLimit, template, ctx, apply, edit, opps, leads, nameOf, won: wonStage(stages), today: todayIso() };
 }
 
 export const money = (v: unknown) => {

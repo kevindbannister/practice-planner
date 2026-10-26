@@ -10,16 +10,17 @@ import { href, useRoute } from "./bits";
 import { useData } from "./data";
 import { money, outcomeChip, useSales } from "./salesKit";
 import { useBoardDrag } from "./useBoardDrag";
+import { ProposalDetail, ProposalLinks, ProposalsList } from "./ProposalsPage";
 import { TYPE_INFO, ActivityType } from "../lib/timeline";
 
-const TABS: [string, string, string][] = [["", "Overview", "#/sales"], ["pipeline", "Pipeline", "#/sales/pipeline"], ["leads", "Leads", "#/sales/leads"]];
+const TABS: [string, string, string][] = [["", "Overview", "#/sales"], ["pipeline", "Pipeline", "#/sales/pipeline"], ["leads", "Leads", "#/sales/leads"], ["proposals", "Proposals", "#/sales/proposals"]];
 
 export function SalesPage() {
   const { parts } = useRoute();
   const s = useSales();
   const sub = parts[1] || "";
   if (!s.can("view")) return <div className="page"><div className="card empty"><p>Sales isn't open to your role. Ask a manager or partner if you need it.</p></div></div>;
-  const current = sub === "lead" ? "leads" : sub === "opp" ? "pipeline" : sub;
+  const current = sub === "lead" ? "leads" : sub === "opp" ? "pipeline" : sub === "proposal" ? "proposals" : sub;
   return (
     <div className="page">
       <div className="plan-title">
@@ -27,12 +28,15 @@ export function SalesPage() {
         <nav className="subtabs" aria-label="Sales views">
           {TABS.map(([k, label, to]) => <a key={k} href={to} aria-current={current === k ? "page" : undefined}>{label}</a>)}
           {s.can("configure") && <a href="#/settings/sales">Sales settings</a>}
+          {s.pcan("configure") && <a href="#/settings/services">Services & pricing</a>}
         </nav>
       </div>
       {sub === "pipeline" && <Pipeline />}
       {sub === "leads" && <Leads />}
       {sub === "lead" && parts[2] && <LeadDetail leadKey={parts[2]} />}
       {sub === "opp" && parts[2] && <OppDetail oppKey={parts[2]} />}
+      {sub === "proposals" && <ProposalsList />}
+      {sub === "proposal" && parts[2] && <ProposalDetail propKey={parts[2]} />}
       {!sub && <Overview />}
     </div>
   );
@@ -250,6 +254,7 @@ function LeadDetail({ leadKey }: { leadKey: string }) {
           <button type="button" className="btn primary" onClick={addOpp}>Add</button><button type="button" className="btn" onClick={() => setAdding(false)}>Cancel</button></div>}
         {err && <p role="alert" style={{ color: "var(--red-ink)" }}>{err}</p>}
         <OppList opps={mine} />
+        <ProposalLinks leadKey={lead.Key} opps={mine} />
       </div>
     </>
   );
@@ -437,6 +442,8 @@ function OppDetail({ oppKey }: { oppKey: string }) {
         {work && <div style={{ marginTop: 10 }}><button type="button" className="btn" onClick={saveFields}>Save details</button></div>}
       </div>
 
+      <div className="card" style={{ padding: 16, marginBottom: 16 }}><ProposalLinks oppKey={o.Key} leadKey={o.LeadKey ? String(o.LeadKey) : undefined} clientKey={o.ClientKey ? String(o.ClientKey) : undefined} only /></div>
+
       {work && out === "open" && (
         <form className="card" style={{ padding: 16, marginBottom: 16 }} aria-label="Log activity" onSubmit={(e) => { e.preventDefault(); void run(async () => { const r = logActivity(o, act, s.ctx()); if ("error" in r) { setErr(r.error); return; } await s.apply(r); setAct({ ...act, text: "", followUp: "" }); }); }}>
           <h2 style={{ marginTop: 0 }}>Log activity</h2>
@@ -495,6 +502,7 @@ export function ClientOpportunities({ clientKey }: { clientKey: string }) {
         <button type="button" className="btn primary" onClick={add}>Add</button><button type="button" className="btn" onClick={() => setAdding(false)}>Cancel</button></div>}
       {err && <p role="alert" style={{ color: "var(--red-ink)" }}>{err}</p>}
       <OppList opps={mine} />
+      <ProposalLinks clientKey={clientKey} opps={mine} />
       {leads.length > 0 && <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>Came in as a lead: {leads.map((l) => <a key={l.Key} href={href("sales", "lead", l.Key)}>{l.Title}</a>)}</p>}
     </section>
   );
