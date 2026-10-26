@@ -22,7 +22,7 @@ const CATEGORIES = ["Accounts", "Tax returns", "VAT", "Payroll", "Bookkeeping", 
 const iso = (ms) => new Date(ms).toISOString();
 const text = (v, max = 200) => String(v ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim().slice(0, max);
 
-function createDocuments({ audit, mailer, files, scanner = null, now = () => Date.now(), practiceId, practiceName = "Your accountant", notifyEmail = "", maxBytes }) {
+function createDocuments({ audit, mailer, notices = null, files, scanner = null, now = () => Date.now(), practiceId, practiceName = "Your accountant", notifyEmail = "", maxBytes }) {
   const ev = (store, e) => audit.record(store, e);
   const safeSend = async (m) => { try { await mailer.send(m); return true; } catch { return false; } };
   const folder = (clientKey, id) => `${practiceId}/${clientKey}/${id}`;
@@ -140,6 +140,7 @@ function createDocuments({ audit, mailer, files, scanner = null, now = () => Dat
   async function notifyPublished(store, d, portalUrl) {
     let n = 0;
     for (const u of await peopleToTell(store, d)) {
+      if (notices) await notices.create(store, { userId: u.id, clientKey: d.clientKey, text: d.requiresApproval ? "A document needs your approval" : "A new document was shared with you", link: "documents" });
       // The email says a document is waiting. It never carries the document or its title.
       if (await safeSend({ to: u.email, subject: `${practiceName}: a new document is waiting for you`, text: `Hello ${u.name || ""},\n\n${practiceName} has shared a document with you in your secure portal.${d.requiresApproval ? " It needs your approval." : ""}\n\nSign in to see it${portalUrl ? `: ${portalUrl}` : "."}\n` })) n++;
     }

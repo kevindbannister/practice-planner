@@ -27,6 +27,9 @@ export class ApiError extends Error {
   }
 }
 
+export type InfoRequest = { id: string; title: string; details: string; dueDate: string; status: "open" | "responded" | "complete" | "cancelled"; createdAt: string; assigned: boolean; thread: { at: string; from: "client" | "staff"; name: string; text: string; docs: { id: string; title: string }[] }[]; completedAt: string };
+export type Notice = { id: string; text: string; link: string; at: string; read: boolean };
+
 export class PortalClient {
   constructor(private cfg: Config, private onSignedOut: (why: string) => void) {}
 
@@ -73,6 +76,10 @@ export class PortalClient {
   signingDocument = (key: string, id: string) => this.call<FileOut>("POST", `signing/${encodeURIComponent(key)}/${id}/document`, {});
   sign = (key: string, id: string, b: { mode: "typed" | "drawn"; typedName?: string; image?: string; consent: boolean }) => this.call<{ request: SignRequest }>("POST", `signing/${encodeURIComponent(key)}/${id}/sign`, b);
   declineSigning = (key: string, id: string, reason: string) => this.call<{ request: SignRequest }>("POST", `signing/${encodeURIComponent(key)}/${id}/decline`, { reason });
+  infoRequests = (key: string) => this.call<{ requests: InfoRequest[]; canUpload: boolean }>("GET", `requests/${encodeURIComponent(key)}`);
+  respondRequest = (key: string, id: string, b: { text: string; files: { fileName: string; content: string }[] }) => this.call<{ request: InfoRequest }>("POST", `requests/${encodeURIComponent(key)}/${id}/respond`, b);
+  notices = (key: string) => this.call<{ notices: Notice[]; unread: number }>("GET", `notices/${encodeURIComponent(key)}`);
+  readNotices = (key: string, ids?: string[]) => this.call<{ notices: Notice[]; unread: number }>("POST", `notices/${encodeURIComponent(key)}/read`, { ids });
   identity = () => this.call<{ items: IdItem[] }>("GET", "identity");
   uploadIdentity = (id: string, b: { fileName: string; content: string; issueDate?: string; expiryDate?: string }) => this.call<{ item: IdItem }>("POST", `identity/${id}/upload`, b);
   official = (key: string) => this.call<{ official: Official | null; configured: boolean; unavailable?: boolean }>("GET", `official/${encodeURIComponent(key)}`);

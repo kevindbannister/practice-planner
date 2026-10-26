@@ -1,0 +1,32 @@
+# Runs the client portal's due reminders and identity renewals every hour.
+#
+# Azure Static Web Apps' built-in functions can't run on a timer, so this calls a protected address on
+# the portal. Set these two repository secrets (Settings > Secrets and variables > Actions):
+#   PORTAL_BASE_URL    the site's address, e.g. https://kind-smoke-0153bb410.5.azurestaticapps.net
+#   PORTAL_SWEEP_KEY   the same value as the PORTAL_SWEEP_KEY setting in Azure (a long random string)
+# Until both are set this does nothing, and Portal > Reminders says when reminders last ran.
+name: Portal reminders
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run what is due
+        env:
+          PORTAL_BASE_URL: ${{ secrets.PORTAL_BASE_URL }}
+          PORTAL_SWEEP_KEY: ${{ secrets.PORTAL_SWEEP_KEY }}
+        run: |
+          if [ -z "$PORTAL_BASE_URL" ] || [ -z "$PORTAL_SWEEP_KEY" ]; then
+            echo "Not set up yet: add the PORTAL_BASE_URL and PORTAL_SWEEP_KEY secrets."
+            exit 0
+          fi
+          code=$(curl -sS -o result.json -w "%{http_code}" -X POST "${PORTAL_BASE_URL%/}/api/portal/system/sweep" -H "x-sweep-key: $PORTAL_SWEEP_KEY" --max-time 90)
+          cat result.json; echo
+          [ "$code" = "200" ]

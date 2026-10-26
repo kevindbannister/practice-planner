@@ -68,7 +68,7 @@ const LABEL = {
   "signing.completed": "All signatures received", "signing.sealed": "Signed copy and certificate produced", "signing.cancelled": "Cancelled by the practice", "signing.reminded": "Reminder sent",
 };
 
-function createSigning({ audit, mailer, files, docs, auditKey, now = () => Date.now(), practiceId, practiceName = "Your accountant", notifyEmail = "", portalUrl = "" }) {
+function createSigning({ audit, mailer, notices = null, files, docs, auditKey, now = () => Date.now(), practiceId, practiceName = "Your accountant", notifyEmail = "", portalUrl = "" }) {
   const ev = (store, e) => audit.record(store, e);
   const safeSend = async (m) => { try { await mailer.send(m); return true; } catch { return false; } };
   const imgPath = (r, s) => `${practiceId}/${r.clientKey}/signing/${r.id}/${s.id}.png`;
@@ -138,6 +138,7 @@ function createSigning({ audit, mailer, files, docs, auditKey, now = () => Date.
     let n = 0;
     for (const s of r.signatories) {
       if (turn(r, s) !== "pending") continue;
+      if (notices) await notices.create(store, { userId: s.userId, clientKey: r.clientKey, text: "A document is waiting for your signature", link: "signing" });
       if (await safeSend({ to: s.email, subject: `${practiceName}: ${reminder ? "reminder, " : ""}a document is waiting for your signature`, text: `Hello ${s.name},\n\n${practiceName} has asked you to sign a document in your secure portal.\n\nSign in to read and sign it${portalUrl ? `: ${portalUrl}` : "."}\n` })) n++;
     }
     if (n) await ev(store, { type: reminder ? "signing.reminded" : "signing.sent", source: "system", actor: practiceName, clientKey: r.clientKey, recordId: r.id, meta: { count: n } });
@@ -288,12 +289,20 @@ function createSigning({ audit, mailer, files, docs, auditKey, now = () => Date.
     return out;
   }
 
+  /** Open requests and who still has to sign them now, for the reminder engine. */
+  async function waiting(store) {
+    return (await store.list("signing")).filter((r) => state(r) === "out").map((r) => ({
+      itemId: r.id, clientKey: r.clientKey, title: r.title, since: [r.createdAt, ...r.signatories.map((s) => (s.evidence ? s.evidence.at : ""))].sort().pop(),
+      recipients: r.signatories.filter((s) => turn(r, s) === "pending").map((s) => ({ userId: s.userId, email: s.email, name: s.name })),
+    }));
+  }
+
   /** Open requests whose current signers haven't signed, for the reminder engine. */
   async function overdue(store, olderThanMs) {
     return (await store.list("signing")).filter((r) => state(r) === "out" && now() - Date.parse(r.remindedAt || r.createdAt) >= olderThanMs);
   }
 
-  return { create, staffList, cancel, remind, verify, listForSigner, openDocument, sign, decline, attention, overdue, CONSENT, SignError };
+  return { waiting, create, staffList, cancel, remind, verify, listForSigner, openDocument, sign, decline, attention, overdue, CONSENT, SignError };
 }
 
 module.exports = { createSigning, SignError, CONSENT };

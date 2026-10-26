@@ -22,6 +22,7 @@ import { MeetingsTable, NewMeetingButtons } from "./Meetings";
 import { TaxPaymentsTab } from "./TaxPayments";
 import { ClientPortalUsers, IndividualPortalAccess } from "./PortalAdmin";
 import { ClientDocuments } from "./PortalDocuments";
+import { ClientRequests } from "./PortalRequests";
 
 export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "portal" }) {
   const idx = useIndex();
@@ -123,7 +124,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       )}
       {tab === "tax" && <TaxPaymentsTab client={c} />}
       {tab === "activity" && <ClientTimeline client={c} />}
-      {tab === "portal" && <div className="stack"><ClientPortalUsers client={c} /><ClientDocuments client={c} /></div>}
+      {tab === "portal" && <div className="stack"><ClientPortalUsers client={c} /><ClientRequests client={c} /><ClientDocuments client={c} /></div>}
       {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>

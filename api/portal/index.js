@@ -12,6 +12,7 @@
 
 const { createSignIn, reply, header, claims } = require("../shared/signin.js");
 const { createVerifier, identityOf } = require("./lib/jwt.js");
+const crypto = require("node:crypto");
 const { bind, StoreError } = require("./lib/store.js");
 const { createGraphStore } = require("./lib/graphStore.js");
 const { createGraphMailer } = require("./lib/mailer.js");
@@ -22,7 +23,7 @@ const { modules } = require("./lib/modules.js");
 const { WRITABLE_COLUMNS } = require("./lib/editable.js");
 
 const REQUIRED = ["PORTAL_IDP_ISSUER", "PORTAL_IDP_JWKS_URL", "PORTAL_IDP_CLIENT_ID", "PORTAL_GRAPH_TENANT_ID", "PORTAL_GRAPH_CLIENT_ID", "PORTAL_GRAPH_CLIENT_SECRET", "PORTAL_AUDIT_KEY"];
-const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "CH_API_KEY", "PORTAL_NOTIFY_EMAIL", "PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS", "PORTAL_MAX_UPLOAD_MB", "PORTAL_ID_KEY", "PORTAL_ID_VERIFIERS"];
+const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "CH_API_KEY", "PORTAL_NOTIFY_EMAIL", "PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS", "PORTAL_MAX_UPLOAD_MB", "PORTAL_ID_KEY", "PORTAL_ID_VERIFIERS", "PORTAL_SWEEP_KEY"];
 const SITE_HOST = "insightinformation.sharepoint.com";
 const SITE_PATH = "/sites/PracticePlanner";
 const CLIENTS_LIST = "PP Clients";
@@ -113,6 +114,21 @@ function createHandler(deps = {}) {
   async function route(req, path, method) {
     const first = path[0];
     if (first === "config" && method === "GET") return reply(200, publicConfig());
+    // ------------------------------------------------------------ the scheduled trigger
+    // A timer outside (GitHub Actions) calls this with a shared key. It does nothing but run what is due.
+    if (first === "system" && path[1] === "sweep" && method === "POST") {
+      const want = String(env.PORTAL_SWEEP_KEY || "");
+      const got = String(header(req, "x-sweep-key") || "");
+      if (!want) return reply(503, { error: "The scheduled trigger isn't set up (PORTAL_SWEEP_KEY).", code: "not-configured" });
+      const a = crypto.createHash("sha256").update(got).digest(), b2 = crypto.createHash("sha256").update(want).digest();
+      if (!crypto.timingSafeEqual(a, b2)) {
+        limiter.fail(ipOf(req));
+        return reply(401, { error: "Not allowed", code: "sign-in" });
+      }
+      if (!configured) return reply(503, { error: "The client portal isn't set up yet.", code: "not-configured", missing });
+      const p = build();
+      return reply(200, { ok: true, ...(await p.mods.system.sweep(p.store, p.reader)) });
+    }
     // ------------------------------------------------------------ staff
     if (first === "admin") {
       const staff = await staffAuth(req);

@@ -20,7 +20,7 @@ const OPEN = ["pending", "clarification"];
 const iso = (ms) => new Date(ms).toISOString();
 const text = (v, max = 1000) => String(v ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim().slice(0, max);
 
-function createChanges({ audit, mailer, now = () => Date.now(), practiceName = "Your accountant", notifyEmail = "" }) {
+function createChanges({ audit, mailer, notices = null, now = () => Date.now(), practiceName = "Your accountant", notifyEmail = "" }) {
   const ev = (store, e) => audit.record(store, e);
   const safeSend = async (m) => { try { await mailer.send(m); return true; } catch { return false; } };
 
@@ -102,6 +102,7 @@ function createChanges({ audit, mailer, now = () => Date.now(), practiceName = "
     if (!body) throw new ChangeError(400, "empty", "Write your question first");
     const u = await store.update("changes", c.id, { status: "clarification", thread: [...c.thread, { at: iso(now()), from: "staff", name: staff, text: body }] }, c.rev);
     await ev(store, { type: "change.clarification-asked", source: "staff", actor: staff, userId: c.requestedBy, clientKey: c.clientKey, recordId: c.id });
+    if (notices) await notices.create(store, { userId: c.requestedBy, clientKey: c.clientKey, text: "We have a question about the changes you asked for", link: "business" });
     await safeSend({ to: c.requestedByEmail, subject: `${practiceName}: a question about your requested changes`, text: `We have a question about the changes you asked for:\n\n${body}\n\nPlease sign in to the portal to answer.\n\n${practiceName}` });
     return { ok: true, status: u.status };
   }

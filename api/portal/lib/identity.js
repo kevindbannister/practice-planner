@@ -39,7 +39,7 @@ function addMonths(date, n) {
 }
 const addDays = (date, n) => iso(Date.parse(date + "T00:00:00Z") + n * DAY).slice(0, 10);
 
-function createIdentity({ audit, mailer, files, scanner = null, secret, now = () => Date.now(), practiceId, practiceName = "Your accountant", notifyEmail = "", portalUrl = "", verifiers = [], reminderDays = [7, 14], beforeExpiryDays = 7, maxBytes }) {
+function createIdentity({ audit, mailer, notices = null, files, scanner = null, secret, now = () => Date.now(), practiceId, practiceName = "Your accountant", notifyEmail = "", portalUrl = "", verifiers = [], reminderDays = [7, 14], beforeExpiryDays = 7, maxBytes }) {
   if (!secret) throw new Error("A key is needed for identity files");
   const key = Buffer.from(crypto.hkdfSync("sha256", Buffer.from(secret), Buffer.alloc(0), "xproflow identity files v1", 32));
   const ev = (store, e) => audit.record(store, e);
@@ -166,6 +166,7 @@ function createIdentity({ audit, mailer, files, scanner = null, secret, now = ()
     const t = iso(now());
     const u = await store.update("identity", r.id, { request: { id: newId("idq-"), requestedAt: t, requestedBy: by, reason, note: text(note, 500), reminders: [] }, cancelled: false }, r.rev);
     await ev(store, { type: reason === "renewal" ? "identity.renewal-requested" : "identity.requested", source: by === "auto" ? "system" : "staff", actor: staffName, userId: user.id, recordId: r.id, meta: { kind: r.kind, reason } });
+    if (notices) await notices.create(store, { userId: user.id, clientKey: "", text: reason === "renewal" ? "A document of yours is due to expire. We need a new one" : "We need a document from you", link: "identity" });
     // The email asks them to sign in; it carries nothing about the document.
     await safeSend({ to: user.email, subject: `${practiceName}: we need a document from you`, text: `Hello ${user.name || ""},\n\n${practiceName} has asked you for a document ${reason === "renewal" ? "to replace one that is due to expire" : ""}in your secure portal.\n\nSign in to see what is needed${portalUrl ? `: ${portalUrl}` : "."}\n` });
     return u;

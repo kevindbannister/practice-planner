@@ -5,14 +5,18 @@ const { createCompanies } = require("./companies.js");
 const { createDocuments, DocError } = require("./documents.js");
 const { createSigning, SignError } = require("./signing.js");
 const { createIdentity, IdError } = require("./identity.js");
+const { createNotices } = require("./notices.js");
+const { createRequests, RequestError } = require("./requests.js");
+const { createReminders, ReminderError } = require("./reminders.js");
 const { ServiceError } = require("./service.js");
 
-const asServiceError = (e) => ((e instanceof ChangeError || e instanceof DocError || e instanceof SignError || e instanceof IdError) ? new ServiceError(e.status, e.code, e.message) : e);
+const asServiceError = (e) => ((e instanceof ChangeError || e instanceof DocError || e instanceof SignError || e instanceof IdError || e instanceof RequestError || e instanceof ReminderError) ? new ServiceError(e.status, e.code, e.message) : e);
 const wrap = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { throw asServiceError(e); } };
 
 function modules(parts, ctx) {
   const { service } = parts;
-  const common = { audit: parts.audit, mailer: parts.mailer, now: ctx.now, practiceName: ctx.env.PORTAL_PRACTICE_NAME || "Your accountant" };
+  const notices = createNotices({ now: ctx.now });
+  const common = { audit: parts.audit, mailer: parts.mailer, notices, now: ctx.now, practiceName: ctx.env.PORTAL_PRACTICE_NAME || "Your accountant" };
   const changes = createChanges({ ...common, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "" });
   const companies = parts.companies || createCompanies({ key: String(ctx.env.CH_API_KEY || "").trim(), fetch: ctx.fetch, now: ctx.now });
 
@@ -21,10 +25,15 @@ function modules(parts, ctx) {
   const signing = createSigning({ ...common, files: parts.files, docs, auditKey: ctx.env.PORTAL_AUDIT_KEY || "test-key", practiceId: parts.store.practiceId, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "", portalUrl });
   const list = (v, d) => String(v || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).concat(d || []);
   const identity = createIdentity({ ...common, files: parts.files, scanner: ctx.scanner || null, secret: ctx.env.PORTAL_ID_KEY || ctx.env.PORTAL_AUDIT_KEY || "test-key", practiceId: parts.store.practiceId, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "", portalUrl, verifiers: list(ctx.env.PORTAL_ID_VERIFIERS), maxBytes: Number(ctx.env.PORTAL_MAX_UPLOAD_MB) ? Number(ctx.env.PORTAL_MAX_UPLOAD_MB) * 1048576 : undefined });
-  const attention = [changes.attention, docs.attention, signing.attention, identity.attention];
+  const requests = createRequests({ ...common, docs, portalUrl, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "" });
+  const reminders = createReminders({ ...common, portalUrl, signing, requests, identity, changes });
+  const attention = [changes.attention, docs.attention, signing.attention, identity.attention, requests.attention];
 
   parts.signing = signing;
   parts.identity = identity;
+  parts.requests = requests;
+  parts.reminders = reminders;
+  parts.notices = notices;
   return {
     portal: {
       // GET changes/<business>            this business's requests, and what can be changed
@@ -63,6 +72,27 @@ function modules(parts, ctx) {
         if (method === "POST" && path[1] && path[2] === "decline") return { request: await signing.decline(store, access, user, path[1], body) };
         throw new ServiceError(404, "not-found", "Not found");
       }),
+      // GET requests/<business>                       information requests this person may answer
+      // POST requests/<business>/<id>/respond         { text, files: [{ fileName, content }] }
+      requests: wrap(async ({ store, user, path, method, body }) => {
+        const access = await service.require(store, user, path[0], "requests.respond");
+        if (method === "GET" && !path[1]) return { requests: await requests.listForClient(store, access, user), canUpload: service.permissionsFor(access)["documents.upload"] };
+        if (method === "POST" && path[1] && path[2] === "respond") {
+          const up = service.permissionsFor(access)["documents.upload"];
+          if (!up && Array.isArray(body.files) && body.files.length) throw new ServiceError(403, "no-upload", "You can't attach files here. Please send your answer without them, or ask the practice.");
+          const uploadAccess = up ? await service.require(store, user, path[0], "documents.upload") : null;
+          return { request: await requests.respond(store, access, user, path[1], body, (f, r) => docs.upload(store, uploadAccess, user, { title: `${r.title}: ${f.fileName || "file"}`, category: "From you", fileName: f.fileName, content: f.content, message: `For: ${r.title}` })) };
+        }
+        throw new ServiceError(404, "not-found", "Not found");
+      }),
+      // GET notices/<business>             this person's notifications for the business
+      // POST notices/<business>/read       { ids? } mark some (or all) as read
+      notices: wrap(async ({ store, user, path, method, body }) => {
+        await service.require(store, user, path[0], "business.summary");
+        if (method === "GET") return notices.list(store, user.id, path[0]);
+        if (method === "POST" && path[1] === "read") { await notices.markRead(store, user.id, path[0], body.ids); return notices.list(store, user.id, path[0]); }
+        throw new ServiceError(404, "not-found", "Not found");
+      }),
       // GET identity                       this person's own identity documents (never a business's, never anyone else's)
       // POST identity/<id>/upload          { fileName, content (base64), issueDate?, expiryDate? }
       identity: wrap(async ({ store, reader, user, path, method, body }) => {
@@ -84,12 +114,21 @@ function modules(parts, ctx) {
     },
     adminGet: {
       changes: wrap(async (store, reader, staff, q) => ({ requests: await changes.staffList(store, reader, { status: q.status }) })),
+      reminders: wrap(async (store, reader) => reminders.overview(store, reader)),
+      requests: wrap(async (store, reader, staff, q) => ({ requests: await requests.list(store, q.clientKey ? String(q.clientKey) : "") })),
       identity: wrap(async (store, reader, staff, q) => ({ items: await identity.list(store, reader, { userId: q.userId ? String(q.userId) : undefined }), kinds: identity.KINDS })),
       signing: wrap(async (store, reader, staff, q) => ({ requests: await signing.staffList(store, String(q.clientKey || "")) })),
       documents: wrap(async (store, reader, staff, q) => ({ documents: await docs.staffList(store, String(q.clientKey || "")), categories: docs.CATEGORIES })),
     },
     adminPost: {
       "changes-ask": wrap(async (store, reader, staff, b) => changes.ask(store, staff, b.id, b.text)),
+      "reminders-settings": wrap(async (store, reader, staff, b) => ({ settings: await reminders.updateSettings(store, { name: staff }, b) })),
+      "reminders-item": wrap(async (store, reader, staff, b) => reminders.setItem(store, { name: staff }, b.key, b)),
+      "reminders-run": wrap(async (store, reader) => reminders.sweep(store, reader, { force: true })),
+      "requests-create": wrap(async (store, reader, staff, b) => ({ request: await requests.create(store, { name: staff }, b) })),
+      "requests-reply": wrap(async (store, reader, staff, b) => ({ request: await requests.reply(store, { name: staff }, b.id, b) })),
+      "requests-complete": wrap(async (store, reader, staff, b) => ({ request: await requests.setStatus(store, { name: staff }, b.id, "complete") })),
+      "requests-cancel": wrap(async (store, reader, staff, b) => ({ request: await requests.setStatus(store, { name: staff }, b.id, "cancelled") })),
       "identity-request": wrap(async (store, reader, staff, b, who) => ({ item: await identity.request(store, reader, who, b) })),
       "identity-download": wrap(async (store, reader, staff, b, who) => identity.download(store, who, b.id, b.which)),
       "identity-accept": wrap(async (store, reader, staff, b, who) => ({ item: await identity.accept(store, reader, who, b.id, b) })),
@@ -111,6 +150,8 @@ function modules(parts, ctx) {
       "documents-download": wrap(async (store, reader, staff, b) => docs.staffDownload(store, { name: staff }, b.id, b.version)),
       "changes-decide": wrap(async (store, reader, staff, b) => changes.decide(store, reader, staff, b.id, b.decisions)),
     },
+    /** The scheduled trigger: run everything that is due. */
+    system: { sweep: (store, reader) => reminders.sweep(store, reader) },
     /** Extra facts the portal's "me" answer carries. Identity: do they have anything, and does it need them? */
     meExtras: async (store, user) => ({ identity: await identity.summaryFor(store, user) }),
     /** Things that need staff to do something, for the Portal overview. */

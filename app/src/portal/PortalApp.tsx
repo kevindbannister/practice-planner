@@ -4,13 +4,14 @@ import { Config, idleGuard, signOut } from "./auth";
 import { Documents } from "./Documents";
 import { Signing } from "./Signing";
 import { Identity } from "./Identity";
+import { Requests } from "./Requests";
 import { Dashboard } from "./Dashboard";
 import { BusinessPage } from "./BusinessPage";
 import { SecurityPage } from "./SecurityPage";
 
 export type Ctx = { cfg: Config; api: PortalClient; me: Me; biz: Biz; go: (page: string) => void };
 
-const PAGES: [string, string][] = [["dashboard", "Home"], ["documents", "Documents"], ["signing", "Signing"], ["identity", "Identity"], ["business", "My business"], ["security", "Security"]];
+const PAGES: [string, string][] = [["dashboard", "Home"], ["documents", "Documents"], ["signing", "Signing"], ["requests", "Requests"], ["identity", "Identity"], ["business", "My business"], ["security", "Security"]];
 const IDLE_MINUTES = 30;
 
 function usePage(): [string, (p: string) => void] {
@@ -56,7 +57,7 @@ export function PortalApp({ cfg }: { cfg: Config }) {
   }
   const choose = (k: string) => { setBizKey(k); try { sessionStorage.setItem("px.biz", k); } catch { /* fine */ } };
   const ctx: Ctx = { cfg, api, me, biz, go };
-  const pages = PAGES.filter(([k]) => (k !== "documents" || biz.can["documents.view"]) && (k !== "signing" || biz.can["signing.sign"]) && (k !== "identity" || me.identity?.any));
+  const pages = PAGES.filter(([k]) => (k !== "documents" || biz.can["documents.view"]) && (k !== "signing" || biz.can["signing.sign"]) && (k !== "requests" || biz.can["requests.respond"]) && (k !== "identity" || me.identity?.any));
   const known = pages.some(([k]) => k === page);
   return (
     <Shell cfg={cfg} me={me} out={() => out("")} switcher={me.businesses.length > 1 ? <Switcher list={me.businesses} value={biz.clientKey} onChange={choose} /> : <span className="px-bizname">{biz.name}</span>}
@@ -65,6 +66,7 @@ export function PortalApp({ cfg }: { cfg: Config }) {
         {(!known || page === "dashboard") && <Dashboard ctx={ctx} />}
         {page === "documents" && known && <Documents ctx={ctx} />}
         {page === "signing" && known && <Signing ctx={ctx} />}
+        {page === "requests" && known && <Requests ctx={ctx} />}
         {page === "identity" && known && <Identity ctx={ctx} />}
         {page === "business" && <BusinessPage ctx={ctx} />}
         {page === "security" && <SecurityPage ctx={ctx} />}
