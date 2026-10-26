@@ -78,7 +78,7 @@ function createService({ audit, mailer, now = () => Date.now(), portalUrl = "", 
 
     if (user) {
       if (user.status === "suspended" || user.status === "revoked") throw new ServiceError(403, "account-disabled", "This account can't be used right now. Please contact your accountant.");
-      if (user.sessionsEndedAt && identity.issuedAt * 1000 < Date.parse(user.sessionsEndedAt)) throw new ServiceError(401, "session-ended", "You were signed out. Please sign in again.");
+      if (user.sessionsEndedAt && identity.issuedAt < Math.floor(Date.parse(user.sessionsEndedAt) / 1000)) throw new ServiceError(401, "session-ended", "You were signed out. Please sign in again.");
       const last = user.lastLoginAt ? Date.parse(user.lastLoginAt) : 0;
       const patch = {};
       if (t - last > SESSION_TOUCH_MS) patch.lastLoginAt = iso(t);

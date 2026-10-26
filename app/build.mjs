@@ -34,6 +34,9 @@ const options = {
   logLevel: "info",
 };
 
+// The client portal is its own page and bundle: no staff code is ever sent to a client's browser.
+const portalOptions = { ...options, entryPoints: ["src/portal/main.tsx"], outfile: "dist/portal.js" };
+
 if (serve) {
   const ctx = await context(options);
   await ctx.watch();
@@ -41,4 +44,5 @@ if (serve) {
   console.log("Serving on http://localhost:5173 (demo data store)");
 } else {
   await build(options);
+  await build(portalOptions);
 }

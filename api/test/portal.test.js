@@ -374,3 +374,14 @@ test("when the portal isn't set up, staff are told what's missing and clients ge
   assert.equal((await run("admin/overview")).status, 503);
   assert.equal((await run("me")).status, 503);
 });
+
+test("the public config tells the browser app how to sign in, and nothing secret", async () => {
+  const h = setup();
+  const r = await h.call("default", "GET", "config");
+  assert.equal(r.status, 200);
+  assert.equal(r.body.clientId, AUDIENCE);
+  assert.equal(r.body.authority, "https://idp.example/tenant/oauth2/v2.0");
+  assert.equal(r.body.practiceName, "Bannister & Co");
+  assert.equal(JSON.stringify(r.body).includes("audit-secret"), false);
+  assert.equal(r.body.dev, undefined);
+});

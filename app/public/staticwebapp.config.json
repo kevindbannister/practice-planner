@@ -3,18 +3,34 @@
     "rewrite": "/index.html",
     "exclude": [
       "/app.js",
+      "/portal.js",
+      "/portal.css",
       "/styles.css",
       "/theme.js",
       "/api/*"
     ]
   },
   "globalHeaders": {
-    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://*.sharepoint.com https://*.1drv.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://login.microsoftonline.com",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://*.ciamlogin.com https://*.sharepoint.com https://*.1drv.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://login.microsoftonline.com https://*.ciamlogin.com",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
   },
   "routes": [
+    {
+      "route": "/portal",
+      "rewrite": "/portal.html"
+    },
+    {
+      "route": "/portal/*",
+      "rewrite": "/portal.html"
+    },
+    {
+      "route": "/portal.js",
+      "headers": {
+        "Cache-Control": "no-cache"
+      }
+    },
     {
       "route": "/index.html",
       "headers": {

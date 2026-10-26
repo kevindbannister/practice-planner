@@ -21,7 +21,7 @@ const { createLimiter } = require("./lib/limiter.js");
 const { modules } = require("./lib/modules.js");
 
 const REQUIRED = ["PORTAL_IDP_ISSUER", "PORTAL_IDP_JWKS_URL", "PORTAL_IDP_CLIENT_ID", "PORTAL_GRAPH_TENANT_ID", "PORTAL_GRAPH_CLIENT_ID", "PORTAL_GRAPH_CLIENT_SECRET", "PORTAL_AUDIT_KEY"];
-const OPTIONAL = ["PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS"];
+const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS"];
 const SITE_HOST = "insightinformation.sharepoint.com";
 const SITE_PATH = "/sites/PracticePlanner";
 const CLIENTS_LIST = "PP Clients";
@@ -96,8 +96,16 @@ function createHandler(deps = {}) {
     return user;
   }
 
+  /** What the portal's browser app needs to know before anyone signs in. Nothing secret. */
+  function publicConfig() {
+    const issuer = String(env.PORTAL_IDP_ISSUER || "").trim();
+    const authority = String(env.PORTAL_IDP_AUTHORITY || "").trim() || (issuer ? issuer.replace(/\/v2\.0\/?$/, "/oauth2/v2.0") : "");
+    return { configured, clientId: String(env.PORTAL_IDP_CLIENT_ID || ""), authority, practiceName: String(env.PORTAL_PRACTICE_NAME || "Your accountant"), ...(deps.publicConfig || {}) };
+  }
+
   async function route(req, path, method) {
     const first = path[0];
+    if (first === "config" && method === "GET") return reply(200, publicConfig());
     // ------------------------------------------------------------ staff
     if (first === "admin") {
       const staff = await staffAuth(req);

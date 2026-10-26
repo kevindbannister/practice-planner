@@ -44,7 +44,7 @@ function idToken({ email, name, mfa }) {
 
 const handler = createHandler({
   env: { PORTAL_IDP_ISSUER: ISSUER, PORTAL_IDP_CLIENT_ID: AUDIENCE, PORTAL_IDP_JWKS_URL: `${origin}/dev/idp/keys`, PORTAL_AUDIT_KEY: "dev-audit-key", PORTAL_URL: `${origin}/portal`, PORTAL_PRACTICE_NAME: "Demo Accountants", PORTAL_MAIL_FROM: "portal@demo.test" },
-  store, mailer, now,
+  store, mailer, now, publicConfig: { dev: true },
   reader: { clients: async () => clients },
   staffAuth: async () => ({ name: "Demo user" }),
   fetch: async () => ({ ok: true, status: 200, json: async () => ({ keys: [jwk] }) }),
