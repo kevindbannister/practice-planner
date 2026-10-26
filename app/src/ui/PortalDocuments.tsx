@@ -3,7 +3,7 @@
 // the client until it is published.
 import { useEffect, useRef, useState } from "react";
 import { Client, fmtDate } from "../lib/domain";
-import { StaffDoc } from "../lib/portalAdmin";
+import { StaffDoc, StaffSigning } from "../lib/portalAdmin";
 import { ACCEPT, MAX_MB, readFile, save, size } from "../portal/files";
 import { say, usePortal } from "./portalKit";
 
@@ -35,6 +35,7 @@ export function ClientDocuments({ client }: { client: Client }) {
       {!docs && !err && <p className="muted">Loading…</p>}
       {docs && !shown.length && <p className="muted" style={{ margin: 0 }}>No documents yet.</p>}
       {shown.map((d) => <Doc key={d.id} d={d} cats={cats} onChanged={load} />)}
+      {docs && <SigningPanel client={client} docs={docs} people={people.map((p) => ({ id: p.person.id, name: p.person.name || p.person.email, level: p.levelLabel }))} onDocs={load} />}
       {docs && docs.some((d) => d.status === "archived") && <label className="row-wrap" style={{ fontSize: 13 }}><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived</label>}
     </section>
   );
@@ -128,6 +129,72 @@ function Doc({ d, cats, onChanged }: { d: StaffDoc; cats: string[]; onChanged: (
       )}
       {note && <p role="status" style={{ margin: 0 }}>{note}</p>}
       {err && <p className="import-list warn" role="alert">{err}</p>}
+    </div>
+  );
+}
+
+const SIGN_STATUS: Record<string, [string, string]> = { out: ["Waiting for signatures", "amber"], completed: ["Signed by everyone", "green"], cancelled: ["Cancelled", ""], declined: ["Declined", "red"], expired: ["Expired", "red"] };
+const SIGNER: Record<string, string> = { signed: "Signed", declined: "Declined", pending: "Waiting for them", waiting: "Waiting for earlier signatories", closed: "Not signed" };
+
+/** Ask named people to sign a PDF, follow who has signed, and check a finished one. */
+function SigningPanel({ client, docs, people, onDocs }: { client: Client; docs: StaffDoc[]; people: { id: string; name: string; level: string }[]; onDocs: () => void }) {
+  const portal = usePortal();
+  const [list, setList] = useState<StaffSigning[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [err, setErr] = useState("");
+  const [note, setNote] = useState("");
+  const load = () => portal.run((a) => a.signing(client.Key)).then((r) => { setList(r); setErr(""); }).catch((e) => setErr(say(e)));
+  useEffect(() => { void load(); }, [client.Key, docs.length]);
+  const pdfs = docs.filter((d) => d.ext === "pdf" && d.from === "practice" && !d.locked && d.status !== "archived");
+  const [docId, setDocId] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+  const [ordered, setOrdered] = useState(false);
+  const [message, setMessage] = useState("");
+  const [days, setDays] = useState(30);
+  const [busy, setBusy] = useState(false);
+  const act = async (fn: () => Promise<string | void>) => { setBusy(true); setErr(""); setNote(""); try { const m = await fn(); if (m) setNote(m); await load(); onDocs(); } catch (e) { setErr(say(e)); } finally { setBusy(false); } };
+  const send = () => act(async () => { await portal.run((a) => a.createSigning({ clientKey: client.Key, docId: docId || pdfs[0]?.id, signatoryIds: picked, sequential: ordered, message, expiresInDays: days })); setAdding(false); setPicked([]); setMessage(""); return "Sent. The first signatories have been emailed."; });
+  const nameOf = (id: string) => docs.find((d) => d.id === id)?.title || "";
+  return (
+    <div className="stack" style={{ gap: 8, borderTop: "2px solid var(--line)", paddingTop: 12 }}>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <h3 style={{ margin: 0, fontSize: 15 }}>Signatures</h3>
+        <button type="button" className="btn small" disabled={!pdfs.length || !people.length} onClick={() => setAdding(!adding)}>{adding ? "Close" : "Ask for signatures"}</button>
+      </div>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Only the people you name can sign, whatever access they have. Being an administrator isn't enough. {!pdfs.length ? "Add a PDF above first." : ""}</p>
+      {adding && (
+        <div className="stack" style={{ gap: 8 }}>
+          <select className="input" aria-label="Document to sign" value={docId || pdfs[0]?.id} onChange={(e) => setDocId(e.target.value)}>{pdfs.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</select>
+          <fieldset className="stack" style={{ gap: 4, border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px" }}>
+            <legend>Who signs (in the order ticked)</legend>
+            {people.map((p) => <label key={p.id} className="row-wrap"><input type="checkbox" checked={picked.includes(p.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, p.id] : picked.filter((x) => x !== p.id))} /> {p.name} <span className="muted">({p.level}){picked.includes(p.id) && ordered ? ` · signs ${picked.indexOf(p.id) + 1}${["st", "nd", "rd"][picked.indexOf(p.id)] || "th"}` : ""}</span></label>)}
+          </fieldset>
+          <label className="row-wrap"><input type="checkbox" checked={ordered} onChange={(e) => setOrdered(e.target.checked)} /> One after another, in that order</label>
+          <input className="input" aria-label="Message to signatories" placeholder="Message they will see (optional)" value={message} maxLength={500} onChange={(e) => setMessage(e.target.value)} />
+          <label className="row-wrap">Valid for <input className="input" type="number" min={1} max={365} style={{ width: 80 }} value={days} onChange={(e) => setDays(Number(e.target.value))} /> days</label>
+          <div><button type="button" className="btn small primary" disabled={busy || !picked.length} onClick={() => void send()}>Send for signing</button></div>
+        </div>
+      )}
+      {err && <p className="import-list warn" role="alert">{err}</p>}
+      {note && <p role="status" style={{ margin: 0 }}>{note}</p>}
+      {list && !list.length && <p className="muted" style={{ margin: 0 }}>Nothing has been sent for signing.</p>}
+      {list?.map((r) => {
+        const [label, tone] = SIGN_STATUS[r.status];
+        return (
+          <section key={r.id} className="stack" style={{ gap: 4, borderTop: "1px solid var(--line)", paddingTop: 8 }} aria-label={`Signing ${r.ref}`}>
+            <div className="row-wrap" style={{ justifyContent: "space-between" }}><strong>{r.title}</strong><span className={`chip ${tone}`}>{label}</span></div>
+            <div className="muted" style={{ fontSize: 13 }}>Reference {r.ref} · sent {fmtDate(r.createdAt.slice(0, 10))} by {r.createdByName}{r.status === "out" ? ` · expires ${fmtDate(r.expiresAt.slice(0, 10))}` : ""}{r.status === "completed" ? ` · completed ${fmtDate(r.completedAt.slice(0, 10))}` : ""}{nameOf(r.docId) ? "" : ""}</div>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>{r.signatories.map((s) => <li key={s.id}>{r.sequential ? `${s.order}. ` : ""}{s.name}: {SIGNER[s.status]}{s.signedAt ? ` on ${fmtDate(s.signedAt.slice(0, 10))}` : s.viewedAt ? " (has opened it)" : ""}</li>)}</ul>
+            {r.declineReason && <p style={{ margin: 0 }}>Reason given: {r.declineReason}</p>}
+            {r.status === "completed" && <p className="muted" style={{ margin: 0, fontSize: 13 }}>The signed copy and the certificate are filed with this client's documents above.</p>}
+            <div className="row-wrap">
+              {r.status === "out" && <button type="button" className="btn small" disabled={busy} onClick={() => void act(async () => { const x = await portal.run((a) => a.remindSigning(r.id)); return `Reminder sent to ${x.request.reminded} ${x.request.reminded === 1 ? "person" : "people"}.`; })}>Send reminder</button>}
+              {r.status === "out" && <button type="button" className="btn small" disabled={busy} onClick={() => void act(() => portal.run((a) => a.cancelSigning(r.id)))}>Cancel request</button>}
+              {r.status === "completed" && <button type="button" className="btn small" disabled={busy} onClick={() => void act(async () => { const v = await portal.run((a) => a.verifySigning(r.id)); return v.ok ? "Checked: the signed copy, certificate, original and record are exactly as they were when sealed." : `Problem found: ${v.checks.filter((c) => !c.ok).map((c) => c.what).join(", ")} no longer matches what was sealed.`; })}>Check integrity</button>}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

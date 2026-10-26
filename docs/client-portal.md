@@ -69,3 +69,13 @@ As checked in October 2026, an external tenant offers **email one-time code, SMS
 - Versions are never overwritten. A new version resets approval. Approval records who, when and the SHA-256 of the exact version approved.
 - Preview uses the browser's own PDF viewer (blob address); phones that can't show PDFs inline fall back to Download.
 - Not yet: retention/deletion, virus scanning, identity documents (own module, phase 6).
+
+## E-signing (phase 5)
+
+- Staff pick a PDF from a client's documents, name the people who must sign (and whether in order), and send it. Only a **named** person can sign it. Being an administrator, or having portal access at any level, never gives that right. They also need active access to the business. A person who isn't named gets the same "not found" as for a request that doesn't exist.
+- The signer reads the PDF in the portal, ticks a consent statement, and types their name or draws a signature (finger, pen or mouse; a blank drawing is refused by checking the image has ink). They can decline with a reason.
+- At signing the server re-checks the document's SHA-256 against the one recorded when it was sent, and records: time, network address, browser/device, whether the sign-in used two-step, the verified email, the consent text and the document fingerprint.
+- When the last person signs, the server writes a **signed copy** (original pages, a reference footer on each, and a signature page) and an **evidence certificate**, files both in the document centre (locked, assigned to the signatories), and records their SHA-256 in the audit trail. "Check integrity" on the staff screen re-reads the files and the record and says if anything has changed.
+- Emails say only that a document is waiting. Reminders can be sent by staff; the automatic schedule comes with the reminder engine.
+- **What this is not.** These are simple electronic signatures with an evidence trail. The sealed PDF has no cryptographic certificate from a trust service provider, so it isn't a "qualified" signature, and the certificate says so. Whether an electronic signature is suitable for a given document (for example deeds, or anything requiring witnesses) is for the practice to decide. Do not describe it as more than this.
+- **Dependency.** The API now has one dependency, `pdf-lib` 1.17.1. The GitHub workflow installs it into `api/node_modules` and deploys with `skip_api_build`, so Azure does not need to build the functions. If the deploy ever drops `node_modules`, signing (and only signing) fails with a clear server error.

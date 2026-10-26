@@ -49,7 +49,7 @@ function createDocuments({ audit, mailer, files, scanner = null, now = () => Dat
     }
     const path = `${folder(doc.clientKey, doc.id)}/v${n}-${chk.name}`;
     await files.put(path, bytes, chk.mime);
-    return { n, fileName: chk.name, ext: chk.ext, mime: chk.mime, size: chk.size, sha256: chk.sha256, path, at: iso(now()), by: by.name, byKind: by.source === "staff" ? "staff" : "client", scan };
+    return { n, fileName: chk.name, ext: chk.ext, mime: chk.mime, size: chk.size, sha256: chk.sha256, path, at: iso(now()), by: by.name, byKind: by.source === "portal" ? "client" : "staff", scan };
   }
 
   const versionOut = (v) => ({ n: v.n, fileName: v.fileName, ext: v.ext, size: v.size, at: v.at, by: v.by, byKind: v.byKind, sha256: v.sha256 });
@@ -61,7 +61,7 @@ function createDocuments({ audit, mailer, files, scanner = null, now = () => Dat
     needsApproval: Boolean(d.requiresApproval), approval: d.approval ? { status: d.approval.status, at: d.approval.at, by: d.approval.by, note: d.approval.note || "" } : null,
     message: d.message || "", assigned: Boolean(d.assignedTo && d.assignedTo.length), previewable: ["pdf", "png", "jpg", "jpeg"].includes(current(d).ext), versions: d.versions.map(versionOut), size: current(d).size, ext: current(d).ext,
   });
-  const forStaff = (d, names = new Map()) => ({ ...forClient(d), clientKey: d.clientKey, published: Boolean(d.published), publishedAt: d.publishedAt || "", assignedTo: d.assignedTo || [], assignedNames: (d.assignedTo || []).map((u) => names.get(u) || u), internalNote: d.internalNote || "", uploadedBy: d.uploadedByName || "", scan: current(d).scan });
+  const forStaff = (d, names = new Map()) => ({ ...forClient(d), clientKey: d.clientKey, published: Boolean(d.published), publishedAt: d.publishedAt || "", assignedTo: d.assignedTo || [], assignedNames: (d.assignedTo || []).map((u) => names.get(u) || u), locked: Boolean(d.locked), internalNote: d.internalNote || "", uploadedBy: d.uploadedByName || "", scan: current(d).scan });
 
   const visibleTo = (access, user, d) => d.published && d.status !== "archived" && d.status !== "withdrawn" && canSee(access, "documents.view", user.id, d);
 
@@ -194,8 +194,11 @@ function createDocuments({ audit, mailer, files, scanner = null, now = () => Dat
     return { ...forStaff(r.doc), told: r.told };
   }
 
+  const lockedCheck = (d) => { if (d.locked) throw new DocError(409, "locked", "This is a signed record and can't be changed"); };
+
   async function staffUnpublish(store, staff, id) {
     const d = await staffDoc(store, id);
+    lockedCheck(d);
     const u = await store.update("documents", d.id, { published: false, status: "draft", updatedAt: iso(now()) }, d.rev);
     await ev(store, { type: "document.unpublished", source: "staff", actor: staff.name, clientKey: d.clientKey, recordId: d.id });
     return forStaff(u);
@@ -210,6 +213,7 @@ function createDocuments({ audit, mailer, files, scanner = null, now = () => Dat
 
   async function staffNewVersion(store, staff, id, { content, fileName, notify }, portalUrl = "") {
     const d = await staffDoc(store, id);
+    lockedCheck(d);
     if (d.origin !== "practice") throw new DocError(400, "not-practice", "Only documents from the practice can be replaced here");
     const v = await storeVersion(store, d, current(d).n + 1, { fileName, content }, { source: "staff", actor: staff.name, name: staff.name });
     const u = await store.update("documents", d.id, { versions: [...d.versions, v], updatedAt: iso(now()), approval: null, status: d.published ? (d.requiresApproval ? "awaiting-approval" : "published") : "draft" }, d.rev);
@@ -220,6 +224,7 @@ function createDocuments({ audit, mailer, files, scanner = null, now = () => Dat
 
   async function staffEdit(store, staff, id, { title, category, assignedTo, internalNote }) {
     const d = await staffDoc(store, id);
+    if (d.locked && (assignedTo !== undefined || title !== undefined)) lockedCheck(d);
     const patch = { updatedAt: iso(now()) };
     if (title !== undefined) patch.title = text(title, 120) || d.title;
     if (category !== undefined && CATEGORIES.includes(category)) patch.category = category;
@@ -247,7 +252,27 @@ function createDocuments({ audit, mailer, files, scanner = null, now = () => Dat
     return forStaff(u);
   }
 
-  return { listForClient, download, upload, approve, staffList, staffAdd, staffPublish, staffUnpublish, staffArchive, staffNewVersion, staffEdit, staffDownload, attention, markSeen, CATEGORIES, DocError };
+  /** The stored bytes of one version, for server-side use (signing). No audit: the caller records its own event. */
+  async function readVersion(store, id, n) {
+    const d = await store.get("documents", text(id, 60));
+    if (!d) throw new DocError(404, "not-found", "Not found");
+    const v = d.versions.find((x) => x.n === Number(n || current(d).n));
+    const bytes = v && (await files.get(v.path));
+    if (!bytes) throw new DocError(404, "missing-file", "That file can't be found");
+    return { doc: d, version: v, bytes };
+  }
+
+  /** A document the server made itself (a signed copy, a certificate). Published, assigned, and locked against edits. */
+  async function addGenerated(store, { clientKey, title, category = "Letters and agreements", fileName, bytes, assignedTo = [], note = "" }) {
+    const id = newId("doc-");
+    const v = await storeVersion(store, { id, clientKey }, 1, { fileName, content: Buffer.from(bytes).toString("base64") }, { source: "system", actor: "XProFlow", name: practiceName });
+    const t = iso(now());
+    const d = await store.insert("documents", { id, clientKey, title: text(title, 120), category, origin: "practice", published: true, publishedAt: t, status: "published", createdAt: t, updatedAt: t, uploadedByName: practiceName, assignedTo, message: text(note, 500), internalNote: "", versions: [v], requiresApproval: false, locked: true, generated: true });
+    await ev(store, { type: "document.generated", source: "system", actor: "XProFlow", clientKey, recordId: id, meta: { fileName: v.fileName, sha256: v.sha256 } });
+    return d;
+  }
+
+  return { readVersion, addGenerated, listForClient, download, upload, approve, staffList, staffAdd, staffPublish, staffUnpublish, staffArchive, staffNewVersion, staffEdit, staffDownload, attention, markSeen, CATEGORIES, DocError };
 }
 
 module.exports = { createDocuments, DocError, CATEGORIES };

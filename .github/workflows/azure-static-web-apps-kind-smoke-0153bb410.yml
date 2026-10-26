@@ -29,9 +29,13 @@ jobs:
           npm install --no-audit --no-fund
           npm test
           npm run build
-      - name: Test the server functions (Companies House, AI, Xero)
+      # The server functions have one dependency (pdf-lib, for sealing signed PDFs). Install it here and
+      # ship node_modules with the functions rather than relying on a second build in Azure.
+      - name: Install and test the server functions (Companies House, AI, Xero, client portal)
         working-directory: api
-        run: npm test
+        run: |
+          npm install --omit=dev --no-audit --no-fund
+          npm test
       - name: Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -43,6 +47,7 @@ jobs:
           api_location: "api" # Companies House, AI and Xero bridges (Azure Functions)
           output_location: ""
           skip_app_build: true
+          skip_api_build: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

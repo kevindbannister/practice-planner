@@ -17,6 +17,8 @@ export type PortalDoc = { id: string; title: string; category: string; status: s
 export type DocList = { documents: PortalDoc[]; categories: string[]; canUpload: boolean; canApprove: boolean };
 export type FileOut = { fileName: string; mime: string; size: number; content: string };
 
+export type SignRequest = { id: string; title: string; status: "out" | "completed" | "cancelled" | "declined" | "expired"; message: string; createdAt: string; expiresAt: string; requestedBy: string; completedAt: string; sequential: boolean; you: { status: "signed" | "declined" | "pending" | "waiting" | "closed"; signedAt: string; declined: boolean }; others: { name: string; order: number; status: string }[]; sealedDocId: string; certDocId: string; consent: string };
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) {
     super(message);
@@ -65,6 +67,10 @@ export class PortalClient {
   uploadDocument = (key: string, b: { title?: string; category?: string; fileName: string; content: string; message?: string; replaces?: string }) => this.call<{ document: PortalDoc }>("POST", `documents/${encodeURIComponent(key)}`, b);
   downloadDocument = (key: string, id: string, version?: number) => this.call<FileOut>("POST", `documents/${encodeURIComponent(key)}/${id}/download`, { version });
   approveDocument = (key: string, id: string, decision: "approved" | "declined", note: string) => this.call<{ document: PortalDoc }>("POST", `documents/${encodeURIComponent(key)}/${id}/approve`, { decision, note });
+  signing = (key: string) => this.call<{ requests: SignRequest[] }>("GET", `signing/${encodeURIComponent(key)}`);
+  signingDocument = (key: string, id: string) => this.call<FileOut>("POST", `signing/${encodeURIComponent(key)}/${id}/document`, {});
+  sign = (key: string, id: string, b: { mode: "typed" | "drawn"; typedName?: string; image?: string; consent: boolean }) => this.call<{ request: SignRequest }>("POST", `signing/${encodeURIComponent(key)}/${id}/sign`, b);
+  declineSigning = (key: string, id: string, reason: string) => this.call<{ request: SignRequest }>("POST", `signing/${encodeURIComponent(key)}/${id}/decline`, { reason });
   official = (key: string) => this.call<{ official: Official | null; configured: boolean; unavailable?: boolean }>("GET", `official/${encodeURIComponent(key)}`);
 }
 

@@ -2,8 +2,11 @@
   "name": "practice-planner-api",
   "private": true,
   "version": "0.1.0",
-  "description": "Server-side bridges for Practice Planner: Companies House, OpenAI and Xero. No dependencies.",
+  "description": "Server-side bridges for Practice Planner: Companies House, OpenAI, Xero and the client portal. The only dependency is pdf-lib (used to seal signed PDFs).",
   "scripts": {
     "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "pdf-lib": "1.17.1"
   }
 }

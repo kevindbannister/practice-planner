@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BusinessInfo, ChangeRequest, PortalDoc } from "./api";
+import { BusinessInfo, ChangeRequest, PortalDoc, SignRequest } from "./api";
 import { readable } from "./format";
 import type { Ctx } from "./PortalApp";
 
@@ -17,6 +17,12 @@ export function Dashboard({ ctx }: { ctx: Ctx }) {
     setDocs([]);
     if (biz.can["documents.view"]) void api.documents(biz.clientKey).then((r) => setDocs(r.documents)).catch(() => undefined);
   }, [api, biz.clientKey, biz.can]);
+  const [sign, setSign] = useState<SignRequest[]>([]);
+  useEffect(() => {
+    setSign([]);
+    if (biz.can["signing.sign"]) void api.signing(biz.clientKey).then((r) => setSign(r.requests)).catch(() => undefined);
+  }, [api, biz.clientKey, biz.can]);
+  const toSign = sign.filter((r) => r.status === "out" && r.you.status === "pending");
   const toApprove = docs.filter((d) => d.status === "awaiting-approval");
   const recent = docs.filter((d) => d.from === "practice").slice(0, 3);
   const asked = changes.filter((r) => r.status === "clarification");
@@ -40,10 +46,13 @@ export function Dashboard({ ctx }: { ctx: Ctx }) {
       </section>
       <section className="px-card" aria-labelledby="d-attn">
         <h2 id="d-attn">Needs your attention</h2>
+        {toSign.map((r) => (
+          <div className="px-row" key={r.id}><span>"{r.title}" is waiting for your signature.</span><button type="button" className="px-btn small" onClick={() => go("signing")}>Review and sign</button></div>
+        ))}
         {toApprove.map((d) => (
           <div className="px-row" key={d.id}><span>"{d.title}" needs your approval.</span><button type="button" className="px-btn small" onClick={() => go("documents")}>Review</button></div>
         ))}
-        {!asked.length && !toApprove.length && <p className="px-muted" style={{ margin: 0 }}>Nothing needs your attention right now.</p>}
+        {!asked.length && !toApprove.length && !toSign.length && <p className="px-muted" style={{ margin: 0 }}>Nothing needs your attention right now.</p>}
         {asked.map((r) => (
           <div className="px-row" key={r.id}><span>We've asked you a question about your requested changes ({r.items.map((i) => i.label.toLowerCase()).join(", ")}).</span><button type="button" className="px-btn small" onClick={() => go("business")}>Answer</button></div>
         ))}

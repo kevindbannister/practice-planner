@@ -93,3 +93,9 @@ a, .px-link { color: var(--p-primary); }
 .px-preview-img { max-width: 100%; max-height: 70vh; border: 1px solid var(--p-line); border-radius: 8px; object-fit: contain; }
 .px-ok { color: var(--p-ok); margin: 0; }
 .px-vers li { padding: 6px 0; }
+
+/* Signing */
+.px-pad { width: 100%; max-width: 640px; height: 200px; border: 2px dashed var(--p-line); border-radius: 10px; background: #fff; touch-action: none; cursor: crosshair; }
+.px-consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.px-consent input { margin-top: 4px; width: 20px; height: 20px; flex: none; }
+[role=tab][aria-selected=true] { box-shadow: inset 0 -3px 0 var(--p-accent); }

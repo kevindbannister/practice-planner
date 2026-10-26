@@ -167,7 +167,7 @@ function createHandler(deps = {}) {
       return reply(200, { ok: true });
     }
     const m = p.mods.portal?.[first];
-    if (m) return reply(200, await m({ store: p.store, reader: p.reader, user, path: path.slice(1), method, body: body(req), query: req.query || {} }));
+    if (m) return reply(200, await m({ store: p.store, reader: p.reader, user, path: path.slice(1), method, body: body(req), query: req.query || {}, ip: ipOf(req), ua: header(req, "user-agent") }));
     return reply(404, { error: "Not found" });
   }
 
