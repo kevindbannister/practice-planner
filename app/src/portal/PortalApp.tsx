@@ -97,13 +97,13 @@ function Switcher({ list, value, onChange }: { list: Biz[]; value: string; onCha
   );
 }
 
-function Shell({ cfg, me, out, switcher, nav, children }: { cfg: Config; me?: Me; out: () => void; switcher?: ReactNode; nav?: ReactNode; children: ReactNode }) {
+export function Shell({ cfg, me, out, switcher, nav, children }: { cfg: Config; me?: Me; out: () => void; switcher?: ReactNode; nav?: ReactNode; children: ReactNode }) {
   return (
     <>
       <a className="px-skip" href="#px-main">Skip to content</a>
       <header className="px-header">
         <div className="px-header-in">
-          <span className="px-brand">{cfg.practiceName}</span>
+          {cfg.branding?.logo ? <img className="px-logo" src={cfg.branding.logo} alt={cfg.practiceName} /> : <span className="px-brand">{cfg.practiceName}</span>}
           {switcher}
           <span className="px-spacer" />
           {me && <span className="px-user">{me.user.name || me.user.email}</span>}
@@ -112,7 +112,7 @@ function Shell({ cfg, me, out, switcher, nav, children }: { cfg: Config; me?: Me
         {nav && <nav className="px-nav" aria-label="Portal">{nav}</nav>}
       </header>
       <div id="px-main">{children}</div>
-      <footer className="px-footer">{cfg.practiceName} · secure client portal</footer>
+      <footer className="px-footer">{cfg.practiceName} · secure client portal{cfg.branding?.supportEmail ? <> · <a href={`mailto:${cfg.branding.supportEmail}`}>{cfg.branding.supportEmail}</a></> : null}</footer>
     </>
   );
 }

@@ -1,6 +1,7 @@
 // The staff side of the client portal: talks to the portal server (/api/portal/admin/...) with the
 // staff member's Microsoft sign-in. Everything that changes who can see what happens on the server,
 // which checks it and writes the audit trail; this file only asks.
+import type { Check, Colours } from "../portal/brand";
 
 export type PortalLevel = "administrator" | "standard" | "restricted" | "signatory";
 export const LEVELS: { key: PortalLevel; label: string; blurb: string }[] = [
@@ -44,7 +45,7 @@ export const EVENT_LABEL: Record<string, string> = {
   "account.email-change-requested": "Email change requested", "account.email-changed": "Email changed", "auth.login": "Signed in", "auth.sessions-ended": "Signed out everywhere",
   "access.granted": "Business access granted", "access.changed": "Permissions changed", "access.revoked": "Business access removed",
   "change.requested": "Business details change requested", "change.clarification-asked": "Question asked about a change", "change.client-replied": "Client answered a question", "change.withdrawn": "Change request withdrawn",
-  "message.thread-started": "Conversation started", "message.sent": "Message sent", "request.created": "Information requested", "request.responded": "Information request answered", "request.staff-reply": "Reply to an information request", "request.completed": "Information request completed", "request.cancelled": "Information request cancelled", "reminder.sent": "Reminder emailed", "reminder.sweep": "Reminder run", "reminder.paused": "Reminder paused", "reminder.resumed": "Reminder resumed", "reminder.cancelled": "Reminder cancelled", "reminder.rescheduled": "Reminder rescheduled", "reminder.settings": "Reminder settings changed",
+  "branding.updated": "Portal branding changed", "branding.reset": "Portal branding restored to the standard look", "message.thread-started": "Conversation started", "message.sent": "Message sent", "request.created": "Information requested", "request.responded": "Information request answered", "request.staff-reply": "Reply to an information request", "request.completed": "Information request completed", "request.cancelled": "Information request cancelled", "reminder.sent": "Reminder emailed", "reminder.sweep": "Reminder run", "reminder.paused": "Reminder paused", "reminder.resumed": "Reminder resumed", "reminder.cancelled": "Reminder cancelled", "reminder.rescheduled": "Reminder rescheduled", "reminder.settings": "Reminder settings changed",
   "identity.requested": "Identity document requested", "identity.renewal-requested": "Renewal requested automatically", "identity.uploaded": "Identity document sent by the client", "identity.viewed": "Identity document opened by staff", "identity.accepted": "Identity document accepted", "identity.rejected": "Identity document rejected", "identity.cancelled": "Identity request cancelled", "identity.reminded": "Identity reminder emailed", "identity.edited": "Identity settings changed", "identity.refused": "Identity file refused by the security check",
   "signing.requested": "Signing requested", "signing.sent": "Signing invitation emailed", "signing.viewed": "Document opened by a signatory", "signing.signed": "Document signed", "signing.declined": "Signing declined", "signing.completed": "All signatures received", "signing.sealed": "Signed copy and certificate produced", "signing.cancelled": "Signing cancelled", "signing.reminded": "Signing reminder emailed", "document.generated": "Signed copy filed",
   "document.added": "Document added (draft)", "document.published": "Document published", "document.unpublished": "Document unpublished", "document.archived": "Document archived", "document.edited": "Document details edited", "document.version-added": "New version added by the practice", "document.version-uploaded": "New version uploaded by the client", "document.uploaded": "Document uploaded by the client", "document.downloaded": "Document downloaded", "document.approved": "Document approved by the client", "document.declined": "Document declined by the client", "document.refused": "File refused by the security check",
@@ -73,6 +74,9 @@ export type RemindersOverview = { paused: boolean; quiet: boolean; kinds: Record
 export type StaffThread = { id: string; subject: string; createdAt: string; lastAt: string; lastFrom: "client" | "staff"; preview: string; started: "client" | "staff"; startedBy: string; count: number; unread: boolean; clientKey: string; assignedTo: string[]; assignedNames: string[] };
 export type StaffMsg = { id: string; at: string; from: "client" | "staff"; name: string; text: string; docs: { id: string; title: string }[] };
 type Files = { fileName: string; content: string }[];
+
+export type StaffBranding = { practiceName: string; welcome: string; phone: string; address: string; hours: string; supportEmail: string; emailFooter: string; logo: string; loginLogo: string; colours: Colours };
+export type BrandingOverview = { saved: boolean; updatedAt: string; updatedBy: string; branding: StaffBranding; defaults: StaffBranding; checks: Check[] };
 
 export class PortalAdminApi {
   constructor(private token: () => Promise<string>) {}
@@ -149,6 +153,10 @@ export class PortalAdminApi {
   openThread(id: string): Promise<{ thread: StaffThread; messages: StaffMsg[] }> { return this.call("GET", `messages?id=${encodeURIComponent(id)}`); }
   startThread(b: { clientKey: string; subject: string; text: string; assignedTo: string[]; notify: boolean; files: Files }): Promise<{ thread: StaffThread; messages: StaffMsg[]; told: number }> { return this.call("POST", "messages-start", b); }
   replyThread(id: string, b: { text: string; notify: boolean; files: Files }): Promise<{ thread: StaffThread; messages: StaffMsg[]; told: number }> { return this.call("POST", "messages-reply", { id, ...b }); }
+  branding(): Promise<BrandingOverview> { return this.call("GET", "branding"); }
+  saveBranding(branding: StaffBranding): Promise<BrandingOverview> { return this.call("POST", "branding-save", { branding }); }
+  resetBranding(): Promise<BrandingOverview> { return this.call("POST", "branding-reset", {}); }
+  async emailPreview(branding: StaffBranding): Promise<string> { return (await this.call("POST", "branding-email", { branding })).html; }
   async requests(clientKey: string): Promise<StaffRequest[]> { return (await this.call("GET", `requests?clientKey=${encodeURIComponent(clientKey)}`)).requests; }
   createRequest(b: { clientKey: string; title: string; details?: string; dueDate?: string; assignedTo: string[]; notify: boolean }): Promise<{ request: StaffRequest & { told: number } }> { return this.call("POST", "requests-create", b); }
   replyRequest(id: string, text: string, reopen = true) { return this.call("POST", "requests-reply", { id, text, reopen }); }

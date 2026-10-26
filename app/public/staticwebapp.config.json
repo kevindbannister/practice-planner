@@ -11,7 +11,7 @@
     ]
   },
   "globalHeaders": {
-    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://*.ciamlogin.com https://*.sharepoint.com https://*.1drv.com; frame-src blob:; object-src blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://login.microsoftonline.com https://*.ciamlogin.com",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://*.ciamlogin.com https://*.sharepoint.com https://*.1drv.com; frame-src 'self' blob:; object-src blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://login.microsoftonline.com https://*.ciamlogin.com",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()"

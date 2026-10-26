@@ -4,7 +4,9 @@
 // two-step sign-in. Tokens stay in sessionStorage, so closing the tab signs the person out, and an
 // idle timer signs them out sooner.
 
-export type Config = { configured: boolean; clientId: string; authority: string; practiceName: string; dev?: boolean };
+import type { PortalBranding } from "./brand";
+
+export type Config = { configured: boolean; clientId: string; authority: string; practiceName: string; branding?: PortalBranding; dev?: boolean };
 
 type Tokens = { id: string; refresh?: string; expires: number };
 const TOKENS = "px.tokens";

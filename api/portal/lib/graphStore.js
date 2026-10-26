@@ -22,10 +22,11 @@ const LISTS = {
   changes: "PP Portal Changes",
   notices: "PP Portal Notices",
   reminders: "PP Portal Reminders",
+  settings: "PP Portal Settings",
 };
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
-const REF = { users: ["email", "status"], access: ["userId", "clientKey"], audit: ["type", "clientKey"], documents: ["clientKey", "category"], signing: ["clientKey", "status"], identity: ["userId", "status"], requests: ["clientKey", "status"], messages: ["clientKey", "threadId"], changes: ["clientKey", "status"], notices: ["userId", "clientKey"], reminders: ["clientKey", "kind"], invites: ["email", "status"] };
+const REF = { users: ["email", "status"], access: ["userId", "clientKey"], audit: ["type", "clientKey"], documents: ["clientKey", "category"], signing: ["clientKey", "status"], identity: ["userId", "status"], requests: ["clientKey", "status"], messages: ["clientKey", "threadId"], changes: ["clientKey", "status"], notices: ["userId", "clientKey"], reminders: ["clientKey", "kind"], settings: ["kind", "status"], invites: ["email", "status"] };
 
 function createGraphStore({ tenantId, clientId, clientSecret, siteHost, sitePath, fetch = globalThis.fetch, now = () => Date.now() }) {
   let token = null; // { value, until }

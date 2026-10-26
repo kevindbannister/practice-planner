@@ -46,6 +46,7 @@ export function Dashboard({ ctx }: { ctx: Ctx }) {
   return (
     <div className="px-stack">
       <h1>Welcome, {first}</h1>
+      {ctx.cfg.branding?.welcome && <p className="px-welcome" style={{ margin: 0 }}>{ctx.cfg.branding.welcome}</p>}
       <section className="px-card" aria-labelledby="d-biz">
         <h2 id="d-biz">{biz.name}</h2>
         <p className="px-muted">You have {biz.levelLabel.toLowerCase()} access to this business.</p>
@@ -83,6 +84,17 @@ export function Dashboard({ ctx }: { ctx: Ctx }) {
         <section className="px-card" aria-labelledby="d-note">
           <div className="px-row"><h2 id="d-note" style={{ margin: 0 }}>Notifications{notes.unread > 0 ? ` (${notes.unread} new)` : ""}</h2>{notes.unread > 0 && <button type="button" className="px-btn small secondary" onClick={markRead}>Mark all as read</button>}</div>
           {notes.notices.slice(0, 6).map((n) => <div className="px-row" key={n.id} style={{ padding: "4px 0" }}><span style={{ fontWeight: n.read ? 400 : 700 }}>{n.text}</span><span className="px-fine">{new Date(n.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span></div>)}
+        </section>
+      )}
+      {(ctx.cfg.branding?.supportEmail || ctx.cfg.branding?.contact.phone || ctx.cfg.branding?.contact.address || ctx.cfg.branding?.contact.hours) && (
+        <section className="px-card" aria-labelledby="d-contact">
+          <h2 id="d-contact">Contact {ctx.cfg.practiceName}</h2>
+          <dl className="px-dl">
+            {ctx.cfg.branding.contact.phone && <div><dt>Telephone</dt><dd><a href={`tel:${ctx.cfg.branding.contact.phone.replace(/[^+\d]/g, "")}`}>{ctx.cfg.branding.contact.phone}</a></dd></div>}
+            {ctx.cfg.branding.supportEmail && <div><dt>Email</dt><dd><a href={`mailto:${ctx.cfg.branding.supportEmail}`}>{ctx.cfg.branding.supportEmail}</a></dd></div>}
+            {ctx.cfg.branding.contact.hours && <div><dt>Hours</dt><dd>{ctx.cfg.branding.contact.hours}</dd></div>}
+            {ctx.cfg.branding.contact.address && <div><dt>Address</dt><dd className="px-contact">{ctx.cfg.branding.contact.address}</dd></div>}
+          </dl>
         </section>
       )}
       {recent.length > 0 && (

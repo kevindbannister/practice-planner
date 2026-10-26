@@ -10,12 +10,13 @@ import { useData } from "./data";
 import { say, useFresh, usePortal } from "./portalKit";
 import { IdentityFor, IdentityTab } from "./PortalIdentity";
 import { RemindersTab } from "./PortalRequests";
+import { BrandingTab } from "./PortalBranding";
 
 const when = (iso?: string) => (iso ? fmtDate(iso.slice(0, 10)) + " " + iso.slice(11, 16) : "—");
 const day = (iso?: string) => (iso ? fmtDate(iso.slice(0, 10)) : "—");
 const statusClass = (s: string) => (s === "active" ? "green" : s === "invited" ? "amber" : s === "none" ? "dashed" : "red");
 
-const TABS: [string, string][] = [["", "Overview"], ["changes", "Changes"], ["identity", "Identity"], ["reminders", "Reminders"], ["people", "People"], ["activity", "Activity"], ["setup", "Set-up"]];
+const TABS: [string, string][] = [["", "Overview"], ["changes", "Changes"], ["identity", "Identity"], ["reminders", "Reminders"], ["branding", "Branding"], ["people", "People"], ["activity", "Activity"], ["setup", "Set-up"]];
 
 export function PortalPage() {
   const { parts } = useRoute();
@@ -36,7 +37,7 @@ export function PortalPage() {
       {portal.status && !portal.status.configured && sub !== "setup" && (
         <p className="import-list warn" role="status">The client portal isn't switched on yet. <a href="#/portal/setup">See what's needed</a>.</p>
       )}
-      {sub === "changes" ? <ChangesQueue /> : sub === "identity" ? <IdentityTab /> : sub === "reminders" ? <RemindersTab /> : sub === "people" ? <People /> : sub === "activity" ? <ActivityLog /> : sub === "setup" ? <SetupInfo /> : <Overview />}
+      {sub === "changes" ? <ChangesQueue /> : sub === "identity" ? <IdentityTab /> : sub === "reminders" ? <RemindersTab /> : sub === "branding" ? <BrandingTab /> : sub === "people" ? <People /> : sub === "activity" ? <ActivityLog /> : sub === "setup" ? <SetupInfo /> : <Overview />}
     </div>
   );
 }

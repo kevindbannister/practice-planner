@@ -14,7 +14,7 @@ export function SignInScreen({ cfg, message }: { cfg: Config | null; message: st
   return (
     <main className="px-signin" aria-labelledby="si-h">
       <div className="px-signin-card">
-        <div className="px-brand">{cfg?.practiceName || "Client portal"}</div>
+        {cfg?.branding?.loginLogo || cfg?.branding?.logo ? <img className="px-signin-logo" src={cfg.branding.loginLogo || cfg.branding.logo} alt={cfg.practiceName} /> : <div className="px-brand">{cfg?.practiceName || "Client portal"}</div>}
         <h1 id="si-h">Client portal</h1>
         {!cfg ? (
           <p role="alert">The portal can't be reached right now. Please try again in a few minutes.</p>
@@ -22,7 +22,7 @@ export function SignInScreen({ cfg, message }: { cfg: Config | null; message: st
           <p role="alert">The portal isn't open yet. Please contact {cfg.practiceName}.</p>
         ) : (
           <>
-            <p>Sign in to see your documents, sign them, answer requests and message us securely.</p>
+            {cfg.branding?.welcome ? <p className="px-welcome">{cfg.branding.welcome}</p> : <p>Sign in to see your documents, sign them, answer requests and message us securely.</p>}
             {message && <p className="px-notice" role="status">{message}</p>}
             {err && <p className="px-error" role="alert">{err}</p>}
             {cfg.dev ? <DevSignIn /> : (
@@ -31,6 +31,7 @@ export function SignInScreen({ cfg, message }: { cfg: Config | null; message: st
                 <button type="button" className="px-btn secondary" onClick={() => go(true)}>Create an account</button>
               </div>
             )}
+            {(cfg.branding?.supportEmail || cfg.branding?.contact.phone) && <p className="px-fine">Need help? {cfg.branding?.supportEmail && <a href={`mailto:${cfg.branding.supportEmail}`}>{cfg.branding.supportEmail}</a>}{cfg.branding?.supportEmail && cfg.branding?.contact.phone ? " or " : ""}{cfg.branding?.contact.phone}</p>}
             <p className="px-fine">New here? Create an account with the email address {cfg.practiceName} has for you. You'll be asked to confirm it with a one-time code. Creating an account doesn't open anything by itself: {cfg.practiceName} chooses what you can see.</p>
           </>
         )}

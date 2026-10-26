@@ -21,14 +21,15 @@ a, .px-link { color: var(--p-primary); }
 
 .px-header { background: var(--p-header-bg); color: var(--p-header-ink); border-bottom: 1px solid var(--p-line); position: sticky; top: 0; z-index: 10; }
 .px-header-in { max-width: 980px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.px-brand { font-weight: 700; font-size: 18px; color: var(--p-primary); }
-.px-bizname { font-weight: 600; color: var(--p-muted); }
+.px-brand { font-weight: 700; font-size: 18px; color: var(--p-header-ink); }
+.px-signin-card .px-brand { color: var(--p-primary); }
+.px-bizname { font-weight: 600; color: var(--p-header-ink); }
 .px-spacer { flex: 1; }
-.px-user { color: var(--p-muted); font-size: 14px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.px-user { color: var(--p-header-ink); font-size: 14px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .px-switch select { font: inherit; padding: 8px 10px; border: 1px solid var(--p-line); border-radius: 8px; background: var(--p-surface); color: var(--p-text); max-width: 100%; min-height: 40px; }
 .px-nav { max-width: 980px; margin: 0 auto; padding: 0 12px; display: flex; gap: 4px; overflow-x: auto; }
-.px-nav a { padding: 10px 14px; text-decoration: none; color: var(--p-muted); font-weight: 600; border-bottom: 3px solid transparent; white-space: nowrap; }
-.px-nav a[aria-current="page"] { color: var(--p-primary); border-bottom-color: var(--p-primary); }
+.px-nav a { padding: 10px 14px; text-decoration: none; color: var(--p-header-ink); font-weight: 600; border-bottom: 3px solid transparent; white-space: nowrap; }
+.px-nav a[aria-current="page"] { color: var(--p-header-ink); border-bottom-color: var(--p-header-ink); font-weight: 800; }
 
 .px-main { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; min-height: 60vh; }
 .px-stack { display: flex; flex-direction: column; gap: 16px; }
@@ -105,3 +106,11 @@ a, .px-link { color: var(--p-primary); }
 .px-msgrow:hover { border-color: var(--p-btn); }
 .px-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--p-btn); margin-right: 8px; }
 .px-badge { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 10px; background: var(--p-btn); color: var(--p-btn-ink); font-size: 12px; line-height: 20px; text-align: center; }
+
+/* branding */
+.px-logo { max-height: 40px; max-width: 200px; width: auto; display: block; }
+.px-signin-logo { max-height: 72px; max-width: 280px; width: auto; display: block; margin: 0 auto 4px; }
+.px-welcome { white-space: pre-wrap; }
+.px-contact { white-space: pre-wrap; }
+.px-footer a { color: var(--p-primary); }
+.px-header .px-btn.ghost { color: var(--p-header-ink); border-color: var(--p-header-ink); }

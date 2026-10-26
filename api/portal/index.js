@@ -16,6 +16,7 @@ const crypto = require("node:crypto");
 const { bind, StoreError } = require("./lib/store.js");
 const { createGraphStore } = require("./lib/graphStore.js");
 const { createGraphMailer } = require("./lib/mailer.js");
+const { createBranding, brandedMailer } = require("./lib/branding.js");
 const { createAudit } = require("./lib/audit.js");
 const { createService, ServiceError } = require("./lib/service.js");
 const { createLimiter } = require("./lib/limiter.js");
@@ -71,8 +72,10 @@ function createHandler(deps = {}) {
     if (parts) return parts;
     const raw = deps.store || createGraphStore({ tenantId: env.PORTAL_GRAPH_TENANT_ID, clientId: env.PORTAL_GRAPH_CLIENT_ID, clientSecret: env.PORTAL_GRAPH_CLIENT_SECRET, siteHost: SITE_HOST, sitePath: SITE_PATH, fetch, now });
     const verifier = deps.verifier || createVerifier({ issuer: env.PORTAL_IDP_ISSUER, audience: env.PORTAL_IDP_CLIENT_ID, jwksUrl: env.PORTAL_IDP_JWKS_URL, fetch, now });
-    const mailer = deps.mailer || createGraphMailer({ from: env.PORTAL_MAIL_FROM, getToken: () => raw.token(), fetch });
+    const store = bind(raw, practiceId);
     const audit = createAudit({ key: env.PORTAL_AUDIT_KEY || "test-key", now });
+    const branding = createBranding({ audit, store, now, practiceName: String(env.PORTAL_PRACTICE_NAME || "Your accountant") });
+    const mailer = brandedMailer(deps.mailer || createGraphMailer({ from: env.PORTAL_MAIL_FROM, getToken: () => raw.token(), fetch }), () => branding.effective());
     let cached = { at: 0, rows: [] };
     const reader = deps.reader || {
       async clients() {
@@ -87,7 +90,7 @@ function createHandler(deps = {}) {
       },
     };
     const service = createService({ audit, mailer, now, portalUrl: env.PORTAL_URL || "", practiceName: env.PORTAL_PRACTICE_NAME || "Your accountant", policy });
-    parts = { raw, files: deps.files || raw.files, verifier, mailer, audit, reader, service, store: bind(raw, practiceId) };
+    parts = { raw, files: deps.files || raw.files, verifier, mailer, audit, reader, service, store, branding };
     parts.mods = modules(parts, { now, env, policy, fetch, scanner: deps.scanner });
     return parts;
   }
@@ -105,15 +108,22 @@ function createHandler(deps = {}) {
   }
 
   /** What the portal's browser app needs to know before anyone signs in. Nothing secret. */
-  function publicConfig() {
+  async function publicConfig() {
     const issuer = String(env.PORTAL_IDP_ISSUER || "").trim();
     const authority = String(env.PORTAL_IDP_AUTHORITY || "").trim() || (issuer ? issuer.replace(/\/v2\.0\/?$/, "/oauth2/v2.0") : "");
-    return { configured, clientId: String(env.PORTAL_IDP_CLIENT_ID || ""), authority, practiceName: String(env.PORTAL_PRACTICE_NAME || "Your accountant"), ...(deps.publicConfig || {}) };
+    const name = String(env.PORTAL_PRACTICE_NAME || "Your accountant");
+    // The practice's own look. If it can't be read, the portal still opens with the standard one.
+    let brand = null;
+    try { brand = configured || deps.parts ? build().branding : null; } catch { brand = null; }
+    const fallback = createBranding({ audit: null, store: null, practiceName: name });
+    let look;
+    try { look = brand ? brand.publicView(await brand.effective()) : fallback.publicView(fallback.defaults()); } catch { look = fallback.publicView(fallback.defaults()); }
+    return { configured, clientId: String(env.PORTAL_IDP_CLIENT_ID || ""), authority, practiceName: look.practiceName || name, branding: look, ...(deps.publicConfig || {}) };
   }
 
   async function route(req, path, method) {
     const first = path[0];
-    if (first === "config" && method === "GET") return reply(200, publicConfig());
+    if (first === "config" && method === "GET") return reply(200, await publicConfig());
     // ------------------------------------------------------------ the scheduled trigger
     // A timer outside (GitHub Actions) calls this with a shared key. It does nothing but run what is due.
     if (first === "system" && path[1] === "sweep" && method === "POST") {

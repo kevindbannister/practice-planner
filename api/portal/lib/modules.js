@@ -8,10 +8,11 @@ const { createIdentity, IdError } = require("./identity.js");
 const { createNotices } = require("./notices.js");
 const { createRequests, RequestError } = require("./requests.js");
 const { createMessages, MessageError } = require("./messages.js");
+const { createBranding, BrandingError } = require("./branding.js");
 const { createReminders, ReminderError } = require("./reminders.js");
 const { ServiceError } = require("./service.js");
 
-const asServiceError = (e) => ((e instanceof ChangeError || e instanceof DocError || e instanceof SignError || e instanceof IdError || e instanceof RequestError || e instanceof ReminderError || e instanceof MessageError) ? new ServiceError(e.status, e.code, e.message) : e);
+const asServiceError = (e) => ((e instanceof ChangeError || e instanceof DocError || e instanceof SignError || e instanceof IdError || e instanceof RequestError || e instanceof ReminderError || e instanceof MessageError || e instanceof BrandingError) ? new ServiceError(e.status, e.code, e.message) : e);
 const wrap = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { throw asServiceError(e); } };
 
 function modules(parts, ctx) {
@@ -27,6 +28,7 @@ function modules(parts, ctx) {
   const list = (v, d) => String(v || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).concat(d || []);
   const identity = createIdentity({ ...common, files: parts.files, scanner: ctx.scanner || null, secret: ctx.env.PORTAL_ID_KEY || ctx.env.PORTAL_AUDIT_KEY || "test-key", practiceId: parts.store.practiceId, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "", portalUrl, verifiers: list(ctx.env.PORTAL_ID_VERIFIERS), maxBytes: Number(ctx.env.PORTAL_MAX_UPLOAD_MB) ? Number(ctx.env.PORTAL_MAX_UPLOAD_MB) * 1048576 : undefined });
   const requests = createRequests({ ...common, docs, portalUrl, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "" });
+  const branding = parts.branding;
   const messages = createMessages({ ...common, portalUrl, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "" });
   const reminders = createReminders({ ...common, portalUrl, signing, requests, identity, changes });
   const attention = [changes.attention, docs.attention, signing.attention, identity.attention, requests.attention, messages.attention];
@@ -35,6 +37,7 @@ function modules(parts, ctx) {
   parts.identity = identity;
   parts.requests = requests;
   parts.messages = messages;
+  parts.branding = branding;
   parts.reminders = reminders;
   parts.notices = notices;
   return {
@@ -133,6 +136,7 @@ function modules(parts, ctx) {
     adminGet: {
       changes: wrap(async (store, reader, staff, q) => ({ requests: await changes.staffList(store, reader, { status: q.status }) })),
       reminders: wrap(async (store, reader) => reminders.overview(store, reader)),
+      branding: wrap(async (store) => branding.overview()),
       messages: wrap(async (store, reader, staff, q) => (q.id ? messages.staffOpen(store, String(q.id)) : { threads: await messages.staffList(store, { clientKey: q.clientKey ? String(q.clientKey) : "", q: q.q ? String(q.q) : "", unread: q.unread === "1" }) })),
       requests: wrap(async (store, reader, staff, q) => ({ requests: await requests.list(store, q.clientKey ? String(q.clientKey) : "") })),
       identity: wrap(async (store, reader, staff, q) => ({ items: await identity.list(store, reader, { userId: q.userId ? String(q.userId) : undefined }), kinds: identity.KINDS })),
@@ -144,6 +148,9 @@ function modules(parts, ctx) {
       "reminders-settings": wrap(async (store, reader, staff, b) => ({ settings: await reminders.updateSettings(store, { name: staff }, b) })),
       "reminders-item": wrap(async (store, reader, staff, b) => reminders.setItem(store, { name: staff }, b.key, b)),
       "reminders-run": wrap(async (store, reader) => reminders.sweep(store, reader, { force: true })),
+      "branding-save": wrap(async (store, reader, staff, b) => branding.save({ name: staff }, b.branding)),
+      "branding-reset": wrap(async (store, reader, staff) => branding.reset({ name: staff })),
+      "branding-email": wrap(async (store, reader, staff, b) => ({ html: branding.previewEmail(b.branding) })),
       "messages-start": wrap(async (store, reader, staff, b) => messages.staffStart(store, { name: staff }, b, (f, t) => docs.staffAdd(store, { name: staff }, { clientKey: t.clientKey, title: `${t.subject}: ${f.fileName || "file"}`, category: "Other", fileName: f.fileName, content: f.content, publish: true, notify: false, assignedTo: t.assignedTo || [], message: "Attached to a message" }, portalUrl))),
       "messages-reply": wrap(async (store, reader, staff, b) => messages.staffReply(store, { name: staff }, b.id, b, async (f, t) => (await docs.staffAdd(store, { name: staff }, { clientKey: t.clientKey, title: `${t.subject}: ${f.fileName || "file"}`, category: "Other", fileName: f.fileName, content: f.content, publish: true, notify: false, assignedTo: t.assignedTo || [], message: "Attached to a message" }, portalUrl)))),
       "requests-create": wrap(async (store, reader, staff, b) => ({ request: await requests.create(store, { name: staff }, b) })),
