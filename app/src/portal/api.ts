@@ -6,7 +6,11 @@ export type Can = Record<string, boolean>;
 export type Biz = { clientKey: string; name: string; level: string; levelLabel: string; can: Can };
 export type Me = { user: { id: string; name: string; email: string; status: string; mfa: boolean }; businesses: Biz[]; awaitingAccess: boolean };
 export type Details = Record<string, string>;
-export type BusinessInfo = { clientKey: string; level: string; can: Can; details: Details };
+export type Editable = { key: string; label: string; multiline: boolean; statutory: string; max: number; noted: boolean };
+export type BusinessInfo = { clientKey: string; level: string; can: Can; details: Details; editable: Editable[] };
+export type ChangeItem = { key: string; label: string; old: string; new: string; decision: string; note: string; statutory: string };
+export type ChangeRequest = { id: string; clientKey: string; createdAt: string; status: "pending" | "clarification" | "decided"; outcome: string; decidedAt: string; requestedByName: string; note: string; items: ChangeItem[]; thread: { at: string; from: "client" | "staff"; name: string; text: string }[] };
+export type Official = { name: string; number: string; status: string; type: string; incorporated: string; registeredOffice: string; sic: string[]; accountsDue: string; confirmationDue: string; accountingReferenceDate: string; officers: { name: string; role: string; appointed: string }[]; pscs: { name: string; kind: string; control: string[]; notified: string }[] };
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -45,6 +49,11 @@ export class PortalClient {
   me = () => this.call<Me>("GET", "me");
   business = (key: string) => this.call<BusinessInfo>("GET", `business/${encodeURIComponent(key)}`);
   signOutEverywhere = () => this.call("POST", "sessions/end");
+  changes = (key: string) => this.call<{ requests: ChangeRequest[]; editable: Editable[] }>("GET", `changes/${encodeURIComponent(key)}`);
+  propose = (key: string, items: { key: string; value: string }[], note: string) => this.call<{ request: ChangeRequest }>("POST", `changes/${encodeURIComponent(key)}`, { items, note });
+  reply = (key: string, id: string, text: string) => this.call<{ request: ChangeRequest }>("POST", `changes/${encodeURIComponent(key)}/${id}/reply`, { text });
+  withdraw = (key: string, id: string) => this.call<{ request: ChangeRequest }>("POST", `changes/${encodeURIComponent(key)}/${id}/cancel`, {});
+  official = (key: string) => this.call<{ official: Official | null; configured: boolean; unavailable?: boolean }>("GET", `official/${encodeURIComponent(key)}`);
 }
 
 export async function loadConfig(): Promise<Config | null> {

@@ -150,6 +150,15 @@ function createGraphStore({ tenantId, clientId, clientSecret, siteHost, sitePath
     async append(pid, coll, doc) {
       return this.insert(pid, coll, doc);
     },
+    /** Change columns on one row of a planner list, found by its Key. Only ever called with whitelisted columns. */
+    async updatePlanner(displayName, key, fields) {
+      const rows = await this.readPlanner(displayName);
+      const row = rows.find((r) => r.Key === key);
+      if (!row) throw new StoreError("missing", "That record wasn't found");
+      const sid = await site();
+      const lid = listIds.get(`planner:${displayName}`);
+      await graph(`/sites/${sid}/lists/${lid}/items/${row.id}/fields`, { method: "PATCH", body: JSON.stringify(fields) });
+    },
     /** Rows of one of the planner's own lists (clients, contacts), read-only, by list display name. */
     async readPlanner(displayName) {
       const sid = await site();

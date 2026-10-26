@@ -17,7 +17,14 @@ export type PortalPerson = {
   selfRegistered: boolean; invitedAt: string; inviteExpires: string; activatedAt: string; lastLoginAt: string; pendingEmail: string; businesses: PortalBusiness[];
 };
 export type PortalCounts = { total: number; invited: number; active: number; suspended: number; revoked: number; mfa: number; awaitingMatch: number };
-export type PortalOverview = { users: PortalPerson[]; counts: PortalCounts };
+export type Attention = { kind: string; at: string; text: string; link: string; clientKey: string };
+export type PortalOverview = { users: PortalPerson[]; counts: PortalCounts; attention: Attention[] };
+export type ChangeItemStaff = { key: string; label: string; old: string; new: string; current: string; decision: string; note: string; statutory: string; noted: boolean };
+export type ChangeRequestStaff = {
+  id: string; clientKey: string; clientName: string; createdAt: string; status: "pending" | "clarification" | "decided"; outcome: string; decidedAt: string; requestedByName: string; requestedByEmail: string; note: string;
+  items: ChangeItemStaff[]; thread: { at: string; from: "client" | "staff"; name: string; text: string }[];
+};
+export type DecideResult = { ok: boolean; outcome: string; applied: string[]; statutory: { field: string; body: string }[] };
 export type PortalEvent = { id: string; at: string; type: string; source: string; userId: string; actor: string; clientKey: string; recordId: string; meta: Record<string, unknown>; verified: boolean };
 export type PortalStatus = { configured: boolean; missing: string[]; optional: string[]; practiceId: string; policy: { adminsManageAccess: boolean } };
 export type InviteResult = { user: PortalPerson; created: boolean; emailed: boolean; emailError?: string };
@@ -36,6 +43,8 @@ export const EVENT_LABEL: Record<string, string> = {
   "account.linked": "Linked to a person", "account.suspended": "Account suspended", "account.revoked": "Access revoked", "account.reinstated": "Account reinstated",
   "account.email-change-requested": "Email change requested", "account.email-changed": "Email changed", "auth.login": "Signed in", "auth.sessions-ended": "Signed out everywhere",
   "access.granted": "Business access granted", "access.changed": "Permissions changed", "access.revoked": "Business access removed",
+  "change.requested": "Business details change requested", "change.clarification-asked": "Question asked about a change", "change.client-replied": "Client answered a question", "change.withdrawn": "Change request withdrawn",
+  "change.approved": "Change approved", "change.rejected": "Change rejected", "change.applied": "Approved changes saved to the record",
 };
 export const eventLabel = (t: string) => EVENT_LABEL[t] || t.replace(/[._-]/g, " ");
 
@@ -87,4 +96,7 @@ export class PortalAdminApi {
   revoke(userId: string) { return this.call("POST", "revoke", { userId }); }
   changeEmail(userId: string, email: string) { return this.call("POST", "change-email", { userId, email }); }
   endSessions(userId: string) { return this.call("POST", "end-sessions", { userId }); }
+  async changes(status = ""): Promise<ChangeRequestStaff[]> { return (await this.call("GET", `changes${status ? `?status=${status}` : ""}`)).requests; }
+  askChange(id: string, text: string) { return this.call("POST", "changes-ask", { id, text }); }
+  decideChange(id: string, decisions: { key: string; decision: "approved" | "rejected"; note?: string }[]): Promise<DecideResult> { return this.call("POST", "changes-decide", { id, decisions }); }
 }

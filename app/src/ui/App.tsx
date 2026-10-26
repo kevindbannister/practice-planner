@@ -1,7 +1,7 @@
 // App shell: top bar, save indicator, and routing between pages.
 import { ChecklistsPage } from "./Checklists";
 import { PortalPage } from "./PortalAdmin";
-import { PortalProvider } from "./portalKit";
+import { PortalProvider, usePortal } from "./portalKit";
 import { useEffect, useRef, useState } from "react";
 import { fmtDate, holdAlert, isHoldText, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
@@ -118,6 +118,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const { open } = useEditor();
   const chase = useChaseCount();
   const assistant = useAssistant();
+  const portalWaiting = usePortal().overview?.attention.length || 0;
   const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
   const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
   const nav: [string, string, IconName][] = [
@@ -133,6 +134,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
               <Icon name={icon} size={22} />
               {label}
               {k === "chase" && ready && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
+              {k === "portal" && ready && portalWaiting > 0 && <span className="nav-count" aria-label={`${portalWaiting} waiting in the portal`}>{portalWaiting}</span>}
             </a>
           ))}
         </nav>

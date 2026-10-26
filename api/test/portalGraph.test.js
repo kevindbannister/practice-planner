@@ -85,3 +85,15 @@ test("the planner's own client list can be read (read-only) with the same sign-i
   const rows = await make(f).readPlanner("PP Clients");
   assert.deepEqual(rows, [{ id: "5", Key: "c1", Title: "Acme" }]);
 });
+
+test("the portal can change a client's record in the planner, one row, only where told, and only whitelisted columns exist", async () => {
+  const f = fakeGraph();
+  f.items.set("PP Clients", [{ id: "5", fields: { Key: "c1", Title: "Acme", Phone: "1" } }, { id: "6", fields: { Key: "c2", Title: "Bolt", Phone: "2" } }]);
+  const store = make(f);
+  await store.updatePlanner("PP Clients", "c1", { Phone: "999" });
+  assert.equal(f.items.get("PP Clients")[0].fields.Phone, "999");
+  assert.equal(f.items.get("PP Clients")[1].fields.Phone, "2");
+  await assert.rejects(() => store.updatePlanner("PP Clients", "nope", { Phone: "1" }), { code: "missing" });
+  const { WRITABLE_COLUMNS } = require("../portal/lib/editable.js");
+  for (const never of ["UTR", "CTUTR", "NINumber", "CHAuthCode", "Notes", "AnnualFees", "Partner", "Manager", "DateOfBirth", "HomeAddress", "XamaStatus", "Key", "Title", "CompanyNumber"]) assert.equal(WRITABLE_COLUMNS.includes(never), false, never);
+});

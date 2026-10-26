@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Client, fmtDate } from "../lib/domain";
 import { Row } from "../lib/schema";
-import { LEVELS, PortalBusiness, PortalEvent, PortalLevel, PortalPerson, STATUS_LABEL, eventLabel, levelLabel } from "../lib/portalAdmin";
+import { ChangeRequestStaff, DecideResult, LEVELS, PortalBusiness, PortalEvent, PortalLevel, PortalPerson, STATUS_LABEL, eventLabel, levelLabel } from "../lib/portalAdmin";
 import { href, useRoute } from "./bits";
 import { useData } from "./data";
 import { say, useFresh, usePortal } from "./portalKit";
@@ -13,13 +13,14 @@ const when = (iso?: string) => (iso ? fmtDate(iso.slice(0, 10)) + " " + iso.slic
 const day = (iso?: string) => (iso ? fmtDate(iso.slice(0, 10)) : "—");
 const statusClass = (s: string) => (s === "active" ? "green" : s === "invited" ? "amber" : s === "none" ? "dashed" : "red");
 
-const TABS: [string, string][] = [["", "Overview"], ["people", "People"], ["activity", "Activity"], ["setup", "Set-up"]];
+const TABS: [string, string][] = [["", "Overview"], ["changes", "Changes"], ["people", "People"], ["activity", "Activity"], ["setup", "Set-up"]];
 
 export function PortalPage() {
   const { parts } = useRoute();
   const portal = usePortal();
   useFresh();
   const sub = parts[1] || "";
+  const changesWaiting = (portal.overview?.attention || []).filter((a) => a.kind === "change").length;
   return (
     <div className="page portal-page">
       <div className="page-head"><div>
@@ -27,13 +28,13 @@ export function PortalPage() {
         <p className="muted" style={{ margin: "4px 0 0" }}>Who can sign in, which businesses they can see, and what needs your attention. Clients only ever see what you publish to them.</p>
       </div></div>
       <nav className="subtabs" aria-label="Client portal">
-        {TABS.map(([k, label]) => <a key={k} className="subtab" href={`#/portal${k ? "/" + k : ""}`} aria-current={sub === k ? "page" : undefined}>{label}</a>)}
+        {TABS.map(([k, label]) => <a key={k} className="subtab" href={`#/portal${k ? "/" + k : ""}`} aria-current={sub === k ? "page" : undefined}>{label}{k === "changes" && changesWaiting > 0 ? <span className="chip amber" style={{ marginLeft: 6 }}>{changesWaiting}</span> : null}</a>)}
       </nav>
       {portal.error && <p className="import-list warn" role="alert">{portal.error}</p>}
       {portal.status && !portal.status.configured && sub !== "setup" && (
         <p className="import-list warn" role="status">The client portal isn't switched on yet. <a href="#/portal/setup">See what's needed</a>.</p>
       )}
-      {sub === "people" ? <People /> : sub === "activity" ? <ActivityLog /> : sub === "setup" ? <SetupInfo /> : <Overview />}
+      {sub === "changes" ? <ChangesQueue /> : sub === "people" ? <People /> : sub === "activity" ? <ActivityLog /> : sub === "setup" ? <SetupInfo /> : <Overview />}
     </div>
   );
 }
@@ -58,7 +59,8 @@ function Overview() {
       </section>
       <section className="card pad stack" aria-labelledby="attn-h">
         <h2 id="attn-h" style={{ margin: 0, fontSize: 16 }}>Needs your attention</h2>
-        {!awaiting.length && !expired.length && !suspended.length && <p className="muted" style={{ margin: 0 }}>Nothing right now.</p>}
+        {!awaiting.length && !expired.length && !suspended.length && !overview.attention.length && <p className="muted" style={{ margin: 0 }}>Nothing right now.</p>}
+        {overview.attention.map((a, i) => <div className="row-wrap" key={i} style={{ justifyContent: "space-between" }}><span>{a.text}</span><a className="btn small" href={a.link}>Review</a></div>)}
         {awaiting.map((u) => <AttentionRow key={u.id} person={u} text={`${u.name || u.email} registered on their own and can't see anything yet. Match them to a person and give them access, or leave them waiting.`} />)}
         {expired.map((u) => <AttentionRow key={u.id} person={u} text={`${u.name || u.email}'s invitation expired on ${day(u.inviteExpires)}. Resend it to renew it.`} />)}
         {suspended.map((u) => <AttentionRow key={u.id} person={u} text={`${u.name || u.email} is suspended.`} />)}
@@ -513,5 +515,97 @@ function SetupInfo() {
         <div><button type="button" className="btn small" onClick={() => void reload()}>Check again</button></div>
       </section>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- change requests
+
+const decisionWord = (d: string) => (d === "approved" ? "Approved" : d === "rejected" ? "Not approved" : d === "withdrawn" ? "Withdrawn" : "Waiting");
+
+function ChangesQueue() {
+  const portal = usePortal();
+  const [list, setList] = useState<ChangeRequestStaff[] | null>(null);
+  const [show, setShow] = useState<"open" | "all">("open");
+  const [err, setErr] = useState("");
+  // Requests decided during this visit stay on screen with their reminders until you leave the page.
+  const [results, setResults] = useState<Record<string, DecideResult>>({});
+  const load = () => portal.api.changes("").then(setList).catch((e) => setErr(say(e)));
+  useEffect(() => { void load(); }, [portal.overview]);
+  const shown = (list || []).filter((r) => show === "all" || r.status !== "decided" || results[r.id]);
+  return (
+    <div className="stack">
+      <div className="row-wrap">
+        <select className="input" aria-label="Which requests" value={show} onChange={(e) => setShow(e.target.value as "open" | "all")}><option value="open">Waiting</option><option value="all">All, including finished</option></select>
+        <span className="muted">Clients propose changes in the portal. Nothing reaches the client record until you approve it here.</span>
+      </div>
+      {err && <p className="error-text" role="alert">{err}</p>}
+      {!list ? <p className="muted">Loading…</p> : !shown.length ? <div className="card empty">{show === "open" ? "No change requests waiting." : "No change requests yet."}</div> : shown.map((r) => <ChangeCard key={r.id} r={r} result={results[r.id] || null} onDecided={(out) => setResults((x) => ({ ...x, [r.id]: out }))} onDone={() => { void load(); void portal.reload(); }} />)}
+    </div>
+  );
+}
+
+function ChangeCard({ r, result, onDecided, onDone }: { r: ChangeRequestStaff; result: DecideResult | null; onDecided: (out: DecideResult) => void; onDone: () => void }) {
+  const portal = usePortal();
+  const [dec, setDec] = useState<Record<string, { decision: "approved" | "rejected" | ""; note: string }>>({});
+  const [question, setQuestion] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const open = r.status !== "decided";
+  const get = (k: string) => dec[k] || { decision: "", note: "" };
+  const ready = r.items.every((i) => get(i.key).decision);
+  const go = async (work: () => Promise<unknown>) => { setBusy(true); setErr(""); try { await work(); } catch (e) { setErr(say(e)); } finally { setBusy(false); } };
+  const outcome = r.status === "decided" ? r.outcome : r.status === "clarification" ? "Waiting for the client's answer" : "Waiting for you";
+  return (
+    <section className="card pad stack" aria-label={`Change request from ${r.requestedByName}`} style={{ gap: 10 }}>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <strong><a href={href("clients", r.clientKey)}>{r.clientName}</a> · {r.requestedByName}</strong>
+        <span className={`chip ${r.status === "decided" ? (r.outcome === "rejected" ? "red" : "green") : r.status === "clarification" ? "" : "amber"}`}>{outcome[0].toUpperCase() + outcome.slice(1)}</span>
+      </div>
+      <div className="muted">Asked {day(r.createdAt)} · {r.requestedByEmail}{r.note ? ` · “${r.note}”` : ""}</div>
+      <div className="table-wrap">
+        <table className="grid" style={{ minWidth: 720 }}>
+          <thead><tr><th scope="col">Detail</th><th scope="col">When asked</th><th scope="col">On the record now</th><th scope="col">Proposed</th><th scope="col">{open ? "Your decision" : "Decision"}</th></tr></thead>
+          <tbody>
+            {r.items.map((i) => (
+              <tr key={i.key}>
+                <td>{i.label}{i.statutory && <div className="cell-sub">Also needs filing at {i.statutory}</div>}{i.noted && <div className="cell-sub">Noted only: update by hand</div>}</td>
+                <td style={{ whiteSpace: "pre-line" }}>{i.old || "—"}</td>
+                <td style={{ whiteSpace: "pre-line" }}>{i.noted ? "—" : i.current || "—"}{open && !i.noted && i.current !== i.old && <div className="cell-sub"><span className="chip amber">Changed since</span></div>}</td>
+                <td style={{ whiteSpace: "pre-line", fontWeight: 600 }}>{i.new}</td>
+                <td>{open ? (
+                  <div className="stack" style={{ gap: 4 }}>
+                    <div className="row-wrap" style={{ gap: 10 }}>
+                      <label className="check"><input type="radio" name={`${r.id}-${i.key}`} aria-label={`Approve ${i.label}`} checked={get(i.key).decision === "approved"} onChange={() => setDec({ ...dec, [i.key]: { ...get(i.key), decision: "approved" } })} /> Approve</label>
+                      <label className="check"><input type="radio" name={`${r.id}-${i.key}`} aria-label={`Reject ${i.label}`} checked={get(i.key).decision === "rejected"} onChange={() => setDec({ ...dec, [i.key]: { ...get(i.key), decision: "rejected" } })} /> Reject</label>
+                    </div>
+                    <input className="input" aria-label={`Note for ${i.label}`} placeholder="Note to the client (optional)" value={get(i.key).note} onChange={(e) => setDec({ ...dec, [i.key]: { ...get(i.key), note: e.target.value } })} />
+                  </div>
+                ) : <>{decisionWord(i.decision)}{i.note ? ` — ${i.note}` : ""}</>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {r.thread.map((m, n) => <p key={n} className="muted" style={{ margin: 0 }}><strong>{m.from === "staff" ? m.name : r.requestedByName}:</strong> {m.text}</p>)}
+      {open && (
+        <>
+          <div className="row-wrap">
+            <input className="input" aria-label="Question for the client" placeholder="Ask the client a question before deciding" value={question} onChange={(e) => setQuestion(e.target.value)} />
+            <button type="button" className="btn small" disabled={busy || !question.trim()} onClick={() => go(async () => { await portal.api.askChange(r.id, question); setQuestion(""); onDone(); })}>Ask</button>
+          </div>
+          <div className="row-wrap">
+            <button type="button" className="btn primary" disabled={busy || !ready} onClick={() => go(async () => { const out = await portal.api.decideChange(r.id, r.items.map((i) => ({ key: i.key, decision: get(i.key).decision as "approved" | "rejected", note: get(i.key).note }))); onDecided(out); if (out.applied.length) await portal.reloadPlanner(); onDone(); })}>{busy ? "Saving…" : "Save decisions"}</button>
+            {!ready && <span className="muted">Choose approve or reject for every line.</span>}
+          </div>
+        </>
+      )}
+      {result && (
+        <div className="alert amber" role="status">
+          <strong>Saved: {result.outcome}.</strong>
+          <span>{result.applied.length ? "Approved changes are now on the client's record. " : ""}{result.statutory.length ? `Remember: approving doesn't update Companies House or HMRC. Still to file: ${result.statutory.map((s) => `${s.field} (${s.body})`).join(", ")}.` : ""}</span>
+        </div>
+      )}
+      {err && <p className="error-text" role="alert">{err}</p>}
+    </section>
   );
 }

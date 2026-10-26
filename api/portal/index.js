@@ -19,9 +19,10 @@ const { createAudit } = require("./lib/audit.js");
 const { createService, ServiceError } = require("./lib/service.js");
 const { createLimiter } = require("./lib/limiter.js");
 const { modules } = require("./lib/modules.js");
+const { WRITABLE_COLUMNS } = require("./lib/editable.js");
 
 const REQUIRED = ["PORTAL_IDP_ISSUER", "PORTAL_IDP_JWKS_URL", "PORTAL_IDP_CLIENT_ID", "PORTAL_GRAPH_TENANT_ID", "PORTAL_GRAPH_CLIENT_ID", "PORTAL_GRAPH_CLIENT_SECRET", "PORTAL_AUDIT_KEY"];
-const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS"];
+const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "CH_API_KEY", "PORTAL_NOTIFY_EMAIL", "PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS"];
 const SITE_HOST = "insightinformation.sharepoint.com";
 const SITE_PATH = "/sites/PracticePlanner";
 const CLIENTS_LIST = "PP Clients";
@@ -77,10 +78,16 @@ function createHandler(deps = {}) {
         if (now() - cached.at > CLIENTS_FOR_MS) cached = { at: now(), rows: await raw.readPlanner(CLIENTS_LIST) };
         return cached.rows;
       },
+      /** The only write the portal makes to the planner's own lists: whitelisted columns of a client's record. */
+      async updateClient(key, patch) {
+        const safe = Object.fromEntries(Object.entries(patch).filter(([k]) => WRITABLE_COLUMNS.includes(k)));
+        if (Object.keys(safe).length) await raw.updatePlanner(CLIENTS_LIST, key, safe);
+        cached = { at: 0, rows: [] };
+      },
     };
     const service = createService({ audit, mailer, now, portalUrl: env.PORTAL_URL || "", practiceName: env.PORTAL_PRACTICE_NAME || "Your accountant", policy });
     parts = { raw, verifier, mailer, audit, reader, service, store: bind(raw, practiceId) };
-    parts.mods = modules(parts, { now, env, policy });
+    parts.mods = modules(parts, { now, env, policy, fetch });
     return parts;
   }
 
@@ -120,7 +127,7 @@ function createHandler(deps = {}) {
       const S = p.service;
       const act = path[1];
       if (method === "GET") {
-        if (act === "overview") return reply(200, await S.overview(p.store, p.reader));
+        if (act === "overview") return reply(200, { ...(await S.overview(p.store, p.reader)), attention: await p.mods.attention(p.store, p.reader) });
         if (act === "events") return reply(200, { events: await S.events(p.store, { clientKey: req.query?.clientKey, userId: req.query?.userId, limit: req.query?.limit }) });
         const m = p.mods.adminGet?.[act];
         if (m) return reply(200, await m(p.store, p.reader, staff.name, req.query || {}));

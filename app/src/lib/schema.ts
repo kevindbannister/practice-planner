@@ -33,6 +33,7 @@ export const LISTS: ListDef[] = [
       t("AMLReview"), t("LoEStatus"), t("LoESent"), t("LoEDecided"),
       t("Importance"), n("AnnualFees"), n("PaymentDays"), n("LatePaymentPct"), n("RetentionYears"),
       t("EngagerId"), t("LogoUrl"), t("Website"), t("ElementsLink"), b("CHChecked"), t("CHStatus"), note("Notes"), note("LogoData"),
+      t("TradingName"), note("BusinessActivity"),
     ],
   },
   {

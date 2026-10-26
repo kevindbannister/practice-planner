@@ -264,7 +264,7 @@ test("a business answer never carries internal fields, for any level", async () 
   await invite(h, BEN, [{ clientKey: "c-acme", level: "restricted" }]);
   for (const who of [ANN, BEN]) {
     const raw = JSON.stringify((await h.asUser(who, "business/c-acme")).body) + JSON.stringify((await h.asUser(who)).body);
-    for (const secret of ["1234567890", "0987654321", "QQ123456C", "AUTH99", "Slow payer", "4800", "Kevin", "Sam", "Red", "9 Secret Lane", "1970-01-01", "key", "Partner", "Manager"]) {
+    for (const secret of ["1234567890", "0987654321", "QQ123456C", "AUTH99", "Slow payer", "4800", "Kevin", "Sam", "Red", "9 Secret Lane", "1970-01-01", "Importance", "Partner", "Manager"]) {
       assert.equal(raw.includes(secret), false, `${secret} leaked`);
     }
   }

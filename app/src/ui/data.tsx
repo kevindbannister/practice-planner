@@ -53,6 +53,8 @@ type Ctx = {
   user?: string;
   save: SaveState;
   reload: () => Promise<void>;
+  /** Re-read one list quietly (no loading screen), for changes made outside the app, such as by the client portal. */
+  refreshList: (list: ListKey) => Promise<void>;
   update: (list: ListKey, row: Row, patch: Row) => Promise<void>;
   updateMany: (list: ListKey, changes: { row: Row; patch: Row }[]) => Promise<void>;
   create: (list: ListKey, row: Row) => Promise<Row>;
@@ -89,6 +91,17 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
   const [error, setError] = useState<string>();
   const [data, setData] = useState<Data>(EMPTY);
   const [save, setSave] = useState<SaveState>({ state: "idle" });
+
+  const refreshList = useCallback(
+    async (list: ListKey) => {
+      const slot = SOURCE.find(([, l]) => l === list)?.[0];
+      if (!slot) return;
+      const rows = await store.readAll(list);
+      if (slot === "clients") rows.sort((a, b) => String(a.Title || "").localeCompare(String(b.Title || "")));
+      setData((d) => ({ ...d, [slot]: rows }));
+    },
+    [store],
+  );
 
   const reload = useCallback(async () => {
     try {
@@ -283,8 +296,8 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
   const settings = useMemo(() => readSettings(data.settings), [data.settings]);
 
   const value = useMemo(
-    () => ({ status, error, data, settings, store, user, save, reload, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist }),
-    [status, error, data, settings, store, user, save, reload, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist],
+    () => ({ status, error, data, settings, store, user, save, reload, refreshList, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist }),
+    [status, error, data, settings, store, user, save, reload, refreshList, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist],
   );
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

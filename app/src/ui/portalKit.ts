@@ -12,6 +12,8 @@ export type PortalState = {
   error: string;
   loading: boolean;
   reload: () => Promise<void>;
+  /** Re-read the planner's own lists too (after the portal changed a client's record). */
+  reloadPlanner: () => Promise<void>;
   /** Run an action, then refresh. Returns its result, or throws a PortalAdminError with a plain message. */
   run: <T>(work: (api: PortalAdminApi) => Promise<T>) => Promise<T>;
   events: (q?: { clientKey?: string; userId?: string; limit?: number }) => Promise<PortalEvent[]>;
@@ -22,19 +24,21 @@ export type PortalState = {
 const Ctx = createContext<PortalState | null>(null);
 
 export function PortalProvider({ children }: { children: ReactNode }) {
-  const { data } = useData();
+  const { data, refreshList } = useData();
   const api = useMemo(() => new PortalAdminApi(async () => (isDemo() ? "demo" : getAccessToken())), []);
   const [status, setStatus] = useState<PortalStatus | null>(null);
   const [overview, setOverview] = useState<PortalOverview | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const started = useRef(false);
+  const pushed = useRef(false);
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      if (isDemo()) {
-        // The test server stands in for the planner's lists: tell it which clients exist.
+      if (isDemo() && !pushed.current) {
+        // The test server stands in for the planner's lists: tell it which clients exist (once).
+        pushed.current = true;
         await fetch("/dev/clients", { method: "PUT", body: JSON.stringify(data.clients) }).catch(() => undefined);
       }
       const s = await api.status();
@@ -70,13 +74,13 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<PortalState>(
     () => ({
-      api, status, overview, error, loading, reload, run,
+      api, status, overview, error, loading, reload, run, reloadPlanner: () => refreshList("Clients"),
       events: (q) => api.events(q),
       forPerson: (key) => (key ? overview?.users.find((u) => u.personKey === key) : undefined),
       forClient: (clientKey) =>
         (overview?.users || []).flatMap((p) => p.businesses.filter((b) => b.clientKey === clientKey).map((b) => ({ person: p, level: b.level, levelLabel: b.levelLabel }))),
     }),
-    [api, status, overview, error, loading, reload, run],
+    [api, status, overview, error, loading, reload, run, refreshList],
   );
   return createElement(Ctx.Provider, { value }, children);
 }

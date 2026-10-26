@@ -30,20 +30,34 @@ const CLIENTS = [
   { Key: "c-cove", Title: "Cove Consulting Ltd", Kind: "Company", CompanyNumber: "09999999" },
 ];
 
+/** A tiny Companies House: public profile, officers and PSCs, with the personal data the real one also returns. */
+function ch(u) {
+  const res = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
+  if (/company\/01234567\/officers/.test(u)) return res({ items: [{ name: "EXAMPLE, Ann", officer_role: "director", appointed_on: "2015-03-02", date_of_birth: { month: 4, year: 1970 }, address: { address_line_1: "9 Secret Lane" }, nationality: "British", occupation: "Baker" }, { name: "GONE, Bob", officer_role: "director", appointed_on: "2015-03-02", resigned_on: "2020-01-01" }] });
+  if (/company\/01234567\/persons/.test(u)) return res({ items: [{ name: "Ann Example", kind: "individual-person-with-significant-control", natures_of_control: ["ownership-of-shares-75-to-100-percent"], notified_on: "2016-04-06", address: { address_line_1: "9 Secret Lane" }, date_of_birth: { month: 4, year: 1970 } }] });
+  if (/company\/01234567$/.test(u)) return res({ company_name: "ACME WIDGETS LIMITED", company_status: "active", type: "ltd", date_of_creation: "2015-03-02", sic_codes: ["62020"], registered_office_address: { address_line_1: "1 High St", locality: "London", postal_code: "N1 1AA" }, accounts: { next_due: "2026-12-31", accounting_reference_date: { day: "31", month: "03" } }, confirmation_statement: { next_due: "2027-03-16" } });
+  return res({}, 404);
+}
+
 function setup({ practices = ["default"], env = {}, verify = true } = {}) {
+  const rows = JSON.parse(JSON.stringify(CLIENTS));
   const raw = createMemoryStore();
   const mailer = createRecordingMailer();
   const state = { now: NOW };
   const handlers = {};
   for (const pid of practices) {
     handlers[pid] = createHandler({
-      env: { PORTAL_IDP_ISSUER: ISSUER, PORTAL_IDP_CLIENT_ID: AUDIENCE, PORTAL_IDP_JWKS_URL: JWKS, PORTAL_PRACTICE_ID: pid, PORTAL_AUDIT_KEY: "audit-secret", PORTAL_URL: "https://pp.example/portal", PORTAL_PRACTICE_NAME: "Bannister & Co", ...env },
+      env: { PORTAL_IDP_ISSUER: ISSUER, PORTAL_IDP_CLIENT_ID: AUDIENCE, PORTAL_IDP_JWKS_URL: JWKS, PORTAL_PRACTICE_ID: pid, PORTAL_AUDIT_KEY: "audit-secret", PORTAL_URL: "https://pp.example/portal", PORTAL_PRACTICE_NAME: "Bannister & Co", CH_API_KEY: "ch-key", PORTAL_NOTIFY_EMAIL: "practice@bannister.test", ...env },
       store: raw,
       mailer,
       now: () => state.now,
-      reader: { clients: async () => CLIENTS },
+      reader: { clients: async () => rows, updateClient: async (key, patch) => { Object.assign(rows.find((r) => r.Key === key), patch); } },
       staffAuth: async (req) => (req.headers && req.headers["x-staff"] ? { name: String(req.headers["x-staff"]) } : null),
-      fetch: async (url) => ({ ok: true, status: 200, json: async () => ({ keys: [jwk(pair, "k1")] }) }),
+      fetch: async (url) => {
+        const u = String(url);
+        if (u.includes("company-information")) return ch(u);
+        return { ok: true, status: 200, json: async () => ({ keys: [jwk(pair, "k1")] }) };
+      },
     });
   }
   async function call(pid, method, path, { body, headers = {}, query = {} } = {}) {
@@ -53,7 +67,7 @@ function setup({ practices = ["default"], env = {}, verify = true } = {}) {
   const pid0 = practices[0];
   const staff = (method, path, body, pid = pid0) => call(pid, method, `admin/${path}`, { body, headers: { "x-staff": "Kevin" } });
   const asUser = (claims, path = "me", pid = pid0, o = {}) => call(pid, o.method || "GET", path, { headers: { "x-portal-token": token(claims) }, body: o.body });
-  return { raw, mailer, state, call, staff, asUser, token };
+  return { raw, mailer, state, call, staff, asUser, token, rows };
 }
 
 module.exports = { setup, token, pair, other, jwk, NOW, ISSUER, AUDIENCE, JWKS, CLIENTS };

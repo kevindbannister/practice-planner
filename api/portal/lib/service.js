@@ -7,6 +7,7 @@
 
 const { LEVELS, LEVEL_LABEL, MATRIX, decide } = require("./rules.js");
 const { newId, StoreError } = require("./store.js");
+const { meta: editableMeta } = require("./editable.js");
 
 const INVITE_DAYS = 14;
 const EMAIL_CHANGE_DAYS = 3;
@@ -35,7 +36,7 @@ const iso = (ms) => new Date(ms).toISOString();
 const PUBLIC_FIELDS = [
   ["name", "Title"], ["kind", "Kind"], ["companyNumber", "CompanyNumber"], ["incorporated", "Incorporated"], ["yearEnd", "YearEnd"],
   ["registeredOffice", "RegisteredOffice"], ["tradingAddress", "TradingAddress"], ["email", "Email"], ["phone", "Phone"], ["mobile", "Mobile"],
-  ["website", "Website"], ["sic", "SIC"], ["vatNumber", "VATNumber"], ["payeRef", "PAYERef"],
+  ["website", "Website"], ["sic", "SIC"], ["vatNumber", "VATNumber"], ["payeRef", "PAYERef"], ["tradingName", "TradingName"], ["businessActivity", "BusinessActivity"],
 ];
 const businessFields = (row) => Object.fromEntries(PUBLIC_FIELDS.map(([k, col]) => [k, row[col] == null ? "" : String(row[col])]));
 
@@ -157,7 +158,7 @@ function createService({ audit, mailer, now = () => Date.now(), portalUrl = "", 
     if (!row) throw new ServiceError(404, "not-found", "Not found");
     const full = decide(a, "business.details", policy).ok;
     const fields = businessFields(row);
-    return { clientKey: a.clientKey, level: a.level, can: permissionsFor(a), details: full ? fields : { name: fields.name, kind: fields.kind } };
+    return { clientKey: a.clientKey, level: a.level, can: permissionsFor(a), details: full ? fields : { name: fields.name, kind: fields.kind }, editable: decide(a, "business.requestChange", policy).ok ? editableMeta() : [] };
   }
 
   // ---------------------------------------------------------------- staff: granting access
