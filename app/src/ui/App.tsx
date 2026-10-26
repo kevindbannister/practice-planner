@@ -1,5 +1,7 @@
 // App shell: top bar, save indicator, and routing between pages.
 import { ChecklistsPage } from "./Checklists";
+import { PortalPage } from "./PortalAdmin";
+import { PortalProvider } from "./portalKit";
 import { useEffect, useRef, useState } from "react";
 import { fmtDate, holdAlert, isHoldText, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
@@ -68,7 +70,7 @@ export function App({ demo }: { demo: boolean }) {
   } else if (section === "clients" && parts[1] === "all") {
     body = <ClientsPage />;
   } else if (section === "clients" && parts[1]) {
-    body = <ClientPage clientKey={parts[1]} tab={(["work", "comms", "meetings", "tax", "activity"].includes(parts[2]) ? parts[2] : "overview") as "overview"} />;
+    body = <ClientPage clientKey={parts[1]} tab={(["work", "comms", "meetings", "tax", "activity", "portal"].includes(parts[2]) ? parts[2] : "overview") as "overview"} />;
   } else if (section === "groups" || section === "clients") {
     body = <GroupsPage />;
   } else if (section === "home") {
@@ -85,6 +87,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <PapersPage />;
   } else if (section === "checklists") {
     body = <ChecklistsPage />;
+  } else if (section === "portal") {
+    body = <PortalPage />;
   } else {
     body = <ClientsPage />;
   }
@@ -95,10 +99,12 @@ export function App({ demo }: { demo: boolean }) {
         <CalendarProvider demo={demo}>
           <EditorProvider>
             <AssistantProvider>
-              <TopBar section={section} demo={demo} ready={status === "ready"} />
-              <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
-                {body}
-              </PageBoundary>
+              <PortalProvider>
+                <TopBar section={section} demo={demo} ready={status === "ready"} />
+                <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
+                  {body}
+                </PageBoundary>
+              </PortalProvider>
             </AssistantProvider>
           </EditorProvider>
         </CalendarProvider>
@@ -115,7 +121,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
   const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["papers", "Papers", "list"], ["checklists", "Checks", "check"], ["settings", "Settings", "settings"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["papers", "Papers", "list"], ["checklists", "Checks", "check"], ["portal", "Portal", "clients"], ["settings", "Settings", "settings"],
   ];
   return (
     <header className="topbar">

@@ -2257,3 +2257,15 @@ a.tl-sum:hover, button.tl-sum:hover { border-color: var(--blue-line); background
 }
 .checklists-page .row-wrap > select.input, .job-checklist .row-wrap > select.input, .cl-grid select.input { width: auto; min-width: 160px; max-width: 100%; }
 .cl-grid select.input, .cl-grid .input { width: 100%; }
+
+/* ---- client portal (staff side) ---- */
+.pt-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.pt-stat { background: var(--card, #fff); border: 1px solid var(--border, #e3e6ea); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.pt-stat strong { font-size: 24px; line-height: 1.1; }
+.pt-stat span { font-size: 12px; color: var(--muted); }
+.pt-kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 18px; margin: 0; }
+.pt-kv > div { display: flex; flex-direction: column; gap: 1px; }
+.pt-kv dt { font-size: 12px; color: var(--muted); }
+.pt-kv dd { margin: 0; overflow-wrap: anywhere; }
+.portal-page .row-wrap > select.input, .portal-person .row-wrap > select.input { width: auto; min-width: 160px; max-width: 100%; }
+.portal-page .row-wrap > input.input { width: auto; min-width: 200px; flex: 1 1 200px; max-width: 360px; }

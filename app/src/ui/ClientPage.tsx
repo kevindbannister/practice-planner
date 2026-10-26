@@ -20,8 +20,9 @@ import { ClientTimeline } from "./Timeline";
 import { JobChecklistChip } from "./JobChecklist";
 import { MeetingsTable, NewMeetingButtons } from "./Meetings";
 import { TaxPaymentsTab } from "./TaxPayments";
+import { ClientPortalUsers, IndividualPortalAccess } from "./PortalAdmin";
 
-export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" }) {
+export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "portal" }) {
   const idx = useIndex();
   const { data: allData } = useData();
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
@@ -104,6 +105,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         <a href={href("clients", c.Key, "meetings")} aria-current={tab === "meetings" ? "page" : undefined}>
           Meetings{meetingsCount ? <span className="chip" style={{ marginLeft: 4 }}>{meetingsCount}</span> : null}
         </a>
+        <a href={href("clients", c.Key, "portal")} aria-current={tab === "portal" ? "page" : undefined}>Portal</a>
         <a href={href("clients", c.Key, "tax")} aria-current={tab === "tax" ? "page" : undefined}>
           Tax payments{owingCount ? <span className="chip" style={{ marginLeft: 4 }}>{owingCount}</span> : null}
         </a>
@@ -120,7 +122,8 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       )}
       {tab === "tax" && <TaxPaymentsTab client={c} />}
       {tab === "activity" && <ClientTimeline client={c} />}
-      {tab === "meetings" || tab === "tax" || tab === "activity" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
+      {tab === "portal" && <ClientPortalUsers client={c} />}
+      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>
@@ -197,6 +200,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
       </div>
 
       <div className="col-side">
+        {c.Kind === "Individual" && <IndividualPortalAccess client={c} />}
         <EditableCard
           title="Contact"
           client={c}

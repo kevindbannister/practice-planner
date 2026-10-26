@@ -16,7 +16,8 @@ export type ListKey =
   | "Clients" | "Contacts" | "Groups" | "GroupMembers" | "Services" | "StageTemplates"
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
-  | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog";
+  | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
+  | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders";
 
 export const LISTS: ListDef[] = [
   {
@@ -220,7 +221,29 @@ export const LISTS: ListDef[] = [
     key: "ChecklistLog", displayName: "PP Checklist Audit Trail", description: "Practice Planner: what happened on each checklist",
     columns: [t("Key", true), t("ChecklistKey", true), t("JobKey"), t("ClientKey"), t("ItemKey"), t("At", true), t("Actor"), t("Action"), note("Detail"), t("PracticeId")],
   },
+  ...portalLists(),
 ];
+
+/**
+ * The client portal's lists. Only the portal's server (api/portal) reads and writes these, with its
+ * own credentials: clients never reach SharePoint, and staff use the portal screens rather than
+ * these lists. Every record is one row: Key (its id), PracticeId, two handy lookup columns, Rev
+ * (for change checks) and Json (the record). The list names must match api/portal/lib/graphStore.js.
+ */
+function portalLists(): ListDef[] {
+  const defs: [ListKey, string, string][] = [
+    ["PortalUsers", "PP Portal Users", "portal logins"], ["PortalAccess", "PP Portal Access", "which person can see which business"],
+    ["PortalAudit", "PP Portal Audit", "the portal audit trail"], ["PortalInvites", "PP Portal Invites", "portal invitations"],
+    ["PortalDocuments", "PP Portal Documents", "documents shared with clients"], ["PortalSigning", "PP Portal Signing", "signing requests and evidence"],
+    ["PortalIdentity", "PP Portal Identity", "identity document requests and records"], ["PortalRequests", "PP Portal Requests", "information requests"],
+    ["PortalMessages", "PP Portal Messages", "secure messages"], ["PortalChanges", "PP Portal Changes", "business detail change requests"],
+    ["PortalNotices", "PP Portal Notices", "client notifications"], ["PortalReminders", "PP Portal Reminders", "reminder schedules and history"],
+  ];
+  return defs.map(([key, displayName, what]) => ({
+    key, displayName, description: `Practice Planner client portal: ${what}. Written only by the portal server.`,
+    columns: [t("Key", true), t("PracticeId", true), t("Ref1"), t("Ref2"), t("Rev"), note("Json")],
+  }));
+}
 
 export const LIST_BY_KEY: Record<ListKey, ListDef> = Object.fromEntries(LISTS.map((l) => [l.key, l])) as Record<
   ListKey,
