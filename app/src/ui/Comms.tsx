@@ -41,7 +41,7 @@ const kindName = (k: CommKind) => (k === "letter" ? "Letter" : "Email");
 export function CommsPage() {
   const { parts, query } = useRoute();
   if (parts[1] === "payments") return <PaymentReminders />;
-  if (parts[1] === "mail") return <MailPage />;
+  if (parts[1] === "mail" || !parts[1]) return <MailPage />;
   if (parts[1] === "documents") return <DocumentsPage />;
   if (parts[1] === "meetings" && parts[2] === "new") {
     return <MeetingPage key={`new-${query.toString()}`} initial={{ clientKey: query.get("client") || "", kind: query.get("kind") || "meeting", jobKey: query.get("job") || "" }} />;
@@ -59,7 +59,7 @@ export function CommsPage() {
       />
     );
   }
-  if (parts[1]) return <Composer key={parts[1]} commKey={parts[1]} />;
+  if (parts[1] && parts[1] !== "letters") return <Composer key={parts[1]} commKey={parts[1]} />;
   return (
     <div className="page">
       <CommsTabs current="letters" />
@@ -436,13 +436,13 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
     if (!window.confirm(`Delete this ${isLetter ? "letter" : "email"} from the planner? Word files and Outlook drafts already made stay where they are.`)) return;
     const row = data.comms.find((c) => c.Key === draft.Key);
     if (row) await remove("Communications", row);
-    go(client ? `/clients/${encodeURIComponent(client.Key)}/comms` : "/comms");
+    go(client ? `/clients/${encodeURIComponent(client.Key)}/comms` : "/comms/letters");
   };
 
   if (commKey && !existing && !saved) {
     return (
       <div className="page">
-        <div className="card empty" style={{ padding: 24 }}>That letter or email isn't here any more. <a href="#/comms">Back to letters and emails</a></div>
+        <div className="card empty" style={{ padding: 24 }}>That letter or email isn't here any more. <a href="#/comms/letters">Back to letters and emails</a></div>
       </div>
     );
   }
@@ -454,7 +454,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
     <div className="page composer-page">
       <div className="page-head">
         <div className="stack" style={{ gap: 4 }}>
-          <a href={client ? href("clients", client.Key, "comms") : "#/comms"} className="muted" style={{ fontSize: 13 }}>
+          <a href={client ? href("clients", client.Key, "comms") : "#/comms/letters"} className="muted" style={{ fontSize: 13 }}>
             ← {client ? `${client.Title}: letters and emails` : "Letters and emails"}
           </a>
           <h1>{saved ? (oneLine(draft.Subject) || `${kindName(draft.Kind)} to ${client?.Title || ""}`) : `New ${isLetter ? "letter" : "email"}`}</h1>

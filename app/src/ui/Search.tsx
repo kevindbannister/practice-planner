@@ -1,6 +1,7 @@
 // Search everything: clients, jobs, tasks, letters and emails, meetings. Opens from the top bar
 // or with Ctrl+K (⌘K on a Mac). Arrow keys to move, Enter to open, Esc to close.
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { fmtDate } from "../lib/domain";
 import { templateFor } from "../lib/meetings";
 import { plainText } from "../lib/richText";
@@ -32,7 +33,7 @@ export function SearchButton() {
         <span className="search-btn-text">Search</span>
         <kbd className="search-kbd">Ctrl K</kbd>
       </button>
-      {open && <SearchDialog onClose={() => setOpen(false)} />}
+      {open && createPortal(<SearchDialog onClose={() => setOpen(false)} />, document.body)}
     </>
   );
 }

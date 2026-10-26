@@ -50,9 +50,9 @@ export async function outlookDraft(graph: Graph, o: { to: string; subject: strin
 export function CommsTabs({ current }: { current: "letters" | "meetings" | "payments" | "mail" | "documents" }) {
   return (
     <nav className="subtabs" aria-label="Communication">
-      <a href="#/comms" aria-current={current === "letters" ? "page" : undefined}>Letters and emails</a>
+      <a href="#/comms" aria-current={current === "mail" ? "page" : undefined}>Email</a>
+      <a href="#/comms/letters" aria-current={current === "letters" ? "page" : undefined}>Letters and emails</a>
       <a href="#/comms/documents" aria-current={current === "documents" ? "page" : undefined}>Documents</a>
-      <a href="#/comms/mail" aria-current={current === "mail" ? "page" : undefined}>Mail</a>
       <a href="#/comms/meetings" aria-current={current === "meetings" ? "page" : undefined}>Meetings and calls</a>
       <a href="#/comms/payments" aria-current={current === "payments" ? "page" : undefined}>
         Payment reminders

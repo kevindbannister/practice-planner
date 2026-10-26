@@ -144,7 +144,7 @@ export function MailPage() {
     return (
       <div className="page">
         <CommsTabs current="mail" />
-        <div className="page-head"><h1>Mail</h1></div>
+        <div className="page-head"><h1>Email</h1></div>
         <section className="card pad stack" style={{ maxWidth: 640 }}>
           <strong>Mail needs permission to use your Outlook</strong>
           <p className="muted" style={{ margin: 0, fontSize: 13 }}>
@@ -166,7 +166,7 @@ export function MailPage() {
       <CommsTabs current="mail" />
       <div className="page-head">
         <div>
-          <h1>Mail</h1>
+          <h1>Email</h1>
           <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>
             {folder ? `${folder.name}: ${folder.total} message${folder.total === 1 ? "" : "s"}${folder.unread ? `, ${folder.unread} unread` : ""}` : "Loading your folders…"}
             {items.length ? ` · ${clientCount} from clients${next ? " so far" : ""}` : ""}

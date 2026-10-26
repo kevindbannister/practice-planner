@@ -1,4 +1,5 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
+import { usePortal } from "./portalKit";
 import { EmailSettings } from "./EmailSuggestions";
 import { deadlineSource } from "../lib/plannerChecks";
 import { AssistantSettings } from "./Assistant";
@@ -34,6 +35,22 @@ const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", 
 const TABS: [string, string][] = [
   ["week", "Your week"], ["work", "Types of work"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["xero", "Xero"], ["backups", "Backups"],
 ];
+// These two have their own pages; they sit with Settings rather than in the main bar.
+const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["portal", "Client portal", "#/portal"]];
+
+/** The Settings tab bar, also shown above Checks and the Client portal so they read as part of Settings. */
+export function SettingsTabs({ current }: { current: string }) {
+  const waiting = usePortal().overview?.attention.length || 0;
+  return (
+    <div className="page" style={{ paddingBottom: 0 }}>
+      <div className="page-head"><h1>Settings</h1></div>
+      <nav className="tabs" aria-label="Settings sections">
+        {TABS.map(([k, label]) => <a key={k} href={href("settings", k)} aria-current={current === k ? "page" : undefined}>{label}</a>)}
+        {PAGE_TABS.map(([k, label, to]) => <a key={k} href={to} aria-current={current === k ? "page" : undefined}>{label}{k === "portal" && waiting > 0 ? ` (${waiting})` : ""}</a>)}
+      </nav>
+    </div>
+  );
+}
 
 export function SettingsPage() {
   const { parts } = useRoute();
@@ -45,6 +62,7 @@ export function SettingsPage() {
         {TABS.map(([k, label]) => (
           <a key={k} href={href("settings", k)} aria-current={tab === k ? "page" : undefined}>{label}</a>
         ))}
+        {PAGE_TABS.map(([k, label, to]) => <a key={k} href={to}>{label}</a>)}
       </nav>
       {tab === "week" && <HoursCard />}
       {tab === "week" && <DayTypesCard />}

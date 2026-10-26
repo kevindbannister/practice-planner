@@ -2,7 +2,8 @@
 import { ChecklistsPage } from "./Checklists";
 import { PortalPage } from "./PortalAdmin";
 import { PortalProvider, usePortal } from "./portalKit";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { fmtDate, holdAlert, isHoldText, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { signOut } from "../lib/auth";
@@ -16,7 +17,7 @@ import { EditorProvider, useEditor } from "./Editors";
 import { PlanPage } from "./PlanPage";
 import { HomePage } from "./HomePage";
 import { ChasePage, useChaseCount } from "./ChasePage";
-import { SettingsPage } from "./SettingsPage";
+import { SettingsPage, SettingsTabs } from "./SettingsPage";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -86,9 +87,9 @@ export function App({ demo }: { demo: boolean }) {
   } else if (section === "papers") {
     body = <PapersPage />;
   } else if (section === "checklists") {
-    body = <ChecklistsPage />;
+    body = <><SettingsTabs current="checklists" /><ChecklistsPage /></>;
   } else if (section === "portal") {
-    body = <PortalPage />;
+    body = <><SettingsTabs current="portal" /><PortalPage /></>;
   } else {
     body = <ClientsPage />;
   }
@@ -122,7 +123,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
   const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["chase", "Chase", "mail"], ["comms", "Comms", "letter"], ["papers", "Papers", "list"], ["checklists", "Checks", "check"], ["portal", "Portal", "clients"], ["settings", "Settings", "settings"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["chase", "Chase", "clock"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
   ];
   return (
     <header className="topbar">
@@ -130,11 +131,11 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
         <Brand />
         <nav className="nav" aria-label="Main">
           {nav.map(([k, label, icon]) => (
-            <a key={k} href={`#/${k}`} aria-current={section === k || (k === "clients" && section === "groups") ? "page" : undefined}>
+            <a key={k} href={`#/${k}`} aria-current={section === k || (k === "clients" && section === "groups") || (k === "settings" && (section === "checklists" || section === "portal")) ? "page" : undefined}>
               <Icon name={icon} size={22} />
               {label}
               {k === "chase" && ready && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
-              {k === "portal" && ready && portalWaiting > 0 && <span className="nav-count" aria-label={`${portalWaiting} waiting in the portal`}>{portalWaiting}</span>}
+              {k === "settings" && ready && portalWaiting > 0 && <span className="nav-count" aria-label={`${portalWaiting} waiting in the portal`}>{portalWaiting}</span>}
             </a>
           ))}
         </nav>
@@ -274,16 +275,27 @@ function Alerts() {
   const backupAlert = useBackupAlert();
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<CSSProperties>({});
   const today = todayIso();
   const soon = addDays(today, 7);
+  // The panel is drawn on the page itself, not inside the top bar, so the bar can't clip it.
+  const place = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (r && window.innerWidth > 720) setPos({ position: "fixed", top: r.bottom + 8, right: Math.max(12, window.innerWidth - r.right), left: "auto" });
+    else setPos({});
+  };
 
   useEffect(() => {
     if (!shown) return;
-    const onDoc = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setShown(false);
+    place();
+    window.addEventListener("resize", place);
+    const onDoc = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && !panelRef.current?.contains(e.target as Node) && setShown(false);
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setShown(false);
     document.addEventListener("mousedown", onDoc);
     window.addEventListener("keydown", onKey);
     return () => {
+      window.removeEventListener("resize", place);
       document.removeEventListener("mousedown", onDoc);
       window.removeEventListener("keydown", onKey);
     };
@@ -336,8 +348,8 @@ function Alerts() {
         </svg>
         {alerts.length > 0 && <span className={`bell-count${red ? " red" : ""}`}>{alerts.length}</span>}
       </button>
-      {shown && (
-        <div className="alerts-panel" role="region" aria-label="Alerts">
+      {shown && createPortal(
+        <div className="alerts-panel" role="region" aria-label="Alerts" ref={panelRef} style={{ zIndex: 70, ...pos }}>
           <div className="alerts-head">
             <strong>Needs attention</strong>
             <span className="muted" style={{ fontSize: 12 }}>
@@ -377,7 +389,8 @@ function Alerts() {
               : `Companies House last checked ${fmtWhen(ch.lastRun?.at)}. `}
             {!ch.progress.running && <a href="#/settings/companies-house" onClick={() => setShown(false)}>Companies House settings</a>}
           </p>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
