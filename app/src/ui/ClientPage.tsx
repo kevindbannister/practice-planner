@@ -1,5 +1,7 @@
 // The full client page: overview and work tabs, with editable contact and references.
 import { XamaClientPanel } from "./XamaClientPanel";
+import { CisCard } from "./CisCard";
+import { cisStatus } from "../lib/cis";
 import { ReactNode, useRef, useState } from "react";
 import {
   Client, IMPORTANCE, Importance, Job, KIND_LABEL, holdLabel, importanceLabel, importanceOf, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
@@ -244,9 +246,13 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
                   </span>
                 </div>
               ))}
+              {cisStatus(c) === "registered" && (
+                <div className="kv"><span>CIS contractor</span><span>Registered{c.CISRegistered ? ` ${fmtDate(String(c.CISRegistered))}` : ""}<span className="muted"> · uses the PAYE and Accounts Office refs</span></span></div>
+              )}
             </>
           )}
         />
+        <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
         <section className="card pad stack" aria-labelledby="comp-h">
           <h2 id="comp-h">Compliance</h2>
           <div className="kv"><span>AML (Xama)</span><span style={amlLabel(c.XamaStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{amlLabel(c.XamaStatus).text}</span></div>
