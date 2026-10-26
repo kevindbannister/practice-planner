@@ -22,7 +22,7 @@ const { modules } = require("./lib/modules.js");
 const { WRITABLE_COLUMNS } = require("./lib/editable.js");
 
 const REQUIRED = ["PORTAL_IDP_ISSUER", "PORTAL_IDP_JWKS_URL", "PORTAL_IDP_CLIENT_ID", "PORTAL_GRAPH_TENANT_ID", "PORTAL_GRAPH_CLIENT_ID", "PORTAL_GRAPH_CLIENT_SECRET", "PORTAL_AUDIT_KEY"];
-const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "CH_API_KEY", "PORTAL_NOTIFY_EMAIL", "PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS", "PORTAL_MAX_UPLOAD_MB"];
+const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "CH_API_KEY", "PORTAL_NOTIFY_EMAIL", "PORTAL_MAIL_FROM", "PORTAL_URL", "PORTAL_PRACTICE_ID", "PORTAL_PRACTICE_NAME", "PORTAL_ADMINS_MANAGE_ACCESS", "PORTAL_MAX_UPLOAD_MB", "PORTAL_ID_KEY", "PORTAL_ID_VERIFIERS"];
 const SITE_HOST = "insightinformation.sharepoint.com";
 const SITE_PATH = "/sites/PracticePlanner";
 const CLIENTS_LIST = "PP Clients";
@@ -47,7 +47,7 @@ function defaultStaffAuth(signedIn) {
     if (!(await signedIn(req))) return null;
     const token = header(req, "x-pp-token") || header(req, "authorization").replace(/^Bearer\s+/i, "");
     const c = claims(token) || {};
-    return { name: String(c.name || c.upn || c.unique_name || c.preferred_username || "Staff").slice(0, 100) };
+    return { name: String(c.name || c.upn || c.unique_name || c.preferred_username || "Staff").slice(0, 100), email: String(c.upn || c.preferred_username || c.email || "").toLowerCase().slice(0, 200) };
   };
 }
 
@@ -130,7 +130,7 @@ function createHandler(deps = {}) {
         if (act === "overview") return reply(200, { ...(await S.overview(p.store, p.reader)), attention: await p.mods.attention(p.store, p.reader) });
         if (act === "events") return reply(200, { events: await S.events(p.store, { clientKey: req.query?.clientKey, userId: req.query?.userId, limit: req.query?.limit }) });
         const m = p.mods.adminGet?.[act];
-        if (m) return reply(200, await m(p.store, p.reader, staff.name, req.query || {}));
+        if (m) return reply(200, await m(p.store, p.reader, staff.name, req.query || {}, staff));
         return reply(404, { error: "Not found" });
       }
       const ops = {
@@ -152,7 +152,7 @@ function createHandler(deps = {}) {
         ...(p.mods.adminPost || {}),
       };
       if (!ops[act]) return reply(404, { error: "Not found" });
-      const out = await (p.mods.adminPost?.[act] ? p.mods.adminPost[act](p.store, p.reader, staff.name, b) : ops[act]());
+      const out = await (p.mods.adminPost?.[act] ? p.mods.adminPost[act](p.store, p.reader, staff.name, b, staff) : ops[act]());
       return reply(200, out ?? { ok: true });
     }
 
@@ -160,7 +160,7 @@ function createHandler(deps = {}) {
     if (!configured) return reply(503, { error: "The client portal isn't set up yet.", code: "not-configured" });
     const p = build();
     const user = await portalUser(req, p);
-    if (first === "me" && method === "GET") return reply(200, await p.service.me(p.store, p.reader, user));
+    if (first === "me" && method === "GET") return reply(200, { ...(await p.service.me(p.store, p.reader, user)), ...(await p.mods.meExtras(p.store, user)) });
     if (first === "business" && path[1] && method === "GET") return reply(200, await p.service.business(p.store, p.reader, user, path[1]));
     if (first === "sessions" && path[1] === "end" && method === "POST") {
       await p.service.endSessions(p.store, user);

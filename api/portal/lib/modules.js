@@ -4,9 +4,10 @@ const { createChanges, ChangeError } = require("./changes.js");
 const { createCompanies } = require("./companies.js");
 const { createDocuments, DocError } = require("./documents.js");
 const { createSigning, SignError } = require("./signing.js");
+const { createIdentity, IdError } = require("./identity.js");
 const { ServiceError } = require("./service.js");
 
-const asServiceError = (e) => ((e instanceof ChangeError || e instanceof DocError || e instanceof SignError) ? new ServiceError(e.status, e.code, e.message) : e);
+const asServiceError = (e) => ((e instanceof ChangeError || e instanceof DocError || e instanceof SignError || e instanceof IdError) ? new ServiceError(e.status, e.code, e.message) : e);
 const wrap = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { throw asServiceError(e); } };
 
 function modules(parts, ctx) {
@@ -18,9 +19,12 @@ function modules(parts, ctx) {
   const docs = createDocuments({ ...common, files: parts.files, scanner: ctx.scanner || null, practiceId: parts.store.practiceId, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "", maxBytes: Number(ctx.env.PORTAL_MAX_UPLOAD_MB) ? Number(ctx.env.PORTAL_MAX_UPLOAD_MB) * 1048576 : undefined });
   const portalUrl = ctx.env.PORTAL_URL || "";
   const signing = createSigning({ ...common, files: parts.files, docs, auditKey: ctx.env.PORTAL_AUDIT_KEY || "test-key", practiceId: parts.store.practiceId, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "", portalUrl });
-  const attention = [changes.attention, docs.attention, signing.attention];
+  const list = (v, d) => String(v || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).concat(d || []);
+  const identity = createIdentity({ ...common, files: parts.files, scanner: ctx.scanner || null, secret: ctx.env.PORTAL_ID_KEY || ctx.env.PORTAL_AUDIT_KEY || "test-key", practiceId: parts.store.practiceId, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "", portalUrl, verifiers: list(ctx.env.PORTAL_ID_VERIFIERS), maxBytes: Number(ctx.env.PORTAL_MAX_UPLOAD_MB) ? Number(ctx.env.PORTAL_MAX_UPLOAD_MB) * 1048576 : undefined });
+  const attention = [changes.attention, docs.attention, signing.attention, identity.attention];
 
   parts.signing = signing;
+  parts.identity = identity;
   return {
     portal: {
       // GET changes/<business>            this business's requests, and what can be changed
@@ -59,6 +63,13 @@ function modules(parts, ctx) {
         if (method === "POST" && path[1] && path[2] === "decline") return { request: await signing.decline(store, access, user, path[1], body) };
         throw new ServiceError(404, "not-found", "Not found");
       }),
+      // GET identity                       this person's own identity documents (never a business's, never anyone else's)
+      // POST identity/<id>/upload          { fileName, content (base64), issueDate?, expiryDate? }
+      identity: wrap(async ({ store, reader, user, path, method, body }) => {
+        if (method === "GET" && !path[0]) return { items: await identity.listMine(store, reader, user) };
+        if (method === "POST" && path[0] && path[1] === "upload") return { item: await identity.upload(store, user, path[0], body) };
+        throw new ServiceError(404, "not-found", "Not found");
+      }),
       // GET official/<business>: what Companies House publishes, kept apart from what the practice holds
       official: wrap(async ({ store, reader, user, path }) => {
         const access = await service.require(store, user, path[0], "business.details");
@@ -73,11 +84,19 @@ function modules(parts, ctx) {
     },
     adminGet: {
       changes: wrap(async (store, reader, staff, q) => ({ requests: await changes.staffList(store, reader, { status: q.status }) })),
+      identity: wrap(async (store, reader, staff, q) => ({ items: await identity.list(store, reader, { userId: q.userId ? String(q.userId) : undefined }), kinds: identity.KINDS })),
       signing: wrap(async (store, reader, staff, q) => ({ requests: await signing.staffList(store, String(q.clientKey || "")) })),
       documents: wrap(async (store, reader, staff, q) => ({ documents: await docs.staffList(store, String(q.clientKey || "")), categories: docs.CATEGORIES })),
     },
     adminPost: {
       "changes-ask": wrap(async (store, reader, staff, b) => changes.ask(store, staff, b.id, b.text)),
+      "identity-request": wrap(async (store, reader, staff, b, who) => ({ item: await identity.request(store, reader, who, b) })),
+      "identity-download": wrap(async (store, reader, staff, b, who) => identity.download(store, who, b.id, b.which)),
+      "identity-accept": wrap(async (store, reader, staff, b, who) => ({ item: await identity.accept(store, reader, who, b.id, b) })),
+      "identity-reject": wrap(async (store, reader, staff, b, who) => ({ item: await identity.reject(store, reader, who, b.id, b) })),
+      "identity-edit": wrap(async (store, reader, staff, b, who) => ({ item: await identity.edit(store, reader, who, b.id, b) })),
+      "identity-cancel": wrap(async (store, reader, staff, b, who) => ({ item: await identity.cancel(store, reader, who, b.id) })),
+      "identity-sweep": wrap(async (store, reader) => identity.sweep(store, reader)),
       "signing-create": wrap(async (store, reader, staff, b) => ({ request: await signing.create(store, { name: staff }, b) })),
       "signing-cancel": wrap(async (store, reader, staff, b) => ({ request: await signing.cancel(store, { name: staff }, b.id) })),
       "signing-remind": wrap(async (store, reader, staff, b) => ({ request: await signing.remind(store, { name: staff }, b.id) })),
@@ -92,6 +111,8 @@ function modules(parts, ctx) {
       "documents-download": wrap(async (store, reader, staff, b) => docs.staffDownload(store, { name: staff }, b.id, b.version)),
       "changes-decide": wrap(async (store, reader, staff, b) => changes.decide(store, reader, staff, b.id, b.decisions)),
     },
+    /** Extra facts the portal's "me" answer carries. Identity: do they have anything, and does it need them? */
+    meExtras: async (store, user) => ({ identity: await identity.summaryFor(store, user) }),
     /** Things that need staff to do something, for the Portal overview. */
     attention: async (store, reader) => (await Promise.all(attention.map((f) => f(store, reader)))).flat().sort((a, b) => (a.at < b.at ? 1 : -1)),
   };

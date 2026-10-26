@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BusinessInfo, ChangeRequest, PortalDoc, SignRequest } from "./api";
+import { BusinessInfo, ChangeRequest, IdItem, PortalDoc, SignRequest } from "./api";
 import { readable } from "./format";
 import type { Ctx } from "./PortalApp";
 
@@ -22,6 +22,9 @@ export function Dashboard({ ctx }: { ctx: Ctx }) {
     setSign([]);
     if (biz.can["signing.sign"]) void api.signing(biz.clientKey).then((r) => setSign(r.requests)).catch(() => undefined);
   }, [api, biz.clientKey, biz.can]);
+  const [ids, setIds] = useState<IdItem[]>([]);
+  useEffect(() => { if (me.identity?.any) void api.identity().then((r) => setIds(r.items)).catch(() => undefined); }, [api, me.identity?.any]);
+  const idTodo = ids.filter((i) => i.canUpload && !i.request?.uploaded);
   const toSign = sign.filter((r) => r.status === "out" && r.you.status === "pending");
   const toApprove = docs.filter((d) => d.status === "awaiting-approval");
   const recent = docs.filter((d) => d.from === "practice").slice(0, 3);
@@ -46,13 +49,16 @@ export function Dashboard({ ctx }: { ctx: Ctx }) {
       </section>
       <section className="px-card" aria-labelledby="d-attn">
         <h2 id="d-attn">Needs your attention</h2>
+        {idTodo.map((i) => (
+          <div className="px-row" key={i.id}><span>{i.request?.reason === "renewal" ? `Your ${i.title.toLowerCase()} is due to expire. We need a new one.` : `We need your ${i.title.toLowerCase()}.`}</span><button type="button" className="px-btn small" onClick={() => go("identity")}>Send it</button></div>
+        ))}
         {toSign.map((r) => (
           <div className="px-row" key={r.id}><span>"{r.title}" is waiting for your signature.</span><button type="button" className="px-btn small" onClick={() => go("signing")}>Review and sign</button></div>
         ))}
         {toApprove.map((d) => (
           <div className="px-row" key={d.id}><span>"{d.title}" needs your approval.</span><button type="button" className="px-btn small" onClick={() => go("documents")}>Review</button></div>
         ))}
-        {!asked.length && !toApprove.length && !toSign.length && <p className="px-muted" style={{ margin: 0 }}>Nothing needs your attention right now.</p>}
+        {!asked.length && !toApprove.length && !toSign.length && !idTodo.length && <p className="px-muted" style={{ margin: 0 }}>Nothing needs your attention right now.</p>}
         {asked.map((r) => (
           <div className="px-row" key={r.id}><span>We've asked you a question about your requested changes ({r.items.map((i) => i.label.toLowerCase()).join(", ")}).</span><button type="button" className="px-btn small" onClick={() => go("business")}>Answer</button></div>
         ))}

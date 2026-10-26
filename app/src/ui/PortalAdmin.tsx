@@ -8,12 +8,13 @@ import { ChangeRequestStaff, DecideResult, LEVELS, PortalBusiness, PortalEvent, 
 import { href, useRoute } from "./bits";
 import { useData } from "./data";
 import { say, useFresh, usePortal } from "./portalKit";
+import { IdentityFor, IdentityTab } from "./PortalIdentity";
 
 const when = (iso?: string) => (iso ? fmtDate(iso.slice(0, 10)) + " " + iso.slice(11, 16) : "—");
 const day = (iso?: string) => (iso ? fmtDate(iso.slice(0, 10)) : "—");
 const statusClass = (s: string) => (s === "active" ? "green" : s === "invited" ? "amber" : s === "none" ? "dashed" : "red");
 
-const TABS: [string, string][] = [["", "Overview"], ["changes", "Changes"], ["people", "People"], ["activity", "Activity"], ["setup", "Set-up"]];
+const TABS: [string, string][] = [["", "Overview"], ["changes", "Changes"], ["identity", "Identity"], ["people", "People"], ["activity", "Activity"], ["setup", "Set-up"]];
 
 export function PortalPage() {
   const { parts } = useRoute();
@@ -34,7 +35,7 @@ export function PortalPage() {
       {portal.status && !portal.status.configured && sub !== "setup" && (
         <p className="import-list warn" role="status">The client portal isn't switched on yet. <a href="#/portal/setup">See what's needed</a>.</p>
       )}
-      {sub === "changes" ? <ChangesQueue /> : sub === "people" ? <People /> : sub === "activity" ? <ActivityLog /> : sub === "setup" ? <SetupInfo /> : <Overview />}
+      {sub === "changes" ? <ChangesQueue /> : sub === "identity" ? <IdentityTab /> : sub === "people" ? <People /> : sub === "activity" ? <ActivityLog /> : sub === "setup" ? <SetupInfo /> : <Overview />}
     </div>
   );
 }
@@ -429,6 +430,7 @@ export function IndividualPortalAccess({ client }: { client: Client }) {
   if (portal.status && !portal.status.configured) return null;
   const person = portal.forPerson(client.Key);
   return (
+    <>
     <section className="card pad stack" aria-labelledby="cpa-h">
       <h2 id="cpa-h" style={{ margin: 0, fontSize: 16 }}>Client portal access</h2>
       {!portal.overview ? <p className="muted" style={{ margin: 0 }}>Loading…</p> : person ? <PersonCard person={person} /> : (
@@ -441,6 +443,8 @@ export function IndividualPortalAccess({ client }: { client: Client }) {
         </>
       )}
     </section>
+    {person && person.status === "active" && <IdentityFor person={person} />}
+    </>
   );
 }
 

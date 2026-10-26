@@ -44,6 +44,7 @@ export const EVENT_LABEL: Record<string, string> = {
   "account.email-change-requested": "Email change requested", "account.email-changed": "Email changed", "auth.login": "Signed in", "auth.sessions-ended": "Signed out everywhere",
   "access.granted": "Business access granted", "access.changed": "Permissions changed", "access.revoked": "Business access removed",
   "change.requested": "Business details change requested", "change.clarification-asked": "Question asked about a change", "change.client-replied": "Client answered a question", "change.withdrawn": "Change request withdrawn",
+  "identity.requested": "Identity document requested", "identity.renewal-requested": "Renewal requested automatically", "identity.uploaded": "Identity document sent by the client", "identity.viewed": "Identity document opened by staff", "identity.accepted": "Identity document accepted", "identity.rejected": "Identity document rejected", "identity.cancelled": "Identity request cancelled", "identity.reminded": "Identity reminder emailed", "identity.edited": "Identity settings changed", "identity.refused": "Identity file refused by the security check",
   "signing.requested": "Signing requested", "signing.sent": "Signing invitation emailed", "signing.viewed": "Document opened by a signatory", "signing.signed": "Document signed", "signing.declined": "Signing declined", "signing.completed": "All signatures received", "signing.sealed": "Signed copy and certificate produced", "signing.cancelled": "Signing cancelled", "signing.reminded": "Signing reminder emailed", "document.generated": "Signed copy filed",
   "document.added": "Document added (draft)", "document.published": "Document published", "document.unpublished": "Document unpublished", "document.archived": "Document archived", "document.edited": "Document details edited", "document.version-added": "New version added by the practice", "document.version-uploaded": "New version uploaded by the client", "document.uploaded": "Document uploaded by the client", "document.downloaded": "Document downloaded", "document.approved": "Document approved by the client", "document.declined": "Document declined by the client", "document.refused": "File refused by the security check",
   "change.approved": "Change approved", "change.rejected": "Change rejected", "change.applied": "Approved changes saved to the record",
@@ -54,6 +55,14 @@ export type StaffDoc = { id: string; clientKey: string; title: string; category:
 export type StaffFile = { fileName: string; mime: string; size: number; content: string };
 
 export type StaffSigning = { id: string; ref: string; clientKey: string; docId: string; version: number; title: string; status: "out" | "completed" | "cancelled" | "declined" | "expired"; sequential: boolean; createdAt: string; createdByName: string; expiresAt: string; message: string; completedAt: string; sealedDocId: string; certDocId: string; remindedAt: string; declineReason: string; sha256: string; sealedSha256: string; signatories: { id: string; userId: string; name: string; email: string; order: number; status: "signed" | "declined" | "pending" | "waiting" | "closed"; signedAt: string; viewedAt: string }[] };
+
+export type StaffIdentity = {
+  id: string; userId: string; person: string; email: string; kind: string; title: string; status: "none" | "needed" | "received" | "rejected" | "accepted" | "expired" | "cancelled"; createdAt: string; createdByName: string;
+  businesses: { clientKey: string; name: string }[]; renewal: { auto: boolean; reviewMonths: number }; nextRenewal: string; paused: boolean; cancelled: boolean;
+  request: { requestedAt: string; requestedBy: string; reason: string; note: string; rejectedReason: string; remindersSent: number; upload: { fileName: string; size: number; receivedAt: string; declaredIssue: string; declaredExpiry: string; viewedBy: string[]; scan: string } | null } | null;
+  current: { fileName: string; issueDate: string; expiryDate: string; receivedAt: string; verifiedBy: string; verifiedAt: string; note: string } | null;
+  history: { n: number; fileName: string; receivedAt: string; issueDate: string; expiryDate: string; decision: string; decidedBy: string; decidedAt: string; note: string }[];
+};
 
 export class PortalAdminApi {
   constructor(private token: () => Promise<string>) {}
@@ -118,6 +127,14 @@ export class PortalAdminApi {
   cancelSigning(id: string) { return this.call("POST", "signing-cancel", { id }); }
   remindSigning(id: string): Promise<{ request: StaffSigning & { reminded: number } }> { return this.call("POST", "signing-remind", { id }); }
   verifySigning(id: string): Promise<{ ok: boolean; checks: { what: string; ok: boolean }[] }> { return this.call("POST", "signing-verify", { id }); }
+  async identity(userId?: string): Promise<{ items: StaffIdentity[]; kinds: Record<string, string> }> { return this.call("GET", `identity${userId ? `?userId=${encodeURIComponent(userId)}` : ""}`); }
+  requestIdentity(b: { userId: string; kind: string; label?: string; businesses: string[]; autoRenew: boolean; reviewMonths?: number; force?: boolean; note?: string }): Promise<{ item: StaffIdentity }> { return this.call("POST", "identity-request", b); }
+  downloadIdentity(id: string, which: string | number = "upload"): Promise<StaffFile> { return this.call("POST", "identity-download", { id, which }); }
+  acceptIdentity(id: string, b: { issueDate?: string; expiryDate?: string; noExpiry?: boolean; note?: string; confirmed: boolean }) { return this.call("POST", "identity-accept", { id, ...b }); }
+  rejectIdentity(id: string, reason: string) { return this.call("POST", "identity-reject", { id, reason }); }
+  editIdentity(id: string, b: { businesses?: string[]; autoRenew?: boolean; reviewMonths?: number; paused?: boolean }) { return this.call("POST", "identity-edit", { id, ...b }); }
+  cancelIdentity(id: string) { return this.call("POST", "identity-cancel", { id }); }
+  sweepIdentity(): Promise<{ requested: number; reminded: number }> { return this.call("POST", "identity-sweep", {}); }
   askChange(id: string, text: string) { return this.call("POST", "changes-ask", { id, text }); }
   decideChange(id: string, decisions: { key: string; decision: "approved" | "rejected"; note?: string }[]): Promise<DecideResult> { return this.call("POST", "changes-decide", { id, decisions }); }
 }

@@ -52,7 +52,7 @@ function setup({ practices = ["default"], env = {}, verify = true } = {}) {
       mailer,
       now: () => state.now,
       reader: { clients: async () => rows, updateClient: async (key, patch) => { Object.assign(rows.find((r) => r.Key === key), patch); } },
-      staffAuth: async (req) => (req.headers && req.headers["x-staff"] ? { name: String(req.headers["x-staff"]) } : null),
+      staffAuth: async (req) => (req.headers && req.headers["x-staff"] ? { name: String(req.headers["x-staff"]), email: String(req.headers["x-staff-email"] || "") } : null),
       fetch: async (url) => {
         const u = String(url);
         if (u.includes("company-information")) return ch(u);

@@ -4,7 +4,7 @@ import { Config, getToken } from "./auth";
 
 export type Can = Record<string, boolean>;
 export type Biz = { clientKey: string; name: string; level: string; levelLabel: string; can: Can };
-export type Me = { user: { id: string; name: string; email: string; status: string; mfa: boolean }; businesses: Biz[]; awaitingAccess: boolean };
+export type Me = { user: { id: string; name: string; email: string; status: string; mfa: boolean }; businesses: Biz[]; awaitingAccess: boolean; identity?: { any: boolean; open: number } };
 export type Details = Record<string, string>;
 export type Editable = { key: string; label: string; multiline: boolean; statutory: string; max: number; noted: boolean };
 export type BusinessInfo = { clientKey: string; level: string; can: Can; details: Details; editable: Editable[] };
@@ -18,6 +18,8 @@ export type DocList = { documents: PortalDoc[]; categories: string[]; canUpload:
 export type FileOut = { fileName: string; mime: string; size: number; content: string };
 
 export type SignRequest = { id: string; title: string; status: "out" | "completed" | "cancelled" | "declined" | "expired"; message: string; createdAt: string; expiresAt: string; requestedBy: string; completedAt: string; sequential: boolean; you: { status: "signed" | "declined" | "pending" | "waiting" | "closed"; signedAt: string; declined: boolean }; others: { name: string; order: number; status: string }[]; sealedDocId: string; certDocId: string; consent: string };
+
+export type IdItem = { id: string; kind: string; title: string; status: "none" | "needed" | "received" | "rejected" | "accepted" | "expired" | "cancelled"; businesses: string[]; request: { requestedAt: string; reason: string; note: string; rejectedReason: string; uploaded: boolean; uploadedAt: string } | null; current: { expiryDate: string; acceptedAt: string } | null; nextRenewal: string; canUpload: boolean };
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -71,6 +73,8 @@ export class PortalClient {
   signingDocument = (key: string, id: string) => this.call<FileOut>("POST", `signing/${encodeURIComponent(key)}/${id}/document`, {});
   sign = (key: string, id: string, b: { mode: "typed" | "drawn"; typedName?: string; image?: string; consent: boolean }) => this.call<{ request: SignRequest }>("POST", `signing/${encodeURIComponent(key)}/${id}/sign`, b);
   declineSigning = (key: string, id: string, reason: string) => this.call<{ request: SignRequest }>("POST", `signing/${encodeURIComponent(key)}/${id}/decline`, { reason });
+  identity = () => this.call<{ items: IdItem[] }>("GET", "identity");
+  uploadIdentity = (id: string, b: { fileName: string; content: string; issueDate?: string; expiryDate?: string }) => this.call<{ item: IdItem }>("POST", `identity/${id}/upload`, b);
   official = (key: string) => this.call<{ official: Official | null; configured: boolean; unavailable?: boolean }>("GET", `official/${encodeURIComponent(key)}`);
 }
 
