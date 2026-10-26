@@ -178,13 +178,16 @@ export function amlLabel(status?: string): { text: string; warn: boolean } {
   switch ((status || "").toLowerCase()) {
     case "in progress":
       return { text: "In progress", warn: true };
+    case "in review":
+      return { text: "In review", warn: true };
     case "no assessment":
       return { text: "No assessment", warn: true };
     case "":
     case "not linked":
       return { text: "Not linked to Xama", warn: true };
     default:
-      return { text: status as string, warn: false };
+      // "Review due: low risk" means Xama's approved assessment is out of date
+      return { text: status as string, warn: /^review due/i.test(status || "") };
   }
 }
 

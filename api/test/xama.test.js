@@ -6,7 +6,7 @@ const { createHandler, cleanPath } = require("../xama/index.js");
 const NOW = Date.UTC(2026, 9, 26, 12, 0, 0);
 const TENANT = "69bd0549-2696-4a31-b1ed-66ac01abacf1";
 const CLIENT = "4ad0ec52-92a4-46d3-b1b0-7d3b0a4654a0";
-const ENV = { XAMA_CLIENT_ID: "abcd1234", XAMA_CLIENT_SECRET: "s3cret", XAMA_TOKEN_URL: "https://auth.xama.test/oauth/token", XAMA_API_BASE: "https://api.xama.test/v1/" };
+const ENV = { XAMA_CLIENT_ID: "abcd1234", XAMA_CLIENT_SECRET: "s3cret", XAMA_TOKEN_URL: "https://auth.xama.test/oauth/token", XAMA_API_BASE: "https://api.xama.test/v1/", XAMA_AUDIENCE: "https://aud.test" };
 
 function msToken() {
   const enc = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
@@ -45,12 +45,16 @@ test("status shows what is set up and never the secret", async () => {
   assert.ok(!JSON.stringify(r.body).includes("s3cret"));
   const none = await call("status", { method: "GET", headers: {}, env: {} });
   assert.equal(none.body.configured, false);
-  assert.deepEqual(none.body.missing, ["XAMA_CLIENT_ID", "XAMA_CLIENT_SECRET", "XAMA_TOKEN_URL", "XAMA_API_BASE"]);
+  assert.deepEqual(none.body.missing, ["XAMA_CLIENT_ID", "XAMA_CLIENT_SECRET"]);
+  // Xama's published addresses are the defaults
+  assert.equal(none.body.tokenHost, "auth-proxy.xamatech.com");
+  assert.equal(none.body.apiBase, "https://xamahub.xamatech.com/api/");
+  assert.equal(none.body.audience, "https://api.xamatech.com");
 });
 
 test("status refuses http addresses", async () => {
   const r = await call("status", { method: "GET", headers: {}, env: { ...ENV, XAMA_TOKEN_URL: "http://auth.xama.test/t" } });
-  assert.deepEqual(r.body.missing, ["XAMA_TOKEN_URL"]);
+  assert.deepEqual(r.body.missing, ["XAMA_TOKEN_URL (must start with https://)"]);
 });
 
 test("test and call need the Microsoft sign-in", async () => {
@@ -58,23 +62,39 @@ test("test and call need the Microsoft sign-in", async () => {
   assert.equal((await call("call", { headers: {}, body: { path: "clients" } })).status, 401);
 });
 
-test("test signs in with basic credentials and reports the token", async () => {
+test("test signs in the way Xama documents (JSON body with audience) and reports the token", async () => {
   const r = await call("test");
   assert.equal(r.body.ok, true);
   assert.match(r.body.steps[0].message, /accepted/);
   const t = r.fetch.calls.find((c) => c.url.includes("/oauth/token"));
-  assert.equal(t.opts.headers.Authorization, "Basic " + Buffer.from("abcd1234:s3cret").toString("base64"));
-  assert.match(t.opts.body, /grant_type=client_credentials/);
+  assert.equal(t.opts.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(t.opts.body), { client_id: "abcd1234", client_secret: "s3cret", audience: "https://aud.test", grant_type: "client_credentials" });
+  assert.ok(!t.opts.headers.Authorization);
   assert.ok(!JSON.stringify(r.body).includes("AT-1"));
 });
 
-test("body style sends credentials in the form", async () => {
+test("basic style sends credentials in the Authorization header", async () => {
+  const r = await call("test", { env: { ...ENV, XAMA_AUTH_STYLE: "basic" } });
+  const t = r.fetch.calls.find((c) => c.url.includes("/oauth/token"));
+  assert.equal(t.opts.headers.Authorization, "Basic " + Buffer.from("abcd1234:s3cret").toString("base64"));
+  assert.match(t.opts.body, /grant_type=client_credentials/);
+});
+
+test("token lifetime comes from the exp claim when Xama gives no expires_in", async () => {
+  const enc = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const jwt = `${enc({ alg: "RS256" })}.${enc({ exp: NOW / 1000 + 7200 })}.sig`;
+  const r = await call("test", { fetch: fakeFetch([[(u) => u.includes("/oauth/token"), res(200, { access_token: jwt, token_type: "Bearer" })]]) });
+  assert.match(r.body.steps[0].message, /120 minutes/);
+});
+
+test("body (form) style sends credentials in the form", async () => {
   const r = await call("test", { env: { ...ENV, XAMA_AUTH_STYLE: "body", XAMA_SCOPE: "aml.read" } });
   const t = r.fetch.calls.find((c) => c.url.includes("/oauth/token"));
   assert.ok(!t.opts.headers.Authorization);
   assert.match(t.opts.body, /client_id=abcd1234/);
   assert.match(t.opts.body, /client_secret=s3cret/);
   assert.match(t.opts.body, /scope=aml.read/);
+  assert.match(t.opts.body, /audience=/);
 });
 
 test("a refused sign-in is explained, with no secret in the answer", async () => {
@@ -82,7 +102,7 @@ test("a refused sign-in is explained, with no secret in the answer", async () =>
   const r = await call("test", { fetch: f });
   assert.equal(r.body.ok, false);
   assert.match(r.body.steps[0].message, /invalid_client|bad/);
-  assert.match(r.body.steps[0].message, /XAMA_AUTH_STYLE=body/);
+  assert.match(r.body.steps[0].message, /Open API settings/);
   assert.ok(!JSON.stringify(r.body).includes("s3cret"));
 });
 

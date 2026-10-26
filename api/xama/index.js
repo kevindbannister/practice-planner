@@ -1,16 +1,17 @@
 // Xama bridge for Practice Planner (AML checks).
 //
-// Xama has no public API documentation, so nothing about its addresses is assumed here: the
-// OAuth2 client ID and secret, the token address and the API address all live in the Azure
-// settings below and never reach the browser. Because the addresses are fixed on the server,
-// the secret can only ever be sent to the place the administrator set up.
+// Follows Xama's published API guide (https://apidocs.xamatech.com): OAuth2 client credentials,
+// with the credentials, grant type and audience sent as a JSON body to the token address.
+// The OAuth2 client ID and secret live in the Azure settings below and never reach the browser.
+// The addresses are fixed on the server too, so the secret can only go where they point.
 //
-//   XAMA_CLIENT_ID      the OAuth2 client ID
-//   XAMA_CLIENT_SECRET  the OAuth2 client secret
-//   XAMA_TOKEN_URL      where to ask for an access token (https)
-//   XAMA_API_BASE       the start of every API address (https)
+//   XAMA_CLIENT_ID      the Application ID from Xama's Open API settings page   (required)
+//   XAMA_CLIENT_SECRET  the Application Secret                                  (required)
+//   XAMA_TOKEN_URL      default https://auth-proxy.xamatech.com/oauth/token
+//   XAMA_API_BASE       default https://xamahub.xamatech.com/api/
+//   XAMA_AUDIENCE       default https://api.xamatech.com
 //   XAMA_SCOPE          optional, sent as "scope"
-//   XAMA_AUTH_STYLE     optional: "basic" (default, credentials in the Authorization header) or "body"
+//   XAMA_AUTH_STYLE     optional: "json" (default, as Xama documents), "body" (form) or "basic"
 //
 //   GET  /api/xama/status  -> { configured, missing, clientIdEnding, tokenHost, apiBase, authStyle }
 //   POST /api/xama/test    { path? } -> { steps: [...] }  asks for a token, then (optionally) one GET
@@ -31,6 +32,12 @@ function body(req) {
     try { return JSON.parse(b); } catch { return {}; }
   }
   return typeof b === "object" ? b : {};
+}
+
+function jwtClaims(token) {
+  const parts = String(token).split(".");
+  if (parts.length !== 3) return null;
+  try { return JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")); } catch { return null; }
 }
 
 function cleanPath(p) {
@@ -61,15 +68,19 @@ function httpsUrl(v) {
 function settings(env) {
   const id = (env.XAMA_CLIENT_ID || "").trim();
   const secret = (env.XAMA_CLIENT_SECRET || "").trim();
-  const token = httpsUrl(env.XAMA_TOKEN_URL);
-  const base = httpsUrl(env.XAMA_API_BASE);
+  const tokenText = (env.XAMA_TOKEN_URL || "").trim() || "https://auth-proxy.xamatech.com/oauth/token";
+  const baseText = (env.XAMA_API_BASE || "").trim() || "https://xamahub.xamatech.com/api/";
+  const token = httpsUrl(tokenText);
+  const base = httpsUrl(baseText);
   const missing = [];
   if (!id) missing.push("XAMA_CLIENT_ID");
   if (!secret) missing.push("XAMA_CLIENT_SECRET");
-  if (!token) missing.push("XAMA_TOKEN_URL");
-  if (!base) missing.push("XAMA_API_BASE");
-  const style = (env.XAMA_AUTH_STYLE || "basic").trim().toLowerCase() === "body" ? "body" : "basic";
-  return { id, secret, token, base, scope: (env.XAMA_SCOPE || "").trim(), style, missing };
+  if (!token) missing.push("XAMA_TOKEN_URL (must start with https://)");
+  if (!base) missing.push("XAMA_API_BASE (must start with https://)");
+  const st = (env.XAMA_AUTH_STYLE || "json").trim().toLowerCase();
+  const style = st === "body" || st === "basic" ? st : "json";
+  const audience = (env.XAMA_AUDIENCE || "").trim() || "https://api.xamatech.com";
+  return { id, secret, token, base, audience, scope: (env.XAMA_SCOPE || "").trim(), style, missing };
 }
 
 /** A short, safe excerpt of what Xama said, with anything that looks like a secret removed. */
@@ -85,14 +96,23 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
 
   async function getToken(s, force) {
     if (!force && cached && cached.until > now()) return { token: cached.value, fresh: false };
-    const form = new URLSearchParams({ grant_type: "client_credentials" });
-    if (s.scope) form.set("scope", s.scope);
-    const headers = { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" };
-    if (s.style === "basic") headers.Authorization = "Basic " + Buffer.from(`${encodeURIComponent(s.id)}:${encodeURIComponent(s.secret)}`).toString("base64");
-    else { form.set("client_id", s.id); form.set("client_secret", s.secret); }
+    let headers, payload;
+    if (s.style === "json") {
+      headers = { "Content-Type": "application/json", Accept: "application/json" };
+      const o = { client_id: s.id, client_secret: s.secret, audience: s.audience, grant_type: "client_credentials" };
+      if (s.scope) o.scope = s.scope;
+      payload = JSON.stringify(o);
+    } else {
+      const form = new URLSearchParams({ grant_type: "client_credentials", audience: s.audience });
+      if (s.scope) form.set("scope", s.scope);
+      headers = { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" };
+      if (s.style === "basic") headers.Authorization = "Basic " + Buffer.from(`${encodeURIComponent(s.id)}:${encodeURIComponent(s.secret)}`).toString("base64");
+      else { form.set("client_id", s.id); form.set("client_secret", s.secret); }
+      payload = form.toString();
+    }
     let res;
     try {
-      res = await fetch(s.token.href, { method: "POST", headers, body: form.toString() });
+      res = await fetch(s.token.href, { method: "POST", headers, body: payload });
     } catch {
       return { error: "unreachable", message: "The app's server couldn't reach Xama's sign-in address. Check XAMA_TOKEN_URL." };
     }
@@ -103,11 +123,17 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       const why = json && (json.error_description || json.error);
       const hint =
         res.status === 401 || (json && json.error === "invalid_client")
-          ? " Xama didn't accept the client ID and secret. If the secret is right, try XAMA_AUTH_STYLE=body."
+          ? " Xama didn't accept the client ID and secret. Check them against Xama's Open API settings page."
           : res.status === 404 ? " The token address wasn't found: check XAMA_TOKEN_URL." : "";
       return { error: "token", status: res.status, message: `Xama refused to give an access token (HTTP ${res.status}${why ? `: ${why}` : ""}).${hint}`, excerpt: excerpt(text) };
     }
-    const secs = Number(json.expires_in) > 0 ? Number(json.expires_in) : 300;
+    // Xama's token has no expiry field: the time is the "exp" claim inside the token.
+    let secs = Number(json.expires_in) > 0 ? Number(json.expires_in) : 0;
+    if (!secs) {
+      const c = jwtClaims(json.access_token);
+      if (c && Number(c.exp) > 0) secs = Math.max(60, Math.round(Number(c.exp) - now() / 1000));
+    }
+    if (!secs) secs = 300;
     cached = { value: json.access_token, until: now() + secs * 1000 - REFRESH_EARLY_MS };
     return { token: json.access_token, fresh: true, expiresIn: secs, scope: typeof json.scope === "string" ? json.scope : undefined, tokenType: json.token_type };
   }
@@ -144,6 +170,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
         tokenHost: s.token ? s.token.host : "",
         apiBase: s.base ? s.base.href : "",
         authStyle: s.style,
+        audience: s.audience,
         scope: s.scope,
       });
     }
