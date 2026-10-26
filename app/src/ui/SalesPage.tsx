@@ -43,7 +43,7 @@ export function SalesPage() {
       {sub === "opp" && parts[2] && <OppDetail oppKey={parts[2]} />}
       {sub === "proposals" && <ProposalsList />}
       {sub === "proposal" && parts[2] && <ProposalDetail propKey={parts[2]} />}
-      {sub === "engagements" && <EngagementsList />}
+      {sub === "engagements" && <EngagementsList existing={parts[2] === "existing"} />}
       {sub === "engagement" && parts[2] && <EngagementDetail engKey={parts[2]} />}
       {sub === "onboarding" && <OnboardingList />}
       {sub === "fees" && <RevenuePage />}

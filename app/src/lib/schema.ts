@@ -275,6 +275,7 @@ export const LISTS: ListDef[] = [
       note("ServiceKeys"), note("ServiceNames"), t("DocumentDate"), t("EffectiveDate"), t("ReviewYears"), t("ReviewDate", true), note("Body"), t("Hash"), t("DocKey"), t("FileUrl"), t("PortalDocId"), t("SigningId"), t("SealedDocId"),
       note("Signatories"), t("ApprovedBy"), t("ApprovedOn"), t("SentOn"), t("SentBy"), t("SignedAt"), t("SignedBy"), t("SignMethod"), note("SignEvidence"), t("PreviousKey"), t("SupersededBy"), t("EndedOn"),
       note("ReviewRequest"), note("Decisions"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"), t("SignProgress"),
+      t("Basis"), note("Agreed"),
     ],
   },
   {

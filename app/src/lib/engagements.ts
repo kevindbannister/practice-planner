@@ -132,7 +132,7 @@ export function nextRef(rows: Row[], year: number): string {
   const used = rows.map((p) => (str(p.Ref).startsWith(prefix) ? Number(str(p.Ref).slice(prefix.length)) || 0 : 0));
   return `${prefix}${String(Math.max(0, ...used) + 1).padStart(4, "0")}`;
 }
-const MAX_BODY = 60000;
+export const MAX_BODY = 60000;
 export const encodeBody = (c: DocContent) => JSON.stringify(c);
 export function readBody(v: unknown): DocContent { try { const o = JSON.parse(str(v)); return o && Array.isArray(o.blocks) ? (o as DocContent) : { blocks: [] }; } catch { return { blocks: [] }; } }
 export async function sealHash(text: string): Promise<string> {
@@ -141,7 +141,7 @@ export async function sealHash(text: string): Promise<string> {
 }
 export async function intact(e: Row): Promise<boolean> { return !e.Hash || (await sealHash(str(e.Body))) === str(e.Hash); }
 
-const refsOf = (e: Row) => ({ clientKey: str(e.ClientKey), leadKey: str(e.LeadKey) });
+export const refsOf = (e: Row) => ({ clientKey: str(e.ClientKey), leadKey: str(e.LeadKey) });
 
 // ------------------------------------------------------------------ the letter
 

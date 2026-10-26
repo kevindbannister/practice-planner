@@ -9,6 +9,8 @@ import {
   reviewStatus, reviewYears, sealHash, intact, sendOut, uploadExternal, daysBetween,
 } from "../lib/engagements";
 import { ClientType, clientTypeFor } from "../lib/proposals";
+import { generateFromSchedule, letterGaps } from "../lib/letterGaps";
+import { LettersForClients } from "./LetterGaps";
 import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { href } from "./bits";
@@ -29,7 +31,7 @@ const reviewLabel = (e: Row, today: string) => {
 };
 
 /** Files a PDF in the client's OneDrive folder and records it with their documents. */
-function useFiling() {
+export function useFiling() {
   const docs = useDocs();
   const s = useSales();
   return async (bytes: Uint8Array, fileName: string, title: string, clientName: string, clientKey: string, reference: string, extra: Row = {}) => {
@@ -46,15 +48,22 @@ function useFiling() {
 
 // ------------------------------------------------------------------ list
 
-export function EngagementsList() {
+export function EngagementsList({ existing = false }: { existing?: boolean }) {
   const s = useSales();
   const { data } = useData();
   const today = todayIso();
   const [show, setShow] = useState<"live" | "all">("live");
   const [adding, setAdding] = useState(false);
+  const view = existing ? "gaps" : "letters";
+  const setView = (v: "letters" | "gaps") => { window.location.hash = v === "gaps" ? "/sales/engagements/existing" : "/sales/engagements"; };
   const rows = useMemo(() => s.engagements.filter((e) => show === "all" || isLive(e)).sort((a, b) => String(a.ReviewDate || "9999").localeCompare(String(b.ReviewDate || "9999"))), [s.engagements, show]);
   return (
     <div className="stack" style={{ gap: 12 }}>
+      <div className="seg" role="group" aria-label="Engagement view" style={{ alignSelf: "flex-start" }}>
+        <button type="button" aria-pressed={view === "letters"} onClick={() => setView("letters")}>Letters</button>
+        <button type="button" aria-pressed={view === "gaps"} onClick={() => setView("gaps")}>Existing clients without a letter</button>
+      </div>
+      {view === "gaps" ? <LettersForClients /> : <>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <p className="muted" style={{ margin: 0 }}>Engagement letters for every client. A client can have several. Letters are made from accepted proposals (open the proposal) or filed here when made elsewhere.</p>
         <div className="row-wrap">
@@ -79,6 +88,7 @@ export function EngagementsList() {
           </table>
         </div>
       )}
+      </>}
     </div>
   );
 }
@@ -190,7 +200,8 @@ export function EngagementDetail({ engKey }: { engKey: string }) {
     try { const r = await fn(); if (typeof r === "string") setInfo(r); return r; } catch (x) { setErr(say(x) || msgOf(x)); return false; } finally { setBusy(false); }
   };
   const apply = async (w: ReturnType<typeof advanceEng>) => { if ("error" in w) { setErr(w.error); return false; } await s.apply(w); return true; };
-  const ctxIn = () => proposal && version && client ? { proposal, version, client, settings: s.eng, catalogue: s.catalogue, practice, today } : undefined;
+  const fromRecords = String(e?.Basis) === "schedule";
+  const ctxIn = () => fromRecords && client ? { proposal: {} as Row, version: { Agreed: e?.Agreed } as Row, client, settings: s.eng, catalogue: s.catalogue, practice, today } : proposal && version && client ? { proposal, version, client, settings: s.eng, catalogue: s.catalogue, practice, today } : undefined;
 
   const buildPdf = async () => {
     const layout: DocLayout = { ...DEFAULT_LAYOUT, header: brand.header || "", footer: brand.footer || "" };
@@ -276,6 +287,13 @@ export function EngagementDetail({ engKey }: { engKey: string }) {
   // ---- renewal
   const startRenewal = () => run(async () => {
     const inp = ctxIn();
+    if (fromRecords && client) {
+      const g = generateFromSchedule({ client, schedule: data.clientServices, services: data.services, catalogue: s.catalogue, settings: s.eng, existing: s.engagements, practice, vatRate: s.vatRate, previousKey: String(e.Key), effectiveDate: today, signatories: readList(e.Signatories), today, can: s.pcan }, s.ctx());
+      if ("error" in g) throw new Error(g.error);
+      await s.apply({ patches: [], creates: [{ list: "Engagements", row: g.engagement }], log: [g.log as never], activities: [g.activity] });
+      window.location.hash = `/sales/engagement/${g.engagement.Key}`;
+      return;
+    }
     if (!proposal || !version || !client || !inp) throw new Error("This letter wasn't made from a proposal here, so upload a replacement letter instead.");
     const g = generate({ ...inp, existing: s.engagements, previousKey: String(e.Key), effectiveDate: today, can: s.pcan, signatories: readList(e.Signatories) }, s.ctx());
     if ("error" in g) throw new Error(g.error);
@@ -302,7 +320,7 @@ export function EngagementDetail({ engKey }: { engKey: string }) {
         </div>
         <p className="muted" style={{ margin: "6px 0 0" }}>
           For {client ? <a href={href("clients", client.Key)}>{client.Title}</a> : "—"}
-          {proposal ? <> · from proposal <a href={href("sales", "proposal", String(proposal.Key))}>{String(proposal.Ref)}</a></> : e.Source === "uploaded" ? " · filed from outside the planner" : ""}
+          {proposal ? <> · from proposal <a href={href("sales", "proposal", String(proposal.Key))}>{String(proposal.Ref)}</a></> : fromRecords ? " · built from the client's services and fees" : e.Source === "uploaded" ? " · filed from outside the planner" : ""}
           {e.EffectiveDate ? <> · effective {fmtDate(String(e.EffectiveDate))}</> : null}
           {isInForce(e) && e.ReviewDate ? <> · {reviewLabel(e, today)}</> : null}
         </p>
@@ -444,10 +462,26 @@ export function ClientEngagements({ clientKey }: { clientKey: string }) {
   const s = useSales();
   const { data } = useData();
   const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>();
+  const docs = useDocs();
   if (!s.can("view")) return null;
   const mine = s.engagements.filter((e) => e.ClientKey === clientKey && isLive(e));
   const gaps = coverageGaps(clientKey, data.proposals, data.proposalVersions, s.engagements, s.catalogue);
   const today = todayIso();
+  const client = data.clients.find((c) => c.Key === clientKey);
+  const open = client ? letterGaps({ clients: [client], schedule: data.clientServices, services: data.services, catalogue: s.catalogue, engagements: s.engagements, settings: s.eng })[0] : undefined;
+  const draft = async () => {
+    if (!client) return;
+    setBusy(true); setErr(undefined);
+    try {
+      const brand = docs.brand(s.template.brandingId || undefined);
+      const g = generateFromSchedule({ client, schedule: data.clientServices, services: data.services, catalogue: s.catalogue, settings: s.eng, existing: s.engagements, practice: brand.tradingName || brand.practiceName || "Our practice", vatRate: s.vatRate, today, can: s.pcan }, s.ctx());
+      if ("error" in g) throw new Error(g.error);
+      await s.apply({ patches: [], creates: [{ list: "Engagements", row: g.engagement }], log: [g.log as never], activities: [g.activity] });
+      window.location.hash = `/sales/engagement/${g.engagement.Key}`;
+    } catch (e) { setErr(msgOf(e)); } finally { setBusy(false); }
+  };
   return (
     <section className="card pad stack" aria-label="Engagements">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
@@ -457,6 +491,13 @@ export function ClientEngagements({ clientKey }: { clientKey: string }) {
       {!mine.length && <p className="muted" style={{ margin: 0 }}>No engagement letters on file.</p>}
       <ul className="plain">{mine.map((e) => <li key={String(e.Key)}><a href={href("sales", "engagement", String(e.Key))}>{String(e.Ref)}</a> {chip(e)} {(() => { try { return (JSON.parse(String(e.ServiceNames || "[]")) as string[]).join(", "); } catch { return ""; } })()}{reviewLabel(e, today) ? <span className="muted"> · {reviewLabel(e, today)}</span> : null}</li>)}</ul>
       {gaps.length > 0 && <p role="status" style={{ margin: 0, color: "var(--amber-ink)" }}>Agreed but not in any letter: {gaps.map((g) => g.name).join(", ")}.</p>}
+      {open && s.pcan("edit") && (
+        <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
+          <button type="button" className="btn small primary" disabled={busy || open.state !== "ready"} onClick={draft}>{busy ? "Drafting…" : "Draft a letter from their services"}</button>
+          <span className="muted" style={{ fontSize: 12 }}>{open.state === "ready" ? `Covers ${open.uncovered.map((l) => l.name).join(", ")}, at the fees recorded here.` : open.reason}</span>
+        </div>
+      )}
+      {err && <p role="alert" style={{ color: "var(--red-ink)", margin: 0 }}>{err}</p>}
       {adding && <UploadEngagement clientKey={clientKey} onDone={() => setAdding(false)} />}
     </section>
   );
