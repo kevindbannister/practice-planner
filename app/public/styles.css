@@ -1706,6 +1706,10 @@ a.chip { text-decoration: none; } a.chip:hover { text-decoration: underline; }
 .assist-label { font-size: 13px; flex: 1; min-width: 160px; }
 .assist-input { display: flex; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); align-items: flex-end; }
 .assist-input textarea { flex: 1; resize: none; }
+.assist-input .mic { padding: 0 11px; }
+.assist-input .mic.on { background: #d6455d; border-color: #d6455d; color: #fff; animation: mic-pulse 1.4s ease-in-out infinite; }
+@keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(214, 69, 93, .45); } 50% { box-shadow: 0 0 0 7px rgba(214, 69, 93, 0); } }
+@media (prefers-reduced-motion: reduce) { .assist-input .mic.on { animation: none; } }
 .assist-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .assist-log li { display: flex; flex-direction: column; gap: 2px; font-size: 13px; padding-bottom: 8px; border-bottom: 1px solid var(--line-2); }
 

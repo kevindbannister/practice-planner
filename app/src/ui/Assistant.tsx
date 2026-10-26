@@ -41,6 +41,32 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
 let counter = 0;
 const nextId = () => ++counter;
 
+/** Dictation using the browser's own speech recognition (Chrome, Edge, Safari). Text lands in the box for you to check before sending. */
+function useVoice(onText: (t: string) => void) {
+  type Rec = { lang: string; continuous: boolean; interimResults: boolean; start(): void; stop(): void; onresult: ((e: any) => void) | null; onend: (() => void) | null; onerror: ((e: any) => void) | null };
+  const Ctor = (typeof window !== "undefined" ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) : null) as (new () => Rec) | null;
+  const [listening, setListening] = useState(false);
+  const rec = useRef<Rec | null>(null);
+  useEffect(() => () => rec.current?.stop(), []);
+  const toggle = (current: string) => {
+    if (!Ctor) return;
+    if (rec.current) { rec.current.stop(); return; }
+    const r = new Ctor();
+    r.lang = "en-GB"; r.continuous = true; r.interimResults = true;
+    const base = current.trim() ? current.trim() + " " : "";
+    r.onresult = (e: any) => {
+      let said = "";
+      for (let i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
+      onText(base + said.trim());
+    };
+    r.onerror = () => { /* permission refused or no speech: just stop */ };
+    r.onend = () => { rec.current = null; setListening(false); };
+    rec.current = r; setListening(true);
+    try { r.start(); } catch { rec.current = null; setListening(false); }
+  };
+  return { supported: !!Ctor, listening, toggle };
+}
+
 function AssistantPanel({ onClose }: { onClose: () => void }) {
   const ctx = useData();
   const latest = useRef(ctx);
@@ -57,6 +83,7 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
   const turns = useRef(new Map<number, LogEntry>());
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const voice = useVoice((t) => setText(t));
 
   useEffect(() => { ai.status().then(setStatus).catch(() => setStatus({ configured: false })); }, [ai]);
   useEffect(() => { inputRef.current?.focus(); }, []);
@@ -225,6 +252,13 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
           <textarea ref={inputRef} className="input" rows={2} value={text} placeholder="Ask, or say what's changed…" aria-label="Your message"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }} />
+          {voice.supported && (
+            <button type="button" className={`btn mic${voice.listening ? " on" : ""}`} aria-pressed={voice.listening}
+              aria-label={voice.listening ? "Stop dictating" : "Dictate your message"} title={voice.listening ? "Stop dictating" : "Speak instead of typing"}
+              onClick={() => voice.toggle(text)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+            </button>
+          )}
           <button type="submit" className="btn primary" disabled={busy || !text.trim()}>Send</button>
         </form>
       </div>
