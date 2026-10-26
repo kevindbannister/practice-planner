@@ -14,7 +14,8 @@ import { useSales } from "./salesKit";
 
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const msgOf = (e: unknown) => (e instanceof Error && e.message ? e.message : "That didn't work. Try again.");
-const gbp = (n: number) => (n < 0 ? "-" : "") + "£" + Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+/** Whole pounds without pence, otherwise always two decimals (so £17,401.80, never £17,401.8). */
+const gbp = (n: number) => { const a = Math.abs(n), whole = Math.abs(a - Math.round(a)) < 0.005; return (n < 0 ? "-" : "") + "£" + a.toLocaleString("en-GB", { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2 }); };
 const CAVEAT = "Contracted fees: what the client has agreed to pay, before VAT. They are not invoices issued and not cash received. Invoices and payments are in Xero.";
 
 function useFees() {

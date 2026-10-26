@@ -314,20 +314,22 @@ function ImportanceRow({ client: c }: { client: Client }) {
 }
 
 function AddressesCard({ client: c }: { client: Client }) {
-  const rows = [
-    ["Registered office", c.RegisteredOffice], ["Trading address", c.TradingAddress], ["Home address", c.HomeAddress],
-  ].filter(([, v]) => v);
-  if (!rows.length) return null;
+  const company = c.Kind === "Ltd" || c.Kind === "LLP";
+  const fields: [string, string][] = [...(company ? ([["RegisteredOffice", "Registered office"]] as [string, string][]) : []), ["TradingAddress", "Trading address"], ["HomeAddress", "Home address"]];
   return (
-    <section className="card pad stack" aria-labelledby="addr-h">
-      <h2 id="addr-h">Addresses</h2>
-      {rows.map(([label, v]) => (
-        <div key={label as string}>
-          <div className="muted" style={{ fontSize: 12 }}>{label}</div>
-          <div>{v as string}</div>
-        </div>
-      ))}
-    </section>
+    <EditableCard
+      title="Addresses"
+      client={c}
+      fields={fields}
+      render={(fs) => {
+        // show what is held (including a registered office on a non-company record); empty ones show a dash
+        const held = fs.filter(([k]) => c[k]);
+        const shown = held.length ? held : fs;
+        return <>{shown.map(([k, label]) => (
+          <div key={k}><div className="muted" style={{ fontSize: 12 }}>{label}</div><div>{(c[k] as string) || "—"}</div></div>
+        ))}</>;
+      }}
+    />
   );
 }
 
