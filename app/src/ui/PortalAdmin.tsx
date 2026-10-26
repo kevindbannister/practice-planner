@@ -157,7 +157,7 @@ export function PersonCard({ person: u }: { person: PortalPerson }) {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"" | "email" | "suspend" | "revoke" | "link">("");
+  const [mode, setMode] = useState<"" | "email" | "suspend" | "revoke" | "link" | "erase">("");
   const [text, setText] = useState("");
   const [addKey, setAddKey] = useState("");
   const [addLevel, setAddLevel] = useState<PortalLevel>("standard");
@@ -207,6 +207,25 @@ export function PersonCard({ person: u }: { person: PortalPerson }) {
         </div>
       )}
       {disabled && <div className="row-wrap"><button type="button" className="btn small" disabled={busy} onClick={() => go(() => run((a) => a.reinstate(u.id)), "Reinstated. Give them access to businesses again.")}>Reinstate</button></div>}
+      {u.status !== "erased" && (
+        <div className="row-wrap" aria-label="Personal data">
+          <button type="button" className="btn small" disabled={busy} onClick={() => go(async () => {
+            const d = await run((a) => a.gdprExport(u.id));
+            const url = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: "application/json" }));
+            const a = document.createElement("a"); a.href = url; a.download = `portal-data-${u.id}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+          }, "Their data has been downloaded.")}>Download their data</button>
+          <button type="button" className="btn small danger" onClick={() => { setMode(mode === "erase" ? "" : "erase"); setText(""); }}>Erase personal data…</button>
+        </div>
+      )}
+      {mode === "erase" && (
+        <div className="stack" style={{ gap: 6 }}>
+          <span>This permanently removes their name, email, access, identity documents (and the stored files) and notifications, and shows "Former user" on their messages and answers. The audit trail, signed copies and documents they sent to the business are kept. It can't be undone. Type their email address to confirm.</span>
+          <div className="row-wrap">
+            <input className="input" aria-label="Type their email to confirm" placeholder={u.email} value={text} onChange={(e) => setText(e.target.value)} />
+            <button type="button" className="btn small danger" disabled={busy || text.trim().toLowerCase() !== u.email.toLowerCase()} onClick={() => go(() => run((a) => a.gdprErase(u.id, text)), "Personal data erased.")}>Erase now</button>
+          </div>
+        </div>
+      )}
 
       {mode === "email" && (
         <div className="stack" style={{ gap: 6 }}>

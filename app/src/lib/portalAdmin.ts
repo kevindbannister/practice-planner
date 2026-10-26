@@ -14,7 +14,7 @@ export const levelLabel = (k: string) => LEVELS.find((l) => l.key === k)?.label 
 
 export type PortalBusiness = { clientKey: string; name: string; level: PortalLevel; levelLabel: string };
 export type PortalPerson = {
-  id: string; name: string; email: string; status: "invited" | "active" | "suspended" | "revoked"; mfa: boolean; personKey: string; personKind: string;
+  id: string; name: string; email: string; status: "invited" | "active" | "suspended" | "revoked" | "erased"; mfa: boolean; personKey: string; personKind: string;
   selfRegistered: boolean; invitedAt: string; inviteExpires: string; activatedAt: string; lastLoginAt: string; pendingEmail: string; businesses: PortalBusiness[];
 };
 export type PortalCounts = { total: number; invited: number; active: number; suspended: number; revoked: number; mfa: number; awaitingMatch: number };
@@ -36,7 +36,7 @@ export class PortalAdminError extends Error {
   }
 }
 
-export const STATUS_LABEL: Record<string, string> = { invited: "Invitation pending", active: "Active", suspended: "Suspended", revoked: "Access revoked", none: "Not invited" };
+export const STATUS_LABEL: Record<string, string> = { invited: "Invitation pending", active: "Active", suspended: "Suspended", revoked: "Access revoked", erased: "Erased", none: "Not invited" };
 
 /** Plain words for the audit trail. */
 export const EVENT_LABEL: Record<string, string> = {
@@ -45,7 +45,7 @@ export const EVENT_LABEL: Record<string, string> = {
   "account.email-change-requested": "Email change requested", "account.email-changed": "Email changed", "auth.login": "Signed in", "auth.sessions-ended": "Signed out everywhere",
   "access.granted": "Business access granted", "access.changed": "Permissions changed", "access.revoked": "Business access removed",
   "change.requested": "Business details change requested", "change.clarification-asked": "Question asked about a change", "change.client-replied": "Client answered a question", "change.withdrawn": "Change request withdrawn",
-  "branding.updated": "Portal branding changed", "branding.reset": "Portal branding restored to the standard look", "message.thread-started": "Conversation started", "message.sent": "Message sent", "request.created": "Information requested", "request.responded": "Information request answered", "request.staff-reply": "Reply to an information request", "request.completed": "Information request completed", "request.cancelled": "Information request cancelled", "reminder.sent": "Reminder emailed", "reminder.sweep": "Reminder run", "reminder.paused": "Reminder paused", "reminder.resumed": "Reminder resumed", "reminder.cancelled": "Reminder cancelled", "reminder.rescheduled": "Reminder rescheduled", "reminder.settings": "Reminder settings changed",
+  "gdpr.exported": "Personal data exported", "gdpr.erased": "Personal data erased", "branding.updated": "Portal branding changed", "branding.reset": "Portal branding restored to the standard look", "message.thread-started": "Conversation started", "message.sent": "Message sent", "request.created": "Information requested", "request.responded": "Information request answered", "request.staff-reply": "Reply to an information request", "request.completed": "Information request completed", "request.cancelled": "Information request cancelled", "reminder.sent": "Reminder emailed", "reminder.sweep": "Reminder run", "reminder.paused": "Reminder paused", "reminder.resumed": "Reminder resumed", "reminder.cancelled": "Reminder cancelled", "reminder.rescheduled": "Reminder rescheduled", "reminder.settings": "Reminder settings changed",
   "identity.requested": "Identity document requested", "identity.renewal-requested": "Renewal requested automatically", "identity.uploaded": "Identity document sent by the client", "identity.viewed": "Identity document opened by staff", "identity.accepted": "Identity document accepted", "identity.rejected": "Identity document rejected", "identity.cancelled": "Identity request cancelled", "identity.reminded": "Identity reminder emailed", "identity.edited": "Identity settings changed", "identity.refused": "Identity file refused by the security check",
   "signing.requested": "Signing requested", "signing.sent": "Signing invitation emailed", "signing.viewed": "Document opened by a signatory", "signing.signed": "Document signed", "signing.declined": "Signing declined", "signing.completed": "All signatures received", "signing.sealed": "Signed copy and certificate produced", "signing.cancelled": "Signing cancelled", "signing.reminded": "Signing reminder emailed", "document.generated": "Signed copy filed",
   "document.added": "Document added (draft)", "document.published": "Document published", "document.unpublished": "Document unpublished", "document.archived": "Document archived", "document.edited": "Document details edited", "document.version-added": "New version added by the practice", "document.version-uploaded": "New version uploaded by the client", "document.uploaded": "Document uploaded by the client", "document.downloaded": "Document downloaded", "document.approved": "Document approved by the client", "document.declined": "Document declined by the client", "document.refused": "File refused by the security check",
@@ -123,6 +123,8 @@ export class PortalAdminApi {
   link(userId: string, personKey: string, personKind: string) { return this.call("POST", "link", { userId, personKey, personKind }); }
   suspend(userId: string, reason: string) { return this.call("POST", "suspend", { userId, reason }); }
   reinstate(userId: string) { return this.call("POST", "reinstate", { userId }); }
+  gdprExport(userId: string): Promise<Record<string, unknown>> { return this.call("GET", `gdpr-export?userId=${encodeURIComponent(userId)}`); }
+  gdprErase(userId: string, confirm: string): Promise<{ erased: Record<string, number> }> { return this.call("POST", "gdpr-erase", { userId, confirm }); }
   revoke(userId: string) { return this.call("POST", "revoke", { userId }); }
   changeEmail(userId: string, email: string) { return this.call("POST", "change-email", { userId, email }); }
   endSessions(userId: string) { return this.call("POST", "end-sessions", { userId }); }

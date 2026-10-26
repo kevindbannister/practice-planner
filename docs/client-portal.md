@@ -126,3 +126,15 @@ Portal > Branding lets a practice set its own look without a developer: practice
 - **Safety.** Colours must be plain `#rrggbb`; logos must be small PNG/JPEG/WebP/SVG pictures (SVG is only ever shown as a picture, so nothing inside can run); text is length-limited and shown as text, never as HTML; email content is escaped. Only signed-in staff can read or change branding (portal logins cannot). Changes and resets are in the audit trail by field name, never holding the logo.
 - **Timing.** The sign-in page's look is cached on the server for up to 30 seconds, so a saved change can take that long to reach every visitor.
 - **Framing.** The site now allows itself (and nothing else) to frame its pages (`frame-ancestors 'self'`), which the preview needs.
+
+## Personal data: export, erasure and retention (GDPR)
+
+In Portal > People, each person's card has **Download their data** (a JSON file: their account, access, identity documents described but not included, messages and answers they wrote, uploads, notifications and activity) and **Erase personal data** (type their email to confirm; cannot be undone).
+
+Erasure **removes** the name, email, link to the sign-in provider, all access, identity documents and their stored files, and notifications. It **anonymises** their name on messages, request answers and uploads ("Former user") so the business's records still make sense. It **keeps** the audit trail (tamper-evident; ids, types and times, no contents), sealed signed copies with certificates (legal records), and documents they sent to the business. Both actions are in the audit trail (`gdpr.exported`, `gdpr.erased`, with counts only).
+
+Suggested retention (the practice decides; nothing here deletes automatically): identity documents are kept while the person is a client plus the period your AML policy requires (commonly five years after the relationship ends), then erase the person; revoke access when a client leaves; sealed signed copies follow your normal records retention. **Limitation:** there is no automatic retention timer; erasure is a deliberate staff action. A person who is erased and later signs in with the same provider account gets a new empty login with no access.
+
+## Tests
+
+`cd api && node --test test/*.test.js` (177 tests, in-memory store with a fake identity provider using real signatures) and `cd app && node --import tsx --test tests/*.test.ts`. `api/test/portalAcceptance.test.js` holds the cross-cutting checks from the specification (internal-information sweep over every portal screen at every level, cross-business and cross-practice isolation across all modules, audit accuracy over a whole journey, GDPR). Browser walk-throughs run against `api/portal/dev.js` (a local server with a stand-in sign-in).
