@@ -2,6 +2,7 @@
 import { usePortal } from "./portalKit";
 import { SalesSettings } from "./SalesSettings";
 import { EngagementLetterSettings } from "./EngagementSettings";
+import { OnboardingSettingsPage } from "./OnboardingSettings";
 import { ServicesSettings } from "./ServicesSettings";
 import { EmailSettings } from "./EmailSuggestions";
 import { deadlineSource } from "../lib/plannerChecks";
@@ -38,7 +39,7 @@ declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
 const TABS: [string, string][] = [
-  ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["services", "Services & pricing"], ["engagement", "Engagement letters"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["xero", "Xero"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
+  ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["services", "Services & pricing"], ["engagement", "Engagement letters"], ["onboarding", "Onboarding"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["xero", "Xero"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
 ];
 // These two have their own pages; they sit with Settings rather than in the main bar.
 const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["portal", "Client portal", "#/portal"]];
@@ -86,6 +87,7 @@ export function SettingsPage() {
       {tab === "sales" && <SalesSettings />}
       {tab === "services" && <ServicesSettings />}
       {tab === "engagement" && <EngagementLetterSettings />}
+      {tab === "onboarding" && <OnboardingSettingsPage />}
     </div>
   );
 }

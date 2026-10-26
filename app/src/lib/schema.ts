@@ -17,7 +17,7 @@ export type ListKey =
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
-  | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements"
+  | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -57,7 +57,7 @@ export const LISTS: ListDef[] = [
       n("DeadlineMonths"), n("DeadlineDays"), t("DeadlineFixed"), b("KeepMonthEnd"), t("RecordsNeeded"), n("RecordsLeadDays"), n("FinaliseHours"),
       // the commercial side (Services & pricing): what a proposal can offer
       t("Code"), t("Category"), note("Description"), note("ClientDescription"), t("ClientTypes"), n("Price"), t("PriceFrequency"), t("VatTreatment"), n("SetupFee"),
-      note("Scope"), note("Exclusions"), note("ClientResp"), note("PracticeResp"), note("Clauses"), note("Pricing"), b("Offered"), b("Active"),
+      note("Scope"), note("Exclusions"), note("ClientResp"), note("PracticeResp"), note("Clauses"), note("Pricing"), b("Offered"), b("Active"), b("RequiresAuth"),
     ],
   },
   {
@@ -273,7 +273,15 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("PracticeId", true), t("Ref", true), t("ClientKey", true), t("ProposalKey", true), n("ProposalVersion"), t("OppKey"), t("Title"), t("Source"), t("Status", true), t("ClientType"),
       note("ServiceKeys"), note("ServiceNames"), t("DocumentDate"), t("EffectiveDate"), t("ReviewYears"), t("ReviewDate", true), note("Body"), t("Hash"), t("DocKey"), t("FileUrl"), t("PortalDocId"), t("SigningId"), t("SealedDocId"),
       note("Signatories"), t("ApprovedBy"), t("ApprovedOn"), t("SentOn"), t("SentBy"), t("SignedAt"), t("SignedBy"), t("SignMethod"), note("SignEvidence"), t("PreviousKey"), t("SupersededBy"), t("EndedOn"),
-      note("ReviewRequest"), note("Decisions"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"),
+      note("ReviewRequest"), note("Decisions"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"), t("SignProgress"),
+    ],
+  },
+  {
+    // One client being taken on: its stages, AML record and activation. Not a job. See lib/onboarding.ts.
+    key: "Onboardings", displayName: "PP Onboardings", description: "Practice Planner: clients being onboarded",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("Ref", true), t("ClientKey", true), t("LeadKey"), t("OppKey"), t("ProposalKey", true), n("ProposalVersion"), t("Status", true), t("Takeover"), note("Stages"), note("Aml"),
+      t("StartDate"), t("Owner"), note("Notes"), t("ApprovedBy"), t("ApprovedOn"), t("ActivatedBy"), t("ActivatedOn"), note("ActivationSummary"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
   },
   ...portalLists(),

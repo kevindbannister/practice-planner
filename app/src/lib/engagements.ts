@@ -334,7 +334,7 @@ export function sendOut(e: Row, s: SendOut, client: Row | undefined, can: (a: Pr
   if (!s.hash) return { error: "The letter couldn't be sealed. Try again." };
   if (s.method === "portal" && (!s.signingId || !s.signatories.length)) return { error: "Choose who signs." };
   const w: Written = {
-    patches: [{ list: "Engagements", row: e, patch: { Status: "out", Hash: s.hash, PortalDocId: s.portalDocId || "", SigningId: s.signingId || "", DocKey: s.docKey || str(e.DocKey), Signatories: JSON.stringify(s.signatories), SentOn: o.now, SentBy: o.actor, SignMethod: s.method, Updated: o.now } }],
+    patches: [{ list: "Engagements", row: e, patch: { Status: "out", SignProgress: "", Hash: s.hash, PortalDocId: s.portalDocId || "", SigningId: s.signingId || "", DocKey: s.docKey || str(e.DocKey), Signatories: JSON.stringify(s.signatories), SentOn: o.now, SentBy: o.actor, SignMethod: s.method, Updated: o.now } }],
     log: [logRow(o, "sent-for-signature", "engagement", str(e.Key), refsOf(e), { method: s.method, signatories: s.signatories, signingId: s.signingId || "" })],
     activities: [activityRow(o, "engagement-sent", `Engagement letter ${e.Ref} sent for signature`, undefined, refsOf(e), s.signatories.join(", "))],
   };
@@ -354,7 +354,7 @@ export function markSigned(e: Row, s: Signed, previous: Row | undefined, client:
   const yrs = reviewYears(settings, { engagementYears: e.ReviewYears, clientKey: str(e.ClientKey), type });
   const effective = str(e.EffectiveDate) || s.at.slice(0, 10);
   const w: Written = {
-    patches: [{ list: "Engagements", row: e, patch: { Status: "signed", SignedAt: s.at, SignedBy: s.by.trim(), SignMethod: s.method, SignEvidence: s.evidence.trim(), SealedDocId: s.sealedDocId || "", DocKey: s.docKey || str(e.DocKey), ReviewDate: addYears(effective, yrs), ReviewRequest: "", Updated: o.now } }],
+    patches: [{ list: "Engagements", row: e, patch: { Status: "signed", SignProgress: "", SignedAt: s.at, SignedBy: s.by.trim(), SignMethod: s.method, SignEvidence: s.evidence.trim(), SealedDocId: s.sealedDocId || "", DocKey: s.docKey || str(e.DocKey), ReviewDate: addYears(effective, yrs), ReviewRequest: "", Updated: o.now } }],
     log: [logRow(o, "signed", "engagement", str(e.Key), refsOf(e), { by: s.by, at: s.at, method: s.method, evidence: s.evidence })],
     activities: [activityRow(o, "engagement-signed", `Engagement letter ${e.Ref} signed by ${s.by.trim()}`, undefined, refsOf(e), s.method === "portal" ? "Through the client portal" : s.evidence.trim())],
   };

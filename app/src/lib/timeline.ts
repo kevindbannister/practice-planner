@@ -23,7 +23,8 @@ export type ActivityType =
   | "tax-reminder" | "tax-paid"
   | "lead-created" | "opp-created" | "opp-stage" | "opp-won" | "opp-outcome"
   | "proposal-created" | "proposal-sent" | "proposal-revised" | "proposal-accepted" | "proposal-rejected"
-  | "engagement-created" | "engagement-sent" | "engagement-signed" | "engagement-uploaded" | "engagement-decision";
+  | "engagement-created" | "engagement-sent" | "engagement-signed" | "engagement-uploaded" | "engagement-decision"
+  | "onboarding-started" | "onboarding-aml" | "onboarding-approved" | "onboarding-cancelled" | "client-activated";
 
 export type Group = "emails" | "documents" | "jobs" | "tasks" | "papers" | "notes" | "requests" | "sales";
 export const GROUPS: { key: Group | "all"; label: string }[] = [
@@ -77,6 +78,11 @@ export const TYPE_INFO: Record<ActivityType, { label: string; group: Group; icon
   "engagement-sent": { label: "Engagement letter sent for signature", group: "sales", icon: "mail" },
   "engagement-signed": { label: "Engagement letter signed", group: "sales", icon: "check" },
   "engagement-uploaded": { label: "Engagement letter filed", group: "sales", icon: "letter" },
+  "onboarding-started": { label: "Onboarding started", group: "sales", icon: "flag" },
+  "onboarding-aml": { label: "AML approved", group: "sales", icon: "check" },
+  "onboarding-approved": { label: "Onboarding approved", group: "sales", icon: "check" },
+  "onboarding-cancelled": { label: "Onboarding cancelled", group: "sales", icon: "flag" },
+  "client-activated": { label: "Client activated", group: "sales", icon: "check" },
   "engagement-decision": { label: "Engagement review decision", group: "sales", icon: "refresh" },
 };
 

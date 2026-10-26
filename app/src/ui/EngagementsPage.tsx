@@ -251,6 +251,11 @@ export function EngagementDetail({ engKey }: { engKey: string }) {
       const ok = await apply(markSigned(e, { by: who.map((x) => x.name).join(", "), at: r.completedAt || new Date().toISOString(), method: "portal", evidence: `Portal signing ${r.ref}`, sealedDocId: r.sealedDocId }, previous, client, s.eng, s.pcan, today, s.ctx()));
       return ok ? "Everyone has signed. The letter is now in force." : false;
     }
+    if (r.status === "out") {
+      const signedN = r.signatories.filter((x) => x.status === "signed").length;
+      const progress = signedN ? `${signedN} of ${r.signatories.length}` : "";
+      if (progress !== String(e.SignProgress || "")) await apply({ patches: [{ list: "Engagements", row: e, patch: { SignProgress: progress } }], log: [], activities: [] });
+    }
     return r.status === "out" ? `Still waiting: ${r.signatories.filter((x) => x.status !== "signed").map((x) => x.name).join(", ")}.` : (setErr(`The signing request is ${r.status}. You can take the letter back and send it again.`), false);
   });
   const remind = () => run(async () => { const r = await portal.run((a) => a.remindSigning(String(e.SigningId))); return `Reminder sent to ${r.request.reminded}.`; });

@@ -19,6 +19,7 @@ import { useData } from "./data";
 import { EmailPanel } from "./DocsCreate";
 import { LETTERS_FOLDER, clientFolder, documentFileName, makePdf, snapshotOf, useDocs } from "./docsKit";
 import { ProposalEngagement } from "./EngagementsPage";
+import { ProposalOnboarding } from "./OnboardingPage";
 import { money, useSales } from "./salesKit";
 import { newKey } from "../lib/planning";
 
@@ -310,6 +311,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
             {version.AcceptEvidence ? <div>Evidence: {String(version.AcceptEvidence)}</div> : null}
             <p className="muted" style={{ margin: "6px 0 0" }}>Accepting the proposal agrees the services and fees only. The identity and AML checks and the signed engagement letter are separate steps and still to do.</p>
             <ProposalEngagement proposal={proposal} version={version} />
+            <ProposalOnboarding proposal={proposal} version={version} />
           </div>
         )}
         {status === "rejected" && <p style={{ marginBottom: 0 }}>Turned down: {String(version.RejectedReason || "")}</p>}

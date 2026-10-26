@@ -28,6 +28,8 @@ import { PapersPage } from "./PapersPage";
 import { SalesPage } from "./SalesPage";
 import { useSales } from "./salesKit";
 import { salesAlerts } from "../lib/sales";
+import { onboardingAlerts } from "../lib/onboarding";
+import { useOnboarding } from "./OnboardingPage";
 import { engagementAlerts, readEngagementSettings } from "../lib/engagements";
 import { SearchButton } from "./Search";
 import { readSetting } from "./data";
@@ -280,6 +282,7 @@ function Alerts() {
   const chAlerts = useChAlerts();
   const backupAlert = useBackupAlert();
   const sales = useSales();
+  const onboarding = useOnboarding();
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -337,6 +340,7 @@ function Alerts() {
   if (backupAlert) alerts.push({ ...backupAlert, key: "backup", kind: "backup" });
   if (sales.can("view")) for (const a of salesAlerts(sales.opps, sales.leads, today, sales.stages[0].key)) alerts.push({ key: a.key, kind: "sales", level: a.level, title: a.title, detail: a.detail, href: a.href });
   if (sales.can("view")) for (const a of engagementAlerts(data.engagements, data.proposals, data.proposalVersions, data.clients, readEngagementSettings(data.settings), today, sales.catalogue)) alerts.push({ key: a.key, kind: "sales", level: a.level, title: a.title, detail: a.detail, href: a.href });
+  if (sales.can("view")) for (const a of onboardingAlerts(data.onboardings, onboarding.viewFor, data.clients, today)) alerts.push({ key: a.key, kind: "sales", level: a.level, title: a.title, detail: a.detail, href: a.href });
   // Companies House changes first (they need a decision), then late work, then unplanned
   const rank = (a: Alert) => (a.kind === "backup" ? -2 : a.kind === "ch" ? 0 : 2) + (a.level === "red" ? 0 : 1);
   alerts.sort((a, b) => rank(a) - rank(b));
