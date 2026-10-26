@@ -28,6 +28,7 @@ import { PapersPage } from "./PapersPage";
 import { SalesPage } from "./SalesPage";
 import { useSales } from "./salesKit";
 import { salesAlerts } from "../lib/sales";
+import { engagementAlerts, readEngagementSettings } from "../lib/engagements";
 import { SearchButton } from "./Search";
 import { readSetting } from "./data";
 import { aiDefaults } from "../lib/ai";
@@ -335,6 +336,7 @@ function Alerts() {
   for (const a of chAlerts) alerts.push({ ...a, key: "ch:" + a.key, kind: "ch" });
   if (backupAlert) alerts.push({ ...backupAlert, key: "backup", kind: "backup" });
   if (sales.can("view")) for (const a of salesAlerts(sales.opps, sales.leads, today, sales.stages[0].key)) alerts.push({ key: a.key, kind: "sales", level: a.level, title: a.title, detail: a.detail, href: a.href });
+  if (sales.can("view")) for (const a of engagementAlerts(data.engagements, data.proposals, data.proposalVersions, data.clients, readEngagementSettings(data.settings), today, sales.catalogue)) alerts.push({ key: a.key, kind: "sales", level: a.level, title: a.title, detail: a.detail, href: a.href });
   // Companies House changes first (they need a decision), then late work, then unplanned
   const rank = (a: Alert) => (a.kind === "backup" ? -2 : a.kind === "ch" ? 0 : 2) + (a.level === "red" ? 0 : 1);
   alerts.sort((a, b) => rank(a) - rank(b));

@@ -6,6 +6,7 @@ import { practiceId } from "../lib/checklistRows";
 import { Row, ListKey } from "../lib/schema";
 import { CatalogueService, DEFAULT_DISCOUNT_LIMIT, DEFAULT_VAT_RATE, ProposalAction, proposalCan, readCatalogue, readTemplate } from "../lib/proposals";
 import { Lead, Opp, SalesAction, Written, DEFAULT_LOST_REASONS, DEFAULT_SOURCES, logRow, outcomeOf, readPipeline, readStrings, salesCan, salesConfig, wonStage } from "../lib/sales";
+import { EngagementAction, EngagementSettings, engagementCan, readEngagementSettings } from "../lib/engagements";
 import { readSetting, useData } from "./data";
 
 export function useSales() {
@@ -21,6 +22,8 @@ export function useSales() {
   const vatRate = (() => { const v = readSetting<number>(data.settings, "sales.vatRate"); return typeof v === "number" && v >= 0 && v <= 1 ? v : DEFAULT_VAT_RATE; })();
   const discountLimit = (() => { const v = readSetting<number>(data.settings, "sales.discountLimit"); return typeof v === "number" && v >= 0 && v <= 100 ? v : DEFAULT_DISCOUNT_LIMIT; })();
   const template = useMemo(() => readTemplate(readSetting<unknown>(data.settings, "proposal.template")), [data.settings]);
+  const eng: EngagementSettings = useMemo(() => readEngagementSettings(data.settings), [data.settings]);
+  const ecan = (a: EngagementAction) => engagementCan(cfg, me, a);
   const ctx = () => ({ actor: me, now: new Date().toISOString(), pid: practiceId(data.settings), newKey });
   const opps = data.opportunities as Opp[];
   const leads = data.leads as Lead[];
@@ -51,7 +54,7 @@ export function useSales() {
     if (o.LeadKey) return String(leads.find((l) => l.Key === o.LeadKey)?.Title || "Lead");
     return "";
   };
-  return { data, me, stages, sources, lostReasons, can, pcan, cfg, catalogue, vatRate, discountLimit, template, ctx, apply, edit, opps, leads, nameOf, won: wonStage(stages), today: todayIso() };
+  return { eng, ecan, engagements: data.engagements, data, me, stages, sources, lostReasons, can, pcan, cfg, catalogue, vatRate, discountLimit, template, ctx, apply, edit, opps, leads, nameOf, won: wonStage(stages), today: todayIso() };
 }
 
 export const money = (v: unknown) => {

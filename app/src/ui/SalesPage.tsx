@@ -11,16 +11,17 @@ import { useData } from "./data";
 import { money, outcomeChip, useSales } from "./salesKit";
 import { useBoardDrag } from "./useBoardDrag";
 import { ProposalDetail, ProposalLinks, ProposalsList } from "./ProposalsPage";
+import { EngagementDetail, EngagementsList } from "./EngagementsPage";
 import { TYPE_INFO, ActivityType } from "../lib/timeline";
 
-const TABS: [string, string, string][] = [["", "Overview", "#/sales"], ["pipeline", "Pipeline", "#/sales/pipeline"], ["leads", "Leads", "#/sales/leads"], ["proposals", "Proposals", "#/sales/proposals"]];
+const TABS: [string, string, string][] = [["", "Overview", "#/sales"], ["pipeline", "Pipeline", "#/sales/pipeline"], ["leads", "Leads", "#/sales/leads"], ["proposals", "Proposals", "#/sales/proposals"], ["engagements", "Engagements", "#/sales/engagements"]];
 
 export function SalesPage() {
   const { parts } = useRoute();
   const s = useSales();
   const sub = parts[1] || "";
   if (!s.can("view")) return <div className="page"><div className="card empty"><p>Sales isn't open to your role. Ask a manager or partner if you need it.</p></div></div>;
-  const current = sub === "lead" ? "leads" : sub === "opp" ? "pipeline" : sub === "proposal" ? "proposals" : sub;
+  const current = sub === "lead" ? "leads" : sub === "opp" ? "pipeline" : sub === "proposal" ? "proposals" : sub === "engagement" ? "engagements" : sub;
   return (
     <div className="page">
       <div className="plan-title">
@@ -29,6 +30,7 @@ export function SalesPage() {
           {TABS.map(([k, label, to]) => <a key={k} href={to} aria-current={current === k ? "page" : undefined}>{label}</a>)}
           {s.can("configure") && <a href="#/settings/sales">Sales settings</a>}
           {s.pcan("configure") && <a href="#/settings/services">Services & pricing</a>}
+          {s.pcan("configure") && <a href="#/settings/engagement">Engagement letter settings</a>}
         </nav>
       </div>
       {sub === "pipeline" && <Pipeline />}
@@ -37,6 +39,8 @@ export function SalesPage() {
       {sub === "opp" && parts[2] && <OppDetail oppKey={parts[2]} />}
       {sub === "proposals" && <ProposalsList />}
       {sub === "proposal" && parts[2] && <ProposalDetail propKey={parts[2]} />}
+      {sub === "engagements" && <EngagementsList />}
+      {sub === "engagement" && parts[2] && <EngagementDetail engKey={parts[2]} />}
       {!sub && <Overview />}
     </div>
   );

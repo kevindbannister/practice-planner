@@ -17,7 +17,7 @@ export type ListKey =
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
-  | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions"
+  | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -263,6 +263,17 @@ export const LISTS: ListDef[] = [
       t("ReviewedBy"), t("ReviewedOn"), t("ApprovedBy"), t("ApprovedOn"), note("ReturnNote"), t("SentOn"), t("SentBy"), t("SentTo"), t("DocKey"),
       t("AcceptedBy"), t("AcceptedEmail"), t("AcceptedAt"), t("AcceptMethod"), note("AcceptEvidence"), t("AcceptIp"), note("Agreed"), note("RejectedReason"), t("RejectedAt"),
       n("FirstYearNet"), n("FirstYearGross"), n("OngoingNet"), n("OngoingGross"),
+    ],
+  },
+  {
+    // One engagement letter: made from an accepted proposal, or filed from outside. A client can have several. Nothing is overwritten:
+    // a renewal is a new row that supersedes the old one, and every decision is kept.
+    key: "Engagements", displayName: "PP Engagements", description: "Practice Planner: engagement letters and their review dates",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("Ref", true), t("ClientKey", true), t("ProposalKey", true), n("ProposalVersion"), t("OppKey"), t("Title"), t("Source"), t("Status", true), t("ClientType"),
+      note("ServiceKeys"), note("ServiceNames"), t("DocumentDate"), t("EffectiveDate"), t("ReviewYears"), t("ReviewDate", true), note("Body"), t("Hash"), t("DocKey"), t("FileUrl"), t("PortalDocId"), t("SigningId"), t("SealedDocId"),
+      note("Signatories"), t("ApprovedBy"), t("ApprovedOn"), t("SentOn"), t("SentBy"), t("SignedAt"), t("SignedBy"), t("SignMethod"), note("SignEvidence"), t("PreviousKey"), t("SupersededBy"), t("EndedOn"),
+      note("ReviewRequest"), note("Decisions"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
   },
   ...portalLists(),
