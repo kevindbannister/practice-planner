@@ -152,3 +152,67 @@ test("call says plainly when Xama refuses or isn't set up", async () => {
   const n = await call("call", { env: {}, body: { path: "clients" } });
   assert.equal(n.body.error, "not-configured");
 });
+
+// ---------------------------------------------------------------- writing
+
+const ACC = "clients/firm-1/accounts";
+const ONB = `${ACC}/acc-1/contacts/con-1/reports/onboarding`;
+const AML = `${ACC}/acc-1/contacts/con-1/reports/aml`;
+
+test("writing is limited to creating a client, asking for ID verification, and an AML check", async () => {
+  const f = fakeFetch([TOKEN_OK, [(u) => u.startsWith("https://api.xama.test/v1/"), res(201, { id: "acc-9" })]]);
+  const create = await call("write", { fetch: f, body: { method: "POST", path: ACC, body: { name: "A", type: "COMPANY" } } });
+  assert.deepEqual(create.body.data, { id: "acc-9" });
+  const sent = f.calls.find((c) => c.url === "https://api.xama.test/v1/" + ACC);
+  assert.equal(sent.opts.method, "POST");
+  assert.equal(sent.opts.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(sent.opts.body), { name: "A", type: "COMPANY" });
+  assert.equal(sent.opts.headers.Authorization, "Bearer AT-1");
+  assert.ok((await call("write", { fetch: f, body: { method: "PUT", path: ONB, body: { config: {} } } })).body.data);
+  assert.ok((await call("write", { fetch: f, body: { method: "PUT", path: AML, body: { config: {} } } })).body.data);
+});
+
+test("everything else is refused, and nothing is sent", async () => {
+  const f = fakeFetch([TOKEN_OK, [() => true, res(200, {})]]);
+  const bad = [
+    ["DELETE", `${ACC}/acc-1`], ["PATCH", `${ACC}/acc-1`], ["PUT", `${ACC}/acc-1`], ["POST", `${ACC}/acc-1/contacts`],
+    ["GET", ACC], ["POST", ONB], ["PUT", ACC], ["POST", "clients/firm-1/subscriptions"], ["POST", "clients/firm-1/accounts/../x"], ["POST", "https://evil.test/x"],
+  ];
+  for (const [method, path] of bad) {
+    const r = await call("write", { fetch: f, body: { method, path, body: { a: 1 } } });
+    assert.equal(r.status, 400, `${method} ${path}`);
+    assert.equal(r.body.error, "not-allowed");
+  }
+  assert.equal(f.calls.filter((c) => c.url.startsWith("https://api.xama.test/")).length, 0);
+});
+
+test("writing needs the sign-in, a body, and can be switched off", async () => {
+  assert.equal((await call("write", { headers: {}, body: { method: "POST", path: ACC, body: { a: 1 } } })).status, 401);
+  assert.equal((await call("write", { body: { method: "POST", path: ACC } })).body.error, "bad-body");
+  assert.equal((await call("write", { body: { method: "POST", path: ACC, body: [1] } })).body.error, "bad-body");
+  assert.equal((await call("write", { body: { method: "POST", path: ACC, body: { x: "y".repeat(9000) } } })).body.error, "bad-body");
+  const off = await call("write", { env: { ...ENV, XAMA_READONLY: "1" }, body: { method: "POST", path: ACC, body: { a: 1 } } });
+  assert.equal(off.body.error, "read-only");
+});
+
+test("Xama's refusals are explained, with its own detail", async () => {
+  const f402 = fakeFetch([TOKEN_OK, [(u) => u.includes("/accounts"), res(402, { title: "Payment Required", detail: "feature missing" })]]);
+  const a = await call("write", { fetch: f402, body: { method: "POST", path: ACC, body: { a: 1 } } });
+  assert.equal(a.body.status, 402);
+  assert.match(a.body.message, /plan doesn't have/);
+  assert.match(a.body.message, /feature missing/);
+  const f409 = fakeFetch([TOKEN_OK, [(u) => u.includes("/accounts"), res(409, {})]]);
+  assert.match((await call("write", { fetch: f409, body: { method: "POST", path: ACC, body: { a: 1 } } })).body.message, /already exists/);
+});
+
+test("a 204 with no body counts as done", async () => {
+  const f = fakeFetch([TOKEN_OK, [(u) => u.includes("/reports/aml"), { ok: true, status: 204, json: async () => { throw new Error("none"); }, text: async () => "", headers: { get: () => null } }]]);
+  const r = await call("write", { fetch: f, body: { method: "PUT", path: AML, body: { config: {} } } });
+  assert.deepEqual(r.body.data, {});
+});
+
+test("reads can use Xama's q:type style filters", async () => {
+  const f = fakeFetch([TOKEN_OK, [(u) => u.includes("mail-templates"), res(200, { items: [] })]]);
+  await call("call", { fetch: f, body: { path: "clients/firm-1/mail-templates", query: { "q:type": "ONBOARDING", "q:status": "ACTIVE" } } });
+  assert.ok(f.calls.some((c) => c.url.endsWith("mail-templates?q%3Atype=ONBOARDING&q%3Astatus=ACTIVE")));
+});

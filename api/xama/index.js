@@ -16,12 +16,23 @@
 //   GET  /api/xama/status  -> { configured, missing, clientIdEnding, tokenHost, apiBase, authStyle }
 //   POST /api/xama/test    { path? } -> { steps: [...] }  asks for a token, then (optionally) one GET
 //   POST /api/xama/call    { path, query? } -> { data }   one GET, for the app to read AML information
+//   POST /api/xama/write   { method, path, body } -> { data }   one of the few writes below
 //
-// Only reading is allowed, and every call also needs Kevin's Microsoft sign-in for this app.
+// Reading is open to any path under the API address. Writing is limited to exactly three things Xama
+// documents: create a client (account), ask a contact for ID verification, and run an AML check.
+// Set XAMA_READONLY=1 in Azure to switch writing off. Every call also needs Kevin's Microsoft sign-in.
 
 const { createSignIn, reply } = require("../shared/signin.js");
 
 const PATH = /^\/?[A-Za-z0-9_\-.~%]+(\/[A-Za-z0-9_\-.~%]+)*\/?$/;
+const ID = "[A-Za-z0-9_\\-]{1,80}";
+// The only writes allowed: [method, path pattern]
+const WRITES = [
+  ["POST", new RegExp(`^clients/${ID}/accounts$`)], // create a client with its primary contact
+  ["PUT", new RegExp(`^clients/${ID}/accounts/${ID}/contacts/${ID}/reports/onboarding$`)], // ask for ID verification
+  ["PUT", new RegExp(`^clients/${ID}/accounts/${ID}/contacts/${ID}/reports/aml$`)], // run an AML check
+];
+const BODY_LIMIT = 8000;
 const SAMPLE_CHARS = 6000;
 const REFRESH_EARLY_MS = 60 * 1000;
 
@@ -32,6 +43,19 @@ function body(req) {
     try { return JSON.parse(b); } catch { return {}; }
   }
   return typeof b === "object" ? b : {};
+}
+
+/** Xama's own reason (it sends problem details), plus plain words for the usual codes. */
+function explain(status, data) {
+  const why = data && typeof data === "object" ? [data.title, data.detail].filter((x) => typeof x === "string" && x).join(": ") : "";
+  const plain =
+    status === 402 ? "Xama says this needs a feature or credit your plan doesn't have."
+    : status === 409 ? "Xama says this already exists or conflicts with what it holds."
+    : status === 400 || status === 422 ? "Xama didn't accept what was sent."
+    : status === 401 || status === 403 ? "Xama refused: the account may not be allowed to do this."
+    : status === 404 ? "Xama couldn't find that (check your Xama client ID, or the client may have been removed there)."
+    : `Xama answered HTTP ${status}.`;
+  return why ? `${plain} (${why.slice(0, 300)})` : plain;
 }
 
 function jwtClaims(token) {
@@ -49,7 +73,7 @@ function cleanPath(p) {
 function queryString(q) {
   const out = [];
   for (const [k, v] of Object.entries(q && typeof q === "object" ? q : {})) {
-    if (!/^[A-Za-z0-9_.\-\[\]]{1,60}$/.test(k)) continue;
+    if (!/^[A-Za-z0-9_.:\-\[\]]{1,60}$/.test(k)) continue;
     if (v === undefined || v === null || typeof v === "object") continue;
     out.push(`${encodeURIComponent(k)}=${encodeURIComponent(String(v)).slice(0, 300)}`);
   }
@@ -138,7 +162,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     return { token: json.access_token, fresh: true, expiresIn: secs, scope: typeof json.scope === "string" ? json.scope : undefined, tokenType: json.token_type };
   }
 
-  async function get(s, path, query, retry = true) {
+  async function get(s, path, query, retry = true, send) {
     const t = await getToken(s, false);
     if (t.error) return t;
     const qs = queryString(query);
@@ -147,11 +171,13 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (new URL(url).origin !== s.base.origin) return { error: "bad-path", message: "That path points outside the Xama address." };
     let res;
     try {
-      res = await fetch(url, { headers: { Authorization: `Bearer ${t.token}`, Accept: "application/json" } });
+      const headers = { Authorization: `Bearer ${t.token}`, Accept: "application/json" };
+      if (send) { headers["Content-Type"] = "application/json"; res = await fetch(url, { method: send.method, headers, body: send.body }); }
+      else res = await fetch(url, { headers });
     } catch {
       return { error: "unreachable", message: "The app's server couldn't reach Xama's API. Check XAMA_API_BASE." };
     }
-    if (res.status === 401 && retry) { cached = null; return get(s, path, query, false); }
+    if (res.status === 401 && retry) { cached = null; return get(s, path, query, false, send); }
     const text = await res.text().catch(() => "");
     let data; try { data = text ? JSON.parse(text) : null; } catch { data = undefined; }
     return { status: res.status, ok: res.ok, data, text, url };
@@ -175,7 +201,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       });
     }
 
-    if (method !== "POST" || !["test", "call"].includes(action)) return reply(404, { error: "not-found" });
+    if (method !== "POST" || !["test", "call", "write"].includes(action)) return reply(404, { error: "not-found" });
     if (!(await signedIn(req))) return reply(401, { error: "signin", message: "Sign in to Practice Planner again." });
     const s = settings(env);
     if (s.missing.length) return reply(200, { error: "not-configured", message: `Not set up in Azure yet: ${s.missing.join(", ")}.`, missing: s.missing });
@@ -204,6 +230,21 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
         });
       }
       return reply(200, { ok: steps.every((x) => x.ok), steps });
+    }
+
+    if (action === "write") {
+      if (/^(1|true|yes)$/i.test(String(env.XAMA_READONLY || "").trim())) return reply(200, { error: "read-only", message: "Writing to Xama is switched off (XAMA_READONLY is set in Azure)." });
+      const m = String(b.method || "").toUpperCase();
+      const wpath = cleanPath(b.path);
+      if (!wpath || !WRITES.some(([wm, re]) => wm === m && re.test(wpath))) return reply(400, { error: "not-allowed", message: "That isn't one of the things the app is allowed to do in Xama." });
+      const bodyObj = b.body;
+      if (!bodyObj || typeof bodyObj !== "object" || Array.isArray(bodyObj)) return reply(400, { error: "bad-body", message: "Nothing to send." });
+      const text = JSON.stringify(bodyObj);
+      if (text.length > BODY_LIMIT) return reply(400, { error: "bad-body", message: "That's too much to send." });
+      const w = await get(s, wpath, undefined, true, { method: m, body: text });
+      if (w.error) return reply(200, { error: w.error, message: w.message });
+      if (!w.ok) return reply(200, { error: "xama", status: w.status, message: explain(w.status, w.data), sample: excerpt(w.text) });
+      return reply(200, { data: w.data === undefined || w.data === null ? {} : w.data, status: w.status });
     }
 
     // call

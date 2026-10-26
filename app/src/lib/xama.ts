@@ -22,6 +22,8 @@ export interface XamaApi {
   test(path?: string, query?: Record<string, string>): Promise<XamaTest>;
   /** One read (GET) from Xama, below the API address, e.g. "clients/<id>/search". */
   get(path: string, query?: Record<string, string | number>): Promise<any>;
+  /** One of the few writes the server allows: create a client, ask for ID verification, run an AML check. */
+  write(method: "POST" | "PUT", path: string, body: Record<string, unknown>): Promise<any>;
 }
 
 export class HttpXama implements XamaApi {
@@ -63,6 +65,12 @@ export class HttpXama implements XamaApi {
   async get(path: string, query?: Record<string, string | number>): Promise<any> {
     const j = await this.post("call", { path, query });
     if (j.error) throw new XamaError(j.error, j.message || "Xama didn't answer.", j.status);
+    return j.data;
+  }
+
+  async write(method: "POST" | "PUT", path: string, body: Record<string, unknown>): Promise<any> {
+    const j = await this.post("write", { method, path, body });
+    if (j.error) throw new XamaError(j.error, j.message || "Xama didn't accept that.", j.status);
     return j.data;
   }
 }
