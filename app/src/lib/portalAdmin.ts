@@ -30,6 +30,10 @@ export type PortalEvent = { id: string; at: string; type: string; source: string
 export type PortalStatus = { configured: boolean; missing: string[]; optional: string[]; practiceId: string; policy: { adminsManageAccess: boolean } };
 export type InviteResult = { user: PortalPerson; created: boolean; emailed: boolean; emailError?: string };
 
+export type ProposalLinkInput = { proposalKey: string; ref: string; version: number; title: string; recipientName: string; recipientEmail: string; validUntil: string; bodyHash: string; practiceName?: string; content: { blocks: unknown[] }; optional: { id: string; label: string; price: string }[] };
+export type ProposalAnswer = { id: string; proposalKey: string; ref: string; version: number; bodyHash: string; decision: "accept" | "decline"; name: string; optional: string[]; reason: string; at: string; ip: string; ua: string; consentVersion: number; consentText: string };
+export type ProposalLinkInfo = { id: string; version: number; status: "open" | "accepted" | "declined" | "revoked" | "expired"; createdAt: string; createdBy: string; expiresAt: string; viewedAt: string; to: string; answeredAt: string };
+
 export class PortalAdminError extends Error {
   constructor(public code: string, message: string, public status = 0) {
     super(message);
@@ -102,6 +106,13 @@ export class PortalAdminApi {
     if (!json) throw new PortalAdminError("no-server", "The client portal isn't on the server yet. It arrives with the next deployment.", res.status);
     throw new PortalAdminError(json.code || (res.status === 503 ? "not-set-up" : "error"), json.error || "That didn't work.", res.status);
   }
+
+  // proposal links: a prospect with no portal account answers a proposal through a secure link
+  publishProposal(b: ProposalLinkInput): Promise<{ id: string; token: string; expiresAt: string }> { return this.call("POST", "proposal-publish", b); }
+  async proposalResults(): Promise<ProposalAnswer[]> { return (await this.call("GET", "proposal-results")).results; }
+  async proposalLinks(proposalKey: string): Promise<ProposalLinkInfo[]> { return (await this.call("GET", `proposal-links?proposalKey=${encodeURIComponent(proposalKey)}`)).links; }
+  ackProposals(ids: string[]) { return this.call("POST", "proposal-ack", { ids }); }
+  revokeProposalLink(id: string) { return this.call("POST", "proposal-revoke", { id }); }
 
   status(): Promise<PortalStatus> {
     return this.call("GET", "status");

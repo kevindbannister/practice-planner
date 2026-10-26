@@ -28,6 +28,7 @@ const OPTIONAL = ["PORTAL_IDP_AUTHORITY", "CH_API_KEY", "PORTAL_NOTIFY_EMAIL", "
 const SITE_HOST = "insightinformation.sharepoint.com";
 const SITE_PATH = "/sites/PracticePlanner";
 const CLIENTS_LIST = "PP Clients";
+const SETTINGS_LIST = "PP Settings";
 const CLIENTS_FOR_MS = 30 * 1000;
 
 function body(req) {
@@ -77,7 +78,12 @@ function createHandler(deps = {}) {
     const branding = createBranding({ audit, store, now, practiceName: String(env.PORTAL_PRACTICE_NAME || "Your accountant") });
     const mailer = brandedMailer(deps.mailer || createGraphMailer({ from: env.PORTAL_MAIL_FROM, getToken: () => raw.token(), fetch }), () => branding.effective());
     let cached = { at: 0, rows: [] };
+    let cachedSettings = { at: 0, rows: [] };
     const reader = deps.reader || {
+      async settings() {
+        if (now() - cachedSettings.at > CLIENTS_FOR_MS) cachedSettings = { at: now(), rows: await raw.readPlanner(SETTINGS_LIST) };
+        return cachedSettings.rows;
+      },
       async clients() {
         if (now() - cached.at > CLIENTS_FOR_MS) cached = { at: now(), rows: await raw.readPlanner(CLIENTS_LIST) };
         return cached.rows;
@@ -138,6 +144,19 @@ function createHandler(deps = {}) {
       if (!configured) return reply(503, { error: "The client portal isn't set up yet.", code: "not-configured", missing });
       const p = build();
       return reply(200, { ok: true, ...(await p.mods.system.sweep(p.store, p.reader)) });
+    }
+    // ------------------------------------------------------------ a proposal link: the token is the only credential
+    if (first === "accept" && path[1]) {
+      if (!configured) return reply(503, { error: "This isn't available right now. Please contact the practice.", code: "not-configured" });
+      const p = build();
+      try {
+        if (method === "GET") return reply(200, await p.mods.offers.view(p.store, path[1]));
+        if (method === "POST") return reply(200, await p.mods.offers.decide(p.store, path[1], body(req), { ip: ipOf(req), ua: header(req, "user-agent") }));
+      } catch (e) {
+        if (e instanceof ServiceError && e.status === 404) limiter.fail(ipOf(req)); // guessing links gets slower
+        throw e;
+      }
+      return reply(405, { error: "Not allowed" });
     }
     // ------------------------------------------------------------ staff
     if (first === "admin") {

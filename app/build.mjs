@@ -37,6 +37,8 @@ const options = {
 // The client portal is its own page and bundle: no staff code is ever sent to a client's browser.
 const portalOptions = { ...options, entryPoints: ["src/portal/main.tsx"], outfile: "dist/portal.js" };
 
+const acceptOptions = { ...options, entryPoints: ["src/accept/main.ts"], outfile: "dist/accept.js" };
+
 if (serve) {
   const ctx = await context(options);
   await ctx.watch();
@@ -45,4 +47,5 @@ if (serve) {
 } else {
   await build(options);
   await build(portalOptions);
+  await build(acceptOptions);
 }

@@ -10,6 +10,7 @@ const { createRequests, RequestError } = require("./requests.js");
 const { createMessages, MessageError } = require("./messages.js");
 const { createBranding, BrandingError } = require("./branding.js");
 const { createGdpr, GdprError } = require("./gdpr.js");
+const { createOffers, OfferError } = require("./offers.js");
 const { createReminders, ReminderError } = require("./reminders.js");
 const { ServiceError } = require("./service.js");
 
@@ -33,6 +34,7 @@ function modules(parts, ctx) {
   const gdpr = createGdpr({ audit: parts.audit, files: parts.files, now: ctx.now });
   const messages = createMessages({ ...common, portalUrl, notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "" });
   const reminders = createReminders({ ...common, portalUrl, signing, requests, identity, changes });
+  const offers = createOffers({ audit: parts.audit, mailer: parts.mailer, now: ctx.now, practiceName: ctx.env.PORTAL_PRACTICE_NAME || "Your accountant", notifyEmail: ctx.env.PORTAL_NOTIFY_EMAIL || "" });
   const attention = [changes.attention, docs.attention, signing.attention, identity.attention, requests.attention, messages.attention];
 
   parts.signing = signing;
@@ -42,6 +44,7 @@ function modules(parts, ctx) {
   parts.branding = branding;
   parts.reminders = reminders;
   parts.notices = notices;
+  parts.offers = offers;
   return {
     portal: {
       // GET changes/<business>            this business's requests, and what can be changed
@@ -145,6 +148,8 @@ function modules(parts, ctx) {
       identity: wrap(async (store, reader, staff, q) => ({ items: await identity.list(store, reader, { userId: q.userId ? String(q.userId) : undefined }), kinds: identity.KINDS })),
       signing: wrap(async (store, reader, staff, q) => ({ requests: await signing.staffList(store, String(q.clientKey || "")) })),
       documents: wrap(async (store, reader, staff, q) => ({ documents: await docs.staffList(store, String(q.clientKey || "")), categories: docs.CATEGORIES })),
+      "proposal-results": wrap(async (store) => ({ results: await offers.results(store) })),
+      "proposal-links": wrap(async (store, reader, staff, q) => ({ links: await offers.linksFor(store, String(q.proposalKey || "")) })),
     },
     adminPost: {
       "changes-ask": wrap(async (store, reader, staff, b) => changes.ask(store, staff, b.id, b.text)),
@@ -180,7 +185,20 @@ function modules(parts, ctx) {
       "documents-edit": wrap(async (store, reader, staff, b) => ({ document: await docs.staffEdit(store, { name: staff }, b.id, b) })),
       "documents-seen": wrap(async (store, reader, staff, b) => ({ document: await docs.markSeen(store, { name: staff }, b.id) })),
       "documents-download": wrap(async (store, reader, staff, b) => docs.staffDownload(store, { name: staff }, b.id, b.version)),
+      "proposal-publish": wrap(async (store, reader, staff, b) => {
+        // who may send proposals is decided here, from the planner's staff list, not just on screen
+        const rows = reader.settings ? await reader.settings() : null;
+        if (rows && !offers.mayPublish(rows, staff)) throw new ServiceError(403, "not-allowed", "Only a manager or partner can send proposals.");
+        return offers.publish(store, { name: staff }, b);
+      }),
+      "proposal-ack": wrap(async (store, reader, staff, b) => offers.acknowledge(store, { name: staff }, b.ids)),
+      "proposal-revoke": wrap(async (store, reader, staff, b) => offers.revoke(store, { name: staff }, b.id)),
       "changes-decide": wrap(async (store, reader, staff, b) => changes.decide(store, reader, staff, b.id, b.decisions)),
+    },
+    /** The public link: no portal account, only the token. */
+    offers: {
+      view: wrap(async (store, token) => offers.view(store, token)),
+      decide: wrap(async (store, token, body, meta) => offers.decide(store, token, body, meta)),
     },
     /** The scheduled trigger: run everything that is due. */
     system: { sweep: (store, reader) => reminders.sweep(store, reader) },

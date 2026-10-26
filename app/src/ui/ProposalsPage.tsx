@@ -1,5 +1,8 @@
 // Sales › Proposals: the list, the builder, the review and send steps, and recording what the client decided.
 import { useEffect, useMemo, useState } from "react";
+import { PortalAdminApi } from "../lib/portalAdmin";
+import { getAccessToken } from "../lib/auth";
+import { isDemo } from "./commsKit";
 import { addDays } from "../lib/planning";
 import { fmtDate } from "../lib/domain";
 import {
@@ -156,9 +159,11 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
   const [busy, setBusy] = useState(false);
   const [panel, setPanel] = useState<"" | "send" | "accept" | "reject" | "return">("");
   const [sealed, setSealed] = useState<boolean | undefined>();
+  const api = useMemo(() => new PortalAdminApi(async () => (isDemo() ? "demo" : getAccessToken())), []);
+  const [link, setLink] = useState<{ url: string; expiresAt: string }>();
   const vkey = version ? `${version.Key}:${version.Updated}` : "";
   useEffect(() => { if (version && !dirty) setContent(readContent(version.Body)); }, [vkey]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setDirty(false); setPanel(""); setErr(undefined); setInfo(undefined); if (version) setContent(readContent(version.Body)); }, [version?.Key]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setDirty(false); setPanel(""); setLink(undefined); setErr(undefined); setInfo(undefined); if (version) setContent(readContent(version.Body)); }, [version?.Key]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { let live = true; setSealed(undefined); if (version?.Hash) void untouched(version).then((ok) => live && setSealed(ok)); return () => { live = false; }; }, [version?.Key, version?.Body, version?.Hash]);
 
   if (!proposal || !version) return <div className="card empty"><p>That proposal isn't here. <a href="#/sales/proposals">Back to proposals</a></p></div>;
@@ -238,6 +243,36 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
     });
     setSaved({ name, bytes: out.bytes, row, title: out.title });
   });
+  // ---- the secure link, for prospects who have no portal account
+  const makeLink = () => run(async () => {
+    if (!content.validUntil) throw new Error("Set a 'valid until' date on the proposal first. The link stops working then.");
+    if (!content.recipientEmail.trim()) throw new Error("Add the email address of the person it's for.");
+    const body = String(version.Body);
+    const doc = proposalDocument(readContent(body), s.template, { client: partyName || content.recipientName, practice: brand.tradingName || brand.practiceName || "Our practice", contact: content.recipientName, reference: String(proposal.Ref), date: today, version: Number(version.Version) });
+    const opt = optionalLines(readContent(body)).map((l) => ({ id: l.id, label: l.name, price: `${gbp(calcLine(l, content.vatRate).totalEach)} ${freqLabel(l.frequency).toLowerCase()}` }));
+    const out = await api.publishProposal({
+      proposalKey: String(proposal.Key), ref: String(proposal.Ref), version: Number(version.Version), title: content.title || String(proposal.Title), recipientName: content.recipientName || partyName,
+      recipientEmail: content.recipientEmail.trim(), validUntil: content.validUntil, bodyHash: await hashText(body), practiceName: brand.tradingName || brand.practiceName || undefined, content: doc, optional: opt,
+    });
+    setLink({ url: `${window.location.origin}/accept/${out.token}`, expiresAt: out.expiresAt });
+  });
+  const checkReplies = () => run(async () => {
+    const all = (await api.proposalResults()).filter((r) => r.proposalKey === String(proposal.Key));
+    if (!all.length) { setInfo("No replies through the secure link yet."); return true; }
+    const done: string[] = [];
+    for (const r of all) {
+      if (r.version !== Number(version.Version) || r.bodyHash !== String(version.Hash)) { setErr(`A reply came in for version ${r.version}, which isn't the version shown here (or it no longer matches the seal). Open that version to record it.`); continue; }
+      const evidence = `Secure link: typed name "${r.name || "(declined)"}", ${r.at}, from ${r.ip || "unknown address"}, consent wording v${r.consentVersion}`;
+      const w = r.decision === "accept"
+        ? accept(proposal, version, { name: r.name, email: content.recipientEmail, method: "link", evidence, optional: r.optional, when: r.at, ip: r.ip }, who, today, opp, s.opps, s.stages, s.ctx())
+        : reject(proposal, version, r.reason || "Declined through the secure link", who, today, s.ctx());
+      if ("error" in w) { setErr(w.error); continue; }
+      await s.apply(w);
+      done.push(r.id);
+    }
+    if (done.length) { await api.ackProposals(done); setInfo(`Recorded ${done.length} ${done.length === 1 ? "reply" : "replies"} from the secure link.`); }
+    return true;
+  });
   const markSent = (to: string) => run(async () => {
     const body = String(version.Body);
     const w = advance(proposal, version, { to: "sent", hash: await hashText(body), sentTo: to, docKey: saved ? String(saved.row.Key) : undefined }, who, today, s.ctx());
@@ -289,6 +324,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
             {status === "approved" && s.pcan("send") && <button type="button" className="btn primary" onClick={() => { setPanel("send"); void prepareSend(); }}>Send…</button>}
             {status === "approved" && s.pcan("edit") && <button type="button" className="btn" disabled={busy} onClick={() => step("draft")}>Withdraw approval</button>}
             {status === "sent" && s.pcan("record-acceptance") && <button type="button" className="btn primary" onClick={() => setPanel("accept")}>Record acceptance…</button>}
+            {status === "sent" && s.pcan("record-acceptance") && <button type="button" className="btn" disabled={busy} onClick={checkReplies}>Check for replies</button>}
             {(status === "sent" || status === "expired") && s.pcan("record-acceptance") && <button type="button" className="btn" onClick={() => setPanel("reject")}>Record that it was turned down…</button>}
             {["sent", "rejected", "expired"].includes(status) && s.pcan("edit") && <button type="button" className="btn" disabled={busy} onClick={doRevise}>Make a revision</button>}
             <button type="button" className="btn" disabled={busy} onClick={view}>Preview PDF</button>
@@ -314,6 +350,16 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
                   saved={saved} signatory={s.me} intro={`Please find attached our proposal (${proposal.Ref}). It is valid until ${content.validUntil ? new Date(content.validUntil + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "the date shown"}.`}
                   onSent={async (to) => { await markSent(to); }}
                 />
+                <div className="card" style={{ padding: 12, marginTop: 10 }} role="group" aria-label="Secure link">
+                  <strong>Secure acceptance link</strong>
+                  <p className="muted" style={{ margin: "4px 0 8px" }}>For someone without a portal account. They read this exact version and accept or decline online. The link stops working on the valid-until date, or if you make a new link for this version. Accepting agrees the services and fees only; it is not identity checks or a signed engagement letter.</p>
+                  {link ? (
+                    <>
+                      <input className="input" readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} aria-label="Secure link" />
+                      <p className="muted" style={{ margin: "6px 0 0" }}>Shown only now: copy it or use the email above, which includes it. Valid until {fmtDate(link.expiresAt.slice(0, 10))}.</p>
+                    </>
+                  ) : <button type="button" className="btn" disabled={busy || !s.pcan("send")} onClick={makeLink}>Create secure link</button>}
+                </div>
                 <div className="row-wrap" style={{ gap: 8, marginTop: 10 }}>
                   <button type="button" className="btn" disabled={busy} onClick={() => markSent(content.recipientEmail || "sent separately")}>I've sent it another way: mark as sent</button>
                   <button type="button" className="btn" onClick={() => { setPanel(""); setSaved(undefined); }}>Close</button>

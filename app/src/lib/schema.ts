@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions"
-  | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings";
+  | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
   {
@@ -281,7 +281,7 @@ function portalLists(): ListDef[] {
     ["PortalDocuments", "PP Portal Documents", "documents shared with clients"], ["PortalSigning", "PP Portal Signing", "signing requests and evidence"],
     ["PortalIdentity", "PP Portal Identity", "identity document requests and records"], ["PortalRequests", "PP Portal Requests", "information requests"],
     ["PortalMessages", "PP Portal Messages", "secure messages"], ["PortalChanges", "PP Portal Changes", "business detail change requests"],
-    ["PortalNotices", "PP Portal Notices", "client notifications"], ["PortalReminders", "PP Portal Reminders", "reminder schedules and history"], ["PortalSettings", "PP Portal Settings", "portal branding"],
+    ["PortalNotices", "PP Portal Notices", "client notifications"], ["PortalReminders", "PP Portal Reminders", "reminder schedules and history"], ["PortalSettings", "PP Portal Settings", "portal branding"], ["PortalProposals", "PP Portal Proposals", "proposal links and the answers given through them"],
   ];
   return defs.map(([key, displayName, what]) => ({
     key, displayName, description: `Practice Planner client portal: ${what}. Written only by the portal server.`,

@@ -39,7 +39,7 @@ function ch(u) {
   return res({}, 404);
 }
 
-function setup({ practices = ["default"], env = {}, verify = true } = {}) {
+function setup({ practices = ["default"], env = {}, verify = true, settings } = {}) {
   const rows = JSON.parse(JSON.stringify(CLIENTS));
   const raw = createMemoryStore();
   const mailer = createRecordingMailer();
@@ -51,7 +51,7 @@ function setup({ practices = ["default"], env = {}, verify = true } = {}) {
       store: raw,
       mailer,
       now: () => state.now,
-      reader: { clients: async () => rows, updateClient: async (key, patch) => { Object.assign(rows.find((r) => r.Key === key), patch); } },
+      reader: { ...(settings ? { settings: async () => settings } : {}), clients: async () => rows, updateClient: async (key, patch) => { Object.assign(rows.find((r) => r.Key === key), patch); } },
       staffAuth: async (req) => (req.headers && req.headers["x-staff"] ? { name: String(req.headers["x-staff"]), email: String(req.headers["x-staff-email"] || "") } : null),
       fetch: async (url) => {
         const u = String(url);

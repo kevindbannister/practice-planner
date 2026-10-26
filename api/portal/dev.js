@@ -71,7 +71,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === "/dev/now" && req.method === "POST") { const b = JSON.parse(await read(req)); clock = b.reset ? 0 : clock + Number(b.ms || 0); return send(res, 200, { clock }); }
     let file = path.join(dist, decodeURIComponent(url.pathname));
     if (!file.startsWith(dist)) return send(res, 403, "no", "text/plain");
-    if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(dist, url.pathname.startsWith("/portal") ? "portal.html" : "index.html");
+    if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(dist, url.pathname.startsWith("/portal") ? "portal.html" : url.pathname.startsWith("/accept/") ? "accept.html" : "index.html");
     if (!fs.existsSync(file)) return send(res, 404, "not found", "text/plain");
     send(res, 200, fs.readFileSync(file), TYPES[path.extname(file)] || "application/octet-stream");
   } catch (e) {
