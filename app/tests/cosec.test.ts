@@ -219,7 +219,8 @@ test("submission: only an approved filing of a supported form, and the result is
   edit("C1", { RegisteredOffice: "25 Market Road, London, N1 9GU" });
   assert.match((act(s.txs[0], "submitted", { gatewayRef: "1" }, cfg, ctx(), s) as any).error, /Approve/);
   apply(act(s.txs[0], "approve", {}, cfg, ctx(), s) as any);
-  assert.match((act(s.txs[0], "submitted", {}, cfg, ctx(), s) as any).error, /no reference/);
+  assert.match((act(s.txs[0], "submitted", {}, cfg, ctx(), s) as any).error, /test or live submission/);
+  assert.match((act(s.txs[0], "submitted", { test: false }, cfg, ctx(), s) as any).error, /no reference/);
   apply(act(s.txs[0], "submitted", { gatewayRef: "000123", test: false }, cfg, ctx(), s) as any);
   assert.equal(txStatus(s.txs[0]), "submitted");
   // while it is out, the same change again is not a second filing
