@@ -12,7 +12,7 @@ const token = () => {
   const enc = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
   return [enc({ alg: "RS256" }), enc({ tid: TENANT, appid: CLIENT, aud: "00000003-0000-0000-c000-000000000000", exp: NOW / 1000 + 3600 }), "sig"].join(".");
 };
-const ENV = { CH_PRESENTER_ID: "PRES01", CH_PRESENTER_AUTH: "s3cret-code" };
+const ENV = { CH_PRESENTER_ID: "PRES01", CH_PRESENTER_AUTH: "s3cret-code", CH_FILING_SUBMIT_ENABLED: "1" };
 const company = { number: "01234567", name: "Acme Ltd", authCode: "ABC123" };
 const payload = { address: { premises: "25", line1: "Market Road", town: "London", postcode: "N1 9GU", country: "England" } };
 
@@ -124,4 +124,15 @@ test("status lookup requires the original environment and retains TEST flag afte
   assert.ok(gatewayCalls(f)[0].body.includes("<Test>1</Test>"));
   const notLive = await call({ action: "status", body: { gatewayRef: "123", test: false }, env: ENV, fetch: f });
   assert.equal(notLive.status, 400);
+});
+
+test("all gateway submissions remain disabled by default on the live app", async () => {
+  const f = fakeFetch();
+  const env = { CH_PRESENTER_ID: ENV.CH_PRESENTER_ID, CH_PRESENTER_AUTH: ENV.CH_PRESENTER_AUTH, CH_GATEWAY_LIVE: "1", CH_LIVE_FORMS: "AD01" };
+  const r = await call({ action: "submit", body: { form: "AD01", payload, company }, env, fetch: f });
+  assert.equal(r.status, 503);
+  assert.equal(r.body.error, "filing-disabled");
+  assert.equal(gatewayCalls(f).length, 0);
+  const info = await call({ action: "info", method: "GET", env, fetch: f });
+  assert.equal(info.body.submissionEnabled, false);
 });
