@@ -31,12 +31,13 @@ import { ClientEngagements } from "./EngagementsPage";
 import { ClientOnboardingCard } from "./OnboardingPage";
 import { ClientFees } from "./FeesPanel";
 import { SigningRequests } from "./SigningRequests";
+import { XeroInvoices } from "./XeroInvoices";
 import { ServicesEditor } from "./ServicesEditor";
 import { officerName, pscName } from "../lib/cosecForms";
 import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
 import { sectionJobs, waitingOnClient } from "../lib/workGroups";
 
-export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "portal" }) {
+export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "invoices" | "portal" }) {
   const idx = useIndex();
   const { data: allData } = useData();
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
@@ -129,6 +130,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
           Meetings{meetingsCount ? <span className="chip" style={{ marginLeft: 4 }}>{meetingsCount}</span> : null}
         </a>
         <a href={href("clients", c.Key, "signing")} aria-current={tab === "signing" ? "page" : undefined}>Signing requests</a>
+        <a href={href("clients", c.Key, "invoices")} aria-current={tab === "invoices" ? "page" : undefined}>Invoices</a>
         <a href={href("clients", c.Key, "portal")} aria-current={tab === "portal" ? "page" : undefined}>Portal</a>
         <a href={href("clients", c.Key, "tax")} aria-current={tab === "tax" ? "page" : undefined}>
           Tax payments{owingCount ? <span className="chip" style={{ marginLeft: 4 }}>{owingCount}</span> : null}
@@ -148,8 +150,9 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       {tab === "activity" && <ClientTimeline client={c} />}
       {tab === "timeline" && <ClientTimeline client={c} mode="comms" />}
       {tab === "signing" && <SigningRequests client={c} />}
+      {tab === "invoices" && <XeroInvoices client={c} />}
       {tab === "portal" && <div className="stack"><ClientPortalUsers client={c} /><ClientMessages client={c} /><ClientRequests client={c} /><ClientDocuments client={c} /></div>}
-      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
+      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>

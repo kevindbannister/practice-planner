@@ -26,6 +26,17 @@ const ACCOUNTS: Acct[] = [
 ].map(([code, name, type, cls, sys], i) => ({ code, name, type, cls, sys, id: `0000${String(i + 1).padStart(4, "0")}-aaaa-4bbb-8ccc-${String(1000 + i).padStart(12, "0")}` }));
 
 const TENANT: XeroTenant = { id: "c0ffee00-0000-4000-8000-000000000001", tenantId: "d3m0d3m0-0000-4000-8000-000000000083".replace(/m/g, "0"), tenantName: "The Kent Stove Company Ltd (demo figures)", tenantType: "ORGANISATION", createdDateUtc: "2026-10-21T09:00:00" };
+const PRACTICE_TENANT: XeroTenant = { id: "c0ffee00-0000-4000-8000-000000000002", tenantId: "00000000-0000-4000-8000-0000000000aa", tenantName: "Demo Accountancy Practice (demo figures)", tenantType: "ORGANISATION", createdDateUtc: "2026-10-21T09:00:00" };
+/** The practice's own books: invoices it has raised to a few clients, for the Invoices tab. */
+const PRACTICE_CONTACTS = [{ id: "ct-adam", name: "Adam French", email: "adam@example.com" }, { id: "ct-bannister", name: "A.D. Bannister Roofing & Building Limited", email: "accounts@example.com" }];
+function practiceInvoices(): any[] {
+  const row = (n: number, contact: number, date: string, due: string, total: number, paid: number, status: string) => ({
+    InvoiceID: `inv-${n}`, InvoiceNumber: `INV-${String(1000 + n)}`, Type: "ACCREC", Status: status, DateString: `${date}T00:00:00`, DueDateString: `${due}T00:00:00`, Total: total, AmountPaid: paid, AmountDue: status === "PAID" ? 0 : total - paid, CurrencyCode: "GBP", Reference: n % 2 ? "Year end accounts" : "Monthly bookkeeping",
+    Contact: { ContactID: PRACTICE_CONTACTS[contact].id, Name: PRACTICE_CONTACTS[contact].name }, FullyPaidOnDate: status === "PAID" ? `${due}T00:00:00` : undefined, SentToContact: true,
+  });
+  return [row(1, 0, "2026-09-01", "2026-09-15", 480, 0, "AUTHORISED"), row(2, 0, "2026-06-01", "2026-06-15", 480, 480, "PAID"), row(3, 0, "2026-03-02", "2026-03-16", 960, 960, "PAID"), row(4, 0, "2025-09-01", "2025-09-15", 420, 420, "PAID"), row(5, 0, "2026-10-20", "2026-11-03", 150, 0, "AUTHORISED"), row(6, 0, "2026-10-25", "2026-11-08", 90, 0, "DRAFT"),
+    row(7, 1, "2026-08-01", "2026-08-15", 2400, 1000, "AUTHORISED"), row(8, 1, "2026-02-01", "2026-02-15", 2400, 2400, "PAID")];
+}
 const CUSTOMERS = ["Ashford Fireplaces", "Hythe Homes", "Rye Building Supplies", "Tenterden Interiors", "Weald Stove Centre"];
 const SUPPLIERS = ["Stovax Supplies", "Kent Steel Fabrication", "Hearth & Home Wholesale"];
 
@@ -154,7 +165,7 @@ export class FakeXero implements XeroApi {
   }
   async connections() {
     if (!this.granted().length) throw new XeroError("reconnect", "Connect to Xero first (Settings › Xero).");
-    return { tenants: [TENANT], scopes: this.granted(), since: "2026-10-21T09:00:00Z" };
+    return { tenants: [TENANT, PRACTICE_TENANT], scopes: this.granted(), since: "2026-10-21T09:00:00Z" };
   }
   async disconnect(connectionId?: string) {
     if (!connectionId) await this.sealed.write(undefined);
@@ -286,6 +297,19 @@ export class FakeXero implements XeroApi {
   }
 
   async get<T = any>(tenantId: string, api: string, path: string, query: Query = {}): Promise<T> {
+    if (tenantId === PRACTICE_TENANT.tenantId) {
+      await new Promise((r) => setTimeout(r, 15));
+      this.need("core", "documents");
+      if (path === "Contacts") {
+        const term = String(query.searchTerm || "").toLowerCase();
+        return { Contacts: PRACTICE_CONTACTS.filter((c) => c.name.toLowerCase().includes(term.split(" ")[0] || "")).map((c) => ({ ContactID: c.id, Name: c.name, EmailAddress: c.email, IsCustomer: true })) } as T;
+      }
+      if (path === "Invoices") {
+        const ids = ([] as string[]).concat((query.ContactIDs as any) || []).join(",").split(",");
+        return { Invoices: Number(query.page || 1) === 1 ? practiceInvoices().filter((i) => ids.includes(i.Contact.ContactID)) : [] } as T;
+      }
+      throw new XeroError("not-found", "Xero returned an error (404).");
+    }
     if (tenantId !== TENANT.tenantId) throw new XeroError("forbidden", "Xero refused.");
     await new Promise((r) => setTimeout(r, 15));
     if (api === "accounting" && path === "Accounts") {

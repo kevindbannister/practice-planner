@@ -5,6 +5,7 @@ import { Row } from "../lib/schema";
 import { getAccessToken } from "../lib/auth";
 import { FakeXero } from "../lib/fakeXero";
 import { DEFAULT_OPTIONS, HttpXero, SCOPE_GROUPS, XeroApi, XeroError, XeroOptions, XeroStatus, XeroTenant, matchClient, scopesFor } from "../lib/xero";
+import { PRACTICE } from "../lib/xeroInvoices";
 import { Icon, href, useRoute } from "./bits";
 import { isDemo } from "./commsKit";
 import { readSetting, useData } from "./data";
@@ -45,7 +46,8 @@ export function useXeroLinks() {
     const id = Object.keys(links).find((t) => links[t] === clientKey);
     return id ? orgs?.tenants.find((t) => t.tenantId === id) || { id: "", tenantId: id, tenantName: "Xero organisation", tenantType: "ORGANISATION" } : undefined;
   };
-  return { links, orgs, tenantFor, connected: !!readSetting<string>(data.settings, "xero.connection") };
+  const practice = orgs?.tenants.find((t) => links[t.tenantId] === PRACTICE);
+  return { links, orgs, tenantFor, practice, connected: !!readSetting<string>(data.settings, "xero.connection") };
 }
 
 const FAILED: Record<string, string> = {
@@ -231,6 +233,7 @@ export function XeroSettings() {
                         <td>
                           <select className="input" aria-label={`Client for ${t.tenantName}`} value={links[t.tenantId] || ""} onChange={(e) => link(t.tenantId, e.target.value)}>
                             <option value="">Not linked</option>
+                            <option value={PRACTICE}>Our own practice (where we invoice clients)</option>
                             {clients.map((c) => <option key={c.Key as string} value={c.Key as string}>{c.Title as string}</option>)}
                           </select>
                         </td>
