@@ -2381,9 +2381,9 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .wk-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .wk-head h2, .wk-sum-title { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .wk-head h2 .chip { margin-left: 6px; letter-spacing: 0; text-transform: none; }
-.wk-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(max(250px, calc((100% - 36px) / 4)), 1fr)); }
+.wk-grid { display: grid; align-items: start; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(max(250px, calc((100% - 36px) / 4)), 1fr)); }
 .wk-cell { min-width: 0; container-type: inline-size; container-name: ovcard; }
-.wk-cell > .job { margin: 0; height: 100%; }
+.wk-cell > .job { margin: 0; }
 .wk-summary { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .wk-card { padding: 12px 14px; gap: 6px; }
 .wk-card h3 { margin: 0; font-size: 15px; }
@@ -2401,3 +2401,20 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .btn-pair > .btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .btn-pair > .btn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; padding-left: 12px; padding-right: 12px; }
 .btn .iconbtn-sm, .iconbtn-sm { display: inline-flex; align-items: center; justify-content: center; }
+
+/* compact job cards on the Work tab: period, deadline, planned and where the stages are up to */
+.wk-cell .job-head { padding: 10px 12px 8px; gap: 8px; flex-wrap: nowrap; }
+.wk-cell .job-head h2 { font-size: 15px; line-height: 1.25; overflow-wrap: anywhere; }
+.wk-cell .job-dates { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wk-cell .job-dates > div { padding: 7px 12px; border-right: 1px solid var(--line-2); border-bottom: 0; }
+.wk-cell .job-dates > div:last-child { border-right: 0; }
+.wk-cell .job-dates .value { font-size: 13px; margin-top: 0; }
+.wk-cell .job-stages { padding: 8px 12px 10px; gap: 6px; }
+.wk-cell .job-stages .row-wrap { gap: 6px; }
+@container ovcard (max-width: 330px) {
+  .wk-cell .job-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wk-cell .job-dates > div:nth-child(2) { border-right: 0; }
+  .wk-cell .job-dates > div:nth-child(3) { grid-column: 1 / -1; border-top: 1px solid var(--line-2); }
+}
+.wk-cell .btn { min-height: 30px; padding: 3px 10px; font-size: 13px; border-radius: 10px; }
+.wk-cell .job-stages .row-wrap { justify-content: space-between; align-items: center; }

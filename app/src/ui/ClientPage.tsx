@@ -7,13 +7,12 @@ import {
   Client, IMPORTANCE, Importance, Job, KIND_LABEL, holdLabel, importanceLabel, importanceOf, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
 } from "../lib/domain";
 import { Row } from "../lib/schema";
-import { jobHours, newKey } from "../lib/planning";
+import { newKey } from "../lib/planning";
 import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, PapersLink, companiesHouseUrl, href } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { nextStagePatch, stageLabel } from "../lib/stages";
-import { inFinalise, isWaitStage, planHours, stageAt, waitingForClient } from "../lib/waiting";
+import { inFinalise, isWaitStage, stageAt, waitingForClient } from "../lib/waiting";
 import { useData, useIndex } from "./data";
-import { chaseSummary } from "../lib/chase";
 import { LogoError, logoSrc, prepareLogo } from "../lib/logo";
 import { svcClass } from "../lib/serviceColour";
 import { useEditor } from "./Editors";
@@ -568,52 +567,38 @@ function JobCard({ job: j }: { job: Job }) {
       setSaving(false);
     }
   };
-  const budget = jobHours(j, data.services);
   const idx = useIndex();
   const client = idx.clientByKey.get(j.ClientKey);
 
   return (
     <article className={`job ${svcClass(j.ServiceKey)}${isOnHold(j) ? " held" : st.state === "overdue" ? " late" : st.state === "tight" ? " warn" : ""}`} aria-label={j.Title}>
       <div className="job-head">
-        <div className="stack" style={{ gap: 4 }}>
-          <div className="row-wrap">
-            <h2>{j.Title}</h2>
+        <div className="stack" style={{ gap: 4, minWidth: 0 }}>
+          <h2>{j.Title}</h2>
+          <div className="row-wrap" style={{ gap: 4 }}>
             {j.Priority === "urgent" && <span className="chip red">Urgent</span>}
             {isOnHold(j) && <span className="chip hold">{holdLabel(j)}</span>}
             {waitingForClient(j, templates) && <span className="chip wait">With the client{j.SpeakOn ? ` · speaking ${fmtDate(j.SpeakOn as string, { year: false })}` : ""}</span>}
             {inFinalise(j) && !waitingForClient(j, templates) && <span className="chip wait">Ready to finalise</span>}
-            <DeadlineChip job={j} today={today} />
             <ElementsLink client={client} />
             <PapersLink job={j} />
             <JobChecklistChip jobKey={j.Key} />
             {idx.servicesOff.has(`${j.ClientKey}|${j.ServiceKey}`) && <span className="chip hold" title="Complete it yourself; no next job will be created">Service turned off</span>}
           </div>
-          <span className="muted">
-            {j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)}` : ""}
-            {j.DeadlineSource ? ` · deadline from ${j.DeadlineSource}` : ""}
-          </span>
           {(j.CardNote as string) && <span className="pcard-note" style={{ alignSelf: "flex-start" }}>{j.CardNote as string}</span>}
           {isOnHold(j) && (
-            <span style={{ fontSize: 13 }}>
+            <span style={{ fontSize: 12 }}>
               {(j.HoldReason as string) || holdLabel(j)}
               {j.HoldUntil ? <span className="muted"> · {j.HoldKind ? "chase" : "look again"} {fmtDate(j.HoldUntil as string, { year: false })}</span> : null}
             </span>
           )}
         </div>
-        <button type="button" className="btn" onClick={() => open({ kind: "job", key: j.Key })}>Update job</button>
+        <button type="button" className="btn small" onClick={() => open({ kind: "job", key: j.Key })} title="Open the job: records, hours, notes and everything else">Update job</button>
       </div>
       <div className="job-dates">
-        <div>
-          <div className="label">Records</div>
-          <div className="value">
-            {j.RecordsReceived ? `In ${fmtDate(j.RecordsReceived, { year: false })}` : j.RecordsExpected ? `Expected ${fmtDate(j.RecordsExpected as string, { year: false })}` : "Not in yet"}
-          </div>
-          {!j.RecordsReceived && (j.ChaseCount as number) > 0 && <div className="muted" style={{ fontSize: 12 }}>{chaseSummary(j)}</div>}
-        </div>
+        <div><div className="label">Period</div><div className="value mono">{j.PeriodEnd ? fmtDate(j.PeriodEnd) : "—"}</div></div>
+        <div><div className="label">Deadline</div><div className="value mono" title={j.DeadlineSource ? `Deadline from ${j.DeadlineSource}` : undefined} style={st.state !== "ok" ? { color: st.state === "overdue" ? "var(--red-ink)" : "var(--amber-ink)" } : undefined}>{fmtDate(j.Deadline) || "—"}</div></div>
         <div><div className="label">Planned</div><div className="value" style={j.PlannedDate ? { color: "var(--blue-ink)" } : undefined}>{j.PlannedDate ? fmtDate(j.PlannedDate, { weekday: true }) : "Not yet"}</div></div>
-        <div><div className="label">Deadline</div><div className="value mono" style={st.state !== "ok" ? { color: st.state === "overdue" ? "var(--red-ink)" : "var(--amber-ink)" } : undefined}>{fmtDate(j.Deadline) || "—"}</div></div>
-        <div><div className="label">Your hours</div><div className="value">{fmtHours(budget)}{j.EstimateHours ? "" : <span className="muted" style={{ fontWeight: 400 }}> (default)</span>}</div>
-          {inFinalise(j) && <div className="muted" style={{ fontSize: 12 }}>{fmtHours(planHours(j, data.services))} left to finalise</div>}</div>
       </div>
       {templates.length > 0 && (
         <div className="job-stages">
@@ -625,7 +610,6 @@ function JobCard({ job: j }: { job: Job }) {
           <div className="row-wrap" style={{ justifyContent: "space-between", fontSize: 13 }}>
             <span><strong>Stage {current} of {templates.length}:</strong> {stageLabel(j, templates)}</span>
             <span className="row-wrap" style={{ gap: 10 }}>
-              {j.SuggestedSlot && !j.PlannedDate && <span className="muted">Suggested slot: {fmtDate(j.SuggestedSlot, { weekday: true })}</span>}
               <button type="button" className="btn small" onClick={stageDone} disabled={saving}>
                 <Icon name="check" size={14} />{last ? "Finish job…" : "Stage done"}
               </button>
