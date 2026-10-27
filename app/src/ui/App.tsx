@@ -81,7 +81,7 @@ export function App({ demo }: { demo: boolean }) {
   } else if (section === "clients" && parts[1] === "all") {
     body = <ClientsPage />;
   } else if (section === "clients" && parts[1]) {
-    body = <ClientPage clientKey={parts[1]} tab={(["work", "comms", "meetings", "tax", "activity", "timeline", "portal"].includes(parts[2]) ? parts[2] : "overview") as "overview"} />;
+    body = <ClientPage clientKey={parts[1]} tab={(["work", "comms", "meetings", "tax", "activity", "timeline", "signing", "portal"].includes(parts[2]) ? parts[2] : "overview") as "overview"} />;
   } else if (section === "groups" || section === "clients") {
     body = <GroupsPage />;
   } else if (section === "home") {
