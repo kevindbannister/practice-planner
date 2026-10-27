@@ -36,8 +36,9 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
         const out = await submitForm({ fetch, env, form: String(b.form || "").toUpperCase(), payload: b.payload, company: b.company, now: now() });
         context.res = reply(200, out);
       } else {
+        if (typeof b.test !== "boolean") { context.res = reply(400, { error: "bad-request", message: "Specify the original test or live gateway environment." }); return; }
         if (!/^\d{1,12}$/.test(String(b.gatewayRef || ""))) { context.res = reply(400, { error: "bad-request", message: "That isn't a submission reference." }); return; }
-        context.res = reply(200, await submissionStatus({ fetch, env, gatewayRef: String(b.gatewayRef), now: now() }));
+        context.res = reply(200, await submissionStatus({ fetch, env, gatewayRef: String(b.gatewayRef), test: b.test, now: now() }));
       }
     } catch (e) {
       const code = e && e.code ? e.code : "upstream";
