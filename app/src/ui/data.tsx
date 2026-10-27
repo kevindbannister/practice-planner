@@ -290,9 +290,9 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
         const r = await store.createMany(list, rows);
         const all = await store.readAll(list);
         setData((d) => ({ ...d, [keyFor(list)]: all }));
+        if (r.failed) throw new Error(r.error || `${r.failed} couldn't be saved`);
         return r;
       }, `Creating records in ${LIST_BY_KEY[list].displayName}`);
-      if (res.failed) throw new Error(res.error || `${res.failed} couldn't be saved`);
     },
     [store, track],
   );
@@ -301,9 +301,11 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     async (list: ListKey, rows: Row[]) => {
       if (!rows.length) return;
       const ids = new Set(rows.map((r) => r._id));
-      const res = await track(() => store.removeMany(list, [...ids] as string[]), `Removing records from ${LIST_BY_KEY[list].displayName}`);
+      await track(async () => {
+        const result = await store.removeMany(list, [...ids] as string[]);
+        if (result.failed) throw new Error(`${result.failed} couldn't be removed`);
+      }, `Removing records from ${LIST_BY_KEY[list].displayName}`);
       setData((d) => ({ ...d, [keyFor(list)]: (d[keyFor(list)] as Row[]).filter((r) => !ids.has(r._id)) }));
-      if (res.failed) throw new Error(`${res.failed} couldn't be removed`);
     },
     [store, track],
   );
