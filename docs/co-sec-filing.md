@@ -2,6 +2,14 @@
 
 Co Sec is in the top menu. It keeps each company's statutory records, notices changes made anywhere in the planner, prepares the filings they need, and (for the forms set up for it) sends approved filings to Companies House.
 
+## Current release safeguard (October 2026)
+
+The Companies House XML filing bridge is **disabled by default**. Saving drafts, reviewing them, and marking a filing as completed externally remain available. This is intentional: the server must verify stored approvals and staff permissions, prevent duplicate gateway submissions, and pass the official schema tests before filing is enabled.
+
+**Do not enable the gateway merely to test this release.** A future audited release can require `CH_FILING_SUBMIT_ENABLED=1` in Azure before the `/api/cosec/submit` endpoint will allow any submission. Even presenter credentials and `CH_GATEWAY_LIVE=1` do **not** override this safeguard. Until the release gate is complete, the Submit button returns a clear disabled message.
+
+Earlier transactions without a saved test/live environment marker must be checked manually; a test acceptance is not a live filing.
+
 ## What it does
 
 - **Watches for changes.** Change a company's registered office, name or accounting date on its client record (or approve a client's change in the portal) and Co Sec prepares the matching filing as a draft. It does not file anything itself.
@@ -35,7 +43,7 @@ Companies House only accepts software filings through its XML Gateway, and it ha
 
    Leave `CH_GATEWAY_URL`, `CH_GATEWAY_LIVE` and `CH_LIVE_FORMS` unset. With these unset every submission goes to the Companies House **test** service and is marked as a test.
 3. **Check the form message against their schema.** The XML for each form is in `api/cosec/lib/forms.js`. It is written to the shape of the Companies House messages but the exact element names come from their schemas, so they must be checked and corrected during testing. This is the one place to edit.
-4. **Make test submissions.** In Co Sec, prepare an AD01 (change a test company's registered office), approve it and press Submit. It goes to the test service. Test submissions that pass the schema check are stored pending; email Companies House to say you have made them. Use "Check the answer from Companies House" to read the result back.
+4. **After the security and schema release gate is complete, make test submissions.** In Co Sec, prepare an AD01 (change a test company's registered office), approve it and press Submit. It goes to the test service. Test submissions that pass the schema check are stored pending; email Companies House to say you have made them. Use "Check the answer from Companies House" to read the result back.
 5. **Companies House approves the software** and, when they are satisfied, you apply for an online filing presenter account and receive your live presenter ID and authentication code.
 6. **Go live.** Replace the two presenter settings with the live ones and add:
    - `CH_GATEWAY_LIVE` = `1`

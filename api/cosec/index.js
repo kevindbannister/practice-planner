@@ -26,18 +26,25 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
 
     const s = settings(env);
     if (action === "info" && req.method === "GET") {
-      context.res = reply(200, { configured: !s.missing.length, test: !(s.live), missing: s.missing, forms: Object.keys(FORMS), live: s.liveForms });
+      context.res = reply(200, { configured: !s.missing.length, submissionEnabled: env.CH_FILING_SUBMIT_ENABLED === "1", test: !(s.live), missing: s.missing, forms: Object.keys(FORMS), live: s.liveForms });
       return;
     }
     if (req.method !== "POST" || (action !== "submit" && action !== "status")) { context.res = reply(400, { error: "bad-request", message: "That isn't something filing does." }); return; }
     const b = body(req);
     try {
       if (action === "submit") {
+        // A valid Microsoft sign-in alone is not sufficient authorisation to make a statutory filing.
+        // Keep the bridge off by default until server-side approval, roles, and retry protection are deployed.
+        if (env.CH_FILING_SUBMIT_ENABLED !== "1") {
+          context.res = reply(503, { error: "filing-disabled", message: "Companies House submission is disabled while security and filing validation are completed. You can still save and approve drafts." });
+          return;
+        }
         const out = await submitForm({ fetch, env, form: String(b.form || "").toUpperCase(), payload: b.payload, company: b.company, now: now() });
         context.res = reply(200, out);
       } else {
+        if (typeof b.test !== "boolean") { context.res = reply(400, { error: "bad-request", message: "Specify the original test or live gateway environment." }); return; }
         if (!/^\d{1,12}$/.test(String(b.gatewayRef || ""))) { context.res = reply(400, { error: "bad-request", message: "That isn't a submission reference." }); return; }
-        context.res = reply(200, await submissionStatus({ fetch, env, gatewayRef: String(b.gatewayRef), now: now() }));
+        context.res = reply(200, await submissionStatus({ fetch, env, gatewayRef: String(b.gatewayRef), test: b.test, now: now() }));
       }
     } catch (e) {
       const code = e && e.code ? e.code : "upstream";
