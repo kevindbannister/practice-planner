@@ -115,7 +115,15 @@ const FRIENDLY = {
   ALREADY_BEING_PROCESSED: "HMRC is still processing a request for this client. Wait a moment and check again.",
 };
 
-function createHandler({ fetch = globalThis.fetch, env = process.env, now = () => Date.now(), store = null } = {}) {
+/** A store over one sealed copy sent by the browser: the sign-in is sealed with a key only this server holds, and any change goes back as a new sealed copy. Used only when HMRC_TOKEN_STORE=sealed (testing on the practice's own data). */
+function sealedStore(key, text, mode) {
+  let rec = text ? unseal(key, text) : null;
+  if (rec && (rec.k !== "hmrc" || rec.m !== mode)) rec = null;
+  const s = { changed: false, get: async () => (rec ? rec.d : null), put: async (_m, v) => { rec = { k: "hmrc", m: mode, d: v }; s.changed = true; }, del: async () => { rec = null; s.changed = true; }, seal: () => (rec ? seal(key, rec) : "") };
+  return s;
+}
+
+function createHandler({ fetch = globalThis.fetch, env = process.env, now = () => Date.now(), store: fixedStore = null } = {}) {
   const signedIn = createSignIn({ fetch, now });
   const mode = String(env.HMRC_ENV || "sandbox").trim().toLowerCase() === "production" ? "production" : "sandbox";
   const base = BASES[mode];
@@ -133,12 +141,13 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
   }
 
   /** The agent's access token, renewed if it's about to run out. One renewal at a time (refresh tokens rotate). */
-  async function accessToken() {
+  async function accessToken(store) {
     const rec = await store.get(mode);
     if (!rec || !rec.rt) return { error: reply(401, { error: "reconnect", message: "Connect to HMRC again (Settings › HMRC)." }) };
     if (rec.at && rec.exp - REFRESH_EARLY_MS > now()) return { rec };
-    if (!refreshing.has(mode)) {
-      refreshing.set(mode, (async () => {
+    const rk = `${mode}:${rec.rt}`; // concurrent calls on the same sign-in share one renewal (refresh tokens rotate)
+    if (!refreshing.has(rk)) {
+      refreshing.set(rk, (async () => {
         const r = await tokenCall({ grant_type: "refresh_token", refresh_token: rec.rt });
         if (!r.ok || !r.json.access_token) {
           const gone = r.json && r.json.error === "invalid_grant";
@@ -148,14 +157,14 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
         const next = { ...rec, at: r.json.access_token, rt: r.json.refresh_token || rec.rt, exp: now() + Number(r.json.expires_in || 14400) * 1000 };
         await store.put(mode, next);
         return { rec: next };
-      })().finally(() => refreshing.delete(mode)));
+      })().finally(() => refreshing.delete(rk)));
     }
-    return refreshing.get(mode);
+    return refreshing.get(rk);
   }
 
   /** Calls HMRC for the connected agent. Never retries a write: a repeat could send a second invitation. */
-  async function hmrc(method, path, payload) {
-    const t = await accessToken();
+  async function hmrc(store, method, path, payload) {
+    const t = await accessToken(store);
     if (t.error) return t;
     if (!ARN.test(t.rec.arn || "")) return { error: reply(409, { error: "no-arn", message: "Add the practice's Agent Reference Number in Settings › HMRC first." }) };
     const url = `${base}${path.replace("{arn}", t.rec.arn)}`;
@@ -180,8 +189,8 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     return reply(res.status === 404 ? 404 : 422, { error: code || "rejected", message: FRIENDLY[code] || (j && j.message) || "HMRC didn't accept that." });
   }
 
-  async function invitation(path) {
-    const r = await hmrc("GET", path);
+  async function invitation(store, path) {
+    const r = await hmrc(store, "GET", path);
     if (r.error) return r;
     const j = await r.res.json().catch(() => ({}));
     if (!r.res.ok) return { error: failure(r.res, j) };
@@ -194,7 +203,16 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     const method = String(req.method || "GET").toUpperCase();
     const configured = !!((env.HMRC_CLIENT_ID || "").trim() && (env.HMRC_CLIENT_SECRET || "").trim());
     const key = keyFrom(env);
+    const sealedOn = String(env.HMRC_TOKEN_STORE || "").trim().toLowerCase() === "sealed";
+    const b0 = body(req);
+    const store = fixedStore || (sealedOn && key ? sealedStore(key, b0.sealed, mode) : null);
     const storeOk = !!store;
+    const done = () => { // a changed sign-in goes back sealed (sealed mode only)
+      if (store && store.seal && store.changed && context.res && context.res.body) {
+        try { const j = JSON.parse(context.res.body); j.sealed = store.seal(); context.res.body = JSON.stringify(j); } catch { /* not JSON */ }
+      }
+    };
+    try {
 
     if (action === "callback") {
       const q = req.query || {};
@@ -212,8 +230,8 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       }
       if (!r.ok || !r.json.access_token) return fail((r.json && r.json.error) || "token");
       const before = (await store.get(mode)) || {};
-      await store.put(mode, { arn: before.arn || "", at: r.json.access_token, rt: r.json.refresh_token || "", exp: now() + Number(r.json.expires_in || 14400) * 1000, since: new Date(now()).toISOString() });
-      context.res = redirect("/#/settings/hmrc/connected");
+      await store.put(mode, { arn: before.arn || st.a || "", at: r.json.access_token, rt: r.json.refresh_token || "", exp: now() + Number(r.json.expires_in || 14400) * 1000, since: new Date(now()).toISOString() });
+      context.res = redirect(store.seal ? `/#/settings/hmrc/connected/${store.seal()}` : "/#/settings/hmrc/connected");
       return;
     }
 
@@ -222,9 +240,9 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       return;
     }
 
-    if (action === "status" && method === "GET") {
+    if (action === "status" && (method === "GET" || method === "POST")) {
       const rec = storeOk ? await store.get(mode) : null;
-      context.res = reply(200, { configured, env: mode, storeConfigured: storeOk, connected: !!(rec && rec.rt), arn: (rec && rec.arn) || "", since: (rec && rec.since) || "", redirectUri: redirectUri(req, env, (req.query || {}).origin) });
+      context.res = reply(200, { configured, env: mode, storeConfigured: storeOk, sealedStore: sealedOn, connected: !!(rec && rec.rt), arn: (rec && rec.arn) || "", since: (rec && rec.since) || "", redirectUri: redirectUri(req, env, (req.query || {}).origin) });
       return;
     }
 
@@ -244,7 +262,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
 
     if (action === "start") {
       const uri = redirectUri(req, env, b.origin);
-      const state = seal(key, { k: "state", exp: now() + STATE_FOR_MS, r: uri, m: mode });
+      const state = seal(key, { k: "state", exp: now() + STATE_FOR_MS, r: uri, m: mode, a: ((await store.get(mode)) || {}).arn || "" });
       const url = `${base}/oauth/authorize?${new URLSearchParams({ response_type: "code", client_id: env.HMRC_CLIENT_ID.trim(), scope: SCOPE, redirect_uri: uri, state }).toString()}`;
       context.res = reply(200, { url });
       return;
@@ -270,7 +288,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       const sig = `${c.body.service}:${c.body.clientId}`;
       if ((recent.get(sig) || 0) > now() - RECENT_MS) return void (context.res = reply(409, { error: "already-sent", message: "That invitation was just sent. Check its status rather than sending it again." }));
       recent.set(sig, now());
-      const r = await hmrc("POST", "/agents/{arn}/invitations", c.body);
+      const r = await hmrc(store, "POST", "/agents/{arn}/invitations", c.body);
       if (r.error) { recent.delete(sig); return void (context.res = r.error); }
       if (r.res.status !== 204 && r.res.status !== 201) {
         recent.delete(sig);
@@ -280,19 +298,19 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       const loc = String((r.res.headers && r.res.headers.get && r.res.headers.get("location")) || "");
       const id = loc.split("/").filter(Boolean).pop() || "";
       if (!INVITATION_ID.test(id)) return void (context.res = reply(502, { error: "no-id", message: "HMRC accepted the request but didn't say which one it was. Check HMRC before sending another." }));
-      const got = await invitation(`/agents/{arn}/invitations/${id}`);
+      const got = await invitation(store, `/agents/{arn}/invitations/${id}`);
       context.res = got.error ? reply(200, { id, status: "", expiresOn: "", clientActionUrl: "", note: "Sent. The link couldn't be fetched yet: check the status." }) : reply(200, got.data);
       return;
     }
     if (action === "invitation/status") {
       if (!INVITATION_ID.test(String(b.id || ""))) return void (context.res = reply(400, { error: "invalid", message: "That isn't an HMRC request number." }));
-      const got = await invitation(`/agents/{arn}/invitations/${b.id}`);
+      const got = await invitation(store, `/agents/{arn}/invitations/${b.id}`);
       context.res = got.error || reply(200, got.data);
       return;
     }
     if (action === "invitation/cancel") {
       if (!INVITATION_ID.test(String(b.id || ""))) return void (context.res = reply(400, { error: "invalid", message: "That isn't an HMRC request number." }));
-      const r = await hmrc("DELETE", `/agents/{arn}/invitations/${b.id}`);
+      const r = await hmrc(store, "DELETE", `/agents/{arn}/invitations/${b.id}`);
       if (r.error) return void (context.res = r.error);
       if (r.res.status === 204 || r.res.status === 200) return void (context.res = reply(200, { ok: true }));
       context.res = failure(r.res, await r.res.json().catch(() => ({})));
@@ -301,7 +319,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (action === "relationship") {
       const c = cleanInvitation(b.body);
       if (c.error) return void (context.res = reply(400, { error: "invalid", message: c.error }));
-      const r = await hmrc("POST", "/agents/{arn}/relationships", c.body);
+      const r = await hmrc(store, "POST", "/agents/{arn}/relationships", c.body);
       if (r.error) return void (context.res = r.error);
       if (r.res.status === 204) return void (context.res = reply(200, { active: true }));
       const j = await r.res.json().catch(() => ({}));
@@ -312,13 +330,16 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (action === "sandbox/accept") {
       if (mode !== "sandbox") return void (context.res = reply(403, { error: "sandbox-only", message: "Test acceptance only exists in HMRC's sandbox." }));
       if (!INVITATION_ID.test(String(b.id || ""))) return void (context.res = reply(400, { error: "invalid", message: "That isn't an HMRC request number." }));
-      const r = await hmrc("PUT", `/agent-authorisation-test-support/invitations/${b.id}`);
+      const r = await hmrc(store, "PUT", `/agent-authorisation-test-support/invitations/${b.id}`);
       if (r.error) return void (context.res = r.error);
       context.res = r.res.ok ? reply(200, { ok: true }) : failure(r.res, await r.res.json().catch(() => ({})));
       return;
     }
 
     context.res = reply(400, { error: "bad-request", message: "That isn't something this app asks for." });
+    } finally {
+      done();
+    }
   };
 }
 

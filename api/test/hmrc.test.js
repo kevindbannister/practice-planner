@@ -276,3 +276,48 @@ test("no response ever contains the HMRC tokens or secret", async () => {
   const all = JSON.stringify(r);
   for (const secret of ["acc-1", "ref-1", "hsecret"]) assert.ok(!all.includes(secret));
 });
+
+test("sealed mode (testing): the sign-in lives only in a sealed copy the browser holds, and changes come back sealed", async () => {
+  const env = { ...ENV, HMRC_TOKEN_STORE: "sealed" };
+  const fetch = fakeFetch([[isPost("/oauth/token"), res(200, { access_token: "NEWACC", refresh_token: "NEWREF", expires_in: 14400 })]]);
+  // add the ARN first (no connection yet)
+  const a = await call("arn", { env, fetch, store: null, body: { arn: "TARN0000001" }, handler: createHandler({ fetch, env, now: () => NOW }) });
+  assert.equal(a.status, 200);
+  const s1 = a.body.sealed;
+  assert.ok(s1 && !s1.includes("TARN"));
+  // start carries the ARN into the sign-in state; the callback seals tokens + ARN into the redirect
+  const h = createHandler({ fetch, env, now: () => NOW });
+  const start = await call("start", { env, fetch, store: null, body: { origin: "https://pp.example.net", sealed: s1 }, handler: h });
+  const state = new URL(start.body.url).searchParams.get("state");
+  const context = { bindingData: { action: "callback" } };
+  await h(context, { method: "GET", headers: {}, query: { code: "abc", state } });
+  const sealed = context.res.headers.Location.replace("/#/settings/hmrc/connected/", "");
+  assert.ok(sealed.length > 40 && !sealed.includes("NEWACC"));
+  const st = await call("status", { env, fetch, store: null, body: { sealed }, handler: h });
+  assert.deepEqual([st.body.connected, st.body.arn, st.body.sealedStore], [true, "TARN0000001", true]);
+  assert.ok(!JSON.stringify(st.body).includes("NEWACC"));
+  // a call works; an expiring sign-in is renewed and the new sealed copy returned
+  const old = await call("arn", { env, fetch, store: null, body: { arn: "TARN0000001", sealed }, handler: h });
+  assert.ok(old.body.sealed);
+  // a sealed copy made for another environment, or tampered with, is not a connection
+  const bad = await call("status", { env, fetch, store: null, body: { sealed: sealed.slice(0, -3) + "AAA" }, handler: h });
+  assert.equal(bad.body.connected, false);
+  const prod = await call("status", { env: { ...env, HMRC_ENV: "production" }, fetch, store: null, body: { sealed }, handler: createHandler({ fetch, env: { ...env, HMRC_ENV: "production" }, now: () => NOW }) });
+  assert.equal(prod.body.connected, false);
+});
+
+test("sealed mode: sending an invitation works from the sealed copy and returns a renewed copy", async () => {
+  const env = { ...ENV, HMRC_TOKEN_STORE: "sealed" };
+  const key = keyFrom(env);
+  const sealed = seal(key, { k: "hmrc", m: "sandbox", d: { arn: "TARN0000001", at: "old", rt: "ref-1", exp: NOW + 10 * 1000 } });
+  const fetch = fakeFetch([
+    [isPost("/oauth/token"), res(200, { access_token: "acc-2", refresh_token: "ref-2", expires_in: 14400 })],
+    [isPost("/agents/TARN0000001/invitations"), res(204, undefined, { location: "/agents/TARN0000001/invitations/ABC12345" })],
+    [(u, o) => o.method === "GET", res(200, { invitationId: "ABC12345", status: "Pending", clientActionUrl: "https://x" })],
+  ]);
+  const r = await call("invitation", { env, fetch, store: null, body: { body: INV, sealed }, handler: createHandler({ fetch, env, now: () => NOW }) });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.id, "ABC12345");
+  assert.ok(r.body.sealed && r.body.sealed !== sealed);
+  assert.equal(unseal(key, r.body.sealed).d.rt, "ref-2");
+});

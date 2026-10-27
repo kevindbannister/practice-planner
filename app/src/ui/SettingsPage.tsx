@@ -10,6 +10,7 @@ import { AssistantSettings } from "./Assistant";
 import { RoutinesCard } from "./Routines";
 import { XeroSettings } from "./XeroSettings";
 import { FormSettings } from "./Forms";
+import { HmrcSettings } from "./HmrcSettings";
 import { XamaSettings } from "./XamaSettings";
 import { FirmSettings } from "./FirmSettings";
 // due, default hours and its stages); and Companies House checks.
@@ -40,7 +41,7 @@ declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
 const TABS: [string, string][] = [
-  ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["services", "Services & pricing"], ["engagement", "Engagement letters"], ["onboarding", "Onboarding"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["forms", "Forms"], ["xero", "Xero"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
+  ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["services", "Services & pricing"], ["engagement", "Engagement letters"], ["onboarding", "Onboarding"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["forms", "Forms"], ["xero", "Xero"], ["hmrc", "HMRC"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
 ];
 // These two have their own pages; they sit with Settings rather than in the main bar.
 const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["portal", "Client portal", "#/portal"]];
@@ -84,6 +85,7 @@ export function SettingsPage() {
       {tab === "letters" && <EmailSettings />}
       {tab === "xero" && <XeroSettings />}
       {tab === "forms" && <FormSettings />}
+      {tab === "hmrc" && <HmrcSettings />}
       {tab === "xama" && <XamaSettings />}
       {tab === "firm" && <FirmSettings />}
       {tab === "sales" && <SalesSettings />}
