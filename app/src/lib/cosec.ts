@@ -17,13 +17,13 @@ const json = <T,>(v: unknown, fallback: T): T => { try { const x = JSON.parse(st
 
 // ------------------------------------------------------------------ states
 
-export type TxStatus = "draft" | "info" | "approved" | "submitted" | "accepted" | "tested" | "rejected" | "declined" | "cancelled" | "external";
+export type TxStatus = "draft" | "info" | "approved" | "submitted" | "accepted" | "rejected" | "declined" | "cancelled" | "external";
 export const STATUS_LABEL: Record<TxStatus, string> = {
   draft: "Awaiting review", info: "Needs information", approved: "Approved, ready to submit", submitted: "Submitted, awaiting Companies House", accepted: "Accepted by Companies House",
-  tested: "Accepted by TEST gateway (not filed)", rejected: "Rejected by Companies House", declined: "Declined by the practice", cancelled: "Cancelled", external: "Filed externally",
+  rejected: "Rejected by Companies House", declined: "Declined by the practice", cancelled: "Cancelled", external: "Filed externally",
 };
 /** Still needs somebody's attention. */
-export const OPEN_STATUSES: TxStatus[] = ["draft", "info", "approved", "submitted", "rejected", "tested"];
+export const OPEN_STATUSES: TxStatus[] = ["draft", "info", "approved", "submitted", "rejected"];
 /** A draft that can still be changed. */
 const EDITABLE: TxStatus[] = ["draft", "info", "approved", "rejected"];
 export const txStatus = (tx: Row): TxStatus => (str(tx.Status) as TxStatus) || "draft";
@@ -110,7 +110,7 @@ export function prepare(p: Proposed, snap: Pick<Snapshot, "txs" | "events">, o: 
       return { ...w, outcome: "cancelled" };
     }
     if (same(p.after, open.After)) { event("duplicate", "Already in the open draft.", key); return { ...w, outcome: "duplicate" }; }
-    const patch: Row = { After: p.after, Payload: JSON.stringify(p.payload), Status: "draft", ApprovedBy: "", ApprovedAt: "", ApprovedPayload: "", EventKeys: JSON.stringify([...json<string[]>(open.EventKeys, []), p.eventKey]), History: pushHistory(open, o, "updated", `Now ${p.after}`), Updated: o.now };
+    const patch: Row = { After: p.after, Payload: JSON.stringify(p.payload), Status: "draft", EventKeys: JSON.stringify([...json<string[]>(open.EventKeys, []), p.eventKey]), History: pushHistory(open, o, "updated", `Now ${p.after}`), Updated: o.now };
     w.patches.push({ list: "CoSecTransactions", row: open, patch });
     w.log.push(logRow(o, "updated", "cosec", key, refs, { form: p.form, after: p.after }));
     event("updated", "Changed again before filing: draft updated.", key);
@@ -123,8 +123,8 @@ export function prepare(p: Proposed, snap: Pick<Snapshot, "txs" | "events">, o: 
   const inFlight = mine.find((t) => txStatus(t) === "submitted");
   const tx: Row = {
     Key: key, PracticeId: o.pid, Ref: nextRef(snap.txs, Number(o.now.slice(0, 4))), ClientKey: p.clientKey, Form: p.form, Title: p.title, Status: "draft", Target: p.target, Source: p.source, SourceKey: p.sourceKey,
-    Before: p.before, After: p.after, Payload: JSON.stringify(p.payload), Assignee: p.assignee, EventKeys: JSON.stringify([p.eventKey]), Clarification: "", Due: "", EditedBy: "", ApprovedBy: "", ApprovedAt: "", ApprovedPayload: "",
-    SubmittedBy: "", SubmittedAt: "", GatewayRef: "", GatewayEnvironment: "", GatewayStatus: "", GatewayNote: "", ChRef: "", AcceptedAt: "", RejectReason: "",
+    Before: p.before, After: p.after, Payload: JSON.stringify(p.payload), Assignee: p.assignee, EventKeys: JSON.stringify([p.eventKey]), Clarification: "", Due: "", EditedBy: "", ApprovedBy: "", ApprovedAt: "",
+    SubmittedBy: "", SubmittedAt: "", GatewayRef: "", GatewayStatus: "", GatewayNote: "", ChRef: "", AcceptedAt: "", RejectReason: "",
     History: JSON.stringify([{ at: o.now, by: o.actor, what: "prepared", note: [p.note, inFlight ? `A filing for this (${inFlight.Ref}) is already with Companies House.` : "", NOT_FILED].filter(Boolean).join(" ") }]), Created: o.now, CreatedBy: o.actor, Updated: o.now,
   };
   w.creates!.push({ list: "CoSecTransactions", row: tx });
@@ -385,7 +385,7 @@ export function transferShares(company: Row, from: Row, to: { holder: string; ho
 /** What the planner must also record: the client's last-verified Companies House data. */
 export type CoSecWritten = Written & { verified?: { clientKey: string; value: Verified } };
 export type TxAction = "edit" | "clarify" | "answer" | "approve" | "decline" | "external" | "cancel" | "reopen" | "submitted" | "result";
-export type TxInput = { payload?: Record<string, unknown>; after?: string; note?: string; ref?: string; gatewayRef?: string; test?: boolean; result?: { status: "accepted" | "rejected" | "pending"; chRef?: string; reason?: string } };
+export type TxInput = { payload?: Record<string, unknown>; after?: string; note?: string; ref?: string; gatewayRef?: string; result?: { status: "accepted" | "rejected" | "pending"; chRef?: string; reason?: string } };
 
 /** What is still missing before a draft can be approved and filed. Forms that are filed another way only need the basics. */
 export function txIssues(tx: Row): string[] {
@@ -432,7 +432,7 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
     case "edit": {
       if (!can("edit")) return fail("You can't edit filings.");
       if (!EDITABLE.includes(st)) return fail("Only a draft can be edited.");
-      const patch: Row = { Status: "draft", EditedBy: o.actor, ApprovedBy: "", ApprovedAt: "", ApprovedPayload: "" };
+      const patch: Row = { Status: "draft", EditedBy: o.actor, ApprovedBy: "", ApprovedAt: "" };
       if (input.payload) patch.Payload = JSON.stringify(input.payload);
       if (input.after !== undefined) patch.After = input.after;
       return done(patch, "edited", input.note);
@@ -454,7 +454,7 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
       if (cfg.independentReview && str(tx.EditedBy) && str(tx.EditedBy).toLowerCase() === o.actor.toLowerCase()) return fail("Independent review is on: someone other than the person who edited this draft must approve it.");
       const issues = txIssues(tx);
       if (issues.length) return fail(`Still needed before it can be approved: ${issues.join(", ")}.`);
-      return done({ Status: "approved", ApprovedBy: o.actor, ApprovedAt: o.now, ApprovedPayload: str(tx.Payload), RejectReason: st === "rejected" ? "" : str(tx.RejectReason) }, "approved", input.note, { type: "cosec-approved", title: `${tx.Form} approved: ${str(tx.Title)}`, summary: "Approved, not yet submitted to Companies House." });
+      return done({ Status: "approved", ApprovedBy: o.actor, ApprovedAt: o.now, RejectReason: st === "rejected" ? "" : str(tx.RejectReason) }, "approved", input.note, { type: "cosec-approved", title: `${tx.Form} approved: ${str(tx.Title)}`, summary: "Approved, not yet submitted to Companies House." });
     }
     case "decline": {
       if (!can("approve")) return fail("Only a manager or partner can decline a filing.");
@@ -469,8 +469,8 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
     }
     case "reopen": {
       if (!can("edit")) return fail("You can't reopen filings.");
-      if (st !== "declined" && st !== "cancelled" && st !== "rejected" && st !== "tested") return fail("Only a declined, cancelled, rejected or tested filing can be reopened.");
-      return done({ Status: "draft", ApprovedBy: "", ApprovedAt: "", ApprovedPayload: "" }, "reopened", input.note);
+      if (st !== "declined" && st !== "cancelled" && st !== "rejected") return fail("Only a declined, cancelled or rejected filing can be reopened.");
+      return done({ Status: "draft", ApprovedBy: "", ApprovedAt: "" }, "reopened", input.note);
     }
     case "external": {
       if (!can("approve")) return fail("Only a manager or partner can record a filing made elsewhere.");
@@ -482,24 +482,19 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
       if (!can("submit")) return fail("Only a manager or partner can submit a filing.");
       if (st !== "approved") return fail("Approve the filing before it is submitted.");
       if (!canSubmitVia(tx)) return fail(`${tx.Form} can't be sent from the planner yet. File it at Companies House and record it as filed externally.`);
-      if (!str(tx.ApprovedPayload) || str(tx.ApprovedPayload) !== str(tx.Payload)) return fail("The stored draft no longer matches what was approved. Save and approve the current draft before submitting.");
-      if (typeof input.test !== "boolean") return fail("The gateway did not confirm whether this was a test or live submission.");
       if (!str(input.gatewayRef)) return fail("The submission has no reference.");
-      const environment = input.test ? "test" : "live";
-      return done({ Status: "submitted", SubmittedBy: o.actor, SubmittedAt: o.now, GatewayRef: str(input.gatewayRef), GatewayEnvironment: environment, GatewayStatus: "pending", GatewayNote: "" }, "submitted", `${environment.toUpperCase()} reference ${input.gatewayRef}`, { type: "cosec-submitted", title: `${tx.Form} submitted to Companies House ${environment.toUpperCase()}: ${str(tx.Title)}`, summary: `Reference ${input.gatewayRef}. Waiting for the answer.` });
+      return done({ Status: "submitted", SubmittedBy: o.actor, SubmittedAt: o.now, GatewayRef: str(input.gatewayRef), GatewayStatus: "pending", GatewayNote: "" }, "submitted", `Reference ${input.gatewayRef}`, { type: "cosec-submitted", title: `${tx.Form} submitted to Companies House: ${str(tx.Title)}`, summary: `Reference ${input.gatewayRef}. Waiting for the answer.` });
     }
     case "result": {
       if (st !== "submitted") return fail("That filing isn't waiting for Companies House.");
-      if (str(tx.GatewayEnvironment) !== "test" && str(tx.GatewayEnvironment) !== "live") return fail("The original filing environment is not recorded. Verify the result manually before updating statutory records.");
       const r = input.result;
       if (!r) return fail("No result.");
       if (r.status === "pending") return done({ GatewayStatus: "pending" }, "checked", "Still pending");
       if (r.status === "accepted") {
-        if (str(tx.GatewayEnvironment) === "test") return done({ Status: "tested", GatewayStatus: "accepted", ChRef: str(r.chRef), ApprovedBy: "", ApprovedAt: "", ApprovedPayload: "" }, "test accepted", "TEST only — statutory registers and verified Companies House data unchanged.", { type: "cosec-test-accepted", title: `${tx.Form} passed Companies House test: ${str(tx.Title)}`, summary: "Test acceptance is not a live filing. Reopen, approve and submit when live filing is authorised." });
         const w = done({ Status: "accepted", GatewayStatus: "accepted", ChRef: str(r.chRef), AcceptedAt: o.now }, "accepted", r.chRef ? `Companies House reference ${r.chRef}` : "Accepted", { type: "cosec-accepted", title: `${tx.Form} accepted by Companies House: ${str(tx.Title)}`, summary: r.chRef ? `Reference ${r.chRef}` : "" });
         return mergeV(w, reconcile(tx, o, snap));
       }
-      return done({ Status: "rejected", GatewayStatus: "rejected", RejectReason: str(r.reason) || "Rejected, no reason given.", ApprovedBy: "", ApprovedAt: "", ApprovedPayload: "" }, "rejected", r.reason, { type: "cosec-rejected", title: `${tx.Form} rejected by Companies House: ${str(tx.Title)}`, summary: r.reason });
+      return done({ Status: "rejected", GatewayStatus: "rejected", RejectReason: str(r.reason) || "Rejected, no reason given.", ApprovedBy: "", ApprovedAt: "" }, "rejected", r.reason, { type: "cosec-rejected", title: `${tx.Form} rejected by Companies House: ${str(tx.Title)}`, summary: r.reason });
     }
   }
 }

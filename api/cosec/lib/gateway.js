@@ -82,12 +82,11 @@ async function submitForm({ fetch, env, form, payload, company, now = Date.now()
 }
 
 /** Ask for the answer to an earlier submission. */
-async function submissionStatus({ fetch, env, gatewayRef, test, now = Date.now() }) {
+async function submissionStatus({ fetch, env, gatewayRef, now = Date.now() }) {
   const s = settings(env);
   if (s.missing.length) { const e = new Error("Filing isn't set up yet."); e.code = "not-configured"; throw e; }
-  if (typeof test !== "boolean" || (!test && !s.live)) { const e = new Error("The original filing environment is not available."); e.code = "bad-request"; throw e; }
   const number = submissionNumber(now);
-  const xml = envelope({ cls: "GetSubmissionStatus", number, presenter: s, test, body: `<GetSubmissionStatus xmlns="http://xmlgw.companieshouse.gov.uk"><SubmissionNumber>${esc(gatewayRef)}</SubmissionNumber></GetSubmissionStatus>` });
+  const xml = envelope({ cls: "GetSubmissionStatus", number, presenter: s, test: !s.live, body: `<GetSubmissionStatus xmlns="http://xmlgw.companieshouse.gov.uk"><SubmissionNumber>${esc(gatewayRef)}</SubmissionNumber></GetSubmissionStatus>` });
   const r = parseReply(await post(fetch, s.url, xml));
   if (r.errors.length) { const e = new Error(`Companies House couldn't give the status: ${r.errors.join("; ")}.`); e.code = "refused"; throw e; }
   const code = String(r.status).toUpperCase();

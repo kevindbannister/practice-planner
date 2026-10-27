@@ -143,10 +143,7 @@ export class SharePointStore {
       }),
     );
     const bad = res.filter((r) => !r || r.status >= 300);
-    if (bad.length) {
-      const first = bad[0];
-      throw new GraphError(first?.status || 500, first?.body?.error?.message || `${bad.length} change(s) weren't saved`, first?.body?.error?.code);
-    }
+    if (bad.length) throw new Error(bad[0]?.body?.error?.message || `${bad.length} change(s) weren't saved`);
   }
 
   /** Create many rows in batches. Returns how many failed, with the first error. */
@@ -158,9 +155,7 @@ export class SharePointStore {
       onProgress,
     );
     const bad = res.filter((r) => !r || r.status >= 300);
-    return { failed: bad.length, error: bad.length
-      ? `HTTP ${bad[0]?.status || "unknown"}${bad[0]?.body?.error?.code ? ` (${bad[0]?.body?.error?.code})` : ""}: ${bad[0]?.body?.error?.message || "SharePoint refused a batch write"}`
-      : undefined };
+    return { failed: bad.length, error: bad[0]?.body?.error?.message };
   }
 
   /** Delete many items in batches of 20 (they go to the site's recycle bin). */
@@ -179,7 +174,7 @@ export class SharePointStore {
 export function friendlyError(e: unknown): string {
   if (e instanceof GraphError) {
     if (e.status === 401) return "Your sign-in has expired. Reload the page to sign in again.";
-    if (e.status === 403) return `Microsoft 365 denied this request (403${e.code ? ` ${e.code}` : ""}): ${e.message}. Check that your account can edit the PracticePlanner SharePoint site and that the app has delegated Sites.ReadWrite.All consent.`;
+    if (e.status === 403) return "Microsoft 365 refused access. Check the app's permissions have admin consent.";
     if (e.status === 404) return "The Practice Planner SharePoint site couldn't be found.";
     return `SharePoint said: ${e.message}`;
   }
