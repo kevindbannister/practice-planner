@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -364,6 +364,17 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Status", true), t("Risk"), note("RiskBasis"), note("Owners"), note("NoOwnerNote"), note("Checks"), note("Evidence"),
       t("PreparedBy"), t("ApprovedBy"), t("ApprovedAt"), t("DoneOn"), t("ReviewDate", true), note("DeclinedReason"), t("Source"), t("OnboardingKey"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"),
+    ],
+  },
+  {
+    key: "FormTemplates", displayName: "PP Form Templates", description: "Practice Planner: reusable forms and questionnaires",
+    columns: [t("Key", true), t("PracticeId", true), t("Category"), note("Description"), n("Version"), b("Archived"), note("Fields"), t("Created"), t("CreatedBy"), t("Updated")],
+  },
+  {
+    key: "FormRequests", displayName: "PP Form Requests", description: "Practice Planner: forms put to clients, with their answers",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("ClientKey", true), t("TemplateKey", true), n("TemplateVersion"), t("Status", true), t("DueDate"), note("Fields"), note("Answers"), note("Written"),
+      t("CompletedOn"), t("CompletedBy"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
   },
   ...portalLists(),

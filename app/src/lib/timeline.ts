@@ -19,7 +19,7 @@ export type ActivityType =
   | "task-created" | "task-completed"
   | "paper-tb" | "paper-journal" | "paper-prepared" | "paper-reviewed" | "paper-done" | "paper-note" | "paper-note-resolved"
   | "call" | "text-in" | "text-out" | "meeting" | "note" | "conversation" | "follow-up"
-  | "aml-approved" | "clearance-asked" | "clearance-received" | "clearance-refused" | "info-requested" | "info-received" | "query" | "chase"
+  | "form-sent" | "form-complete" | "aml-approved" | "clearance-asked" | "clearance-received" | "clearance-refused" | "info-requested" | "info-received" | "query" | "chase"
   | "tax-reminder" | "tax-paid"
   | "lead-created" | "opp-created" | "opp-stage" | "opp-won" | "opp-outcome"
   | "proposal-created" | "proposal-sent" | "proposal-revised" | "proposal-accepted" | "proposal-rejected"
@@ -60,6 +60,8 @@ export const TYPE_INFO: Record<ActivityType, { label: string; group: Group; icon
   note: { label: "Note", group: "notes", icon: "list" },
   conversation: { label: "Client conversation", group: "notes", icon: "groups" },
   "follow-up": { label: "Follow-up", group: "notes", icon: "clock" },
+  "form-sent": { label: "Form requested", group: "requests", icon: "flag" },
+  "form-complete": { label: "Form completed", group: "requests", icon: "check" },
   "aml-approved": { label: "AML assessment approved", group: "requests", icon: "check" },
   "clearance-asked": { label: "Clearance requested from previous accountant", group: "requests", icon: "mail" },
   "clearance-received": { label: "Clearance received", group: "requests", icon: "check" },

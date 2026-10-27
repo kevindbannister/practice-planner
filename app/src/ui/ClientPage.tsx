@@ -35,6 +35,7 @@ import { XeroInvoices } from "./XeroInvoices";
 import { ClearanceCard, ClearanceTab } from "./Clearance";
 import { AmlCard, AmlTab } from "./AmlTab";
 import { TaxRefsCard } from "./TaxRefs";
+import { ClientForms } from "./Forms";
 import { ComplianceExtras, MemosCard } from "./ClientExtras";
 import { addDays as addDaysIso } from "../lib/planning";
 import { position as amlPosition } from "../lib/amlAssessment";
@@ -43,7 +44,7 @@ import { officerName, pscName } from "../lib/cosecForms";
 import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
 import { sectionJobs, waitingOnClient } from "../lib/workGroups";
 
-export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "invoices" | "clearance" | "aml" | "portal" }) {
+export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "invoices" | "clearance" | "aml" | "forms" | "portal" }) {
   const idx = useIndex();
   const { data: allData } = useData();
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
@@ -130,7 +131,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
           { label: "Overview", tabs: [{ key: "overview", label: "Overview" }] },
           { label: "Work", tabs: [{ key: "work", label: "Work", count: jobs.length }] },
           { label: "Communication", tabs: [{ key: "timeline", label: "Communication" }, { key: "activity", label: "Activity" }, { key: "comms", label: "Letters and emails", count: commsCount }, { key: "meetings", label: "Meetings", count: meetingsCount }] },
-          { label: "Documents", tabs: [{ key: "signing", label: "Signing requests" }, { key: "portal", label: "Portal" }] },
+          { label: "Documents", tabs: [{ key: "signing", label: "Signing requests" }, { key: "forms", label: "Forms" }, { key: "portal", label: "Portal" }] },
           { label: "Finance", tabs: [{ key: "invoices", label: "Invoices" }, { key: "tax", label: "Tax payments", count: owingCount }] },
           { label: "Compliance", tabs: [{ key: "aml", label: "AML" }, { key: "clearance", label: "Clearance" }] },
         ];
@@ -171,8 +172,9 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       {tab === "invoices" && <XeroInvoices client={c} />}
       {tab === "clearance" && <ClearanceTab client={c} />}
       {tab === "aml" && <AmlTab client={c} />}
+      {tab === "forms" && <ClientForms client={c} />}
       {tab === "portal" && <div className="stack"><ClientPortalUsers client={c} /><ClientMessages client={c} /><ClientRequests client={c} /><ClientDocuments client={c} /></div>}
-      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "aml" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
+      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "aml" || tab === "forms" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>
