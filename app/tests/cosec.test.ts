@@ -359,3 +359,17 @@ test("officers and PSCs imported from Companies House become the starting regist
   assert.equal(psc[0].Kind, "individual");
   assert.deepEqual(JSON.parse(psc[0].Natures), ["ownership-of-shares-75-to-100-percent"]);
 });
+
+test("shares can only be allotted in a share class the company has set up", () => {
+  const { s } = world();
+  const a = { holder: "Ann Acme", holderKey: "P1", class: "Ordinary £1.00", number: 10, currency: "GBP", nominal: 1, paid: 1, date: "2026-10-27" };
+  const ck = String(s.clients[0].Key);
+  assert.ok(((allotShares(s.clients[0], a, { ...s, classes: [] }, true, ctx())) as any).error.includes("share class first"));
+  const other = [{ Key: "SC1", ClientKey: "someone-else", Name: "Ordinary £1.00", Status: "current" }];
+  assert.ok(((allotShares(s.clients[0], a, { ...s, classes: other }, true, ctx())) as any).error);
+  const mine = [{ Key: "SC2", ClientKey: ck, Name: "Ordinary £1.00", Status: "current" }];
+  assert.ok(!(allotShares(s.clients[0], a, { ...s, classes: mine }, true, ctx()) as any).error);
+  assert.ok(((allotShares(s.clients[0], { ...a, class: "B" }, { ...s, classes: mine }, true, ctx())) as any).error.includes("isn't one of"));
+  const former = [{ Key: "SC3", ClientKey: ck, Name: "Ordinary £1.00", Status: "former" }];
+  assert.ok(((allotShares(s.clients[0], a, { ...s, classes: former }, true, ctx())) as any).error);
+});

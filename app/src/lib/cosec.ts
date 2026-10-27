@@ -64,7 +64,7 @@ const responsible = (client: Row): string => str(client.Manager) || str(client.P
 
 // ------------------------------------------------------------------ the snapshot the engine reads
 
-export type Snapshot = { clients: Row[]; officers: Row[]; pscs: Row[]; shares: Row[]; txs: Row[]; events: Row[] };
+export type Snapshot = { clients: Row[]; officers: Row[]; pscs: Row[]; shares: Row[]; /** share classes the company has set up; when given, shares can only be allotted in one of them */ classes?: Row[]; txs: Row[]; events: Row[] };
 
 /** What Companies House last showed, as kept in Clients.CHVerified. */
 export type Verified = { at?: string; name?: string; office?: string; sic?: string; ard?: string };
@@ -357,6 +357,11 @@ export function allotShares(company: Row, a: Allotment, snap: Snapshot, can: boo
   if (companyKind(company) !== "limited") return { error: "Only limited companies have share capital." };
   if (!a.holder.trim() || !(a.number > 0) || !a.class.trim()) return { error: "Enter who the shares go to, the class and a number of shares." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date)) return { error: "Enter the date of allotment." };
+  if (snap.classes) {
+    const mine = snap.classes.filter((c) => str(c.ClientKey) === str(company.Key) && str(c.Status) !== "former");
+    if (!mine.length) return { error: "Set up a share class first. Shares can't be allotted until the company has one." };
+    if (!mine.some((c) => str(c.Name).toLowerCase() === a.class.trim().toLowerCase())) return { error: `${a.class} isn't one of this company's share classes.` };
+  }
   const key = o.newKey("CH");
   const row: Row = { Key: key, PracticeId: o.pid, ClientKey: str(company.Key), Holder: a.holder, HolderKey: a.holderKey || "", Class: a.class, Number: a.number, Currency: a.currency || "GBP", NominalValue: a.nominal, PaidPerShare: a.paid, Status: "pending", From: a.date, To: "", Event: "allotment", CertificateNo: "", Source: "cosec", Notes: "", Created: o.now, Updated: o.now };
   const p: Proposed = { clientKey: str(company.Key), clientName: str(company.Title), form: "SH01", target: `share:${key}:allot`, title: `Allotment of ${a.number} ${a.class} shares to ${a.holder}`, before: "", after: `${a.number} ${a.class} to ${a.holder}`, payload: { who: key, op: "allot", date: a.date, details: row }, source: "cosec", sourceKey: key, eventKey: `cosec|allot|${key}`, assignee: responsible(company), entity: "share", entityKey: key, field: "allotment" };
