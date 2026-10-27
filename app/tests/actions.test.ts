@@ -13,8 +13,8 @@ const src = (o: any = {}): any => ({
 });
 const by = (a: Action[], k: string) => a.find((x) => x.key === k);
 
-test("the ten groups are the ones in the brief, in order", () => {
-  assert.deepEqual(CATEGORIES.map((c) => c.label), ["Sales & Leads", "Proposals", "Client Onboarding", "Engagement Letters", "AML & Identity", "Document Signatures", "Client Information Requests", "Client Changes Awaiting Approval", "Practice Jobs & Deadlines", "Other Notifications"]);
+test("the groups are the ones in the brief, in order, with Company Secretarial added", () => {
+  assert.deepEqual(CATEGORIES.map((c) => c.label), ["Sales & Leads", "Proposals", "Client Onboarding", "Engagement Letters", "AML & Identity", "Document Signatures", "Client Information Requests", "Client Changes Awaiting Approval", "Company Secretarial", "Practice Jobs & Deadlines", "Other Notifications"]);
 });
 
 test("sales: overdue follow-up is high priority and due; a new uncontacted lead is flagged; one action per opportunity", () => {
@@ -161,7 +161,7 @@ test("views: my actions, all, overdue, due soon, completed; filters; sort by pri
   assert.deepEqual(keys("all", { ...NO_FILTERS, priority: "low" }), ["d"]);
   assert.deepEqual(keys("all", { ...NO_FILTERS, from: "2026-10-27", to: "2026-12-31" }), ["b", "c"]);
   const g = groupCounts(applyView(items, "all", NO_FILTERS, "kevin", TODAY));
-  assert.equal(g.length, 10); assert.equal(g.find((x) => x.category === "sales")!.items.length, 4); assert.equal(g.find((x) => x.category === "sales")!.overdue, 2);
+  assert.equal(g.length, 11); assert.equal(g.find((x) => x.category === "sales")!.items.length, 4); assert.equal(g.find((x) => x.category === "sales")!.overdue, 2);
 });
 
 test("permissions and preferences: managers see all, others see theirs and unassigned; categories can be switched off", () => {

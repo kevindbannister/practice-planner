@@ -51,7 +51,9 @@ export type ChProfile = {
   company_status?: string;
   company_status_detail?: string;
   registered_office_address?: Record<string, string | undefined>;
+  sic_codes?: string[];
   accounts?: {
+    accounting_reference_date?: { day?: string; month?: string };
     next_due?: string;
     next_made_up_to?: string;
     overdue?: boolean;

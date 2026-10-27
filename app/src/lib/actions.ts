@@ -5,6 +5,7 @@
 // underlying issue is dealt with the action disappears from "outstanding". A stored copy (PP Actions) keeps the audit
 // trail: when it was first seen, when it resolved, and who dismissed it. Dismissing is only allowed for informational
 // notices and never completes the underlying work.
+import { coSecItems } from "./cosec";
 import { Config } from "./checklist";
 import { fmtDate, holdAlert, isHoldText, isOnHold, jobState } from "./domain";
 import { coverageGaps, asEng, isInForce, EngagementSettings } from "./engagements";
@@ -17,11 +18,11 @@ import { addDays } from "./planning";
 
 const str = (v: unknown): string => (v === undefined || v === null ? "" : String(v));
 
-export type Category = "sales" | "proposals" | "onboarding" | "engagement" | "aml" | "signatures" | "info" | "changes" | "jobs" | "other";
+export type Category = "sales" | "proposals" | "onboarding" | "engagement" | "aml" | "signatures" | "info" | "changes" | "cosec" | "jobs" | "other";
 export const CATEGORIES: { key: Category; label: string }[] = [
   { key: "sales", label: "Sales & Leads" }, { key: "proposals", label: "Proposals" }, { key: "onboarding", label: "Client Onboarding" }, { key: "engagement", label: "Engagement Letters" },
   { key: "aml", label: "AML & Identity" }, { key: "signatures", label: "Document Signatures" }, { key: "info", label: "Client Information Requests" }, { key: "changes", label: "Client Changes Awaiting Approval" },
-  { key: "jobs", label: "Practice Jobs & Deadlines" }, { key: "other", label: "Other Notifications" },
+  { key: "cosec", label: "Company Secretarial" }, { key: "jobs", label: "Practice Jobs & Deadlines" }, { key: "other", label: "Other Notifications" },
 ];
 export const categoryLabel = (c: string) => CATEGORIES.find((x) => x.key === c)?.label || "Other Notifications";
 export type Priority = "high" | "medium" | "low";
@@ -37,6 +38,8 @@ export type Source = {
   ch: { key: string; level: "red" | "amber"; title: string; detail: string }[]; backup?: { level: "red" | "amber"; title: string; detail: string };
   /** Which services need an agent authorisation, for held-service reminders. */
   agentDone: (o: Row) => boolean;
+  /** Company secretarial filings and Companies House differences (see lib/cosec.ts). */
+  cosecTx?: Row[]; chFlags?: Row[];
 };
 
 const hash = (s: string) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
@@ -147,6 +150,10 @@ export function buildActions(src: Source): Action[] {
   }
 
   // ---- other
+  // ---- company secretarial: changes to review, filings to approve, submit or fix, and Companies House differences
+  for (const i of coSecItems(src.cosecTx || [], src.clients, src.chFlags || [], today)) {
+    add({ key: i.key, category: "cosec", title: i.title, detail: i.detail, clientKey: i.clientKey, assignee: i.assignee, due: i.due, priority: i.priority, href: i.txKey ? `#/cosec/filing/${i.txKey}` : `#/cosec/company/${i.clientKey}` });
+  }
   for (const a of src.ch) add({ key: `ch:${a.key}`, category: "other", title: a.title, detail: a.detail, priority: a.level === "red" ? "high" : "medium", href: "#/settings/companies-house" });
   if (src.backup) add({ key: "backup", category: "other", title: src.backup.title, detail: src.backup.detail, priority: src.backup.level === "red" ? "high" : "medium", href: "#/settings/backups" });
   for (const l of feeReviewsDue(src.clientServices, today, 30)) {

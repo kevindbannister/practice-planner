@@ -18,6 +18,7 @@ export type ListKey =
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -36,6 +37,7 @@ export const LISTS: ListDef[] = [
       t("EngagerId"), t("LogoUrl"), t("Website"), t("ElementsLink"), b("CHChecked"), t("CHStatus"), note("Notes"), note("LogoData"),
       t("TradingName"), note("BusinessActivity"),
       t("CISStatus"), t("CISRegistered"), t("CISFirstPayment"),
+      note("CorrespondenceAddress"), note("CHVerified"),
     ],
   },
   {
@@ -307,6 +309,41 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("PracticeId", true), t("Category", true), t("Title"), t("ClientKey", true), t("ClientName"), note("Detail"), t("Assignee"), t("Due"), t("Priority"), b("Dismissible"), t("Href"),
       t("Status", true), t("FirstSeen"), t("ResolvedAt"), t("ResolvedBy"), t("DismissedBy"), note("History"), t("Updated"),
+    ],
+  },
+  {
+    // Company secretarial (lib/cosec.ts). What changed, the filings prepared from it, and the internal statutory registers.
+    key: "CoSecEvents", displayName: "PP CoSec Events", description: "Practice Planner: changes that may affect statutory records",
+    columns: [t("Key", true), t("PracticeId", true), t("EventKey", true), t("ClientKey", true), t("Entity"), t("EntityKey"), t("Field"), note("Before"), note("After"), t("Source"), t("SourceKey"), t("Actor"), t("At"), t("Outcome"), t("TxKey"), note("Note")],
+  },
+  {
+    key: "CoSecTransactions", displayName: "PP CoSec Transactions", description: "Practice Planner: statutory filings prepared, reviewed and submitted",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("Ref", true), t("ClientKey", true), t("Form", true), t("Title"), t("Status", true), t("Target", true), t("Source"), t("SourceKey"),
+      note("Before"), note("After"), note("Payload"), t("Assignee"), note("EventKeys"), note("Clarification"), t("Due"),
+      t("EditedBy"), t("ApprovedBy"), t("ApprovedAt"), t("SubmittedBy"), t("SubmittedAt"), t("GatewayRef"), t("GatewayStatus"), note("GatewayNote"), t("ChRef"), t("AcceptedAt"), note("RejectReason"),
+      note("History"), t("Created"), t("CreatedBy"), t("Updated"),
+    ],
+  },
+  {
+    key: "CoSecOfficers", displayName: "PP CoSec Officers", description: "Practice Planner: directors, secretaries and LLP members (internal register)",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Role"), t("Kind"), t("Status", true), t("Title"), t("First"), t("Last"), t("CorporateName"), t("DOB"), t("Nationality"), t("Occupation"), t("CountryOfResidence"),
+      note("ServiceAddress"), note("ResidentialAddress"), t("AppointedOn"), t("ResignedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("Created"), t("Updated"),
+    ],
+  },
+  {
+    key: "CoSecPscs", displayName: "PP CoSec PSCs", description: "Practice Planner: persons with significant control (internal register)",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Kind"), t("Status", true), t("Title"), t("First"), t("Last"), t("CorporateName"), t("DOB"), t("Nationality"), t("CountryOfResidence"),
+      note("ServiceAddress"), note("ResidentialAddress"), note("Natures"), t("NotifiedOn"), t("CeasedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("Created"), t("Updated"),
+    ],
+  },
+  {
+    key: "CoSecShares", displayName: "PP CoSec Shares", description: "Practice Planner: share holdings and share transactions (internal register)",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Holder"), t("HolderKey"), t("Class"), n("Number"), t("Currency"), n("NominalValue"), n("PaidPerShare"), t("Status", true), t("From"), t("To"),
+      t("Event"), t("CertificateNo"), t("Source"), note("Notes"), t("Created"), t("Updated"),
     ],
   },
   ...portalLists(),

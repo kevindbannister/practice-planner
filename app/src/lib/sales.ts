@@ -149,8 +149,8 @@ export function orderAt(siblings: Opp[], index: number): number {
 }
 
 export type LogEntry = Row;
-export type Patch = { list: "Leads" | "Opportunities" | "Activities" | "Proposals" | "ProposalVersions" | "Services" | "Engagements" | "Clients" | "Onboardings" | "ClientServices" | "FeeCharges" | "ClientCosts" | "Actions"; row: Row; patch: Row };
-export type Created = { list: "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "ClientServices" | "Jobs" | "Clients" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"; row: Row };
+export type Patch = { list: "Leads" | "Opportunities" | "Activities" | "Proposals" | "ProposalVersions" | "Services" | "Engagements" | "Clients" | "Onboardings" | "ClientServices" | "FeeCharges" | "ClientCosts" | "Actions" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares"; row: Row; patch: Row };
+export type Created = { list: "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "ClientServices" | "Jobs" | "Clients" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions" | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares"; row: Row };
 export type Written = { patches: Patch[]; log: LogEntry[]; activities: Row[]; creates?: Created[] };
 export type Ctx = { actor: string; now: string; pid: string; newKey: (p: string) => string };
 

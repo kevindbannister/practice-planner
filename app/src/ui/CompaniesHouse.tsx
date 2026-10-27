@@ -12,6 +12,7 @@ import { FakeCh } from "../lib/fakeCh";
 import { BUILT_IN_RULES, addDays, newKey, rollForward, ruleFields, ruleFor } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { ClientBadge, companiesHouseUrl, href } from "./bits";
+import { verifiedFrom, verifiedOf } from "../lib/cosec";
 import { useData, useIndex } from "./data";
 
 const DAY_GAP_MS = 20 * 60 * 60 * 1000; // check again after 20 hours
@@ -29,6 +30,8 @@ type ChCtx = {
   check: () => Promise<number>;
   test: () => Promise<string>;
   apply: (flag: Row) => Promise<void>;
+  /** A read-only Companies House lookup through the planner's server (waits and retries once if asked to slow down). */
+  get: (path: string) => Promise<any>;
   setStatus: (flag: Row, status: "Ignored" | "Open") => Promise<void>;
 };
 
@@ -118,6 +121,11 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
           checked.add(c.Key);
           const st = profile ? statusText(profile) : "Not found at Companies House";
           if (c.CHStatus !== st || !c.CHChecked) await update("Clients", c, { CHStatus: st, CHChecked: true });
+          if (profile) { // what Companies House shows now, kept apart from the planner's own record (Co Sec compares the two)
+            const seen = verifiedFrom(profile, new Date().toISOString());
+            const was = verifiedOf(c);
+            if (seen.name !== was.name || seen.office !== was.office || seen.ard !== was.ard || seen.sic !== was.sic) await update("Clients", c, { CHVerified: JSON.stringify(seen) }, { source: "ch-sync" });
+          }
           for (const { job, CHDeadline } of chDeadlines(profile, jobs)) await update("Jobs", job, { CHDeadline });
         } catch (e) {
           if (e instanceof ChError && STOP_CODES.includes(e.code)) throw e;
@@ -199,7 +207,7 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
         StageNo: 1, StageName: firstStage(a.serviceKey), Status: "Open", Source: "Companies House",
       });
     } else if (a.do === "client" && client) {
-      await update("Clients", client, a.patch);
+      await update("Clients", client, a.patch, { source: "ch-sync" });
     } else if (a.do === "deadline" && job) {
       await update("Jobs", job, { Deadline: a.Deadline, DeadlineSource: "Calculated" });
     } else if (a.do === "service-rule") {
@@ -222,8 +230,8 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
   const openFlags = useMemo(() => ctx.data.chFlags.filter((f) => f.Status === "Open"), [ctx.data.chFlags]);
 
   const value = useMemo(
-    () => ({ progress, lastRun, openFlags, run, check, test, apply, setStatus }),
-    [progress, lastRun, openFlags, run, check, test, apply, setStatus],
+    () => ({ progress, lastRun, openFlags, run, check, test, apply, get, setStatus }),
+    [progress, lastRun, openFlags, run, check, test, apply, get, setStatus],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -457,7 +465,8 @@ function ChProblem({ error }: { error: Error }) {
 export function useChAlerts(): { key: string; level: "red" | "amber"; title: string; detail: string }[] {
   const { openFlags } = useCompaniesHouse();
   const idx = useIndex();
-  return openFlags.map((f) => ({
+  // company detail differences (office, name, directors, PSCs) are shown under Company Secretarial instead
+  return openFlags.filter((f) => !["office", "name", "officers", "pscs"].includes(String(f.Type))).map((f) => ({
     key: f.Key as string,
     level: f.Severity === "red" ? "red" : "amber",
     title: `${idx.clientByKey.get(f.ClientKey as string)?.Title || ""}: ${f.Title}`,

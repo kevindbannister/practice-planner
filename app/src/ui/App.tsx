@@ -26,6 +26,8 @@ import { PageBoundary } from "./ErrorBoundary";
 import { CommsPage } from "./Comms";
 import { PapersPage } from "./PapersPage";
 import { SalesPage } from "./SalesPage";
+import { CoSecPage } from "./CoSecPage";
+import { CoSecSync, setCoSecDemo } from "./cosecKit";
 import { useSales } from "./salesKit";
 import { salesAlerts } from "../lib/sales";
 import { onboardingAlerts } from "../lib/onboarding";
@@ -39,6 +41,7 @@ import { readCommsPrefs } from "../lib/comms";
 import { adoptWaitingJobs, initialWaitStages } from "../lib/waiting";
 
 export function App({ demo }: { demo: boolean }) {
+  setCoSecDemo(demo);
   const { status, error, reload, saveSetting, data } = useData();
   const { parts } = useRoute();
   // the model and effort chosen in Settings go with every AI request
@@ -89,6 +92,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <SettingsPage />;
   } else if (section === "sales") {
     body = <SalesPage />;
+  } else if (section === "cosec") {
+    body = <CoSecPage />;
   } else if (section === "actions") {
     body = <ActionCentrePage />;
   } else if (section === "chase") {
@@ -114,6 +119,7 @@ export function App({ demo }: { demo: boolean }) {
               <PortalProvider>
                 <TopBar section={section} demo={demo} ready={status === "ready"} />
                 {status === "ready" && <ActionSync />}
+                {status === "ready" && <CoSecSync />}
                 <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
                   {body}
                 </PageBoundary>
@@ -135,7 +141,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
   const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["chase", "Chase", "clock"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"], ["chase", "Chase", "clock"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
   ];
   return (
     <header className="topbar">

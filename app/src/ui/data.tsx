@@ -8,6 +8,8 @@ import { readConfig, Answer, Template } from "../lib/checklist";
 import { planChecklist, practiceId, templateFromRow } from "../lib/checklistRows";
 import { LISTS, ListKey, Row } from "../lib/schema";
 import { SharePointStore, friendlyError } from "../lib/sharepoint";
+import { Snapshot, Source as CoSecSource, detectClientChange } from "../lib/cosec";
+import { Written } from "../lib/sales";
 
 export type Data = {
   clients: Client[];
@@ -50,6 +52,11 @@ export type Data = {
   feeCharges: Row[];
   clientCosts: Row[];
   actions: Row[];
+  cosecEvents: Row[];
+  cosecTx: Row[];
+  cosecOfficers: Row[];
+  cosecPscs: Row[];
+  cosecShares: Row[];
 };
 
 type Status = "connecting" | "needs-setup" | "loading" | "ready" | "error";
@@ -66,7 +73,8 @@ type Ctx = {
   reload: () => Promise<void>;
   /** Re-read one list quietly (no loading screen), for changes made outside the app, such as by the client portal. */
   refreshList: (list: ListKey) => Promise<void>;
-  update: (list: ListKey, row: Row, patch: Row) => Promise<void>;
+  /** `meta.source` says where a change to a client came from (default: the main client record), so Co Sec knows whether it needs a filing. */
+  update: (list: ListKey, row: Row, patch: Row, meta?: { source?: CoSecSource }) => Promise<void>;
   updateMany: (list: ListKey, changes: { row: Row; patch: Row }[]) => Promise<void>;
   create: (list: ListKey, row: Row) => Promise<Row>;
   /** Gives a job its checklist (from a template, or the default one). Nothing happens if it already has one. */
@@ -82,7 +90,7 @@ type Ctx = {
 const EMPTY: Data = {
   clients: [], contacts: [], groups: [], members: [], services: [], stageTemplates: [],
   clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [], comms: [], taxPayments: [], meetings: [], papers: [], paperLines: [], projects: [], docTemplates: [], docVersions: [], documents: [], activities: [],
-  checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [], feeHistory: [], feeCharges: [], clientCosts: [], actions: [],
+  checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [], feeHistory: [], feeCharges: [], clientCosts: [], actions: [], cosecEvents: [], cosecTx: [], cosecOfficers: [], cosecPscs: [], cosecShares: [],
 };
 
 const DataContext = createContext<Ctx | null>(null);
@@ -100,7 +108,7 @@ export const SOURCE: [keyof Data, ListKey][] = [
   ["clientStages", "ClientServiceStages"], ["jobs", "Jobs"], ["history", "JobHistory"], ["tasks", "Tasks"],
   ["settings", "Settings"], ["chFlags", "CHFlags"], ["comms", "Communications"], ["taxPayments", "TaxPayments"], ["meetings", "Meetings"], ["papers", "WorkingPapers"], ["paperLines", "PaperLines"], ["projects", "Projects"],
   ["docTemplates", "DocTemplates"], ["docVersions", "DocVersions"], ["documents", "Documents"], ["activities", "Activities"],
-  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"], ["feeHistory", "FeeHistory"], ["feeCharges", "FeeCharges"], ["clientCosts", "ClientCosts"], ["actions", "Actions"],
+  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"], ["feeHistory", "FeeHistory"], ["feeCharges", "FeeCharges"], ["clientCosts", "ClientCosts"], ["actions", "Actions"], ["cosecEvents", "CoSecEvents"], ["cosecTx", "CoSecTransactions"], ["cosecOfficers", "CoSecOfficers"], ["cosecPscs", "CoSecPscs"], ["cosecShares", "CoSecShares"],
 ];
 const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 
@@ -179,6 +187,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
   // line on the client timeline. The line is saved quietly: if it can't be, the change itself still stands.
   const dataRef = useRef(data);
   dataRef.current = data;
+  const coSecHook = useRef<((row: Row, patch: Row, source: CoSecSource) => void) | null>(null);
   const logged = useRef(new Set<string>());
   const log = useCallback((rows: Row[]) => {
     if (!rows.length || !store.hasList("Activities")) return;
@@ -219,7 +228,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
   );
 
   const update = useCallback(
-    async (list: ListKey, row: Row, patch: Row) => {
+    async (list: ListKey, row: Row, patch: Row, meta?: { source?: CoSecSource }) => {
       const key = keyFor(list);
       const apply = (values: Row) =>
         setData((d) => ({
@@ -236,6 +245,8 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
         apply(before); // put it back if SharePoint refused
         throw e;
       }
+      // company secretarial: does this change to a client affect the statutory record? (Quiet: the edit itself has already been saved.)
+      if (list === "Clients") coSecHook.current?.(row, patch, meta?.source || "client");
     },
     [store, track, log, user],
   );
@@ -304,6 +315,28 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     },
     [store, track],
   );
+
+  // Save what the Co Sec engine decided (new drafts, events, audit and timeline lines). It runs after a client record is saved.
+  useEffect(() => {
+    coSecHook.current = (row, patch, source) => {
+      const d = dataRef.current;
+      if (!store.hasList("CoSecTransactions") || !store.hasList("CoSecEvents")) return;
+      const snap: Snapshot = { clients: d.clients, officers: d.cosecOfficers, pscs: d.cosecPscs, shares: d.cosecShares, txs: d.cosecTx, events: d.cosecEvents };
+      const now = new Date().toISOString();
+      const w: Written = detectClientChange({ client: row, patch, source, changeId: `${String(row.Key)}:${now}` }, snap, { actor: user || "", now, pid: practiceId(d.settings), newKey });
+      void (async () => {
+        try {
+          for (const c of w.creates || []) await create(c.list, c.row);
+          const by = new Map<string, { row: Row; patch: Row }[]>();
+          for (const p of w.patches) by.set(p.list, [...(by.get(p.list) || []), { row: p.row, patch: p.patch }]);
+          for (const [list, changes] of by) await updateMany(list as ListKey, changes);
+          if (store.hasList("SalesLog")) for (const l of w.log) await create("SalesLog", l);
+          for (const a of w.activities) await create("Activities", a);
+        } catch (e) { console.warn("Co Sec couldn't record a change", e); }
+      })();
+    };
+    return () => { coSecHook.current = null; };
+  }, [store, user, create, updateMany]);
 
   const saveSetting = useCallback(
     async (key: string, value: unknown) => {
