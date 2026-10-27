@@ -7,7 +7,8 @@ import { fmtDate } from "../lib/domain";
 import { LISTS, ListKey, Row } from "../lib/schema";
 import { friendlyError } from "../lib/sharepoint";
 import { XLSX_TYPE } from "../lib/xlsx";
-import { readSetting, useData } from "./data";
+import { SOURCE, readSetting, useData } from "./data";
+import { mapPool } from "../lib/pool";
 
 type State = { running: boolean; step?: string; error?: string; justDone?: boolean };
 type Ctx = {
@@ -32,13 +33,20 @@ export function BackupProvider({ children }: { children: ReactNode }) {
   const failedRec = readSetting<BackupFailure>(ctx.data.settings, "backup.failed");
   const failed = failedRec && (!last || failedRec.at > last.at) ? failedRec : undefined;
 
-  /** Every list, read fresh from SharePoint so the copy matches what's stored. */
-  const readEverything = useCallback(async () => {
+  /**
+   * Every list. A copy you ask for is read fresh from SharePoint so it matches what's stored. The automatic daily copy runs
+   * moments after the planner opened and has just read the same lists, so it reuses them instead of fetching everything twice
+   * while you are working; only lists the planner doesn't load (the portal's) are read.
+   */
+  const readEverything = useCallback(async (reuse = false) => {
     const out: Partial<Record<ListKey, Row[]>> = {};
-    for (const l of LISTS) {
+    const have = new Map<ListKey, Row[]>();
+    if (reuse) for (const [slot, list] of SOURCE) have.set(list, (latest.current.data as unknown as Record<string, Row[]>)[slot as string] || []);
+    await mapPool(LISTS, 4, async (l) => {
+      if (have.has(l.key)) { out[l.key] = have.get(l.key)!; return; }
       setState((s) => ({ ...s, step: `Reading ${l.displayName.replace(/^PP /, "")}…` }));
       out[l.key] = latest.current.store.hasList(l.key) ? await latest.current.store.readAll(l.key) : [];
-    }
+    });
     return out;
   }, []);
 
@@ -48,7 +56,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     setState({ running: true, step: "Starting…" });
     try {
       const now = new Date();
-      const data = await readEverything();
+      const data = await readEverything(auto);
       setState((s) => ({ ...s, step: "Making the Excel file…" }));
       const { bytes, rows } = await buildBackup(data, now);
       setState((s) => ({ ...s, step: "Saving to OneDrive…" }));

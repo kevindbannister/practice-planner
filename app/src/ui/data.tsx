@@ -8,6 +8,7 @@ import { readConfig, Answer, Template } from "../lib/checklist";
 import { planChecklist, practiceId, templateFromRow } from "../lib/checklistRows";
 import { LISTS, ListKey, Row } from "../lib/schema";
 import { SharePointStore, friendlyError } from "../lib/sharepoint";
+import { mapPool } from "../lib/pool";
 import { Snapshot, Source as CoSecSource, detectClientChange } from "../lib/cosec";
 import { Written } from "../lib/sales";
 
@@ -103,6 +104,9 @@ const schemaSignature = () => {
   return `${LISTS.length}:${h}`;
 };
 
+/** How many lists are read from SharePoint at the same time when the planner opens. */
+const READ_AT_ONCE = 6;
+
 export const SOURCE: [keyof Data, ListKey][] = [
   ["clients", "Clients"], ["contacts", "Contacts"], ["groups", "Groups"], ["members", "GroupMembers"],
   ["services", "Services"], ["stageTemplates", "StageTemplates"], ["clientServices", "ClientServices"],
@@ -134,27 +138,35 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     try {
       setStatus("connecting");
       await store.connect();
-      const schema = await store.checkSchema();
-      if (!schema.find((s) => s.list.key === "Clients")?.exists) {
+      // New versions of the app may add lists or columns; add them quietly (no data changes).
+      // Checking every list's columns costs one request per list, so once a browser has checked this version of the lists
+      // (and every list exists) the check is skipped on later starts. A column SharePoint stores under another name
+      // (e.g. "Order") shows as missing every time, and trying to add it again on every start is slow, so that runs once too.
+      const sig = schemaSignature();
+      const tried = (() => { try { return localStorage.getItem("pp.schema.tried") === sig; } catch { return false; } })();
+      const everyListExists = LISTS.every((l) => store.hasList(l.key));
+      if (!store.hasList("Clients")) {
         setStatus("needs-setup");
         return;
       }
-      // New versions of the app may add lists or columns; add them quietly (no data changes).
-      // A column SharePoint stores under another name (e.g. "Order") shows as missing every time, and trying to add
-      // it again on every start is slow. So this runs once per browser for each version of the lists.
-      const sig = schemaSignature();
-      const tried = (() => { try { return localStorage.getItem("pp.schema.tried") === sig; } catch { return false; } })();
-      if (schema.some((s) => !s.exists) || (!tried && schema.some((s) => s.missingColumns.length))) {
-        try {
-          await store.ensureSchema();
+      if (!(tried && everyListExists)) {
+        const schema = await store.checkSchema();
+        if (schema.some((s) => !s.exists) || (!tried && schema.some((s) => s.missingColumns.length))) {
+          try {
+            await store.ensureSchema();
+            try { localStorage.setItem("pp.schema.tried", sig); } catch { /* fine */ }
+          } catch (e) {
+            // A list the app couldn't add must not stop everything else loading; its page will say so when used.
+            console.warn("Couldn't add a list or column", e);
+          }
+        } else {
           try { localStorage.setItem("pp.schema.tried", sig); } catch { /* fine */ }
-        } catch (e) {
-          // A list the app couldn't add must not stop everything else loading; its page will say so when used.
-          console.warn("Couldn't add a list or column", e);
         }
       }
       setStatus("loading");
-      const loaded = await Promise.all(SOURCE.map(([, list]) => (store.hasList(list) ? store.readAll(list) : Promise.resolve([] as Row[]))));
+      // A few lists at a time, the ones the first screen needs first: asking SharePoint for all of them at once gets
+      // "slow down" replies, and each retry waits longer than the time it would have saved.
+      const loaded = await mapPool(SOURCE, READ_AT_ONCE, ([, list]) => (store.hasList(list) ? store.readAll(list) : Promise.resolve([] as Row[])));
       const next = { ...EMPTY };
       SOURCE.forEach(([k], i) => ((next as any)[k] = loaded[i]));
       next.clients.sort((a, b) => String(a.Title || "").localeCompare(String(b.Title || "")));

@@ -39,6 +39,7 @@ export class FakeGraph implements Graph {
   }
 
   async get<T = any>(path: string): Promise<T> {
+    (globalThis as { __ppGets?: string[] }).__ppGets?.push(path); // lets a test count requests
     return this.route("GET", path) as T;
   }
   async post<T = any>(path: string, body: unknown): Promise<T> {
