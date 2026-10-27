@@ -98,12 +98,12 @@ test("a refusal from the gateway comes back as a plain message", async () => {
 
 test("status maps the gateway's answer to pending, accepted or rejected", async () => {
   const reply = (code, extra = "") => `<GovTalkMessage><Header><MessageDetails><Qualifier>response</Qualifier></MessageDetails></Header><Body><SubmissionStatus><StatusCode>${code}</StatusCode>${extra}</SubmissionStatus></Body></GovTalkMessage>`;
-  assert.equal((await call({ action: "status", body: { gatewayRef: "123456" }, fetch: fakeFetch({ gateway: reply("PENDING") }) })).body.status, "pending");
-  const acc = await call({ action: "status", body: { gatewayRef: "123456" }, fetch: fakeFetch({ gateway: reply("ACCEPTED", "<Reference>CH-99</Reference>") }) });
+  assert.equal((await call({ action: "status", body: { gatewayRef: "123456", test: true }, fetch: fakeFetch({ gateway: reply("PENDING") }) })).body.status, "pending");
+  const acc = await call({ action: "status", body: { gatewayRef: "123456", test: true }, fetch: fakeFetch({ gateway: reply("ACCEPTED", "<Reference>CH-99</Reference>") }) });
   assert.deepEqual({ s: acc.body.status, r: acc.body.chRef }, { s: "accepted", r: "CH-99" });
-  const rej = await call({ action: "status", body: { gatewayRef: "123456" }, fetch: fakeFetch({ gateway: reply("REJECTED", "<Reject>Postcode not recognised</Reject>") }) });
+  const rej = await call({ action: "status", body: { gatewayRef: "123456", test: true }, fetch: fakeFetch({ gateway: reply("REJECTED", "<Reject>Postcode not recognised</Reject>") }) });
   assert.deepEqual({ s: rej.body.status, r: rej.body.reason }, { s: "rejected", r: "Postcode not recognised" });
-  assert.equal((await call({ action: "status", body: { gatewayRef: "abc" } })).status, 400);
+  assert.equal((await call({ action: "status", body: { gatewayRef: "abc", test: true } })).status, 400);
 });
 
 test("the envelope escapes what it is given", () => {
@@ -111,4 +111,17 @@ test("the envelope escapes what it is given", () => {
   assert.ok(xml.includes("P&lt;&amp;&gt;"));
   assert.equal(md5("a"), "0cc175b9c0f1b6a831c399e269772661");
   assert.deepEqual(parseReply("<x><Qualifier>Response</Qualifier></x>").errors, []);
+});
+
+test("status lookup requires the original environment and retains TEST flag after live is enabled", async () => {
+  const f = fakeFetch({ gateway: "<GovTalkMessage><Body><StatusCode>PENDING</StatusCode></Body></GovTalkMessage>" });
+  const env = { ...ENV, CH_GATEWAY_LIVE: "1", CH_LIVE_FORMS: "AD01" };
+  const missing = await call({ action: "status", body: { gatewayRef: "123" }, fetch: f, env });
+  assert.equal(missing.status, 400);
+  assert.equal(gatewayCalls(f).length, 0);
+  const r = await call({ action: "status", body: { gatewayRef: "123", test: true }, fetch: f, env });
+  assert.equal(r.status, 200);
+  assert.ok(gatewayCalls(f)[0].body.includes("<Test>1</Test>"));
+  const notLive = await call({ action: "status", body: { gatewayRef: "123", test: false }, env: ENV, fetch: f });
+  assert.equal(notLive.status, 400);
 });
