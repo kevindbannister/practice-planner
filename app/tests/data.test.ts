@@ -154,3 +154,9 @@ test("logos: shrink to fit without stretching or enlarging, uploaded logo wins",
   assert.equal(logoSrc({ LogoUrl: "https://x/logo.png" }), "https://x/logo.png");
   assert.equal(logoSrc({}), undefined);
 });
+
+test("toFields never sends SharePoint's read-only Created field", () => {
+  const f = toFields(LIST_BY_KEY.Activities, { Key: "A1", Title: "x", Created: "2026-10-27T12:00:00Z" } as any);
+  assert.equal("Created" in f, false);
+  assert.equal(f.Key, "A1");
+});

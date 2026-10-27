@@ -393,11 +393,16 @@ export function columnDefinition(c: Column): Record<string, unknown> {
 
 export type Row = Record<string, string | number | boolean | undefined> & { _id?: string; Title?: string; Key?: string };
 
+/** SharePoint fills these in itself and refuses writes to them ("Field 'Created' is read-only"). The app still
+ *  reads them back, so a row's Created is the time SharePoint made the item. */
+export const READ_ONLY_FIELDS = new Set(["Created"]);
+
 /** Keep only this list's columns (plus Title), dropping empty values and coercing types. */
 export function toFields(list: ListDef, row: Row): Record<string, string | number | boolean> {
   const out: Record<string, string | number | boolean> = {};
   if (row.Title !== undefined && row.Title !== "") out.Title = String(row.Title);
   for (const c of list.columns) {
+    if (READ_ONLY_FIELDS.has(c.name)) continue;
     const v = row[c.name];
     if (v === undefined || v === null || v === "") continue;
     if (c.type === "number") {
