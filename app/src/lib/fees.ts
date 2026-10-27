@@ -317,3 +317,62 @@ export function feeReviewsDue(schedule: Row[], today: string, days = 30): FeeLin
   const end = new Date(Date.parse(today + "T00:00:00Z") + days * 86400000).toISOString().slice(0, 10);
   return schedule.map(readFeeLine).filter((l) => l.status === "active" && l.nextReview && l.nextReview <= end).sort((a, b) => a.nextReview.localeCompare(b.nextReview));
 }
+
+// ------------------------------------------------------------------ editing the services a client has, with their fees
+
+export type ServiceEdit = { serviceKey: string; /** the practice does this work for the client */ on: boolean; /** agreed fee before VAT, "" for none */ fee: string; /** monthly, quarterly, annually, or "" for a one-off */ period: string };
+export type ServiceEditInput = {
+  client: Row; schedule: Row[]; edits: ServiceEdit[]; today: string; reviewMonths: number; reason: string;
+  /** VAT treatment to record on a new line, by service */ vatFor?: (serviceKey: string) => string;
+  can: (x: ProposalAction) => boolean;
+};
+const sameRow = (a: Row, b: Row) => str(a.Key) === str(b.Key);
+
+/**
+ * Apply the choices made in "Edit services and fees": add the services the client now has, switch off the ones they no longer have, and
+ * change fees. Changing an existing fee needs authority and a reason, and the old fee is kept in the history; switching a service on or
+ * off does not. A service with no fee is "included" in another. One save, one yearly total.
+ */
+export function planServiceEdit(i: ServiceEditInput, o: Ctx): Written | { error: string } {
+  const ck = str(i.client.Key);
+  const w: Written = { patches: [], creates: [], log: [], activities: [] };
+  const patchFor = (row: Row): Row => { let p = w.patches.find((x) => x.list === "ClientServices" && sameRow(x.row, row)); if (!p) { p = { list: "ClientServices", row, patch: {} }; w.patches.push(p); } return p.patch; };
+  const notes: string[] = [];
+  for (const e of i.edits) {
+    const fee = e.fee.trim() === "" ? 0 : Number(e.fee);
+    if (!Number.isFinite(fee) || fee < 0) return { error: `The fee for ${e.serviceKey} has to be zero or more.` };
+    const existing = i.schedule.filter((r) => str(r.ClientKey) === ck && str(r.ServiceKey) === e.serviceKey);
+    const row = existing.find((r) => !str(r.EndedOn)) || existing[0];
+    const period = e.period;
+    if (!row) {
+      if (!e.on) continue;
+      if (fee > 0 && !i.can("send")) return { error: "Only a manager or partner can agree a fee. Add the service without a fee, or ask one of them." };
+      const oneOff = !periodsPerYear(period);
+      const fields: Row = { Key: o.newKey("CS"), ClientKey: ck, ServiceKey: e.serviceKey, Fee: money2(fee), FeePeriod: period, OneOff: oneOff && fee > 0, AnnualFee: oneOff ? 0 : money2(fee * periodsPerYear(period)), ListFee: money2(fee), VatTreatment: i.vatFor?.(e.serviceKey) || "standard", EffectiveFrom: i.today, NextReview: oneOff || fee <= 0 ? "" : addMonths(i.today, i.reviewMonths, false), Off: false };
+      w.creates!.push({ list: "ClientServices", row: fields });
+      if (fee > 0) w.creates!.push({ list: "FeeHistory", row: historyRow(o, ck, e.serviceKey, "added", null, { fee: money2(fee), period, effectiveFrom: i.today }, "Service added", "Manual") });
+      notes.push(`${e.serviceKey} added${fee > 0 ? ` at £${money2(fee)} ${period || "one-off"}` : ""}`);
+      continue;
+    }
+    const line = readFeeLine(row);
+    // fee or frequency changed
+    if (e.on && (money2(fee) !== line.fee || (period || "") !== (line.period || "")) && !line.ended) {
+      if (!i.can("send")) return { error: "Only a manager or partner can change a client's fees." };
+      const a = adjustFee({ ...row, ...patchFor(row) }, i.client, { fee, period, vat: line.vat || i.vatFor?.(e.serviceKey) || "standard", effectiveFrom: i.today, nextReview: line.nextReview, discount: line.discount || null, reason: i.reason }, i.can, o);
+      if ("error" in a) return a;
+      for (const p of a.patches) Object.assign(patchFor(row), p.patch);
+      w.creates!.push(...(a.creates || [])); w.activities.push(...a.activities);
+      notes.push(`${e.serviceKey} fee £${line.fee} to £${money2(fee)}`);
+    }
+    if (e.on && (truthy(row.Off) || line.ended)) {
+      Object.assign(patchFor(row), line.ended ? { Off: false, OffSince: "", EndedOn: "", EffectiveFrom: i.today } : { Off: false, OffSince: "" });
+      notes.push(`${e.serviceKey} back on`);
+    } else if (!e.on && !truthy(row.Off) && !line.ended) {
+      Object.assign(patchFor(row), { Off: true, OffSince: i.today });
+      notes.push(`${e.serviceKey} turned off`);
+    }
+  }
+  if (!w.patches.length && !w.creates!.length) return { error: "Nothing has changed." };
+  w.activities.push(feeActivity(o, i.client, "Services and fees edited", notes.join("; ") + (i.reason.trim() ? `. ${i.reason.trim()}` : "")));
+  return withAnnualTotal(w, i.client, i.schedule);
+}

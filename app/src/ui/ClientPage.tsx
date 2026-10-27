@@ -30,6 +30,7 @@ import { ClientOpportunities } from "./SalesPage";
 import { ClientEngagements } from "./EngagementsPage";
 import { ClientOnboardingCard } from "./OnboardingPage";
 import { ClientFees } from "./FeesPanel";
+import { ServicesEditor } from "./ServicesEditor";
 import { officerName, pscName } from "../lib/cosecForms";
 import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
 import { sectionJobs, waitingOnClient } from "../lib/workGroups";
@@ -803,6 +804,8 @@ function ServicesCard({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [turnedOn, setTurnedOn] = useState<string>();
+  const [editingAll, setEditingAll] = useState(false);
+  const [saved, setSaved] = useState<string>();
   const today = todayIso();
   const rows = data.clientServices.filter((s) => s.ClientKey === c.Key);
   // every service this client has: recorded ones, and any that only have an open job
@@ -829,8 +832,13 @@ function ServicesCard({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   return (
     <section className="card" aria-labelledby="svc-h">
       <div className="card-head"><h2 id="svc-h">Services and fees</h2>
-        {c.AnnualFees ? <span className="mono">{fmtMoney(c.AnnualFees)} a year</span> : null}
+        <span className="row-wrap" style={{ gap: 10 }}>
+          {c.AnnualFees ? <span className="mono">{fmtMoney(c.AnnualFees)} a year</span> : null}
+          {!editingAll && <button type="button" className="btn small" onClick={() => { setEditingAll(true); setSaved(undefined); }}>Edit services and fees</button>}
+        </span>
       </div>
+      {saved && <p role="status" className="muted" style={{ margin: 0, padding: "0 16px 8px" }}>{saved}</p>}
+      {editingAll && <div style={{ padding: "0 12px 12px" }}><ServicesEditor client={c} onClose={() => setEditingAll(false)} onSaved={setSaved} /></div>}
       {keys.length ? (
         <div className="table-wrap">
           <table className="grid">
