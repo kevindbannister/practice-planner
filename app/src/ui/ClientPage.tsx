@@ -34,6 +34,7 @@ import { SigningRequests } from "./SigningRequests";
 import { XeroInvoices } from "./XeroInvoices";
 import { ClearanceCard, ClearanceTab } from "./Clearance";
 import { AmlCard, AmlTab } from "./AmlTab";
+import { TaxRefsCard } from "./TaxRefs";
 import { position as amlPosition } from "../lib/amlAssessment";
 import { ServicesEditor } from "./ServicesEditor";
 import { officerName, pscName } from "../lib/cosecForms";
@@ -259,34 +260,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
       )}
     />
     ) },
-    { id: "refs", label: "References", node: (
-    <EditableCard
-      title="References"
-      client={c}
-      fields={[
-        ...(company ? ([["CompanyNumber", "Company number"], ["CHAuthCode", "CH auth code"]] as [string, string][]) : []),
-        ...(c.Kind === "Ltd" ? ([["CTUTR", "Corporation tax UTR"]] as [string, string][]) : []),
-        ["UTR", "Self Assessment UTR"], ["NINumber", "NI number"], ["VATNumber", "VAT number"],
-        ["PAYERef", "PAYE reference"], ["AccountsOfficeRef", "Accounts Office ref"],
-      ]}
-      render={(fields) => (
-        <>
-          {fields.map(([k, label]) => (
-            <div className="kv" key={k}>
-              <span>{label}</span>
-              <span className="copy-val">
-                <span className="mono">{(c[k] as string) || <span style={{ color: "var(--muted)", fontFamily: "var(--sans)" }}>—</span>}</span>
-                {c[k] ? <CopyButton value={String(c[k])} label={label.toLowerCase()} /> : null}
-              </span>
-            </div>
-          ))}
-          {cisStatus(c) === "registered" && (
-            <div className="kv"><span>CIS contractor</span><span>Registered{c.CISRegistered ? ` ${fmtDate(String(c.CISRegistered))}` : ""}<span className="muted"> · uses the PAYE and Accounts Office refs</span></span></div>
-          )}
-        </>
-      )}
-    />
-    ) },
+    { id: "refs", label: "Tax references", node: <TaxRefsCard client={c} /> },
     { id: "addresses", label: "Addresses", node: <AddressesCard client={c} /> },
     { id: "team", label: "Team", node: (
     <section className="card pad stack" aria-labelledby="team-h">
