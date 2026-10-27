@@ -124,7 +124,7 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
           if (profile) { // what Companies House shows now, kept apart from the planner's own record (Co Sec compares the two)
             const seen = verifiedFrom(profile, new Date().toISOString());
             const was = verifiedOf(c);
-            if (seen.name !== was.name || seen.office !== was.office || seen.ard !== was.ard || seen.sic !== was.sic) await update("Clients", c, { CHVerified: JSON.stringify(seen) }, { source: "ch-sync" });
+            if (seen.name !== was.name || seen.office !== was.office || seen.ard !== was.ard || seen.sic !== was.sic || seen.accDue !== was.accDue || seen.accTo !== was.accTo || seen.csDue !== was.csDue || seen.csTo !== was.csTo || seen.status !== was.status) await update("Clients", c, { CHVerified: JSON.stringify(seen) }, { source: "ch-sync" });
           }
           for (const { job, CHDeadline } of chDeadlines(profile, jobs)) await update("Jobs", job, { CHDeadline });
         } catch (e) {

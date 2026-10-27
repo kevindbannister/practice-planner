@@ -67,7 +67,7 @@ const responsible = (client: Row): string => str(client.Manager) || str(client.P
 export type Snapshot = { clients: Row[]; officers: Row[]; pscs: Row[]; shares: Row[]; /** share classes the company has set up; when given, shares can only be allotted in one of them */ classes?: Row[]; txs: Row[]; events: Row[] };
 
 /** What Companies House last showed, as kept in Clients.CHVerified. */
-export type Verified = { at?: string; name?: string; office?: string; sic?: string; ard?: string };
+export type Verified = { at?: string; name?: string; office?: string; sic?: string; ard?: string; /** accounts due and the period they cover, confirmation statement due and the date it is made up to (all as Companies House shows them) */ accDue?: string; accTo?: string; csDue?: string; csTo?: string; status?: string };
 export const verifiedOf = (client: Row): Verified => json<Verified>(client.CHVerified, {});
 
 // ------------------------------------------------------------------ preparing a draft (the shared core)
@@ -574,7 +574,7 @@ export function coSecItems(txs: Row[], clients: Row[], flags: Row[], today: stri
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 /** What Companies House shows, in the shape kept on the client (Clients.CHVerified). */
-export function verifiedFrom(profile: { company_name?: string; registered_office_address?: Record<string, string | undefined>; sic_codes?: string[]; accounts?: { accounting_reference_date?: { day?: string; month?: string } } }, now: string): Verified {
+export function verifiedFrom(profile: { company_name?: string; registered_office_address?: Record<string, string | undefined>; sic_codes?: string[]; accounts?: { accounting_reference_date?: { day?: string; month?: string }; next_due?: string; next_made_up_to?: string; next_accounts?: { due_on?: string; period_end_on?: string } }; confirmation_statement?: { next_due?: string; next_made_up_to?: string }; company_status?: string; company_status_detail?: string }, now: string): Verified {
   const a = profile.registered_office_address;
   const first = a ? [a.premises, a.address_line_1].filter(Boolean).join(" ") : "";
   const ard = profile.accounts?.accounting_reference_date;
@@ -582,6 +582,9 @@ export function verifiedFrom(profile: { company_name?: string; registered_office
   return {
     at: now, name: profile.company_name || "", office: a ? [first, a.address_line_2, a.locality, a.region, a.postal_code, a.country].filter((x) => x && String(x).trim()).join(", ") : "",
     sic: (profile.sic_codes || []).join(", "), ard: ard?.day && m >= 1 && m <= 12 ? `${Number(ard.day)} ${MONTHS[m - 1]}` : "",
+    accDue: profile.accounts?.next_due || profile.accounts?.next_accounts?.due_on || "", accTo: profile.accounts?.next_made_up_to || profile.accounts?.next_accounts?.period_end_on || "",
+    csDue: profile.confirmation_statement?.next_due || "", csTo: profile.confirmation_statement?.next_made_up_to || "",
+    status: [profile.company_status, profile.company_status_detail].filter(Boolean).join(", "),
   };
 }
 

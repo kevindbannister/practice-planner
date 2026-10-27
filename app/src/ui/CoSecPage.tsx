@@ -9,8 +9,11 @@ import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
 import { useCoSec, nameOfClient } from "./cosecKit";
 import { CoSecCompany } from "./CoSecCompany";
+import { useCompaniesHouse } from "./CompaniesHouse";
+import { Cell, PortfolioRow, isDissolved, portfolioRows } from "../lib/portfolio";
 
 const TABS: [string, string, string][] = [["", "Overview", "#/cosec"], ["filings", "Filings", "#/cosec/filings"], ["companies", "Companies", "#/cosec/companies"]];
+const dmy = (iso: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "");
 const chipFor = (s: TxStatus) => (s === "accepted" || s === "external" ? "green" : s === "rejected" ? "red" : s === "draft" || s === "info" ? "amber" : s === "declined" || s === "cancelled" ? "" : "blue");
 
 export function CoSecPage() {
@@ -45,6 +48,7 @@ function Overview() {
   const groups = (Object.keys(GROUP_LABEL) as (keyof typeof GROUP_LABEL)[]).map((g) => ({ g, items: items.filter((i) => i.group === g) })).filter((x) => x.items.length);
   return (
     <div className="stack" style={{ gap: 14 }}>
+      <Portfolio />
       <section className="card pad stack" aria-label="What needs attention">
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
           <h2 style={{ margin: 0 }}>What needs attention</h2>
@@ -62,6 +66,86 @@ function Overview() {
         ))}
       </section>
     </div>
+  );
+}
+
+type SortKey = "name" | "number" | "ard" | "accounts" | "ct" | "csDate" | "cs" | "vat" | "vatNumber";
+const sortValue = (r: PortfolioRow, k: SortKey): string => {
+  switch (k) {
+    case "name": return r.name.toLowerCase();
+    case "number": return r.number;
+    case "ard": return r.ard ? `${String(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(r.ard.split(" ")[1]) + 1).padStart(2, "0")}${r.ard.split(" ")[0].padStart(2, "0")}` : "~";
+    case "accounts": return r.accounts.date || "~";
+    case "ct": return r.ct.date || "~";
+    case "csDate": return r.csDate || "~";
+    case "cs": return r.cs.date || "~";
+    case "vat": return r.vat.date || "~";
+    case "vatNumber": return r.vatNumber || "~";
+  }
+};
+
+/** Every company with its statutory dates at a glance, as Inform Direct's portfolio does. */
+function Portfolio() {
+  const k = useCoSec();
+  const ch = useCompaniesHouse();
+  const today = new Date().toISOString().slice(0, 10);
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
+  const all = useMemo(() => portfolioRows(k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today), [k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today]);
+  const byKey = new Map(k.data.clients.map((c) => [String(c.Key), c]));
+  const match = (r: PortfolioRow) => !q.trim() || `${r.name} ${r.number} ${r.vatNumber}`.toLowerCase().includes(q.trim().toLowerCase());
+  const order = (a: PortfolioRow, b: PortfolioRow) => sort.dir * sortValue(a, sort.key).localeCompare(sortValue(b, sort.key)) || a.name.localeCompare(b.name);
+  const current = all.filter((r) => !isDissolved(byKey.get(r.key)!) && match(r)).sort(order);
+  const gone = all.filter((r) => isDissolved(byKey.get(r.key)!) && match(r)).sort(order);
+  const checked = all.map((r) => r.checkedAt).filter(Boolean).sort().pop();
+  const running = ch.progress.running;
+  const head = (key: SortKey, label: string) => (
+    <th scope="col" style={{ maxWidth: 130, verticalAlign: "bottom" }} aria-sort={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+      <button type="button" className="linkbtn" style={{ minHeight: 0, padding: 0, font: "inherit", color: "inherit", fontWeight: 600, whiteSpace: "normal", textAlign: "left" }} onClick={() => setSort({ key, dir: sort.key === key ? (sort.dir === 1 ? -1 : 1) : 1 })}>{label}{sort.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</button>
+    </th>
+  );
+  const pill = (c: Cell, withDate = false) => !c.date ? <span className="muted">—</span> : (
+    <span style={{ display: "inline-flex", flexDirection: withDate ? "column" : "row", alignItems: "flex-start", gap: withDate ? 3 : 6 }} title={c.from === "app" ? "From the planner's open job. Not yet checked at Companies House." : c.from === "ch" ? "From Companies House" : undefined}>
+      {withDate && <span className="mono" style={{ whiteSpace: "nowrap" }}>{dmy(c.date)}</span>}
+      {c.pill && <span className={`chip ${c.pill.tone}`} style={{ whiteSpace: "nowrap" }}>{c.pill.text}</span>}
+      {c.from === "app" && !withDate && <span className="muted" aria-hidden="true">*</span>}
+    </span>
+  );
+  return (
+    <section className="card pad stack" aria-label="Portfolio">
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <h2 style={{ margin: 0 }}>Portfolio <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>{current.length} {current.length === 1 ? "company" : "companies"}</span></h2>
+        <span className="row-wrap">
+          <input className="input" placeholder="Find by name, number or VAT" aria-label="Find a company" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
+          <button type="button" className="btn" disabled={running} onClick={() => void ch.run()}>{running ? "Checking…" : "Refresh from Companies House"}</button>
+        </span>
+      </div>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Accounts and confirmation statement dates come from Companies House{checked ? `, last checked ${fmtDate(checked.slice(0, 10))}` : ""}. Tax return and VAT dates come from the planner's jobs. * marks a date taken from the planner because that company hasn't been checked at Companies House yet.</p>
+      <div className="table-wrap"><table className="grid" style={{ minWidth: 980 }}>
+        <thead><tr>{head("name", "Company name")}{head("number", "Number")}{head("ard", "Accounts ref date")}{head("accounts", "Latest date to submit accounts")}{head("ct", "Next tax return due")}{head("csDate", "Confirmation date")}{head("cs", "Latest date to submit confirmation statement")}{head("vat", "Next VAT due")}{head("vatNumber", "VAT number")}</tr></thead>
+        <tbody>{current.length ? current.map((r) => (
+          <tr key={r.key}>
+            <td style={{ minWidth: 150 }}><a href={href("cosec", "company", r.key)}>{r.name}</a>{r.openFilings > 0 && <> <a className="chip amber" href={href("cosec", "filings")} title="A filing is waiting">{r.openFilings}</a></>}</td>
+            <td className="mono" style={{ whiteSpace: "nowrap" }}>{r.number}</td>
+            <td>{r.ard || <span className="muted">—</span>}</td>
+            <td>{pill(r.accounts)}</td>
+            <td>{pill(r.ct, true)}</td>
+            <td className="mono" style={{ whiteSpace: "nowrap" }}>{r.csDate ? dmy(r.csDate) : <span className="muted">—</span>}</td>
+            <td>{pill(r.cs)}</td>
+            <td>{pill(r.vat, true)}</td>
+            <td className="mono">{r.vatNumber || <span className="muted">—</span>}</td>
+          </tr>)) : <tr><td colSpan={9} className="muted">No companies match.</td></tr>}</tbody>
+      </table></div>
+      {gone.length > 0 && (
+        <>
+          <h3 style={{ margin: "8px 0 0" }}>Dissolved or being struck off</h3>
+          <div className="table-wrap"><table className="grid" style={{ minWidth: 520 }}>
+            <thead><tr><th scope="col">Company name</th><th scope="col">Number</th><th scope="col">Status</th></tr></thead>
+            <tbody>{gone.map((r) => <tr key={r.key}><td><a href={href("cosec", "company", r.key)}>{r.name}</a></td><td className="mono">{r.number}</td><td><span className="chip amber">{r.status}</span></td></tr>)}</tbody>
+          </table></div>
+        </>
+      )}
+    </section>
   );
 }
 
