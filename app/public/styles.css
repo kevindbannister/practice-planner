@@ -2395,3 +2395,9 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
   .wk-layout { grid-template-columns: minmax(0, 1fr) 290px; }
   .wk-summary { position: sticky; top: calc(var(--topbar-h, 64px) + 24px); }
 }
+
+/* Iris Elements button with a cog beside it for editing the link */
+.btn-pair { display: inline-flex; }
+.btn-pair > .btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.btn-pair > .btn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; padding-left: 12px; padding-right: 12px; }
+.btn .iconbtn-sm, .iconbtn-sm { display: inline-flex; align-items: center; justify-content: center; }

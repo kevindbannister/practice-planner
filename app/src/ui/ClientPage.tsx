@@ -40,6 +40,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
   const meetingsCount = allData.meetings.filter((m) => m.ClientKey === clientKey).length;
   const owingCount = allData.taxPayments.filter((p) => p.ClientKey === clientKey && !p.PaidOn && Number(p.Amount) > 0).length;
+  const [editingElements, setEditingElements] = useState(false);
   const c = idx.clientByKey.get(clientKey);
   if (!c) {
     return (
@@ -78,13 +79,20 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         </div>
         <div className="row-wrap">
           {ch && <a className="btn" href={ch} target="_blank" rel="noreferrer">Companies House</a>}
-          {elementsUrl(c) && <a className="btn" href={elementsUrl(c)} target="_blank" rel="noreferrer noopener" title="Open this client in Iris Elements">Iris Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span></a>}
+          {elementsUrl(c) ? (
+            <span className="btn-pair">
+              <a className="btn" href={elementsUrl(c)} target="_blank" rel="noreferrer noopener" title="Open this client in Iris Elements">Iris Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span></a>
+              <button type="button" className="btn iconbtn-sm" aria-label="Edit the Iris Elements link" title="Edit the Iris Elements link" aria-expanded={editingElements} onClick={() => setEditingElements((v) => !v)}><Icon name="cog" size={16} /></button>
+            </span>
+          ) : (
+            <button type="button" className="btn" aria-expanded={editingElements} onClick={() => setEditingElements((v) => !v)}><Icon name="cog" size={16} /> Add Iris Elements link</button>
+          )}
           {c.Email && <a className="btn" href={`mailto:${c.Email}`}>Email</a>}
         </div>
       </div>
-      <ElementsRow client={c} />
+      {editingElements && <ElementsEditor client={c} onClose={() => setEditingElements(false)} />}
 
-      {(urgent.length > 0 || aml.warn || loe.warn) && (
+      {(urgent.length > 0 || (tab === "overview" && (aml.warn || loe.warn))) && (
         <section className="alerts" aria-label="Needs attention">
           {urgent.slice(0, 3).map((j) => {
             const st = jobState(j, today);
@@ -98,10 +106,10 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
               </div>
             );
           })}
-          {aml.warn && (
+          {tab === "overview" && aml.warn && (
             <div className="alert amber"><strong>AML: {aml.text.toLowerCase()}</strong><span>Check in Xama</span></div>
           )}
-          {loe.warn && <div className="alert"><strong>Engagement letter: {loe.text.toLowerCase()}</strong></div>}
+          {tab === "overview" && loe.warn && <div className="alert"><strong>Engagement letter: {loe.text.toLowerCase()}</strong></div>}
         </section>
       )}
 
@@ -713,26 +721,19 @@ function LogoPicker({ client: c }: { client: Client }) {
   );
 }
 
-/** The client's Elements link: shown as "Elements", with an edit box for changing it. It flows through to all their jobs. */
-function ElementsRow({ client: c }: { client: Client }) {
+/** Edit box for the client's Elements link (opened from the cog beside the Iris Elements button). It flows through to all their jobs. */
+function ElementsEditor({ client: c, onClose }: { client: Client; onClose: () => void }) {
   const { update } = useData();
-  const url = elementsUrl(c);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(String(c.ElementsLink || ""));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const start = () => {
-    setDraft(String(c.ElementsLink || ""));
-    setError(undefined);
-    setEditing(true);
-  };
   const saveIt = async () => {
     const v = draft.trim();
     if (v && !/^https:\/\/\S+$/i.test(v)) return setError("That should be a full web address starting https://");
     setBusy(true);
     try {
       if (v !== String(c.ElementsLink || "")) await update("Clients", c, { ElementsLink: v });
-      setEditing(false);
+      onClose();
     } catch {
       setError("Couldn't save. Your change is still here; try again.");
     } finally {
@@ -741,18 +742,14 @@ function ElementsRow({ client: c }: { client: Client }) {
   };
   return (
     <div className="row-wrap" style={{ gap: 10 }}>
-      {editing ? (
-        <span className="elements-edit">
-          <label className="sr-only" htmlFor="elements-link-input">Elements link for {c.Title}</label>
-          <input id="elements-link-input" className="input" value={draft} placeholder="https://elements.iris.co.uk/…" autoFocus
-            onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void saveIt(); if (e.key === "Escape") setEditing(false); }} />
-          <button type="button" className="btn small primary" onClick={saveIt} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
-          <button type="button" className="btn small" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
-          {error && <span className="error-text" role="alert">{error}</span>}
-        </span>
-      ) : (
-        <button type="button" className="linkbtn" style={{ minHeight: 0, fontSize: 13 }} onClick={start}>{url ? "Edit Elements link" : "Add Iris Elements link"}</button>
-      )}
+      <span className="elements-edit">
+        <label className="sr-only" htmlFor="elements-link-input">Elements link for {c.Title}</label>
+        <input id="elements-link-input" className="input" value={draft} placeholder="https://elements.iris.co.uk/…" autoFocus
+          onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void saveIt(); if (e.key === "Escape") onClose(); }} />
+        <button type="button" className="btn small primary" onClick={saveIt} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+        <button type="button" className="btn small" onClick={onClose} disabled={busy}>Cancel</button>
+        {error && <span className="error-text" role="alert">{error}</span>}
+      </span>
     </div>
   );
 }
