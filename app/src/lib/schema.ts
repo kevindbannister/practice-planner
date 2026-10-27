@@ -15,7 +15,7 @@ const note = (name: string): Column => ({ name, type: "note" });
 export type ListKey =
   | "Clients" | "Contacts" | "Groups" | "GroupMembers" | "Services" | "StageTemplates"
   | "ClientServices" | "ClientServiceStages" | "Jobs" | "JobHistory" | "Tasks"
-  | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
+  | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
   | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests"
@@ -115,6 +115,14 @@ export const LISTS: ListDef[] = [
   {
     key: "Authorisations", displayName: "PP HMRC Authorisations", description: "Practice Planner: HMRC agent authorisations",
     columns: [t("Key", true), t("ClientKey", true), t("Service"), t("Status"), t("LinkSent"), t("Expiry"), note("Notes")],
+  },
+  {
+    key: "HmrcAuthorisations", displayName: "PP HMRC Authorisation Requests", description: "Practice Planner: one record per client and tax service (VAT, Corporation Tax, PAYE). Holds no tokens, passwords or codes.",
+    columns: [t("Key", true), t("ClientKey", true), t("Service"), t("TaxRef"), t("Method"), t("HmrcId"), t("Status"), t("StatusSource"), t("Requested"), t("Expires"), t("AuthorisedOn"), t("LastChecked"), t("Owner"), t("OnboardingKey"), t("Env"), note("Notes"), t("Created"), t("Updated")],
+  },
+  {
+    key: "HmrcAuthEvents", displayName: "PP HMRC Authorisation History", description: "Practice Planner: append-only history of HMRC authorisation events. Facts only.",
+    columns: [t("Key", true), t("ClientKey", true), t("Service"), t("Type"), note("Summary"), t("Status"), t("StatusSource"), t("HmrcId"), t("Actor"), t("At")],
   },
   {
     key: "Settings", displayName: "PP Settings", description: "Practice Planner: settings",
