@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -349,6 +349,14 @@ export const LISTS: ListDef[] = [
   {
     key: "CoSecShareClasses", displayName: "PP CoSec Share Classes", description: "Practice Planner: classes of share each company has set up",
     columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Name"), t("Currency"), n("NominalValue"), note("Rights"), t("Status", true), t("Created"), t("Updated")],
+  },
+  {
+    // A request to a client's previous accountant for professional clearance and records. See lib/clearance.ts.
+    key: "Clearances", displayName: "PP Clearances", description: "Practice Planner: professional clearance requests to previous accountants",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Status", true), t("PrevFirm"), t("PrevContact"), t("PrevEmail"), note("PrevAddress"), note("Items"), note("Letter"),
+      t("GeneratedOn"), t("SentOn"), t("SentBy"), t("ReceivedOn"), note("Reply"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"),
+    ],
   },
   ...portalLists(),
 ];

@@ -26,7 +26,7 @@ import { useData, useIndex } from "./data";
 
 // the letterhead is fetched once a visit (per upload)
 let letterheadCache: { uploaded: string; bytes: Uint8Array } | null = null;
-async function getLetterhead(graph: { download: (p: string) => Promise<Uint8Array> }, prefs: CommsPrefs): Promise<Uint8Array | null> {
+export async function getLetterhead(graph: { download: (p: string) => Promise<Uint8Array> }, prefs: CommsPrefs): Promise<Uint8Array | null> {
   if (!prefs.letterhead) return null;
   if (letterheadCache?.uploaded === prefs.letterhead.uploaded) return letterheadCache.bytes;
   const bytes = await graph.download(letterheadPath());
