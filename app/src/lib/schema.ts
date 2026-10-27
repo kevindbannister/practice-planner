@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -356,6 +356,14 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Status", true), t("PrevFirm"), t("PrevContact"), t("PrevEmail"), note("PrevAddress"), note("Items"), note("Letter"),
       t("GeneratedOn"), t("SentOn"), t("SentBy"), t("ReceivedOn"), note("Reply"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"),
+    ],
+  },
+  {
+    // A client's own AML risk assessment, kept apart from onboarding so existing clients can have one and be reviewed. See lib/amlAssessment.ts.
+    key: "AmlAssessments", displayName: "PP AML Assessments", description: "Practice Planner: AML risk assessments and their reviews",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Status", true), t("Risk"), note("RiskBasis"), note("Owners"), note("NoOwnerNote"), note("Checks"), note("Evidence"),
+      t("PreparedBy"), t("ApprovedBy"), t("ApprovedAt"), t("DoneOn"), t("ReviewDate", true), note("DeclinedReason"), t("Source"), t("OnboardingKey"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
   },
   ...portalLists(),

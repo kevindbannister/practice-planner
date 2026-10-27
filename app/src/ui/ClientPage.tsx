@@ -33,12 +33,14 @@ import { ClientFees } from "./FeesPanel";
 import { SigningRequests } from "./SigningRequests";
 import { XeroInvoices } from "./XeroInvoices";
 import { ClearanceCard, ClearanceTab } from "./Clearance";
+import { AmlCard, AmlTab } from "./AmlTab";
+import { position as amlPosition } from "../lib/amlAssessment";
 import { ServicesEditor } from "./ServicesEditor";
 import { officerName, pscName } from "../lib/cosecForms";
 import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
 import { sectionJobs, waitingOnClient } from "../lib/workGroups";
 
-export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "invoices" | "clearance" | "portal" }) {
+export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "invoices" | "clearance" | "aml" | "portal" }) {
   const idx = useIndex();
   const { data: allData } = useData();
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
@@ -59,6 +61,8 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
   const ch = company ? companiesHouseUrl(c.CompanyNumber) : undefined;
   const urgent = jobs.filter((j) => !isOnHold(j) && (j.Priority === "urgent" || jobState(j, today).state === "overdue"));
   const aml = amlLabel(c.XamaStatus);
+  const amlPos = amlPosition(c as never, allData.amlAssessments, allData.onboardings, todayIso());
+  const amlAlert = amlPos.state === "overdue" || amlPos.state === "soon" || ((amlPos.state === "none" || amlPos.state === "declined" || amlPos.state === "inprogress") && aml.warn);
   const loe = loeLabel(c.LoEStatus);
 
   return (
@@ -96,7 +100,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       </div>
       {editingElements && <ElementsEditor client={c} onClose={() => setEditingElements(false)} />}
 
-      {(urgent.length > 0 || (tab === "overview" && (aml.warn || loe.warn))) && (
+      {(urgent.length > 0 || (tab === "overview" && (amlAlert || loe.warn))) && (
         <section className="alerts" aria-label="Needs attention">
           {urgent.slice(0, 3).map((j) => {
             const st = jobState(j, today);
@@ -110,8 +114,8 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
               </div>
             );
           })}
-          {tab === "overview" && aml.warn && (
-            <div className="alert amber"><strong>AML: {aml.text.toLowerCase()}</strong><span>Check in Xama</span></div>
+          {tab === "overview" && amlAlert && (
+            <div className={`alert ${amlPos.state === "overdue" ? "" : "amber"}`}><strong>{amlPos.state === "overdue" ? "AML review overdue" : amlPos.state === "soon" ? "AML review due soon" : `AML: ${amlPos.state === "none" ? "no assessment" : amlPos.state === "inprogress" ? "assessment in progress" : "not approved"}`}</strong><a href={href("clients", c.Key, "aml")}>Open AML</a></div>
           )}
           {tab === "overview" && loe.warn && <div className="alert"><strong>Engagement letter: {loe.text.toLowerCase()}</strong></div>}
         </section>
@@ -132,6 +136,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         </a>
         <a href={href("clients", c.Key, "signing")} aria-current={tab === "signing" ? "page" : undefined}>Signing requests</a>
         <a href={href("clients", c.Key, "invoices")} aria-current={tab === "invoices" ? "page" : undefined}>Invoices</a>
+        <a href={href("clients", c.Key, "aml")} aria-current={tab === "aml" ? "page" : undefined}>AML</a>
         {(tab === "clearance" || allData.clearances.some((r) => r.ClientKey === c.Key)) && <a href={href("clients", c.Key, "clearance")} aria-current={tab === "clearance" ? "page" : undefined}>Clearance</a>}
         <a href={href("clients", c.Key, "portal")} aria-current={tab === "portal" ? "page" : undefined}>Portal</a>
         <a href={href("clients", c.Key, "tax")} aria-current={tab === "tax" ? "page" : undefined}>
@@ -154,8 +159,9 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       {tab === "signing" && <SigningRequests client={c} />}
       {tab === "invoices" && <XeroInvoices client={c} />}
       {tab === "clearance" && <ClearanceTab client={c} />}
+      {tab === "aml" && <AmlTab client={c} />}
       {tab === "portal" && <div className="stack"><ClientPortalUsers client={c} /><ClientMessages client={c} /><ClientRequests client={c} /><ClientDocuments client={c} /></div>}
-      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
+      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "aml" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>
@@ -294,14 +300,13 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     { id: "compliance", label: "Compliance", node: (
     <section className="card pad stack" aria-labelledby="comp-h">
       <h2 id="comp-h">Compliance</h2>
-      <div className="kv"><span>AML (Xama)</span><span style={amlLabel(c.XamaStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{amlLabel(c.XamaStatus).text}</span></div>
-      <XamaClientPanel client={c} />
       <div className="kv"><span>Engagement letter</span><span style={loeLabel(c.LoEStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{loeLabel(c.LoEStatus).text}</span></div>
       {c.RetentionYears ? <div className="kv"><span>Data kept after leaving</span><span>{c.RetentionYears} years</span></div> : null}
     </section>
     ) },
     { id: "sales", label: "Opportunities", node: (<><ClientOpportunities clientKey={c.Key} /><ClientOnboardingCard clientKey={c.Key} /></>) },
     { id: "letters", label: "Engagement letters", node: <ClientEngagements clientKey={c.Key} /> },
+    { id: "aml", label: "AML", node: <AmlCard client={c} /> },
     { id: "clearance", label: "Professional clearance", node: <ClearanceCard client={c} openHref={href("clients", c.Key, "clearance")} /> },
     { id: "cis", label: "CIS", node: (
     <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
@@ -313,7 +318,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
 const STANDARD_COLUMNS: DefaultColumn[] = [
   { w: 30, ids: ["work", "gaps", "services", "fees"] },
   { w: 15, ids: ["profile", "portal", "contact", "refs", "addresses", "team"] },
-  { w: 15, ids: ["people", "compliance", "sales", "letters", "clearance", "cis"] },
+  { w: 15, ids: ["people", "compliance", "aml", "sales", "letters", "clearance", "cis"] },
 ];
 
 /** Key, normal or low-touch: how much this client matters when the planner decides what comes first. */
