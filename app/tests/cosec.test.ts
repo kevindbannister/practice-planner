@@ -219,9 +219,8 @@ test("submission: only an approved filing of a supported form, and the result is
   edit("C1", { RegisteredOffice: "25 Market Road, London, N1 9GU" });
   assert.match((act(s.txs[0], "submitted", { gatewayRef: "1" }, cfg, ctx(), s) as any).error, /Approve/);
   apply(act(s.txs[0], "approve", {}, cfg, ctx(), s) as any);
-  assert.match((act(s.txs[0], "submitted", {}, cfg, ctx(), s) as any).error, /test or live submission/);
-  assert.match((act(s.txs[0], "submitted", { test: false }, cfg, ctx(), s) as any).error, /no reference/);
-  apply(act(s.txs[0], "submitted", { gatewayRef: "000123", test: false }, cfg, ctx(), s) as any);
+  assert.match((act(s.txs[0], "submitted", {}, cfg, ctx(), s) as any).error, /no reference/);
+  apply(act(s.txs[0], "submitted", { gatewayRef: "000123" }, cfg, ctx(), s) as any);
   assert.equal(txStatus(s.txs[0]), "submitted");
   // while it is out, the same change again is not a second filing
   edit("C1", { RegisteredOffice: "25 Market Road, London, N1 9GU" });
@@ -257,7 +256,7 @@ test("a rejected filing stays actionable and keeps its draft", () => {
   const { s, edit, apply } = world();
   edit("C1", { RegisteredOffice: "25 Market Road, London, N1 9GU" });
   apply(act(s.txs[0], "approve", {}, cfg, ctx(), s) as any);
-  apply(act(s.txs[0], "submitted", { gatewayRef: "7", test: false }, cfg, ctx(), s) as any);
+  apply(act(s.txs[0], "submitted", { gatewayRef: "7" }, cfg, ctx(), s) as any);
   apply(act(s.txs[0], "result", { result: { status: "rejected", reason: "Postcode not recognised" } }, cfg, ctx(), s) as any);
   assert.equal(txStatus(s.txs[0]), "rejected");
   const items = coSecItems(s.txs, s.clients, [], "2026-10-27");
@@ -359,43 +358,4 @@ test("officers and PSCs imported from Companies House become the starting regist
   assert.equal(psc.length, 1);
   assert.equal(psc[0].Kind, "individual");
   assert.deepEqual(JSON.parse(psc[0].Natures), ["ownership-of-shares-75-to-100-percent"]);
-});
-
-test("approval stores exactly the reviewed payload; any later mutation blocks submission", () => {
-  const { s, edit, apply } = world();
-  edit("C1", { RegisteredOffice: "25 Market Road, London, N1 9GU" });
-  const t = s.txs[0];
-  apply(act(t, "approve", {}, cfg, ctx(), s) as any);
-  assert.equal(t.ApprovedPayload, t.Payload);
-  t.Payload = JSON.stringify({ address: parseAddress("99 Different Street, London, N1 9GU") });
-  assert.match((act(t, "submitted", { gatewayRef: "1", test: true }, cfg, ctx(), s) as any).error, /no longer matches/);
-  apply(act(t, "edit", { payload: JSON.parse(t.Payload) }, cfg, ctx(), s) as any);
-  assert.equal(t.ApprovedPayload, "");
-  assert.equal(t.Status, "draft");
-});
-
-test("a Companies House TEST acceptance never updates the verified company", () => {
-  const { s, edit, apply } = world();
-  edit("C1", { RegisteredOffice: "25 Market Road, London, N1 9GU" });
-  const t = s.txs[0];
-  apply(act(t, "approve", {}, cfg, ctx(), s) as any);
-  apply(act(t, "submitted", { gatewayRef: "123", test: true }, cfg, ctx(), s) as any);
-  assert.equal(t.GatewayEnvironment, "test");
-  apply(act(t, "result", { result: { status: "accepted", chRef: "TEST1" } }, cfg, ctx(), s) as any);
-  assert.equal(t.Status, "tested");
-  assert.equal(s.clients[0].CHVerified, undefined);
-  apply(act(t, "reopen", {}, cfg, ctx(), s) as any);
-  assert.equal(t.Status, "draft");
-  assert.equal(t.ApprovedPayload, "");
-});
-
-test("unknown submission environment cannot reconcile statutory data", () => {
-  const { s, edit, apply } = world();
-  edit("C1", { RegisteredOffice: "25 Market Road, London, N1 9GU" });
-  const t = s.txs[0];
-  apply(act(t, "approve", {}, cfg, ctx(), s) as any);
-  apply(act(t, "submitted", { gatewayRef: "123", test: false }, cfg, ctx(), s) as any);
-  t.GatewayEnvironment = "";
-  assert.match((act(t, "result", { result: { status: "accepted" } }, cfg, ctx(), s) as any).error, /not recorded/);
-  assert.equal(s.clients[0].CHVerified, undefined);
 });

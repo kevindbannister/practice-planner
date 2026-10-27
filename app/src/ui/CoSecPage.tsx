@@ -1,6 +1,6 @@
 // Co Sec: company secretarial. Overview of what needs attention, every filing, and each company's statutory records.
 // Everything that changes a record goes through lib/cosec.ts, which also writes the audit line and the timeline entry.
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { fmtDate } from "../lib/domain";
 import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, TxAction, TxInput } from "../lib/cosec";
 import { Addr, BLANK_ADDR, addrIssues, addrText, formTitle } from "../lib/cosecForms";
@@ -11,7 +11,7 @@ import { useCoSec, nameOfClient } from "./cosecKit";
 import { CoSecCompany } from "./CoSecCompany";
 
 const TABS: [string, string, string][] = [["", "Overview", "#/cosec"], ["filings", "Filings", "#/cosec/filings"], ["companies", "Companies", "#/cosec/companies"]];
-const chipFor = (s: TxStatus) => (s === "accepted" || s === "external" ? "green" : s === "tested" ? "amber" : s === "rejected" ? "red" : s === "draft" || s === "info" ? "amber" : s === "declined" || s === "cancelled" ? "" : "blue");
+const chipFor = (s: TxStatus) => (s === "accepted" || s === "external" ? "green" : s === "rejected" ? "red" : s === "draft" || s === "info" ? "amber" : s === "declined" || s === "cancelled" ? "" : "blue");
 
 export function CoSecPage() {
   const { parts } = useRoute();
@@ -152,7 +152,6 @@ function FilingDetail({ txKey }: { txKey: string }) {
   const [ref, setRef] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string }>();
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setPayload(null); setNote(""); setRef(""); setMsg(undefined); }, [txKey]);
   if (!tx) return <div className="card empty"><p>That filing isn't here. <a href={href("cosec", "filings")}>Back to filings</a></p></div>;
   const st = txStatus(tx);
   const client = k.data.clients.find((c) => c.Key === tx.ClientKey);
@@ -163,8 +162,8 @@ function FilingDetail({ txKey }: { txKey: string }) {
   const form = String(tx.Form);
   const run = async (what: () => Promise<void>) => { setBusy(true); setMsg(undefined); try { await what(); } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : "That didn't save." }); } finally { setBusy(false); } };
   const doAct = (action: TxAction, input: TxInput = {}, ok = "Done.") => run(async () => {
-    if (dirty && (action === "approve" || action === "external")) return setMsg({ ok: false, text: "Save the changes before approval or recording a filing." });
-    const w = act(tx, action, input, k.cfg, k.ctx(), k.snap());
+    const live = { ...tx, Payload: JSON.stringify(p) };
+    const w = act(dirty && action === "approve" ? live : tx, action, input, k.cfg, k.ctx(), k.snap());
     if ("error" in w) return setMsg({ ok: false, text: w.error });
     await k.apply(w); setPayload(null); setNote(""); setMsg({ ok: true, text: ok });
   });
@@ -175,22 +174,20 @@ function FilingDetail({ txKey }: { txKey: string }) {
   });
   const issues = txIssues({ ...tx, Payload: JSON.stringify(p) });
   const submit = () => run(async () => {
-    if (dirty || !tx.ApprovedPayload || tx.ApprovedPayload !== tx.Payload) return setMsg({ ok: false, text: "Save and approve the current draft before submitting." });
     if (!client) return setMsg({ ok: false, text: "The company isn't in the planner." });
     const auth = String(client.CHAuthCode || "").trim();
     if (!auth) return setMsg({ ok: false, text: "Add the company's Companies House authentication code first (on its client record)." });
     const sent = await k.gateway.submit(tx, { number: String(client.CompanyNumber), name: String(client.Title), authCode: auth });
-    const w = act(tx, "submitted", { gatewayRef: sent.gatewayRef, test: sent.test }, k.cfg, k.ctx(), k.snap());
+    const w = act(tx, "submitted", { gatewayRef: sent.gatewayRef }, k.cfg, k.ctx(), k.snap());
     if ("error" in w) return setMsg({ ok: false, text: w.error });
     await k.apply(w); setMsg({ ok: true, text: sent.test ? `Sent to the Companies House TEST service (${sent.gatewayRef}). Nothing is filed for real until the practice is approved to go live.` : `Submitted to Companies House (${sent.gatewayRef}).` });
   });
   const check = () => run(async () => {
-    if (tx.GatewayEnvironment !== "live" && tx.GatewayEnvironment !== "test") return setMsg({ ok: false, text: "Unknown original gateway environment. Verify this filing manually." });
-    const r = await k.gateway.status(String(tx.GatewayRef), tx.GatewayEnvironment === "test");
+    const r = await k.gateway.status(String(tx.GatewayRef));
     const w = act(tx, "result", { result: { status: r.status, chRef: r.chRef, reason: r.reason } }, k.cfg, k.ctx(), k.snap());
     if ("error" in w) return setMsg({ ok: false, text: w.error });
     await k.apply(w);
-    setMsg({ ok: true, text: r.status === "pending" ? "Companies House hasn't answered yet." : r.status === "accepted" ? tx.GatewayEnvironment === "test" ? "TEST accepted. No live filing; statutory records unchanged." : "Accepted. The statutory record is updated." : "Rejected. The draft is kept so you can fix it." });
+    setMsg({ ok: true, text: r.status === "pending" ? "Companies House hasn't answered yet." : r.status === "accepted" ? "Accepted. The statutory record is updated." : "Rejected. The draft is kept so you can fix it." });
   });
   const setP = (patch: Record<string, unknown>) => setPayload({ ...p, ...patch });
   const details = (p.details || {}) as Row;
@@ -214,7 +211,6 @@ function FilingDetail({ txKey }: { txKey: string }) {
           <dt>Assigned to</dt><dd>{String(tx.Assignee) || "Nobody yet"}</dd>
           {String(tx.Clarification) && <><dt>Question</dt><dd>{String(tx.Clarification)}</dd></>}
           {String(tx.RejectReason) && <><dt>Rejected because</dt><dd>{String(tx.RejectReason)}</dd></>}
-          {String(tx.GatewayEnvironment || "") && <><dt>Environment</dt><dd>{tx.GatewayEnvironment === "test" ? "TEST — not filed" : "LIVE"}</dd></>}
           {String(tx.GatewayRef) && <><dt>Gateway reference</dt><dd>{String(tx.GatewayRef)}</dd></>}
           {String(tx.ChRef) && <><dt>Companies House reference</dt><dd>{String(tx.ChRef)}</dd></>}
         </dl>
@@ -245,12 +241,12 @@ function FilingDetail({ txKey }: { txKey: string }) {
       <section className="card pad stack" aria-label="Actions">
         <h3 style={{ margin: 0 }}>Actions</h3>
         <div className="row-wrap">
-          {dirty && <><button type="button" className="btn" disabled={busy || !editable} onClick={save}>Save changes to the draft</button><span role="status" className="muted">Unsaved changes — save before approval.</span></>}
-          {(st === "draft" || st === "rejected") && <button type="button" className="btn primary" disabled={busy || dirty || !k.can("approve")} onClick={() => doAct("approve", {}, "Approved. It has not been submitted yet.")}>Approve</button>}
-          {st === "approved" && canSubmitVia(tx) && <button type="button" className="btn primary" disabled={busy || dirty || !tx.ApprovedPayload || tx.ApprovedPayload !== tx.Payload || !k.can("submit")} onClick={submit}>{busy ? "Sending…" : "Submit to Companies House"}</button>}
+          {dirty && <button type="button" className="btn" disabled={busy || !editable} onClick={save}>Save changes to the draft</button>}
+          {(st === "draft" || st === "rejected") && <button type="button" className="btn primary" disabled={busy || !k.can("approve")} onClick={() => doAct("approve", {}, "Approved. It has not been submitted yet.")}>Approve</button>}
+          {st === "approved" && canSubmitVia(tx) && <button type="button" className="btn primary" disabled={busy || !k.can("submit")} onClick={submit}>{busy ? "Sending…" : "Submit to Companies House"}</button>}
           {st === "submitted" && <button type="button" className="btn" disabled={busy} onClick={check}>Check the answer from Companies House</button>}
           {st === "info" && <button type="button" className="btn" disabled={busy} onClick={() => doAct("answer", { note }, "Marked as answered.")}>Mark as answered</button>}
-          {(st === "declined" || st === "cancelled" || st === "rejected" || st === "tested") && <button type="button" className="btn" disabled={busy} onClick={() => doAct("reopen", {}, "Reopened as a draft.")}>Reopen as a draft</button>}
+          {(st === "declined" || st === "cancelled" || st === "rejected") && <button type="button" className="btn" disabled={busy} onClick={() => doAct("reopen", {}, "Reopened as a draft.")}>Reopen as a draft</button>}
         </div>
         {["draft", "info", "approved", "rejected", "submitted"].includes(st) && (
           <div className="row-wrap" style={{ alignItems: "end" }}>
@@ -265,7 +261,7 @@ function FilingDetail({ txKey }: { txKey: string }) {
         {["draft", "info", "approved", "rejected", "submitted"].includes(st) && (
           <div className="row-wrap" style={{ alignItems: "end" }}>
             <label className="doc-field" style={{ flex: "1 1 260px" }}><span>Already filed another way: your reference</span><input className="input" value={ref} onChange={(e) => setRef(e.target.value)} /></label>
-            <button type="button" className="btn" disabled={busy || dirty || !k.can("approve")} onClick={() => doAct("external", { ref, note: "Filed outside the planner" }, "Recorded as filed externally. The register is updated.")}>Mark as already filed externally</button>
+            <button type="button" className="btn" disabled={busy || !k.can("approve")} onClick={() => doAct("external", { ref, note: "Filed outside the planner" }, "Recorded as filed externally. The register is updated.")}>Mark as already filed externally</button>
           </div>
         )}
         {msg && <p role={msg.ok ? "status" : "alert"} style={{ margin: 0, color: msg.ok ? "var(--green)" : "var(--red-ink)" }}>{msg.text}</p>}

@@ -14,7 +14,7 @@ export class GatewayError extends Error {
 export interface CoSecGateway {
   /** Send an approved filing. Resolves with the gateway's own reference for it. */
   submit(tx: Row, company: { number: string; name: string; authCode: string }): Promise<SubmitResult>;
-  status(gatewayRef: string, test: boolean): Promise<StatusResult>;
+  status(gatewayRef: string): Promise<StatusResult>;
   /** Whether the server has the presenter details (and whether it is still in test mode). */
   info(): Promise<{ configured: boolean; test: boolean; missing: string[] }>;
 }
@@ -37,7 +37,7 @@ export class HttpGateway implements CoSecGateway {
   submit(tx: Row, company: { number: string; name: string; authCode: string }) {
     return this.call<SubmitResult>("submit", { txKey: String(tx.Key), form: String(tx.Form), payload: JSON.parse(String(tx.Payload || "{}")), company });
   }
-  status(gatewayRef: string, test: boolean) { return this.call<StatusResult>("status", { gatewayRef, test }); }
+  status(gatewayRef: string) { return this.call<StatusResult>("status", { gatewayRef }); }
   info() { return this.call<{ configured: boolean; test: boolean; missing: string[] }>("info"); }
 }
 
@@ -45,6 +45,6 @@ export class HttpGateway implements CoSecGateway {
 export class FakeGateway implements CoSecGateway {
   private sent = new Map<string, number>();
   async submit(tx: Row) { const ref = `DEMO${String(this.sent.size + 1).padStart(6, "0")}`; this.sent.set(ref, 0); return { gatewayRef: ref, test: true }; }
-  async status(ref: string, _test: boolean): Promise<StatusResult> { const n = (this.sent.get(ref) ?? 0) + 1; this.sent.set(ref, n); return n < 2 ? { status: "pending" } : { status: "accepted", chRef: `DEMO-${ref}` }; }
+  async status(ref: string): Promise<StatusResult> { const n = (this.sent.get(ref) ?? 0) + 1; this.sent.set(ref, n); return n < 2 ? { status: "pending" } : { status: "accepted", chRef: `DEMO-${ref}` }; }
   async info() { return { configured: true, test: true, missing: [] }; }
 }

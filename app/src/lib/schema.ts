@@ -321,7 +321,7 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("PracticeId", true), t("Ref", true), t("ClientKey", true), t("Form", true), t("Title"), t("Status", true), t("Target", true), t("Source"), t("SourceKey"),
       note("Before"), note("After"), note("Payload"), t("Assignee"), note("EventKeys"), note("Clarification"), t("Due"),
-      t("EditedBy"), t("ApprovedBy"), t("ApprovedAt"), note("ApprovedPayload"), t("SubmittedBy"), t("SubmittedAt"), t("GatewayRef"), t("GatewayEnvironment"), t("GatewayStatus"), note("GatewayNote"), t("ChRef"), t("AcceptedAt"), note("RejectReason"),
+      t("EditedBy"), t("ApprovedBy"), t("ApprovedAt"), t("SubmittedBy"), t("SubmittedAt"), t("GatewayRef"), t("GatewayStatus"), note("GatewayNote"), t("ChRef"), t("AcceptedAt"), note("RejectReason"),
       note("History"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
   },
