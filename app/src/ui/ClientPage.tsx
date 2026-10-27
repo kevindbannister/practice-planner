@@ -31,6 +31,7 @@ import { ClientOpportunities } from "./SalesPage";
 import { ClientEngagements } from "./EngagementsPage";
 import { ClientOnboardingCard } from "./OnboardingPage";
 import { ClientFees } from "./FeesPanel";
+import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
 
 export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "portal" }) {
   const idx = useIndex();
@@ -158,131 +159,138 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   const company = c.Kind === "Ltd" || c.Kind === "LLP";
   const today = todayIso();
 
-  // Three columns that each answer one question at a glance: the work and money, who and what the client is,
-  // and what is being sold or still to sort out. They stack on narrower screens.
-  return (
-    <div className="ov-grid">
-      <div className="ov-col">
-        <section className="card" aria-labelledby="work-h">
-          <div className="card-head">
-            <h2 id="work-h">Open work</h2>
-            <a href={href("clients", c.Key, "work")} style={{ fontSize: 13 }}>Stages and history</a>
-          </div>
-          {jobs.length ? (
-            <div className="table-wrap">
-              <table className="grid" style={{ minWidth: 640 }}>
-                <thead>
-                  <tr><th scope="col">Job</th><th scope="col">Stage</th><th scope="col">Planned</th><th scope="col">Deadline</th></tr>
-                </thead>
-                <tbody>
-                  {jobs.map((j) => (
-                    <tr key={j.Key}>
-                      <td>
-                        <div style={{ fontWeight: 600 }}>{j.Title}</div>
-                        <div className="cell-sub">{j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)}` : ""}</div>
-                      </td>
-                      <td>{j.StageName || "—"}</td>
-                      <td>{j.PlannedDate ? fmtDate(j.PlannedDate, { weekday: true }) : <span className="chip dashed">Not planned</span>}</td>
-                      <td>
-                        <div className="row-wrap" style={{ gap: 6 }}>
-                          <span className="mono">{fmtDate(j.Deadline)}</span>
-                          <DeadlineChip job={j} today={today} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty">No open work.</div>
-          )}
-        </section>
-
-        {gaps.length > 0 && (
-          <div className="alert amber">
-            <strong>Missing from this record</strong>
-            <span>{gaps.join(", ")}. Add them under References or Contact.</span>
-          </div>
-        )}
-
-        <ServicesCard client={c} jobs={jobs} />
-        <ClientFees client={c} />
+  // Each card is its own piece, so the user can move and resize them (see OverviewGrid). Standard layout: three
+  // columns that each answer one question at a glance: the work and money, who and what the client is, and
+  // compliance and sales.
+  const cards: OverviewCard[] = [
+    { id: "work", label: "Open work", node: (
+    <section className="card" aria-labelledby="work-h">
+      <div className="card-head">
+        <h2 id="work-h">Open work</h2>
+        <a href={href("clients", c.Key, "work")} style={{ fontSize: 13 }}>Stages and history</a>
       </div>
-
-      <div className="ov-col">
-        {c.Kind === "Individual" && <IndividualPortalAccess client={c} />}
-        <EditableCard
-          title="Contact"
-          client={c}
-          fields={[
-            ["ContactFirst", "First name"], ["ContactLast", "Last name"], ["ContactPreferred", "Preferred name"],
-            ["Email", "Email"], ["Mobile", "Mobile"], ["Phone", "Phone"], ["ContactPreference", "Prefers"],
-          ]}
-          render={() => (
-            <>
-              <div>
-                <div style={{ fontWeight: 600 }}>{contactName(c) || "—"}</div>
-                {c.ContactPreference && <div className="muted" style={{ fontSize: 13 }}>Prefers {String(c.ContactPreference).toLowerCase()}</div>}
-              </div>
-              <div className="kv"><span>Email</span><span>{c.Email ? <a href={`mailto:${c.Email}`}>{c.Email}</a> : "—"}</span></div>
-              <div className="kv"><span>Mobile</span><span className="mono">{(c.Mobile as string) || "—"}</span></div>
-              {c.Phone && <div className="kv"><span>Phone</span><span className="mono">{c.Phone as string}</span></div>}
-            </>
-          )}
-        />
-        <EditableCard
-          title="References"
-          client={c}
-          fields={[
-            ...(company ? ([["CompanyNumber", "Company number"], ["CHAuthCode", "CH auth code"]] as [string, string][]) : []),
-            ...(c.Kind === "Ltd" ? ([["CTUTR", "Corporation tax UTR"]] as [string, string][]) : []),
-            ["UTR", "Self Assessment UTR"], ["NINumber", "NI number"], ["VATNumber", "VAT number"],
-            ["PAYERef", "PAYE reference"], ["AccountsOfficeRef", "Accounts Office ref"],
-          ]}
-          render={(fields) => (
-            <>
-              {fields.map(([k, label]) => (
-                <div className="kv" key={k}>
-                  <span>{label}</span>
-                  <span className="copy-val">
-                    <span className="mono">{(c[k] as string) || <span style={{ color: "var(--muted)", fontFamily: "var(--sans)" }}>—</span>}</span>
-                    {c[k] ? <CopyButton value={String(c[k])} label={label.toLowerCase()} /> : null}
-                  </span>
-                </div>
+      {jobs.length ? (
+        <div className="table-wrap">
+          <table className="grid" style={{ minWidth: 640 }}>
+            <thead>
+              <tr><th scope="col">Job</th><th scope="col">Stage</th><th scope="col">Planned</th><th scope="col">Deadline</th></tr>
+            </thead>
+            <tbody>
+              {jobs.map((j) => (
+                <tr key={j.Key}>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{j.Title}</div>
+                    <div className="cell-sub">{j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)}` : ""}</div>
+                  </td>
+                  <td>{j.StageName || "—"}</td>
+                  <td>{j.PlannedDate ? fmtDate(j.PlannedDate, { weekday: true }) : <span className="chip dashed">Not planned</span>}</td>
+                  <td>
+                    <div className="row-wrap" style={{ gap: 6 }}>
+                      <span className="mono">{fmtDate(j.Deadline)}</span>
+                      <DeadlineChip job={j} today={today} />
+                    </div>
+                  </td>
+                </tr>
               ))}
-              {cisStatus(c) === "registered" && (
-                <div className="kv"><span>CIS contractor</span><span>Registered{c.CISRegistered ? ` ${fmtDate(String(c.CISRegistered))}` : ""}<span className="muted"> · uses the PAYE and Accounts Office refs</span></span></div>
-              )}
-            </>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty">No open work.</div>
+      )}
+    </section>
+    ) },
+    ...(gaps.length > 0 ? [{ id: "gaps", label: "Missing details", node: (
+      <div className="alert amber">
+        <strong>Missing from this record</strong>
+        <span>{gaps.join(", ")}. Add them under References or Contact.</span>
+      </div>
+    ) }] : []),
+    { id: "services", label: "Services and fees", node: <ServicesCard client={c} jobs={jobs} /> },
+    { id: "fees", label: "Fee schedule", node: <ClientFees client={c} /> },
+    ...(c.Kind === "Individual" ? [{ id: "portal", label: "Portal access", node: <IndividualPortalAccess client={c} /> }] : []),
+    { id: "contact", label: "Contact", node: (
+    <EditableCard
+      title="Contact"
+      client={c}
+      fields={[
+        ["ContactFirst", "First name"], ["ContactLast", "Last name"], ["ContactPreferred", "Preferred name"],
+        ["Email", "Email"], ["Mobile", "Mobile"], ["Phone", "Phone"], ["ContactPreference", "Prefers"],
+      ]}
+      render={() => (
+        <>
+          <div>
+            <div style={{ fontWeight: 600 }}>{contactName(c) || "—"}</div>
+            {c.ContactPreference && <div className="muted" style={{ fontSize: 13 }}>Prefers {String(c.ContactPreference).toLowerCase()}</div>}
+          </div>
+          <div className="kv"><span>Email</span><span>{c.Email ? <a href={`mailto:${c.Email}`}>{c.Email}</a> : "—"}</span></div>
+          <div className="kv"><span>Mobile</span><span className="mono">{(c.Mobile as string) || "—"}</span></div>
+          {c.Phone && <div className="kv"><span>Phone</span><span className="mono">{c.Phone as string}</span></div>}
+        </>
+      )}
+    />
+    ) },
+    { id: "refs", label: "References", node: (
+    <EditableCard
+      title="References"
+      client={c}
+      fields={[
+        ...(company ? ([["CompanyNumber", "Company number"], ["CHAuthCode", "CH auth code"]] as [string, string][]) : []),
+        ...(c.Kind === "Ltd" ? ([["CTUTR", "Corporation tax UTR"]] as [string, string][]) : []),
+        ["UTR", "Self Assessment UTR"], ["NINumber", "NI number"], ["VATNumber", "VAT number"],
+        ["PAYERef", "PAYE reference"], ["AccountsOfficeRef", "Accounts Office ref"],
+      ]}
+      render={(fields) => (
+        <>
+          {fields.map(([k, label]) => (
+            <div className="kv" key={k}>
+              <span>{label}</span>
+              <span className="copy-val">
+                <span className="mono">{(c[k] as string) || <span style={{ color: "var(--muted)", fontFamily: "var(--sans)" }}>—</span>}</span>
+                {c[k] ? <CopyButton value={String(c[k])} label={label.toLowerCase()} /> : null}
+              </span>
+            </div>
+          ))}
+          {cisStatus(c) === "registered" && (
+            <div className="kv"><span>CIS contractor</span><span>Registered{c.CISRegistered ? ` ${fmtDate(String(c.CISRegistered))}` : ""}<span className="muted"> · uses the PAYE and Accounts Office refs</span></span></div>
           )}
-        />
-        <AddressesCard client={c} />
-        <section className="card pad stack" aria-labelledby="team-h">
-          <h2 id="team-h">Team</h2>
-          <ImportanceRow client={c} />
-          <div className="kv"><span>Partner</span><span>{(c.Partner as string) || "—"}</span></div>
-          <div className="kv"><span>Manager</span><span>{(c.Manager as string) || "—"}</span></div>
-          {c.Engaged && <div className="kv"><span>Client since</span><span>{fmtDate(c.Engaged as string)}</span></div>}
-        </section>
-      </div>
-
-      <div className="ov-col">
-        <section className="card pad stack" aria-labelledby="comp-h">
-          <h2 id="comp-h">Compliance</h2>
-          <div className="kv"><span>AML (Xama)</span><span style={amlLabel(c.XamaStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{amlLabel(c.XamaStatus).text}</span></div>
-          <XamaClientPanel client={c} />
-          <div className="kv"><span>Engagement letter</span><span style={loeLabel(c.LoEStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{loeLabel(c.LoEStatus).text}</span></div>
-          {c.RetentionYears ? <div className="kv"><span>Data kept after leaving</span><span>{c.RetentionYears} years</span></div> : null}
-        </section>
-        <ClientOpportunities clientKey={c.Key} />
-        <ClientOnboardingCard clientKey={c.Key} />
-        <ClientEngagements clientKey={c.Key} />
-        <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
-      </div>
-    </div>
-  );
+        </>
+      )}
+    />
+    ) },
+    { id: "addresses", label: "Addresses", node: <AddressesCard client={c} /> },
+    { id: "team", label: "Team", node: (
+    <section className="card pad stack" aria-labelledby="team-h">
+      <h2 id="team-h">Team</h2>
+      <ImportanceRow client={c} />
+      <div className="kv"><span>Partner</span><span>{(c.Partner as string) || "—"}</span></div>
+      <div className="kv"><span>Manager</span><span>{(c.Manager as string) || "—"}</span></div>
+      {c.Engaged && <div className="kv"><span>Client since</span><span>{fmtDate(c.Engaged as string)}</span></div>}
+    </section>
+    ) },
+    { id: "compliance", label: "Compliance", node: (
+    <section className="card pad stack" aria-labelledby="comp-h">
+      <h2 id="comp-h">Compliance</h2>
+      <div className="kv"><span>AML (Xama)</span><span style={amlLabel(c.XamaStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{amlLabel(c.XamaStatus).text}</span></div>
+      <XamaClientPanel client={c} />
+      <div className="kv"><span>Engagement letter</span><span style={loeLabel(c.LoEStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{loeLabel(c.LoEStatus).text}</span></div>
+      {c.RetentionYears ? <div className="kv"><span>Data kept after leaving</span><span>{c.RetentionYears} years</span></div> : null}
+    </section>
+    ) },
+    { id: "sales", label: "Opportunities", node: (<><ClientOpportunities clientKey={c.Key} /><ClientOnboardingCard clientKey={c.Key} /></>) },
+    { id: "letters", label: "Engagement letters", node: <ClientEngagements clientKey={c.Key} /> },
+    { id: "cis", label: "CIS", node: (
+    <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
+    ) },
+  ];
+  return <OverviewGrid cards={cards} columns={STANDARD_COLUMNS} name="the overview" />;
 }
+
+const STANDARD_COLUMNS: DefaultColumn[] = [
+  { w: 12, ids: ["work", "gaps", "services", "fees"] },
+  { w: 6, ids: ["portal", "contact", "refs", "addresses", "team"] },
+  { w: 6, ids: ["compliance", "sales", "letters", "cis"] },
+];
 
 /** Key, normal or low-touch: how much this client matters when the planner decides what comes first. */
 function ImportanceRow({ client: c }: { client: Client }) {
