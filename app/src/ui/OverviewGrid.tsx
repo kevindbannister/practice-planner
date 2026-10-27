@@ -1,29 +1,57 @@
-// The client Overview as cards the user can arrange: move, resize, then Save. Until Save is pressed the page stays in
-// arrange mode and nothing is kept. The arrangement is saved per signed-in person (in the planner's Settings list).
+// A client page tab (Overview, Work) as cards the user can arrange: pick 2 to 6 columns, move, resize, then Save. Until
+// Save is pressed the page stays in arrange mode and nothing is kept. The arrangement is saved per signed-in person (in
+// the planner's Settings list), and "Reset to standard layout" removes it.
 import { ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useData } from "./data";
-import { COLS, GAP, MIN_W, ROW, Layout, Measured, autoHeight, defaultLayout, heightOf, moveItem, parseLayout, readingOrder, reconcile, resizeItem, rowsFor, settle } from "../lib/overviewLayout";
+import { COLS, COLUMN_CHOICES, GAP, MIN_W, ROW, Layout, Measured, autoHeight, columnsLayout, defaultLayout, heightOf, moveItem, parseSaved, readingOrder, reconcile, resizeItem, rowsFor, serialise, settle, Saved } from "../lib/overviewLayout";
 
 export type OverviewCard = { id: string; label: string; node: ReactNode };
 export type DefaultColumn = { w: number; ids: string[] };
 
 const NARROW = 900; // below this the cards stack in one column and can't be rearranged
 
-function savedFor(settings: { Key?: unknown; Value?: unknown }[], key: string): Layout | null {
+function savedFor(settings: { Key?: unknown; Value?: unknown }[], key: string): Saved | null {
   const row = settings.find((s) => s.Key === key);
   if (!row) return null;
-  try { return parseLayout(JSON.parse(String(row.Value ?? ""))); } catch { return null; }
+  try { return parseSaved(JSON.parse(String(row.Value ?? ""))); } catch { return null; }
+}
+
+/** Give each table cell the heading of its column, so a narrow card can show the table as a list of labelled rows. */
+function labelCells(root: HTMLElement) {
+  root.querySelectorAll("table").forEach((t) => {
+    const heads = Array.from(t.querySelectorAll("thead th")).map((h) => (h.textContent || "").trim());
+    if (!heads.length) return;
+    t.querySelectorAll("tbody tr").forEach((tr) => {
+      Array.from(tr.children).forEach((td, i) => {
+        const label = heads[i] ?? "";
+        if (td.getAttribute("data-label") !== label) td.setAttribute("data-label", label);
+      });
+    });
+  });
 }
 
 type Drag = { id: string; mode: "move" | "e" | "s" | "se"; sx: number; sy: number; start: Layout; px: number };
 
-export function OverviewGrid({ cards, columns, name }: { cards: OverviewCard[]; columns: DefaultColumn[]; name: string }) {
+function ColumnPicker({ value, onPick }: { value?: number; onPick: (n: number) => void }) {
+  return (
+    <span className="ovg-cols" role="group" aria-label="Number of columns">
+      <span className="muted">Columns</span>
+      {COLUMN_CHOICES.map((n) => (
+        <button key={n} type="button" className="btn" aria-pressed={value === n} onClick={() => onPick(n)}>{n}</button>
+      ))}
+    </span>
+  );
+}
+
+export function OverviewGrid({ cards, columns, name, store: tab }: { cards: OverviewCard[]; columns: DefaultColumn[]; name: string; store: string }) {
   const { data, saveSetting, user } = useData();
-  const key = `overviewLayout:${user || "me"}`;
+  const key = `${tab}Layout:${user || "me"}`;
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [measured, setMeasured] = useState<Measured>({});
   const [draft, setDraft] = useState<Layout | null>(null); // non-null while arranging
+  const [draftN, setDraftN] = useState<number | undefined>(); // how many columns the draft was dealt into, until a card is moved
+  const [note, setNote] = useState("");
   const [drag, setDrag] = useState<Drag | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -33,7 +61,7 @@ export function OverviewGrid({ cards, columns, name }: { cards: OverviewCard[]; 
   const idKey = ids.join("|");
   const fallback = useMemo(() => defaultLayout(columns.map((c) => ({ w: c.w, ids: c.ids.filter((i) => ids.includes(i)) }))), [columns, idKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const saved = useMemo(() => savedFor(data.settings, key), [data.settings, key]);
-  const base = useMemo(() => reconcile(saved, ids, fallback), [saved, idKey, fallback]); // eslint-disable-line react-hooks/exhaustive-deps
+  const base = useMemo(() => reconcile(saved?.items, ids, fallback), [saved, idKey, fallback]); // eslint-disable-line react-hooks/exhaustive-deps
   const layout = useMemo(() => settle(draft ?? base, measured), [draft, base, measured]);
   const narrow = width > 0 && width < NARROW;
   const arranging = draft !== null && !narrow;
@@ -68,6 +96,14 @@ export function OverviewGrid({ cards, columns, name }: { cards: OverviewCard[]; 
     return () => ro.disconnect();
   }, [idKey, narrow, width > 0]);
 
+  // label table cells (and keep them labelled as the tables change)
+  useEffect(() => {
+    if (typeof MutationObserver === "undefined") return;
+    const mo = new MutationObserver(() => bodies.current.forEach(labelCells));
+    bodies.current.forEach((el) => { labelCells(el); mo.observe(el, { childList: true, subtree: true }); });
+    return () => mo.disconnect();
+  }, [idKey, narrow, width > 0]);
+
   const colW = width > 0 ? (width + GAP) / COLS : 0;
 
   const begin = (e: React.PointerEvent, id: string, mode: Drag["mode"]) => {
@@ -84,10 +120,12 @@ export function OverviewGrid({ cards, columns, name }: { cards: OverviewCard[]; 
     const dx = Math.round((e.clientX - drag.sx) / colW);
     const it = drag.start.find((i) => i.id === drag.id)!;
     if (drag.mode === "move") {
+      setDraftN(undefined);
       setDraft(moveItem(drag.start, measured, drag.id, it.x + dx, Math.max(0, it.y + Math.round((e.clientY - drag.sy) / ROW))));
     } else {
       const w = drag.mode === "s" ? it.w : it.w + dx;
       const h = drag.mode === "e" ? it.h : (drag.px + (e.clientY - drag.sy)) / ROW;
+      setDraftN(undefined);
       setDraft(resizeItem(drag.start, measured, drag.id, w, h));
     }
   };
@@ -109,15 +147,26 @@ export function OverviewGrid({ cards, columns, name }: { cards: OverviewCard[]; 
     setBusy(true);
     setErr("");
     try {
-      await saveSetting(key, settle(draft, measured).map(({ id, x, y, w, h }) => (h ? { id, x, y, w, h } : { id, x, y, w })));
+      await saveSetting(key, serialise(settle(draft, measured), draftN));
       setDraft(null);
+      setNote("");
     } catch {
       setErr("Couldn't save the layout. Try again.");
     } finally {
       setBusy(false);
     }
   };
-  const reset = () => setDraft(settle(fallback, measured));
+  const standard = () => { setDraftN(undefined); setDraft(settle(fallback, measured)); };
+  const deal = (n: number) => {
+    // keep reading order: what is first on the page stays first
+    setDraftN(n);
+    setDraft(settle(columnsLayout(n, readingOrder(layout), measured), measured));
+  };
+  /** Forget the saved arrangement altogether (it is saved now: no separate Save needed). */
+  const resetSaved = async () => {
+    setBusy(true); setErr(""); setNote("");
+    try { await saveSetting(key, null); setDraft(null); setNote("Back to the standard layout."); } catch { setErr("Couldn't reset the layout. Try again."); } finally { setBusy(false); }
+  };
   const setBody = useCallback((id: string) => (el: HTMLElement | null) => { if (el) bodies.current.set(id, el); else bodies.current.delete(id); }, []);
 
   const stacked = narrow ? readingOrder(layout).map((id) => cards.find((c) => c.id === id)!).filter(Boolean) : null;
@@ -128,17 +177,22 @@ export function OverviewGrid({ cards, columns, name }: { cards: OverviewCard[]; 
         <div className="ovg-bar no-print" role="toolbar" aria-label={`Arrange ${name}`}>
           {arranging ? (
             <>
-              <span className="muted">Drag a card to move it. Drag its right edge, bottom edge or corner to resize. Arrow keys move; Shift and arrows resize.</span>
+              <span className="muted">Drag a card to move it; drag its right edge, bottom edge or corner to resize. Arrow keys move; Shift and arrows resize.</span>
               <span className="grow" />
               {err && <span className="error-text" role="alert">{err}</span>}
-              <button type="button" className="btn" onClick={reset} disabled={busy}>Standard layout</button>
-              <button type="button" className="btn" onClick={() => { setDraft(null); setErr(""); }} disabled={busy}>Cancel</button>
+              <ColumnPicker value={draftN ?? (saved?.n && !draft ? saved.n : undefined)} onPick={deal} />
+              <button type="button" className="btn" onClick={standard} disabled={busy}>Standard layout</button>
+              <button type="button" className="btn" onClick={() => { setDraft(null); setDraftN(undefined); setErr(""); }} disabled={busy}>Cancel</button>
               <button type="button" className="btn primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save layout"}</button>
             </>
           ) : (
             <>
+              {note && <span className="muted" role="status">{note}</span>}
+              {err && <span className="error-text" role="alert">{err}</span>}
               <span className="grow" />
-              <button type="button" className="btn" onClick={() => setDraft(settle(base, measured))}>Arrange cards</button>
+              <ColumnPicker value={saved?.n} onPick={(n) => { setNote(""); setDraftN(n); setDraft(settle(columnsLayout(n, readingOrder(layout), measured), measured)); }} />
+              {saved && <button type="button" className="btn" onClick={resetSaved} disabled={busy}>Reset to standard layout</button>}
+              <button type="button" className="btn" onClick={() => { setNote(""); setDraftN(saved?.n); setDraft(settle(base, measured)); }}>Arrange cards</button>
             </>
           )}
         </div>

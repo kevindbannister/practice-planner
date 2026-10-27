@@ -283,13 +283,13 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
     ) },
   ];
-  return <OverviewGrid cards={cards} columns={STANDARD_COLUMNS} name="the overview" />;
+  return <OverviewGrid cards={cards} columns={STANDARD_COLUMNS} name="the overview" store="overview" />;
 }
 
 const STANDARD_COLUMNS: DefaultColumn[] = [
-  { w: 12, ids: ["work", "gaps", "services", "fees"] },
-  { w: 6, ids: ["portal", "contact", "refs", "addresses", "team"] },
-  { w: 6, ids: ["compliance", "sales", "letters", "cis"] },
+  { w: 30, ids: ["work", "gaps", "services", "fees"] },
+  { w: 15, ids: ["portal", "contact", "refs", "addresses", "team"] },
+  { w: 15, ids: ["compliance", "sales", "letters", "cis"] },
 ];
 
 /** Key, normal or low-touch: how much this client matters when the planner decides what comes first. */
@@ -430,18 +430,11 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     })),
   ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 
-  return (
-    <div className="cols">
-      <div className="col-main">
-        <div className="row-wrap" style={{ justifyContent: "flex-end" }}>
-          <button type="button" className="btn" onClick={() => open({ kind: "task", clientKey: c.Key })}>+ Task</button>
-          <button type="button" className="btn" onClick={() => open({ kind: "newJob", clientKey: c.Key })}>+ Job</button>
-        </div>
-        {jobs.map((j) => <JobCard key={j.Key} job={j} />)}
-        {!jobs.length && <div className="card empty">No open work for this client.</div>}
-      </div>
-      <div className="col-side">
-        <section className="card pad stack" aria-labelledby="tasks-h">
+  const cards: OverviewCard[] = [
+    ...jobs.map((j) => ({ id: `job:${j.Key}`, label: String(j.Title), node: <JobCard job={j} /> })),
+    ...(!jobs.length ? [{ id: "nojobs", label: "Open work", node: <div className="card empty">No open work for this client.</div> }] : []),
+    { id: "tasks", label: "Tasks", node: (
+<section className="card pad stack" aria-labelledby="tasks-h">
           <h2 id="tasks-h">Tasks</h2>
           {tasks.length ? (
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -460,8 +453,10 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
           ) : (
             <p className="muted" style={{ margin: 0 }}>No open tasks. Advisory work, meetings and one-offs go here.</p>
           )}
-        </section>
-        <section className="card pad stack" aria-labelledby="next-h">
+</section>
+    ) },
+    { id: "next", label: "Coming up", node: (
+<section className="card pad stack" aria-labelledby="next-h">
           <h2 id="next-h">Coming up</h2>
           <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
             {jobs.filter((j) => j.Deadline).slice(0, 8).map((j) => (
@@ -473,8 +468,10 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
               </li>
             ))}
           </ol>
-        </section>
-        <section className="card pad stack" aria-labelledby="hist-h">
+</section>
+    ) },
+    { id: "hist", label: "Done before", node: (
+<section className="card pad stack" aria-labelledby="hist-h">
           <h2 id="hist-h">Done before</h2>
           {history.length ? (
             <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
@@ -488,8 +485,16 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
           ) : (
             <p className="muted" style={{ margin: 0 }}>Nothing yet.</p>
           )}
-        </section>
+</section>
+    ) },
+  ];
+  return (
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="row-wrap" style={{ justifyContent: "flex-end" }}>
+        <button type="button" className="btn" onClick={() => open({ kind: "task", clientKey: c.Key })}>+ Task</button>
+        <button type="button" className="btn" onClick={() => open({ kind: "newJob", clientKey: c.Key })}>+ Job</button>
       </div>
+      <OverviewGrid cards={cards} columns={[{ w: 36, ids: jobs.map((j) => `job:${j.Key}`).concat("nojobs") }, { w: 24, ids: ["tasks", "next", "hist"] }]} name="the work tab" store="work" />
     </div>
   );
 }

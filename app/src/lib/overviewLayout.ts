@@ -1,13 +1,13 @@
 // The client Overview as a grid the user can rearrange. Pure layout maths, so it can be tested without a screen.
 //
-// A 24-column grid. Each card has a column (x), width (w, in columns), row (y) and optionally a fixed height
+// A 60-column grid (so 2, 3, 4, 5 and 6 equal columns all divide evenly). Each card has a column (x), width (w, in columns), row (y) and optionally a fixed height
 // (h, in rows of ROW px). A card with no h is as tall as its content. Cards never overlap: after any move or
 // resize the others are pushed down and then pulled back up to close gaps ("gravity").
 
-export const COLS = 24;
+export const COLS = 60;
 export const ROW = 10; // px per row
 export const GAP = 12; // px between cards (taken out of each card's height)
-export const MIN_W = 5; // columns
+export const MIN_W = 10; // columns (a sixth of the width)
 export const MIN_H = 6; // rows
 
 export type Item = { id: string; x: number; y: number; w: number; h?: number };
@@ -28,6 +28,23 @@ export function defaultLayout(columns: { w: number; ids: string[] }[]): Layout {
     x += c.w;
   }
   return out;
+}
+
+/** The choices for how many equal columns to arrange the cards in. */
+export const COLUMN_CHOICES = [2, 3, 4, 5, 6] as const;
+
+/** Deal the cards, in the order given, into n equal columns, each card going to the shortest column so far. */
+export function columnsLayout(n: number, ids: string[], m: Measured): Layout {
+  const k = clamp(Math.round(n), 1, 6);
+  const w = Math.floor(COLS / k);
+  const heights = new Array<number>(k).fill(0);
+  return ids.map((id) => {
+    let c = 0;
+    for (let i = 1; i < k; i++) if (heights[i] < heights[c]) c = i;
+    const y = heights[c];
+    heights[c] += (m[id] ?? 20) + 1;
+    return { id, x: c * w, y, w };
+  });
 }
 
 /** Fit the saved layout to the cards that exist now: drop cards that are gone, add new ones at the bottom. */
@@ -105,7 +122,23 @@ export function rowsFor(px: number): number {
   return Math.max(MIN_H, Math.ceil((px + GAP) / ROW));
 }
 
-/** A saved layout read back from JSON, or null if it isn't one. */
+export type Saved = { items: Layout; n?: number };
+
+/** What is stored: the cards, and how many columns they were last dealt into (if the user hasn't moved them since). */
+export function serialise(items: Layout, n?: number): { v: 2; n?: number; items: Layout } {
+  return { v: 2, ...(n ? { n } : {}), items: items.map(({ id, x, y, w, h }) => (h ? { id, x, y, w, h } : { id, x, y, w })) };
+}
+
+/** A saved layout read back from JSON, or null if it isn't one (or is from the old 24-column grid). */
+export function parseSaved(v: unknown): Saved | null {
+  if (!v || typeof v !== "object" || (v as { v?: unknown }).v !== 2) return null;
+  const items = parseLayout((v as { items?: unknown }).items);
+  if (!items) return null;
+  const n = (v as { n?: unknown }).n;
+  return { items, ...(typeof n === "number" && COLUMN_CHOICES.includes(n as 2) ? { n } : {}) };
+}
+
+/** A list of layout rows read back from JSON, or null if it isn't one. */
 export function parseLayout(v: unknown): Layout | null {
   if (!Array.isArray(v)) return null;
   const out: Layout = [];

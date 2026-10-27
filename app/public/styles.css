@@ -2330,3 +2330,46 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .ovi-h.s { bottom: -5px; left: 25%; right: 25%; height: 8px; cursor: ns-resize; }
 .ovi-h.se { right: -6px; bottom: -6px; width: 16px; height: 16px; border-radius: 50%; cursor: nwse-resize; opacity: 0.85; }
 .ovi-h:hover { opacity: 1; }
+
+.ovg-cols { display: inline-flex; align-items: center; gap: 4px; }
+.ovg-cols .btn { min-width: 36px; padding-left: 0; padding-right: 0; }
+.ovg-cols .btn[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.ovi-body > .card, .ovi-body > section, .ovi-body > .alert, .ovi-body > article { margin: 0; }
+/* a card keeps all its information when it is made narrow: tables become lists of labelled rows */
+.ovi-body { container-type: inline-size; container-name: ovcard; }
+@container ovcard (max-width: 540px) {
+  table.grid, table.tbl { display: block; min-width: 0 !important; width: 100%; }
+  table.grid thead, table.tbl thead { display: none; }
+  table.grid tbody, table.tbl tbody { display: block; }
+  table.grid tr, table.tbl tr { display: block; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  table.grid tr:last-child, table.tbl tr:last-child { border-bottom: 0; }
+  table.grid td, table.tbl td { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 3px 0 !important; border: 0 !important; text-align: right; min-width: 0; }
+  table.grid td::before, table.tbl td::before { content: attr(data-label); flex: 0 0 34%; text-align: left; color: var(--muted); font-size: 12px; font-weight: 500; }
+  table.grid td[data-label=""]::before, table.tbl td[data-label=""]::before { display: none; }
+  table.grid td:first-child, table.tbl td:first-child { font-weight: 600; }
+  table.grid td > *, table.tbl td > * { min-width: 0; }
+  .card-head { flex-wrap: wrap; gap: 6px 12px; }
+  .kv { flex-wrap: wrap; gap: 2px 12px; }
+}
+@container ovcard (max-width: 340px) {
+  table.grid td, table.tbl td { flex-direction: column; align-items: flex-start; text-align: left; gap: 0; }
+  table.grid td::before, table.tbl td::before { flex: none; }
+}
+/* ...and the same for other card contents */
+@container ovcard (max-width: 560px) {
+  .job-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .job-dates > div { border-right: 0; border-bottom: 1px solid var(--line-2); }
+  .job-dates > div:nth-child(odd) { border-right: 1px solid var(--line-2); }
+  .job-dates > div:nth-last-child(-n+2) { border-bottom: 0; }
+  .job-dates > div:nth-child(2n):nth-last-child(2) { border-bottom: 0; }
+  /* tables with many columns: two labelled fields side by side per row, name across the top */
+  table.grid tr:has(> td:nth-child(6)), table.tbl tr:has(> td:nth-child(6)) { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; }
+  table.grid tr:has(> td:nth-child(6)) > td, table.tbl tr:has(> td:nth-child(6)) > td { flex-direction: column; align-items: flex-start; text-align: left; gap: 0; }
+  table.grid tr:has(> td:nth-child(6)) > td::before, table.tbl tr:has(> td:nth-child(6)) > td::before { flex: none; }
+  table.grid tr:has(> td:nth-child(6)) > td:first-child, table.tbl tr:has(> td:nth-child(6)) > td:first-child { grid-column: 1 / -1; }
+}
+@container ovcard (max-width: 300px) {
+  .job-dates { grid-template-columns: minmax(0, 1fr); }
+  .job-dates > div, .job-dates > div:nth-child(odd) { border-right: 0; border-bottom: 1px solid var(--line-2); }
+  table.grid tr:has(> td:nth-child(6)), table.tbl tr:has(> td:nth-child(6)) { grid-template-columns: 1fr; }
+}
