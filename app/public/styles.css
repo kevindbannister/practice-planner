@@ -193,6 +193,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .row-wrap { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .cols { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
 .col-main { flex: 999 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.ov-grid { display: grid; gap: 16px; align-items: start; grid-template-columns: minmax(0, 1fr); }
+.ov-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ov-col > * { min-width: 0; }
+@media (min-width: 900px) { .ov-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } .ov-grid > .ov-col:first-child { grid-row: span 2; } }
+@media (min-width: 1500px) { .ov-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); } .ov-grid > .ov-col:first-child { grid-row: auto; } }
 .col-side { flex: 1 1 320px; display: flex; flex-direction: column; gap: 16px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
 .card.pad { padding: 16px; }

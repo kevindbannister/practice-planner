@@ -158,9 +158,11 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   const company = c.Kind === "Ltd" || c.Kind === "LLP";
   const today = todayIso();
 
+  // Three columns that each answer one question at a glance: the work and money, who and what the client is,
+  // and what is being sold or still to sort out. They stack on narrower screens.
   return (
-    <div className="cols">
-      <div className="col-main">
+    <div className="ov-grid">
+      <div className="ov-col">
         <section className="card" aria-labelledby="work-h">
           <div className="card-head">
             <h2 id="work-h">Open work</h2>
@@ -205,11 +207,10 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
         )}
 
         <ServicesCard client={c} jobs={jobs} />
-
-        <AddressesCard client={c} />
+        <ClientFees client={c} />
       </div>
 
-      <div className="col-side">
+      <div className="ov-col">
         {c.Kind === "Individual" && <IndividualPortalAccess client={c} />}
         <EditableCard
           title="Contact"
@@ -256,18 +257,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
             </>
           )}
         />
-        <ClientOpportunities clientKey={c.Key} />
-        <ClientOnboardingCard clientKey={c.Key} />
-        <ClientFees client={c} />
-        <ClientEngagements clientKey={c.Key} />
-        <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
-        <section className="card pad stack" aria-labelledby="comp-h">
-          <h2 id="comp-h">Compliance</h2>
-          <div className="kv"><span>AML (Xama)</span><span style={amlLabel(c.XamaStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{amlLabel(c.XamaStatus).text}</span></div>
-          <XamaClientPanel client={c} />
-          <div className="kv"><span>Engagement letter</span><span style={loeLabel(c.LoEStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{loeLabel(c.LoEStatus).text}</span></div>
-          {c.RetentionYears ? <div className="kv"><span>Data kept after leaving</span><span>{c.RetentionYears} years</span></div> : null}
-        </section>
+        <AddressesCard client={c} />
         <section className="card pad stack" aria-labelledby="team-h">
           <h2 id="team-h">Team</h2>
           <ImportanceRow client={c} />
@@ -275,6 +265,20 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
           <div className="kv"><span>Manager</span><span>{(c.Manager as string) || "—"}</span></div>
           {c.Engaged && <div className="kv"><span>Client since</span><span>{fmtDate(c.Engaged as string)}</span></div>}
         </section>
+      </div>
+
+      <div className="ov-col">
+        <section className="card pad stack" aria-labelledby="comp-h">
+          <h2 id="comp-h">Compliance</h2>
+          <div className="kv"><span>AML (Xama)</span><span style={amlLabel(c.XamaStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{amlLabel(c.XamaStatus).text}</span></div>
+          <XamaClientPanel client={c} />
+          <div className="kv"><span>Engagement letter</span><span style={loeLabel(c.LoEStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{loeLabel(c.LoEStatus).text}</span></div>
+          {c.RetentionYears ? <div className="kv"><span>Data kept after leaving</span><span>{c.RetentionYears} years</span></div> : null}
+        </section>
+        <ClientOpportunities clientKey={c.Key} />
+        <ClientOnboardingCard clientKey={c.Key} />
+        <ClientEngagements clientKey={c.Key} />
+        <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
       </div>
     </div>
   );
