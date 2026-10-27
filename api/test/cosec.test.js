@@ -68,7 +68,7 @@ test("a submission goes to the TEST gateway with the presenter's ID and a hash o
 
 test("not set up, unsupported forms and incomplete drafts are refused before anything is sent", async () => {
   const f = fakeFetch();
-  assert.equal((await call({ action: "submit", body: { form: "AD01", payload, company }, env: {}, fetch: f })).body.error, "not-configured");
+  assert.equal((await call({ action: "submit", body: { form: "AD01", payload, company }, env: { CH_FILING_SUBMIT_ENABLED: "1" }, fetch: f })).body.error, "not-configured");
   assert.equal((await call({ action: "submit", body: { form: "TM01", payload, company }, fetch: f })).body.error, "unsupported");
   const noPostcode = await call({ action: "submit", body: { form: "AD01", payload: { address: { line1: "x", town: "y", country: "England" } }, company }, fetch: f });
   assert.equal(noPostcode.body.error, "incomplete");
