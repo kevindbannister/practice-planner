@@ -23,15 +23,16 @@ Confirmed from HMRC's repository (github.com/hmrc/agent-authorisation-api, READM
 - Errors include `DUPLICATE_AUTHORISATION_REQUEST`, `NOT_AN_AGENT`, `AGENT_NOT_SUBSCRIBED`, `NO_PERMISSION_ON_AGENCY`, `SERVICE_NOT_SUPPORTED`, `INVALID_INVITATION_STATUS`.
 - The client must already be signed up for MTD VAT; the API does not onboard clients. They approve with their own Government Gateway sign-in.
 - **Sandbox:** exists, with a Create Test User API (agents and organisations) and an Agent Authorisation Test Support API that lets a test invitation be accepted. An application must subscribe to VAT (MTD), Create Test User, Agent Authorisation and Agent Authorisation Test Support.
-- **OAuth:** user-restricted (the agent signs in with their own agent Government Gateway user). HMRC's sandbox guide names the scope `write:sent-invitations`.
+- **OAuth:** user-restricted (the agent signs in with their own agent Government Gateway user). Scopes, from the API definition downloaded from the Developer Hub: `write:sent-invitations` (send), `read:sent-invitations` (read back), `write:cancel-invitations` (cancel), `read:check-relationship`, `write:relationships` (de-authorise; not used).
+- **Statuses (from the same definition):** Pending, Accepted, Rejected, Cancelled, Deauthorised, Expired, Partialauth. We map the first six; **Partialauth is not understood and is never treated as authorised**.
+- `service` is sent as an array (`["MTD-VAT"]`). The relationship check takes `service`, `clientIdType`, `clientId`, `knownFact` and no `clientType`. Every call needs `Accept: application/vnd.hmrc.2.0+json`; cancelling also needs `Content-Type: application/json`.
 
 ### Not confirmed (check on the Developer Hub before production)
 
-- The full list of invitation `status` values. Only `Pending` and `Accepted` appear in the examples. We map `Rejected`, `Cancelled` and `Expired` too, and treat **any other value as unknown, never as authorised**.
-- Whether reading an invitation needs a second scope beyond `write:sent-invitations`.
-- The exact request body for the relationships check (we send the same shape as the invitation).
+- What `Partialauth` means in practice.
 - The body (if any) the sandbox test-acceptance call expects.
-- The `Accept` header version: HMRC's examples mix `1.0` and `2.0`. We send `application/vnd.hmrc.2.0+json`.
+- Whether the sandbox accepts `service` as an array exactly as the definition shows (the repository README examples show a plain string).
+- The token URL used for renewing: the definition lists `/oauth/refresh`; we use HMRC's standard `/oauth/token` with `grant_type=refresh_token`.
 - Refresh-token lifetime. One reporter found daily re-authorisation was needed in 2019.
 - Production access: an application must be reviewed by HMRC before it can use production credentials.
 

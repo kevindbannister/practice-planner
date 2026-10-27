@@ -70,10 +70,10 @@ test("start builds HMRC's sandbox sign-in with the invitation scope", async () =
   const r = await call("start", { body: { origin: "https://pp.example.net" } });
   const u = new URL(r.body.url);
   assert.equal(u.origin + u.pathname, "https://test-api.service.hmrc.gov.uk/oauth/authorize");
-  assert.equal(u.searchParams.get("scope"), "write:sent-invitations");
-  assert.equal(u.searchParams.get("redirect_uri"), "https://pp.example.net/api/hmrc/callback");
+    assert.equal(u.searchParams.get("redirect_uri"), "https://pp.example.net/api/hmrc/callback");
   assert.equal(u.searchParams.get("client_id"), "hid");
   assert.equal(unseal(KEY, u.searchParams.get("state")).k, "state");
+  assert.deepEqual(u.searchParams.get("scope").split(" ").sort(), ["read:check-relationship", "read:sent-invitations", "write:cancel-invitations", "write:sent-invitations"]);
 });
 
 test("production uses HMRC's production address and keeps its own tokens", async () => {
@@ -167,7 +167,7 @@ test("a VAT invitation is created, then its client link and expiry are read back
   const post = hm(fetch.calls)[0];
   assert.equal(post.url, "https://test-api.service.hmrc.gov.uk/agents/TARN0000001/invitations");
   assert.equal(post.opts.headers.Accept, "application/vnd.hmrc.2.0+json");
-  assert.deepEqual(JSON.parse(post.opts.body), INV);
+  assert.deepEqual(JSON.parse(post.opts.body), { ...INV, service: ["MTD-VAT"] });
 });
 
 test("invalid VRN, invalid date, wrong service are refused before anything is sent", async () => {
@@ -243,15 +243,19 @@ test("accepted, rejected and expired come back as HMRC says them", async () => {
 });
 
 test("cancelling works while pending and explains when it can't", async () => {
-  const ok = await call("invitation/cancel", { body: { id: "ABC12345" }, store: connected(), fetch: fakeFetch([[(u, o) => o.method === "DELETE", res(204)]]) });
+  const cf = fakeFetch([[(u, o) => o.method === "DELETE", res(204)]]);
+  const ok = await call("invitation/cancel", { body: { id: "ABC12345" }, store: connected(), fetch: cf });
   assert.equal(ok.body.ok, true);
+  assert.equal(hm(cf.calls)[0].opts.headers["Content-Type"], "application/json");
   const no = await call("invitation/cancel", { body: { id: "ABC12345" }, store: connected(), fetch: fakeFetch([[(u, o) => o.method === "DELETE", res(403, { code: "INVALID_INVITATION_STATUS" })]]) });
   assert.match(no.body.message, /can no longer be cancelled/);
 });
 
 test("an existing relationship check: 204 active, 404 not", async () => {
-  const yes = await call("relationship", { body: { body: INV }, store: connected(), fetch: fakeFetch([[isPost("/relationships"), res(204)]]) });
+  const f = fakeFetch([[isPost("/relationships"), res(204)]]);
+  const yes = await call("relationship", { body: { body: INV }, store: connected(), fetch: f });
   assert.equal(yes.body.active, true);
+  assert.deepEqual(JSON.parse(hm(f.calls)[0].opts.body), { service: ["MTD-VAT"], clientIdType: "vrn", clientId: "101747696", knownFact: "2007-05-18" });
   const no = await call("relationship", { body: { body: INV }, store: connected(), fetch: fakeFetch([[isPost("/relationships"), res(404, { code: "RELATIONSHIP_NOT_FOUND" })]]) });
   assert.equal(no.body.active, false);
 });

@@ -33,7 +33,8 @@ export function fromHmrcStatus(s: unknown): AuthStatus | null {
     case "rejected": return "rejected";
     case "cancelled": case "canceled": return "cancelled";
     case "expired": return "expired";
-    default: return null;
+    case "deauthorised": return "ended";
+    default: return null; // e.g. "Partialauth": not understood, so never treated as authorised
   }
 }
 

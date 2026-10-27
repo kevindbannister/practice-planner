@@ -25,7 +25,8 @@ const crypto = require("node:crypto");
 const { createSignIn, reply } = require("../shared/signin.js");
 
 const BASES = { sandbox: "https://test-api.service.hmrc.gov.uk", production: "https://api.service.hmrc.gov.uk" };
-const SCOPE = "write:sent-invitations"; // the scope HMRC's own sandbox guide names for sending invitations
+// The scopes HMRC's published API definition names: send (write:sent-invitations), read back (read:sent-invitations), cancel (write:cancel-invitations), check a relationship (read:check-relationship).
+const SCOPE = "read:sent-invitations write:sent-invitations write:cancel-invitations read:check-relationship";
 const ARN = /^[A-Z]ARN\d{7}$/;
 const INVITATION_ID = /^[A-Za-z0-9]{8,40}$/;
 const REFRESH_EARLY_MS = 2 * 60 * 1000;
@@ -92,7 +93,7 @@ function cleanInvitation(b) {
   const d = String(b.knownFact || "");
   const real = /^\d{4}-\d{2}-\d{2}$/.test(d) && new Date(`${d}T00:00:00Z`).toISOString().slice(0, 10) === d;
   if (!real) return { error: "The VAT registration date must be a real date (YYYY-MM-DD)." };
-  return { body: { service: b.service, clientType: b.clientType, clientIdType: b.clientIdType, clientId: String(b.clientId), knownFact: d } };
+  return { body: { service: [b.service], clientType: b.clientType, clientIdType: b.clientIdType, clientId: String(b.clientId), knownFact: d } };
 }
 
 /** What we pass back about an invitation: only what the app needs. */
@@ -170,7 +171,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     const url = `${base}${path.replace("{arn}", t.rec.arn)}`;
     let res;
     try {
-      res = await fetch(url, { method, headers: { Authorization: `Bearer ${t.rec.at}`, Accept: ACCEPT, ...(payload ? { "Content-Type": "application/json" } : {}) }, body: payload ? JSON.stringify(payload) : undefined });
+      res = await fetch(url, { method, headers: { Authorization: `Bearer ${t.rec.at}`, Accept: ACCEPT, ...(payload || method === "DELETE" ? { "Content-Type": "application/json" } : {}) }, body: payload ? JSON.stringify(payload) : undefined });
     } catch {
       return { error: reply(504, { error: "unreachable", message: "Couldn't reach HMRC. Nothing was changed that we know of: check the status before trying again." }) };
     }
@@ -319,7 +320,8 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (action === "relationship") {
       const c = cleanInvitation(b.body);
       if (c.error) return void (context.res = reply(400, { error: "invalid", message: c.error }));
-      const r = await hmrc(store, "POST", "/agents/{arn}/relationships", c.body);
+      const { clientType: _ct, ...rel } = c.body; // the relationship check takes no clientType
+      const r = await hmrc(store, "POST", "/agents/{arn}/relationships", rel);
       if (r.error) return void (context.res = r.error);
       if (r.res.status === 204) return void (context.res = reply(200, { active: true }));
       const j = await r.res.json().catch(() => ({}));

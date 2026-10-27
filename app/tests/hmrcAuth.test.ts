@@ -8,7 +8,8 @@ test("HMRC statuses map; unknown ones never become authorised", () => {
   assert.equal(fromHmrcStatus("Rejected"), "rejected");
   assert.equal(fromHmrcStatus("Cancelled"), "cancelled");
   assert.equal(fromHmrcStatus("Expired"), "expired");
-  assert.equal(fromHmrcStatus("Deauthorised"), null);
+  assert.equal(fromHmrcStatus("Deauthorised"), "ended");
+  assert.equal(fromHmrcStatus("Partialauth"), null);
   assert.equal(fromHmrcStatus(undefined), null);
 });
 
