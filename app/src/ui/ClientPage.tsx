@@ -35,6 +35,8 @@ import { XeroInvoices } from "./XeroInvoices";
 import { ClearanceCard, ClearanceTab } from "./Clearance";
 import { AmlCard, AmlTab } from "./AmlTab";
 import { TaxRefsCard } from "./TaxRefs";
+import { ComplianceExtras, MemosCard } from "./ClientExtras";
+import { addDays as addDaysIso } from "../lib/planning";
 import { position as amlPosition } from "../lib/amlAssessment";
 import { ServicesEditor } from "./ServicesEditor";
 import { officerName, pscName } from "../lib/cosecForms";
@@ -122,28 +124,36 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         </section>
       )}
 
-      <nav className="tabs" aria-label="Client sections">
-        <a href={href("clients", c.Key)} aria-current={tab === "overview" ? "page" : undefined}>Overview</a>
-        <a href={href("clients", c.Key, "work")} aria-current={tab === "work" ? "page" : undefined}>
-          Work <span className="chip" style={{ marginLeft: 4 }}>{jobs.length}</span>
-        </a>
-        <a href={href("clients", c.Key, "activity")} aria-current={tab === "activity" ? "page" : undefined}>Activity</a>
-        <a href={href("clients", c.Key, "timeline")} aria-current={tab === "timeline" ? "page" : undefined}>Communication</a>
-        <a href={href("clients", c.Key, "comms")} aria-current={tab === "comms" ? "page" : undefined}>
-          Letters and emails{commsCount ? <span className="chip" style={{ marginLeft: 4 }}>{commsCount}</span> : null}
-        </a>
-        <a href={href("clients", c.Key, "meetings")} aria-current={tab === "meetings" ? "page" : undefined}>
-          Meetings{meetingsCount ? <span className="chip" style={{ marginLeft: 4 }}>{meetingsCount}</span> : null}
-        </a>
-        <a href={href("clients", c.Key, "signing")} aria-current={tab === "signing" ? "page" : undefined}>Signing requests</a>
-        <a href={href("clients", c.Key, "invoices")} aria-current={tab === "invoices" ? "page" : undefined}>Invoices</a>
-        <a href={href("clients", c.Key, "aml")} aria-current={tab === "aml" ? "page" : undefined}>AML</a>
-        {(tab === "clearance" || allData.clearances.some((r) => r.ClientKey === c.Key)) && <a href={href("clients", c.Key, "clearance")} aria-current={tab === "clearance" ? "page" : undefined}>Clearance</a>}
-        <a href={href("clients", c.Key, "portal")} aria-current={tab === "portal" ? "page" : undefined}>Portal</a>
-        <a href={href("clients", c.Key, "tax")} aria-current={tab === "tax" ? "page" : undefined}>
-          Tax payments{owingCount ? <span className="chip" style={{ marginLeft: 4 }}>{owingCount}</span> : null}
-        </a>
-      </nav>
+      {(() => {
+        type T = { key: typeof tab; label: string; count?: number };
+        const groups: { label: string; tabs: T[] }[] = [
+          { label: "Overview", tabs: [{ key: "overview", label: "Overview" }] },
+          { label: "Work", tabs: [{ key: "work", label: "Work", count: jobs.length }] },
+          { label: "Communication", tabs: [{ key: "timeline", label: "Communication" }, { key: "activity", label: "Activity" }, { key: "comms", label: "Letters and emails", count: commsCount }, { key: "meetings", label: "Meetings", count: meetingsCount }] },
+          { label: "Documents", tabs: [{ key: "signing", label: "Signing requests" }, { key: "portal", label: "Portal" }] },
+          { label: "Finance", tabs: [{ key: "invoices", label: "Invoices" }, { key: "tax", label: "Tax payments", count: owingCount }] },
+          { label: "Compliance", tabs: [{ key: "aml", label: "AML" }, { key: "clearance", label: "Clearance" }] },
+        ];
+        const to = (k: typeof tab) => (k === "overview" ? href("clients", c.Key) : href("clients", c.Key, k));
+        const active = groups.find((g) => g.tabs.some((t) => t.key === tab)) || groups[0];
+        const chip = (n?: number) => (n ? <span className="chip" style={{ marginLeft: 4 }}>{n}</span> : null);
+        return (
+          <>
+            <nav className="tabs" aria-label="Client sections">
+              {groups.map((g) => {
+                const sub = g.tabs.length > 1;
+                const count = g.tabs.reduce((n, t) => n + (t.count || 0), 0);
+                return <a key={g.label} href={to(g.tabs[0].key)} aria-current={g === active ? "page" : undefined}>{g.label}{g.tabs.length === 1 && g.tabs[0].key === "work" ? chip(jobs.length) : sub ? chip(count) : null}</a>;
+              })}
+            </nav>
+            {active.tabs.length > 1 && (
+              <nav className="tabs sub-tabs" aria-label={`${active.label} sections`} style={{ fontSize: 13, marginTop: -8 }}>
+                {active.tabs.map((t) => <a key={t.key} href={to(t.key)} aria-current={tab === t.key ? "page" : undefined}>{t.label}{chip(t.count)}</a>)}
+              </nav>
+            )}
+          </>
+        );
+      })()}
 
       {tab === "meetings" && (
         <div className="stack">
@@ -274,6 +284,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     { id: "compliance", label: "Compliance", node: (
     <section className="card pad stack" aria-labelledby="comp-h">
       <h2 id="comp-h">Compliance</h2>
+      <ComplianceExtras client={c} />
       <div className="kv"><span>Engagement letter</span><span style={loeLabel(c.LoEStatus).warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{loeLabel(c.LoEStatus).text}</span></div>
       {c.RetentionYears ? <div className="kv"><span>Data kept after leaving</span><span>{c.RetentionYears} years</span></div> : null}
     </section>
@@ -281,6 +292,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     { id: "sales", label: "Opportunities", node: (<><ClientOpportunities clientKey={c.Key} /><ClientOnboardingCard clientKey={c.Key} /></>) },
     { id: "letters", label: "Engagement letters", node: <ClientEngagements clientKey={c.Key} /> },
     { id: "aml", label: "AML", node: <AmlCard client={c} /> },
+    { id: "memos", label: "Memos", node: <MemosCard client={c} /> },
     { id: "clearance", label: "Professional clearance", node: <ClearanceCard client={c} openHref={href("clients", c.Key, "clearance")} /> },
     { id: "cis", label: "CIS", node: (
     <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
@@ -292,7 +304,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
 const STANDARD_COLUMNS: DefaultColumn[] = [
   { w: 30, ids: ["work", "gaps", "services", "fees"] },
   { w: 15, ids: ["profile", "portal", "contact", "refs", "addresses", "team"] },
-  { w: 15, ids: ["people", "compliance", "aml", "sales", "letters", "clearance", "cis"] },
+  { w: 15, ids: ["people", "compliance", "aml", "sales", "letters", "clearance", "memos", "cis"] },
 ];
 
 /** Key, normal or low-touch: how much this client matters when the planner decides what comes first. */
@@ -486,7 +498,10 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     })),
   ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 
-  const sections = sectionJobs(jobs, data.services, (k) => idx.serviceName.get(k) || k);
+  const [due, setDue] = useState<"all" | "overdue" | "30" | "90">("all");
+  const inWindow = (j: Job) => due === "all" || (!!j.Deadline && (due === "overdue" ? String(j.Deadline) < today : String(j.Deadline) <= addDaysIso(today, Number(due))));
+  const shownJobs = jobs.filter(inWindow);
+  const sections = sectionJobs(shownJobs, data.services, (k) => idx.serviceName.get(k) || k);
   const waiting = waitingOnClient(jobs, (j) => data.stageTemplates.filter((t) => t.ServiceKey === j.ServiceKey));
   const upcoming = jobs.filter((j) => j.Deadline).sort((a, b) => String(a.Deadline).localeCompare(String(b.Deadline))).slice(0, 8);
   const buttons = (
@@ -506,8 +521,13 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   return (
     <div className="wk-layout">
       <div className="wk-main">
+        {jobs.length > 1 && (
+          <div className="row-wrap" role="group" aria-label="Show work due" style={{ gap: 6 }}>
+            {([["all", "All work"], ["overdue", "Overdue"], ["30", "Due in 30 days"], ["90", "Due in 90 days"]] as const).map(([k, label]) => <button key={k} type="button" className={`chip-btn${due === k ? " on" : ""}`} aria-pressed={due === k} onClick={() => setDue(k)}>{label}</button>)}
+          </div>
+        )}
         {none && <div className="wk-head"><h2>Work</h2>{buttons}</div>}
-        {none && <div className="card empty">No open work for this client.</div>}
+        {none && <div className="card empty">{jobs.length && due !== "all" ? "No work matches this filter." : "No open work for this client."}</div>}
         {sections.statutory.length > 0 && section("Statutory work", sections.statutory, true)}
         {sections.other.length > 0 && section("Other services", sections.other, !sections.statutory.length)}
       </div>
