@@ -61,3 +61,20 @@ test("the accounts fallback finds ACCS_LTD and ACCS_LLP jobs, and the tax return
   assert.equal(r.accounts.date, "2027-09-30");
   assert.equal(r.ct.date, "");
 });
+
+test("the other statutory dates are included: corporation tax payment, payroll, CIS and anything else marked statutory", () => {
+  const cl = [{ Key: "C8", Title: "Pay Ltd", Kind: "Ltd", CompanyNumber: "9" }];
+  const j = [
+    { ClientKey: "C8", ServiceKey: "CT600", PeriodEnd: "2026-03-31", Deadline: "2027-03-31", Status: "Open" },
+    { ClientKey: "C8", ServiceKey: "PAYROLL", Deadline: "2026-11-05", Status: "Open" },
+    { ClientKey: "C8", ServiceKey: "CIS", Deadline: "2026-11-19", Status: "Open" },
+    { ClientKey: "C8", ServiceKey: "P11D", Deadline: "2027-07-06", Status: "Open" },
+    { ClientKey: "C8", ServiceKey: "BOOKKEEPING", Deadline: "2026-11-30", Status: "Open" },
+  ];
+  const services = [{ Key: "P11D", Title: "P11D" }, { Key: "BOOKKEEPING", Title: "Bookkeeping" }];
+  const r = portfolioRows(cl as any, j as any, [], [], "2026-10-27", services as any)[0];
+  assert.equal(r.ctPay.date, "2027-01-01");
+  assert.equal(r.payroll.date, "2026-11-05");
+  assert.equal(r.cis.date, "2026-11-19");
+  assert.deepEqual(r.other.map((o) => o.label), ["P11D"]);
+});

@@ -2420,3 +2420,10 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .wk-cell .btn { min-height: 30px; padding: 3px 10px; font-size: 13px; border-radius: 10px; }
 .wk-cell .job-stages .row-wrap { justify-content: space-between; align-items: center; }
 .wk-cell .job-head { min-height: 64px; }
+
+/* Co Sec portfolio: compact so a whole practice fits on one screen */
+.pf { font-size: 12.5px; }
+.pf th, .pf td { padding: 4px 8px; line-height: 1.25; }
+.pf th { font-size: 11.5px; }
+.pf .chip { padding: 0 8px; font-size: 11.5px; line-height: 1.6; }
+.pf td a { text-decoration-thickness: 1px; }

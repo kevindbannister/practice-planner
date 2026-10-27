@@ -69,7 +69,7 @@ function Overview() {
   );
 }
 
-type SortKey = "name" | "number" | "ard" | "accounts" | "ct" | "csDate" | "cs" | "vat" | "vatNumber";
+type SortKey = "name" | "number" | "ard" | "accounts" | "ct" | "ctPay" | "csDate" | "cs" | "vat" | "vatNumber" | "payroll" | "cis";
 const sortValue = (r: PortfolioRow, k: SortKey): string => {
   switch (k) {
     case "name": return r.name.toLowerCase();
@@ -77,6 +77,9 @@ const sortValue = (r: PortfolioRow, k: SortKey): string => {
     case "ard": return r.ard ? `${String(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(r.ard.split(" ")[1]) + 1).padStart(2, "0")}${r.ard.split(" ")[0].padStart(2, "0")}` : "~";
     case "accounts": return r.accounts.date || "~";
     case "ct": return r.ct.date || "~";
+    case "ctPay": return r.ctPay.date || "~";
+    case "payroll": return r.payroll.date || "~";
+    case "cis": return r.cis.date || "~";
     case "csDate": return r.csDate || "~";
     case "cs": return r.cs.date || "~";
     case "vat": return r.vat.date || "~";
@@ -91,7 +94,7 @@ function Portfolio() {
   const today = new Date().toISOString().slice(0, 10);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
-  const all = useMemo(() => portfolioRows(k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today), [k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today]);
+  const all = useMemo(() => portfolioRows(k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today, k.data.services), [k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today, k.data.services]);
   const byKey = new Map(k.data.clients.map((c) => [String(c.Key), c]));
   const match = (r: PortfolioRow) => !q.trim() || `${r.name} ${r.number} ${r.vatNumber}`.toLowerCase().includes(q.trim().toLowerCase());
   const order = (a: PortfolioRow, b: PortfolioRow) => sort.dir * sortValue(a, sort.key).localeCompare(sortValue(b, sort.key)) || a.name.localeCompare(b.name);
@@ -106,9 +109,9 @@ function Portfolio() {
   );
   const pill = (c: Cell, withDate = false) => !c.date ? <span className="muted">—</span> : (
     <span style={{ display: "inline-flex", flexDirection: withDate ? "column" : "row", alignItems: "flex-start", gap: withDate ? 3 : 6 }} title={c.from === "app" ? "From the planner's open job. Not yet checked at Companies House." : c.from === "ch" ? "From Companies House" : undefined}>
-      {withDate && <span className="mono" style={{ whiteSpace: "nowrap" }}>{dmy(c.date)}</span>}
+      {withDate && <span className="mono" style={{ whiteSpace: "nowrap" }}>{dmy(c.date)}{c.from === "app" && <span className="muted" aria-hidden="true"> *</span>}</span>}
       {c.pill && <span className={`chip ${c.pill.tone}`} style={{ whiteSpace: "nowrap" }}>{c.pill.text}</span>}
-      {c.from === "app" && <span className="muted" aria-hidden="true">*</span>}
+      {c.from === "app" && !withDate && <span className="muted" aria-hidden="true">*</span>}
     </span>
   );
   return (
@@ -120,20 +123,23 @@ function Portfolio() {
           <button type="button" className="btn" disabled={running} onClick={() => void ch.run()}>{running ? "Checking…" : "Refresh from Companies House"}</button>
         </span>
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Accounts and confirmation statement dates come from Companies House{checked ? `, last checked ${fmtDate(checked.slice(0, 10))}` : ""}. The tax return date is the planner's open Corporation Tax job (12 months after that period ends), so it can be for an earlier period than the accounts date beside it. VAT comes from the planner's VAT job. * marks a date taken from the planner because that company hasn't been checked at Companies House yet.</p>
-      <div className="table-wrap"><table className="grid" style={{ minWidth: 980 }}>
-        <thead><tr>{head("name", "Company name")}{head("number", "Number")}{head("ard", "Accounts ref date")}{head("accounts", "Latest date to submit accounts")}{head("ct", "Next tax return due")}{head("csDate", "Confirmation date")}{head("cs", "Latest date to submit confirmation statement")}{head("vat", "Next VAT due")}{head("vatNumber", "VAT number")}</tr></thead>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Accounts and confirmation statement dates come from Companies House (hover a confirmation statement date to see the date it is made up to){checked ? `, last checked ${fmtDate(checked.slice(0, 10))}` : ""}. The tax return date is the planner's open Corporation Tax job (12 months after that period ends), so it can be for an earlier period than the accounts date beside it. VAT comes from the planner's VAT job. * marks a date taken from the planner because that company hasn't been checked at Companies House yet.</p>
+      <div className="table-wrap"><table className="grid pf" style={{ minWidth: 1000 }}>
+        <thead><tr>{head("name", "Company")}{head("accounts", "Latest date to submit accounts")}{head("ct", "Next tax return due")}{head("ctPay", "Corporation tax payment due")}{head("cs", "Latest date to submit confirmation statement")}{head("vat", "Next VAT due")}{head("payroll", "Payroll due")}{head("cis", "CIS return due")}<th scope="col" style={{ verticalAlign: "bottom" }}>Other statutory</th></tr></thead>
         <tbody>{current.length ? current.map((r) => (
           <tr key={r.key}>
-            <td style={{ minWidth: 150 }}><a href={href("cosec", "company", r.key)}>{r.name}</a>{r.openFilings > 0 && <> <a className="chip amber" href={href("cosec", "filings")} title="A filing is waiting">{r.openFilings}</a></>}</td>
-            <td className="mono" style={{ whiteSpace: "nowrap" }}>{r.number}</td>
-            <td>{r.ard || <span className="muted">—</span>}</td>
+            <td style={{ minWidth: 150 }}><a href={href("cosec", "company", r.key)}>{r.name}</a>{r.openFilings > 0 && <> <a className="chip amber" href={href("cosec", "filings")} title="A filing is waiting">{r.openFilings}</a></>}
+              <div className="muted mono" style={{ fontSize: 11 }}>{r.number}{r.ard ? ` · year end ${r.ard}` : ""}{r.vatNumber ? ` · VAT ${r.vatNumber}` : ""}</div></td>
             <td>{pill(r.accounts, true)}</td>
             <td>{pill(r.ct, true)}</td>
-            <td className="mono" style={{ whiteSpace: "nowrap" }}>{r.csDate ? dmy(r.csDate) : <span className="muted">—</span>}</td>
-            <td>{pill(r.cs, true)}</td>
+            <td>{pill(r.ctPay, true)}</td>
+            
+            <td title={r.csDate ? `Made up to ${dmy(r.csDate)}` : undefined}>{pill(r.cs, true)}</td>
             <td>{pill(r.vat, true)}</td>
-            <td className="mono">{r.vatNumber || <span className="muted">—</span>}</td>
+            
+            <td>{pill(r.payroll, true)}</td>
+            <td>{pill(r.cis, true)}</td>
+            <td>{r.other.length ? r.other.map((o) => <div key={o.label + o.cell.date} style={{ fontSize: 11.5 }}><span className="muted">{o.label}</span> {pill(o.cell, true)}</div>) : <span className="muted">—</span>}</td>
           </tr>)) : <tr><td colSpan={9} className="muted">No companies match.</td></tr>}</tbody>
       </table></div>
       {gone.length > 0 && (
