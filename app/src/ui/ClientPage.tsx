@@ -35,7 +35,7 @@ import { officerName, pscName } from "../lib/cosecForms";
 import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
 import { sectionJobs, waitingOnClient } from "../lib/workGroups";
 
-export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "portal" }) {
+export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "portal" }) {
   const idx = useIndex();
   const { data: allData } = useData();
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
@@ -120,6 +120,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
           Work <span className="chip" style={{ marginLeft: 4 }}>{jobs.length}</span>
         </a>
         <a href={href("clients", c.Key, "activity")} aria-current={tab === "activity" ? "page" : undefined}>Activity</a>
+        <a href={href("clients", c.Key, "timeline")} aria-current={tab === "timeline" ? "page" : undefined}>Communication</a>
         <a href={href("clients", c.Key, "comms")} aria-current={tab === "comms" ? "page" : undefined}>
           Letters and emails{commsCount ? <span className="chip" style={{ marginLeft: 4 }}>{commsCount}</span> : null}
         </a>
@@ -143,8 +144,9 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       )}
       {tab === "tax" && <TaxPaymentsTab client={c} />}
       {tab === "activity" && <ClientTimeline client={c} />}
+      {tab === "timeline" && <ClientTimeline client={c} mode="comms" />}
       {tab === "portal" && <div className="stack"><ClientPortalUsers client={c} /><ClientMessages client={c} /><ClientRequests client={c} /><ClientDocuments client={c} /></div>}
-      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
+      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>

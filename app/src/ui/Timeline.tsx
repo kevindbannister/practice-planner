@@ -10,6 +10,7 @@ import {
   Activity, ActivityType, Filter, GROUPS, Group, MANUAL_TYPES, MailMsg, OPENABLE, TYPE_INFO, buildTimeline, clientAddresses, filterActivities, groupByDay, mailActivities, summarise,
 } from "../lib/timeline";
 import { fetchClientMail } from "../lib/timelineMail";
+import { CHANNELS, Channel, channelCounts, channelOf, commEntries, directionOf, groupByMonth } from "../lib/commsTimeline";
 import { Icon } from "./bits";
 import { MAIL_SCOPE, mailAllowed } from "./commsKit";
 import { useData, useIndex } from "./data";
@@ -19,7 +20,8 @@ const PAGE = 50;
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 const localInput = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
-export function ClientTimeline({ client }: { client: Client }) {
+export function ClientTimeline({ client, mode = "all" }: { client: Client; mode?: "all" | "comms" }) {
+  const comms = mode === "comms";
   const { data, store, user, create, update, remove } = useData();
   const idx = useIndex();
   const today = todayIso();
@@ -29,6 +31,7 @@ export function ClientTimeline({ client }: { client: Client }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [jobKey, setJobKey] = useState("");
+  const [channels, setChannels] = useState<Channel[]>([]);
   const [shown, setShown] = useState(PAGE);
   const [adding, setAdding] = useState(false);
   const [mail, setMail] = useState<{ state: "idle" | "loading" | "done" | "error"; msgs: MailMsg[]; error?: string }>({ state: "idle", msgs: [] });
@@ -68,8 +71,12 @@ export function ClientTimeline({ client }: { client: Client }) {
   const jobName = (k?: string) => { const j = data.jobs.find((x) => x.Key === k); return j ? `${idx.serviceName.get(String(j.ServiceKey || "")) || j.Title}${j.PeriodEnd ? `, ${fmtDate(String(j.PeriodEnd))}` : ""}` : ""; };
 
   const filter: Filter = { group, q, from, to, jobKey };
-  const visible = useMemo(() => filterActivities(all, filter).filter((a) => a.at.slice(0, 10) <= today || a.type === "follow-up" || a.type === "meeting"), [all, group, q, from, to, jobKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
-  const days = useMemo(() => groupByDay(visible.slice(0, shown), today), [visible, shown, today]);
+  const meetingText = (a: Activity) => { const m = a.source === "meetings" ? data.meetings.find((x) => x.Key === a.sourceKey) : undefined; return m ? `${m.Location || ""} ${m.Attendees || ""}` : ""; };
+  const counts = useMemo(() => channelCounts(all.filter((a) => a.at.slice(0, 10) <= today || a.type === "meeting")), [all, today]);
+  const visible = useMemo(() => comms
+    ? commEntries(all, { channels, from, to, q, extra: meetingText }).filter((a) => a.at.slice(0, 10) <= today || a.type === "meeting")
+    : filterActivities(all, filter).filter((a) => a.at.slice(0, 10) <= today || a.type === "follow-up" || a.type === "meeting"), [comms, channels, all, group, q, from, to, jobKey, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const days = useMemo(() => comms ? groupByMonth(visible.slice(0, shown)).map((g) => ({ day: g.month, label: g.label, items: g.items })) : groupByDay(visible.slice(0, shown), today), [comms, visible, shown, today]);
 
   const act = async (id: string, work: () => Promise<unknown>, fail: string) => {
     setBusy(id);
@@ -95,32 +102,37 @@ export function ClientTimeline({ client }: { client: Client }) {
 
   return (
     <div className="stack timeline">
-      <div className="tl-summary" role="list" aria-label="Client summary">
+      {!comms && <div className="tl-summary" role="list" aria-label="Client summary">
         {summaryItems.map((s) => {
           const inner = (<><span className="tl-sum-label">{s.label}</span><strong className={s.warn ? "warn" : ""}>{s.value}</strong><span className="muted tl-sum-sub">{s.sub}</span></>);
           return s.href ? <a key={s.label} role="listitem" className="tl-sum" href={s.href} {...(s.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{inner}</a>
             : s.onClick ? <button key={s.label} type="button" role="listitem" className="tl-sum" onClick={s.onClick}>{inner}</button>
             : <div key={s.label} role="listitem" className="tl-sum">{inner}</div>;
         })}
-      </div>
+      </div>}
 
       <div className="row-wrap tl-bar">
-        <div className="row-wrap" role="group" aria-label="Show">
+        {comms ? (
+          <div className="row-wrap" role="group" aria-label="Show">
+            <button type="button" className={`chip-btn${channels.length === 0 ? " on" : ""}`} aria-pressed={channels.length === 0} onClick={() => { setChannels([]); setShown(PAGE); }}>All communication</button>
+            {CHANNELS.map((c) => { const on = channels.includes(c.key); return <button key={c.key} type="button" className={`chip-btn${on ? " on" : ""}`} aria-pressed={on} onClick={() => { setChannels(on ? channels.filter((x) => x !== c.key) : [...channels, c.key]); setShown(PAGE); }}>{c.label} <span className="muted">{counts[c.key]}</span></button>; })}
+          </div>
+        ) : <div className="row-wrap" role="group" aria-label="Show">
           {GROUPS.map((g) => <button key={g.key} type="button" className={`chip-btn${group === g.key ? " on" : ""}`} aria-pressed={group === g.key} onClick={() => { setGroup(g.key); setShown(PAGE); }}>{g.label}</button>)}
-        </div>
+        </div>}
         <span style={{ flex: 1 }} />
         <button type="button" className="btn small" onClick={loadMail} disabled={!canMail || mail.state === "loading"} title="Look for new emails in Outlook">{mail.state === "loading" ? "Checking mail…" : "Refresh emails"}</button>
-        <button type="button" className="btn primary" onClick={() => setAdding(true)} disabled={!ready}>Add activity</button>
+        <button type="button" className="btn primary" onClick={() => setAdding(true)} disabled={!ready}>{comms ? "Log a call, text or meeting" : "Add activity"}</button>
       </div>
       <div className="row-wrap tl-filters">
         <input className="input search" type="search" placeholder="Search this timeline" aria-label="Search this timeline" value={q} onChange={(e) => { setQ(e.target.value); setShown(PAGE); }} />
         <label className="tl-date">From <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
         <label className="tl-date">To <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-        <select className="input" aria-label="Job" value={jobKey} onChange={(e) => { setJobKey(e.target.value); setShown(PAGE); }}>
+        {!comms && <select className="input" aria-label="Job" value={jobKey} onChange={(e) => { setJobKey(e.target.value); setShown(PAGE); }}>
           <option value="">All activity for this client</option>
           {jobs.map((j) => <option key={j.Key as string} value={j.Key as string}>Only: {jobName(j.Key as string)}</option>)}
-        </select>
-        {(q || from || to || jobKey || group !== "all") && <button type="button" className="linkbtn" onClick={() => { setQ(""); setFrom(""); setTo(""); setJobKey(""); setGroup("all"); }}>Clear filters</button>}
+        </select>}
+        {(q || from || to || jobKey || channels.length || group !== "all") && <button type="button" className="linkbtn" onClick={() => { setQ(""); setFrom(""); setTo(""); setJobKey(""); setGroup("all"); setChannels([]); }}>Clear filters</button>}
       </div>
 
       {!ready && <p className="import-list warn" role="alert">The timeline's own list isn't set up yet. It is added automatically when the planner starts; until then calls and notes can't be saved.</p>}
@@ -145,7 +157,7 @@ export function ClientTimeline({ client }: { client: Client }) {
         </section>
       )}
 
-      {adding && <AddActivity client={client} jobs={jobs} jobName={jobName} onClose={() => setAdding(false)} />}
+      {adding && <AddActivity client={client} jobs={jobs} jobName={jobName} types={comms ? COMM_ADD : undefined} onClose={() => setAdding(false)} />}
 
       {days.length ? days.map((d) => (
         <section key={d.day} aria-label={d.label} className="tl-day">
@@ -163,7 +175,7 @@ export function ClientTimeline({ client }: { client: Client }) {
                   </div>
                   {a.summary && <div className="muted tl-sum-text">{a.summary}</div>}
                   <div className="muted tl-meta">
-                    {TYPE_INFO[a.type].label}{a.dateOnly ? "" : ` · ${clock(a.at)}`}{a.actor ? ` · ${a.actor}` : ""}
+                    {comms && directionOf(a.type) ? (directionOf(a.type) === "in" ? "← " : "→ ") : ""}{TYPE_INFO[a.type].label}{a.dateOnly ? "" : ` · ${clock(a.at)}`}{a.actor ? ` · ${a.actor}` : ""}
                     {a.jobKey && jobName(a.jobKey) ? <> · <button type="button" className="linkbtn" onClick={() => { setJobKey(a.jobKey!); setShown(PAGE); }}>{jobName(a.jobKey)}</button></> : null}
                     {a.followUp ? ` · follow up ${fmtDate(a.followUp, { year: false })}` : ""}
                   </div>
@@ -179,7 +191,7 @@ export function ClientTimeline({ client }: { client: Client }) {
             ))}
           </ul>
         </section>
-      )) : <div className="card empty">{all.length ? "Nothing matches these filters." : mail.state === "loading" ? "Looking for activity…" : `No activity recorded for ${client.Title} yet. Letters, meetings, jobs and tasks appear here as they happen, and you can add calls and notes.`}</div>}
+      )) : <div className="card empty">{all.length ? "Nothing matches these filters." : mail.state === "loading" ? "Looking for activity…" : comms ? `No emails, texts, calls or meetings recorded for ${client.Title} yet. Emails appear automatically from Outlook; log texts and calls with the button above.` : `No activity recorded for ${client.Title} yet. Letters, meetings, jobs and tasks appear here as they happen, and you can add calls and notes.`}</div>}
 
       {visible.length > shown && <div className="row-wrap" style={{ justifyContent: "center" }}><button type="button" className="btn" onClick={() => setShown(shown + PAGE)}>Show more ({visible.length - shown} older)</button></div>}
     </div>
@@ -221,8 +233,9 @@ function MoveEntry({ a, clients, jobs, jobName, onMove }: { a: Activity; clients
 }
 
 const ADD_TYPES = MANUAL_TYPES;
+const COMM_ADD: ActivityType[] = ["call", "text-in", "text-out", "meeting", "conversation"];
 
-function AddActivity({ client, jobs, jobName, onClose }: { client: Client; jobs: Row[]; jobName: (k?: string) => string; onClose: () => void }) {
+function AddActivity({ client, jobs, jobName, types, onClose }: { client: Client; jobs: Row[]; jobName: (k?: string) => string; types?: ActivityType[]; onClose: () => void }) {
   const { data, user, create } = useData();
   const [type, setType] = useState<ActivityType>("call");
   const [at, setAt] = useState(localInput());
@@ -266,7 +279,7 @@ function AddActivity({ client, jobs, jobName, onClose }: { client: Client; jobs:
       <h3 style={{ margin: 0 }}>Add activity</h3>
       <div className="tl-form">
         <label className="doc-field"><span>Activity type</span>
-          <select className="input" value={type} onChange={(e) => setType(e.target.value as ActivityType)}>{ADD_TYPES.map((t) => <option key={t} value={t}>{TYPE_INFO[t].label}</option>)}</select>
+          <select className="input" value={type} onChange={(e) => setType(e.target.value as ActivityType)}>{(types || ADD_TYPES).map((t) => <option key={t} value={t}>{TYPE_INFO[t].label}</option>)}</select>
         </label>
         <label className="doc-field"><span>Date and time</span><input className="input" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} /></label>
         <label className="doc-field"><span>Client</span>

@@ -18,7 +18,7 @@ export type ActivityType =
   | "job-created" | "job-status" | "job-planned" | "job-deadline" | "job-completed"
   | "task-created" | "task-completed"
   | "paper-tb" | "paper-journal" | "paper-prepared" | "paper-reviewed" | "paper-done" | "paper-note" | "paper-note-resolved"
-  | "call" | "meeting" | "note" | "conversation" | "follow-up"
+  | "call" | "text-in" | "text-out" | "meeting" | "note" | "conversation" | "follow-up"
   | "info-requested" | "info-received" | "query" | "chase"
   | "tax-reminder" | "tax-paid"
   | "lead-created" | "opp-created" | "opp-stage" | "opp-won" | "opp-outcome"
@@ -55,6 +55,8 @@ export const TYPE_INFO: Record<ActivityType, { label: string; group: Group; icon
   "paper-note-resolved": { label: "Review note resolved", group: "papers", icon: "check" },
   call: { label: "Phone call", group: "notes", icon: "groups" },
   meeting: { label: "Meeting", group: "notes", icon: "clock" },
+  "text-in": { label: "Text received", group: "notes", icon: "groups" },
+  "text-out": { label: "Text sent", group: "notes", icon: "groups" },
   note: { label: "Note", group: "notes", icon: "list" },
   conversation: { label: "Client conversation", group: "notes", icon: "groups" },
   "follow-up": { label: "Follow-up", group: "notes", icon: "clock" },
@@ -88,7 +90,7 @@ export const TYPE_INFO: Record<ActivityType, { label: string; group: Group; icon
 };
 
 /** Types a person can record by hand. */
-export const MANUAL_TYPES: ActivityType[] = ["call", "meeting", "note", "conversation", "follow-up", "info-requested", "info-received", "query"];
+export const MANUAL_TYPES: ActivityType[] = ["call", "text-in", "text-out", "meeting", "note", "conversation", "follow-up", "info-requested", "info-received", "query"];
 /** Manual types that stay open until dealt with. */
 export const OPENABLE: ActivityType[] = ["info-requested", "query", "follow-up"];
 
