@@ -2294,3 +2294,12 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .inline-form > .input, .inline-form > select.input, .inline-form .doc-field { width: auto; flex: 1 1 150px; min-width: 120px; max-width: 100%; }
 .inline-form input[type=date].input { flex: 0 1 160px; }
+.richfield { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.richfield-label { font-weight: 600; }
+.richfield-body { border: 1px solid var(--line-strong); border-radius: 10px; padding: 10px 12px; background: var(--surface); max-height: 420px; overflow: auto; line-height: 1.5; }
+.richfield-body:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+.richfield-body:empty::before { content: attr(data-placeholder); color: var(--muted); }
+.richfield-body h2, .richfield-body h3 { margin: 10px 0 4px; font-size: 1.05em; }
+.richfield-body p { margin: 0 0 8px; }
+.richfield-body ul, .richfield-body ol { margin: 0 0 8px; padding-left: 22px; }
+.richfield .docedit-bar { position: static; }

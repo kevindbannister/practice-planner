@@ -2,7 +2,7 @@
 // Three pieces: which clients have services no live letter covers, a letter built from the client's own services and
 // fees (no proposal needed), and doing that for a batch with the same checks as one at a time. Pure rules; the screens
 // are in ui/LetterGaps.tsx.
-import { Agreed, AgreedLine, EngagementSettings, MAX_BODY, addYears, encodeBody, engagementDocument, isLive, nextRef, readList, refsOf, reviewStatus, reviewYears, templateFor, advanceEng } from "./engagements";
+import { Agreed, AgreedLine, EngagementSettings, MAX_BODY, partyOf, addYears, encodeBody, engagementDocument, isLive, nextRef, readList, refsOf, reviewStatus, reviewYears, templateFor, advanceEng } from "./engagements";
 import { periodsPerYear } from "./fees";
 import { CatalogueService, DEFAULT_VAT_RATE, ClientType, ProposalAction, clientTypeFor } from "./proposals";
 import { Ctx, Written, activityRow, logRow } from "./sales";
@@ -102,7 +102,7 @@ export function generateFromSchedule(i: FromScheduleInput, o: Ctx): { engagement
   const ref = nextRef(i.existing, Number(o.now.slice(0, 4)));
   const sig = i.signatories ?? [contactName(i.client)];
   const doc = engagementDocument({
-    sections: templateFor(i.settings, type), client: { name: str(i.client.Title), address: str(i.client.RegisteredOffice || i.client.TradingAddress || i.client.HomeAddress), companyNumber: str(i.client.CompanyNumber), type }, practice: i.practice,
+    sections: templateFor(i.settings, type), client: partyOf(i.client, type), now: o.now, practice: i.practice,
     agreed, catalogue: i.catalogue, ref, date: i.today, effectiveDate: effective, reviewDate: addYears(effective, yrs), years: yrs, proposalRef: "", signatories: sig,
   });
   const body = encodeBody(doc);

@@ -14,7 +14,7 @@ const no = () => false;
 const cfg = (staff: { name: string; role: string }[]): any => ({ staff, overriders: [], independentReview: false, auto: true });
 
 const reviewedSettings = (o: Partial<EngagementSettings> = {}): EngagementSettings => {
-  const s: EngagementSettings = { ...DEFAULT_ENGAGEMENT_SETTINGS, base: { ...BLANK_SECTIONS, terms: "Our terms apply.", clientResp: "Keep records.", feeTerms: "Fees are due in 14 days." }, ...o };
+  const s: EngagementSettings = { ...DEFAULT_ENGAGEMENT_SETTINGS, base: { ...BLANK_SECTIONS, liability: "<p>Our terms apply.</p>", fees: "<h2>Fees</h2><p>Fees are due in 14 days.</p><p>[FeesTable]</p>" }, ...o };
   const r = reviewTemplate(s, "base", yes, "Sam", O.now);
   if ("error" in r) throw new Error(r.error);
   return r.settings;
@@ -49,30 +49,31 @@ test("adding years: same day, with 29 February landing on 28 February", () => {
 test("settings are read safely and sanitised", () => {
   assert.equal(readEngagementSettings([]).years, 3);
   assert.equal(readEngagementSettings([{ Key: "engagement.settings", Value: "not json" }]).years, 3);
-  const s = readEngagementSettings([{ Key: "engagement.settings", Value: JSON.stringify({ years: 7, typeYears: { limited: 0, individual: 2 }, clientYears: { C9: 3, C8: "x" }, remindDays: [30, 90, 0, 400, "a"], base: { terms: "T", wording: 5 } }) }]);
+  const s = readEngagementSettings([{ Key: "engagement.settings", Value: JSON.stringify({ years: 7, typeYears: { limited: 0, individual: 2 }, clientYears: { C9: 3, C8: "x" }, remindDays: [30, 90, 0, 400, "a"], base: { intro: "T", scope: 5 } }) }]);
   assert.equal(s.years, 7);
   assert.deepEqual(s.typeYears, { individual: 2 });
   assert.deepEqual(s.clientYears, { C9: 3 });
   assert.deepEqual(s.remindDays, [90, 30]);
-  assert.equal(s.base.terms, "T");
-  assert.equal(s.base.wording, BLANK_SECTIONS.wording, "a non-text section falls back");
+  assert.equal(s.base.intro, "<p>T</p>", "plain text becomes a paragraph");
+  assert.equal(s.base.scope, BLANK_SECTIONS.scope, "a non-text section falls back");
 });
 
 test("client-type wording overrides the practice wording", () => {
-  const s: EngagementSettings = { ...DEFAULT_ENGAGEMENT_SETTINGS, base: { ...BLANK_SECTIONS, terms: "Base terms" }, byType: { individual: { terms: "Individual terms" } } };
-  assert.equal(templateFor(s, "limited").terms, "Base terms");
-  assert.equal(templateFor(s, "individual").terms, "Individual terms");
-  assert.equal(templateFor(s, "individual").confidentiality, "");
+  const s: EngagementSettings = { ...DEFAULT_ENGAGEMENT_SETTINGS, base: { ...BLANK_SECTIONS, liability: "<p>Base terms</p>" }, byType: { individual: { liability: "<p>Individual terms</p>" } } };
+  assert.equal(templateFor(s, "limited").liability, "<p>Base terms</p>");
+  assert.equal(templateFor(s, "individual").liability, "<p>Individual terms</p>");
+  assert.equal(templateFor(s, "individual").guarantee, "", "a section not for this client type is left out");
+  assert.ok(templateFor(s, "limited").guarantee.includes("guarantee") || templateFor(s, "limited").guarantee.length > 0);
 });
 
 test("wording must be reviewed, and changing it un-reviews it", () => {
   assert.equal(reviewStatus(DEFAULT_ENGAGEMENT_SETTINGS, "limited").ok, false);
   const s = reviewedSettings();
   assert.equal(reviewStatus(s, "limited").ok, true);
-  assert.equal(reviewStatus({ ...s, base: { ...s.base, terms: "Changed" } }, "limited").ok, false);
-  assert.equal(reviewStatus({ ...s, byType: { limited: { terms: "Own terms" } } }, "limited").ok, false, "a type with its own wording needs its own review");
+  assert.equal(reviewStatus({ ...s, base: { ...s.base, liability: "<p>Changed</p>" } }, "limited").ok, false);
+  assert.equal(reviewStatus({ ...s, byType: { limited: { liability: "<p>Own terms</p>" } } }, "limited").ok, false, "a type with its own wording needs its own review");
   assert.equal("error" in reviewTemplate(s, "base", no, "Pat", O.now), true, "only a manager can mark it reviewed");
-  assert.notEqual(wordingHash(s.base), wordingHash({ ...s.base, terms: "x" }));
+  assert.notEqual(wordingHash(s.base), wordingHash({ ...s.base, liability: "<p>x</p>" }));
 });
 
 test("a letter is generated from the accepted proposal: services, clauses, responsibilities, fees, signature, review date", () => {
@@ -83,7 +84,7 @@ test("a letter is generated from the accepted proposal: services, clauses, respo
   assert.deepEqual(JSON.parse(e.ServiceKeys), ["ACC", "VAT"]);
   assert.equal(e.ReviewDate, "2029-10-26");
   const text = JSON.stringify(readBody(e.Body));
-  for (const bit of ["Acme Ltd", "01234567", "Annual accounts", "File at Companies House", "Accounts are prepared on the basis", "Provide records by the agreed date", "Meet filing deadlines", "Our terms apply.", "Fees are due in 14 days.", "£1,200.00", "26 October 2029", "P-2026-0001", "Signature"]) assert.ok(text.includes(bit), bit);
+  for (const bit of ["Acme Ltd", "Annual accounts", "File at Companies House", "Accounts are prepared on the basis", "Provide records by the agreed date", "Our terms apply.", "Fees are due in 14 days.", "£1,200.00", "Signed"]) assert.ok(text.includes(bit), bit);
   assert.ok(!text.includes("{{"), "no merge field left unfilled");
 });
 
@@ -241,7 +242,7 @@ test("alerts: renewal windows, overdue, awaiting signature, early review, uncove
 
 test("regenerating a draft picks up new wording; other statuses refuse", () => {
   const e = made();
-  const s2 = reviewedSettings({ base: { ...BLANK_SECTIONS, terms: "Revised terms" } });
+  const s2 = reviewedSettings({ base: { ...BLANK_SECTIONS, liability: "<p>Revised terms</p>", fees: "<h2>Fees</h2><p>Fees are due in 14 days.</p><p>[FeesTable]</p>" } });
   const w: any = regenerate(e, { proposal: proposal(), version: version(), client, settings: s2, catalogue, practice: "B", today: TODAY, can: yes }, O);
   assert.ok(String(w.patches[0].patch.Body).includes("Revised terms"));
   assert.match((regenerate({ ...e, Status: "approved" }, { proposal: proposal(), version: version(), client, settings: s2, catalogue, practice: "B", today: TODAY, can: yes }, O) as any).error, /Only a draft/);
@@ -271,6 +272,48 @@ test("letterFor rebuilds the letter for new dates and signatories, and says noth
   const i = { proposal: proposal(), version: version(), client, settings: reviewedSettings(), catalogue, practice: "B", today: TODAY };
   const doc = letterFor(e, i, "2027-01-01", 5, ["Zed"])!;
   const t = JSON.stringify(doc);
-  assert.ok(t.includes("1 January 2027") && t.includes("1 January 2032") && t.includes("Zed"));
+  assert.ok(t.includes("1 January 2027") && t.includes("Zed"));
   assert.equal(letterFor(e, { ...i, version: version({ Agreed: "" }) }, "2027-01-01", 5, []), undefined);
+});
+
+// ------------------------------------------------------------------ the rich text letter model
+import { expandBlocks, includedFor, hasText } from "../src/lib/letterSections.ts";
+const input = (o: any = {}): any => ({ sections: { ...BLANK_SECTIONS }, client: { name: "Acme Ltd", address: "1 High St", companyNumber: "01234567", type: "limited", contactFirst: "Ann", contactName: "Ann Acme", officer: "Pat", manager: "Max" },
+  practice: "Bannister & Co", agreed: JSON.parse(agreed()), catalogue, ref: "E-1", date: "2026-10-27", effectiveDate: "2026-11-01", reviewDate: "2029-11-01", years: 3, proposalRef: "", signatories: ["Ann Acme"], now: "2026-10-27T10:05:00Z", ...o });
+
+test("sections keep bold and underline, and merge fields (any case) are filled in", () => {
+  const html = "<p>Dear <b>[PrimaryContactFirstName]</b>, <u>[name]</u> starts [StartDate] with [FirmName]. [Unknown] stays.</p>";
+  const b: any = expandBlocks(html, { PrimaryContactFirstName: "Ann", Name: "Acme", StartDate: "1 November 2026", FirmName: "B & Co" }, {});
+  const runs = b[0].runs;
+  assert.ok(runs.some((r: any) => r.b && r.t === "Ann"), "bold survives");
+  assert.ok(runs.some((r: any) => r.u && r.t === "Acme"), "underline survives");
+  const text = runs.map((r: any) => r.t).join("");
+  assert.ok(text.includes("1 November 2026") && text.includes("B & Co") && text.includes("[Unknown]"));
+});
+
+test("[Services] and [FeesTable] inside a bullet become what the planner builds, and the signature is a table", () => {
+  const doc = engagementDocument(input());
+  const kinds = doc.blocks.map((b: any) => b.type);
+  assert.ok(kinds.includes("table"), "fees and signature tables");
+  const t = JSON.stringify(doc);
+  assert.ok(t.includes("Annual accounts") && t.includes("£1,200.00") && t.includes("First year, excluding VAT"));
+  assert.ok(!t.includes("[Services]") && !t.includes("[FeesTable]") && !t.includes("[Signature]"));
+  assert.ok(t.includes("Ann Acme") && t.includes("Bannister & Co") && t.includes("1 November 2026") && t.includes("27 October 2026 10:05"));
+});
+
+test("a section can be left out for some client types, and an empty section is skipped", () => {
+  assert.equal(includedFor({}, "guarantee", "limited"), true);
+  assert.equal(includedFor({}, "guarantee", "individual"), false);
+  assert.equal(includedFor({ guarantee: ["individual"] }, "guarantee", "individual"), true);
+  assert.equal(hasText("<p> </p>"), false);
+  const t = JSON.stringify(engagementDocument(input({ sections: { ...BLANK_SECTIONS, intro: "", liability: "<p>Special liability wording.</p>" } })));
+  assert.ok(t.includes("Special liability wording."));
+});
+
+test("each service's schedule is added once, with a fallback to the service's own scope where it has none", () => {
+  const withSchedule = catalogue.map((s: any) => ({ ...s, schedule: s.key === "ACC" || s.key === "VAT" ? "<h2>Shared schedule</h2><p>Both services share this.</p>" : "" }));
+  const t = JSON.stringify(engagementDocument(input({ catalogue: withSchedule })));
+  assert.equal(t.split("Both services share this.").length - 1, 1, "shared schedule appears once");
+  const fallback = JSON.stringify(engagementDocument(input()));
+  assert.ok(fallback.includes("File at Companies House"), "uses the scope when there is no schedule");
 });

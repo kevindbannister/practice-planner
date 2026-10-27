@@ -1,7 +1,9 @@
 // Settings › Engagement letters: the practice's own wording (reviewed before use), per client type, and review intervals.
 import { useEffect, useState } from "react";
 import { CLIENT_TYPES, ClientType, typeLabel } from "../lib/proposals";
-import { BLANK_SECTIONS, EngagementSettings, SECTIONS, SectionKey, Sections, reviewStatus, reviewTemplate, templateFor } from "../lib/engagements";
+import { EngagementSettings, SECTIONS, SectionKey, reviewStatus, reviewTemplate } from "../lib/engagements";
+import { BLOCK_FIELDS, MERGE_FIELDS, includedFor } from "../lib/letterSections";
+import { RichField } from "./RichField";
 import { useData } from "./data";
 import { useSales } from "./salesKit";
 
@@ -16,7 +18,6 @@ export function EngagementLetterSettings() {
   useEffect(() => { setDraft(s.eng); }, [data.settings]); // eslint-disable-line react-hooks/exhaustive-deps
   const text = (k: SectionKey) => (scope === "base" ? draft.base[k] : draft.byType[scope]?.[k] ?? "");
   const setText = (k: SectionKey, v: string) => setDraft(scope === "base" ? { ...draft, base: { ...draft.base, [k]: v } } : { ...draft, byType: { ...draft.byType, [scope]: { ...draft.byType[scope], [k]: v } } });
-  const eff: Sections = scope === "base" ? draft.base : templateFor(draft, scope);
   const status = scope === "base" ? (draft.reviewed.base ? { ok: true, reason: "" } : { ok: false, reason: "Not reviewed yet." }) : reviewStatus(draft, scope);
   const persist = async (next: EngagementSettings) => saveSetting("engagement.settings", next);
   const save = async () => {
@@ -37,16 +38,31 @@ export function EngagementLetterSettings() {
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Engagement wording">
         <h2 style={{ margin: 0 }}>Engagement letter wording</h2>
-        <p className="muted" style={{ margin: 0 }}>Write your own reviewed wording here. The planner never makes up legal or professional terms: letters are built only from what you save and review below, plus the services, fees and clauses from the accepted proposal. Use {"{{client}}"}, {"{{practice}}"}, {"{{date}}"}, {"{{effectiveDate}}"}, {"{{reviewDate}}"} and {"{{years}}"} where you want them filled in.</p>
+        <p className="muted" style={{ margin: 0 }}>This is your engagement letter, one box for each point. Format it as you like (bold, underline, lists) and the letter keeps it. The planner never makes up legal or professional terms: letters are built only from what you save and review here, plus each service's own schedule (set next to the service in Services settings).</p>
+        <details><summary>Merge fields you can put in the wording</summary>
+          <p className="muted" style={{ margin: "6px 0" }}>Write them in square brackets, or use the "Insert field" list above each box. Anything else in square brackets is left exactly as written.</p>
+          <ul className="plain" style={{ columns: "2 260px" }}>{[...MERGE_FIELDS, ...BLOCK_FIELDS].map(([k, d]) => <li key={k}><code>[{k}]</code> {d}</li>)}</ul>
+        </details>
         <div className="row-wrap" role="tablist" aria-label="Wording for">
           <button type="button" role="tab" aria-selected={scope === "base"} className={"btn small" + (scope === "base" ? " primary" : "")} onClick={() => setScope("base")}>All clients</button>
           {CLIENT_TYPES.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={scope === k} className={"btn small" + (scope === k ? " primary" : "")} onClick={() => setScope(k)}>{l}</button>)}
         </div>
         {scope !== "base" && <p className="muted" style={{ margin: 0 }}>Anything left blank here uses the "All clients" wording. Wording written here replaces it for {typeLabel(scope).toLowerCase()} clients.</p>}
         {SECTIONS.map(([k, label]) => (
-          <label key={k} className="doc-field"><span>{label}</span>
-            <textarea className="input" rows={k === "wording" || k === "terms" ? 5 : 3} disabled={!allowed} value={text(k)} placeholder={scope === "base" ? BLANK_SECTIONS[k] : eff[k]} onChange={(e) => setText(k, e.target.value)} />
-          </label>
+          <div key={k} className="stack" style={{ gap: 4 }}>
+            <RichField label={label} value={text(k)} disabled={!allowed} fields={[...MERGE_FIELDS, ...BLOCK_FIELDS]} placeholder={scope === "base" ? "Nothing here: this part is left out of the letter." : "Blank: uses the All clients wording."} onChange={(v) => setText(k, v)} />
+            {scope === "base" && (
+              <div className="row-wrap" style={{ gap: 10, fontSize: 13, marginTop: -8, marginBottom: 14 }} role="group" aria-label={`${label}: include for`}>
+                <span className="muted">Include for:</span>
+                {CLIENT_TYPES.map(([ct, l]) => (
+                  <label key={ct} className="row-wrap" style={{ gap: 4 }}><input type="checkbox" disabled={!allowed} checked={includedFor(draft.include, k, ct)} onChange={(e) => {
+                    const now = CLIENT_TYPES.map(([x]) => x).filter((x) => (x === ct ? e.target.checked : includedFor(draft.include, k, x)));
+                    setDraft({ ...draft, include: { ...draft.include, [k]: now } });
+                  }} /> {l}</label>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
         <p role="status" style={{ margin: 0, color: status.ok ? "var(--green)" : "var(--amber-ink)" }}>
           {status.ok ? `Reviewed${stamp ? ` by ${stamp.by}` : ""}.` : status.reason}

@@ -7,9 +7,12 @@ import { readBranding } from "../lib/docBranding";
 import { useRoute } from "./bits";
 import { useData } from "./data";
 import { useSales } from "./salesKit";
+import { RichField } from "./RichField";
+import { SCHEDULE_LIBRARY } from "../lib/letterDefaults";
+import { MERGE_FIELDS } from "../lib/letterSections";
 
 const blank = (key: string, name: string): CatalogueService => ({
-  key, name, code: key, category: "", description: "", clientDescription: "", types: [], price: 0, frequency: "annual", vat: "standard", setupFee: 0, scope: "", exclusions: "", clientResp: "", practiceResp: "", clauses: "", pricing: {}, offered: true, active: true, requiresAuth: false,
+  key, name, code: key, category: "", description: "", clientDescription: "", types: [], price: 0, frequency: "annual", vat: "standard", setupFee: 0, scope: "", exclusions: "", clientResp: "", practiceResp: "", clauses: "", schedule: "", pricing: {}, offered: true, active: true, requiresAuth: false,
 });
 
 export function ServicesSettings() {
@@ -113,6 +116,16 @@ export function ServicesSettings() {
             <label className="doc-field"><span>Client responsibilities (one per line)</span><textarea className="input" rows={3} value={f.clientResp} onChange={(e) => set("clientResp", e.target.value)} /></label>
             <label className="doc-field"><span>Our responsibilities (one per line)</span><textarea className="input" rows={3} value={f.practiceResp} onChange={(e) => set("practiceResp", e.target.value)} /></label>
             <label className="doc-field"><span>Engagement clauses to include later (names or notes)</span><textarea className="input" rows={2} value={f.clauses} onChange={(e) => set("clauses", e.target.value)} /></label>
+            <fieldset className="stack" style={{ gap: 8, border: "1px solid var(--line)", borderRadius: 12, padding: 12 }}>
+              <legend>Schedule in the engagement letter</legend>
+              <p className="muted" style={{ margin: 0 }}>The wording for this service in the letter's schedule of services. Format it as you like. Where several services share the same wording it appears once. Leave it empty to use the scope, exclusions and responsibilities above instead.</p>
+              <label className="doc-field"><span>Start from our standard wording</span>
+                <select className="input" aria-label="Standard schedule" value="" onChange={(e) => { const x = SCHEDULE_LIBRARY.find((y) => y.key === e.target.value); if (x && (!f.schedule.trim() || window.confirm("Replace this service's schedule with the standard wording?"))) set("schedule", x.html); }}>
+                  <option value="">Choose…</option>{SCHEDULE_LIBRARY.map((x) => <option key={x.key} value={x.key}>{x.title}</option>)}
+                </select>
+              </label>
+              <RichField label="Schedule" value={f.schedule} onChange={(v) => set("schedule", v)} fields={MERGE_FIELDS} minHeight={200} placeholder="No schedule wording yet." />
+            </fieldset>
             <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
               <button type="button" className="btn primary" onClick={save}>Save</button>
               {msg && <span role={msg.ok ? "status" : "alert"} style={{ color: msg.ok ? "var(--green)" : "var(--red-ink)" }}>{msg.text}</span>}

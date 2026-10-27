@@ -32,7 +32,7 @@ export const clientTypeFor = (kind: string | undefined): ClientType => (kind ===
 export type Pricing = Partial<Record<ClientType, { price?: number; frequency?: Freq }>>;
 export type CatalogueService = {
   key: string; name: string; code: string; category: string; description: string; clientDescription: string; types: ClientType[];
-  price: number; frequency: Freq; vat: Vat; setupFee: number; scope: string; exclusions: string; clientResp: string; practiceResp: string; clauses: string;
+  price: number; frequency: Freq; vat: Vat; setupFee: number; scope: string; exclusions: string; clientResp: string; practiceResp: string; clauses: string; /** The service's schedule in the engagement letter, as rich text (HTML). */ schedule: string;
   pricing: Pricing; offered: boolean; active: boolean; /** work can't start until an agent authorisation is recorded */ requiresAuth: boolean;
 };
 
@@ -62,7 +62,7 @@ export function readService(r: Row): CatalogueService {
   return {
     key: str(r.Key), name: str(r.Title), code: str(r.Code) || str(r.Key), category: str(r.Category), description: str(r.Description), clientDescription: str(r.ClientDescription),
     types, price: Math.max(0, num(r.Price)), frequency: isFreq(r.PriceFrequency) ? r.PriceFrequency : "annual", vat: isVat(r.VatTreatment) ? r.VatTreatment : "standard",
-    setupFee: Math.max(0, num(r.SetupFee)), scope: str(r.Scope), exclusions: str(r.Exclusions), clientResp: str(r.ClientResp), practiceResp: str(r.PracticeResp), clauses: str(r.Clauses),
+    setupFee: Math.max(0, num(r.SetupFee)), scope: str(r.Scope), exclusions: str(r.Exclusions), clientResp: str(r.ClientResp), practiceResp: str(r.PracticeResp), clauses: str(r.Clauses), schedule: str(r.Schedule),
     pricing: readPricing(r.Pricing), offered: flag(r.Offered, false), active: flag(r.Active, true), requiresAuth: flag(r.RequiresAuth, false),
   };
 }
@@ -92,7 +92,7 @@ export function catalogueIssues(s: Partial<CatalogueService>): string[] {
 export function serviceRow(s: CatalogueService): Row {
   return {
     Code: s.code, Category: s.category, Description: s.description, ClientDescription: s.clientDescription, ClientTypes: s.types.join(","), Price: s.price, PriceFrequency: s.frequency,
-    VatTreatment: s.vat, SetupFee: s.setupFee, Scope: s.scope, Exclusions: s.exclusions, ClientResp: s.clientResp, PracticeResp: s.practiceResp, Clauses: s.clauses,
+    VatTreatment: s.vat, SetupFee: s.setupFee, Scope: s.scope, Exclusions: s.exclusions, ClientResp: s.clientResp, PracticeResp: s.practiceResp, Clauses: s.clauses, Schedule: s.schedule,
     Pricing: JSON.stringify(s.pricing), Offered: s.offered, Active: s.active, RequiresAuth: s.requiresAuth,
   };
 }

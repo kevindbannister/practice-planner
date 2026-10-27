@@ -57,7 +57,7 @@ export const LISTS: ListDef[] = [
       n("DeadlineMonths"), n("DeadlineDays"), t("DeadlineFixed"), b("KeepMonthEnd"), t("RecordsNeeded"), n("RecordsLeadDays"), n("FinaliseHours"),
       // the commercial side (Services & pricing): what a proposal can offer
       t("Code"), t("Category"), note("Description"), note("ClientDescription"), t("ClientTypes"), n("Price"), t("PriceFrequency"), t("VatTreatment"), n("SetupFee"),
-      note("Scope"), note("Exclusions"), note("ClientResp"), note("PracticeResp"), note("Clauses"), note("Pricing"), b("Offered"), b("Active"), b("RequiresAuth"),
+      note("Scope"), note("Exclusions"), note("ClientResp"), note("PracticeResp"), note("Clauses"), note("Schedule"), note("Pricing"), b("Offered"), b("Active"), b("RequiresAuth"),
     ],
   },
   {

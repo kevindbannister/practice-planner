@@ -58,7 +58,7 @@ const services: any[] = [
   { Key: "ADV", Title: "Tax advice" },
 ];
 const engSettings = (() => {
-  const s: any = { ...DEFAULT_ENGAGEMENT_SETTINGS, base: { ...BLANK_SECTIONS, terms: "Our terms apply.", clientResp: "Keep records.", feeTerms: "Fees are due in 14 days." } };
+  const s: any = { ...DEFAULT_ENGAGEMENT_SETTINGS, base: { ...BLANK_SECTIONS, liability: "<p>Our terms apply.</p>", fees: "<h2>Fees</h2><p>Fees are due in 14 days.</p><p>[FeesTable]</p>" } };
   const r: any = reviewTemplate(s, "base", () => true, "Sam", O.now);
   return r.settings;
 })();

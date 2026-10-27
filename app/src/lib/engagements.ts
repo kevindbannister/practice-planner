@@ -18,23 +18,17 @@ const num = (v: unknown): number => { const n = Number(v); return Number.isFinit
 
 // ------------------------------------------------------------------ settings
 
-export const SECTIONS = [
-  ["wording", "Standard engagement wording"], ["practice", "Practice details"], ["clientResp", "Client responsibilities"], ["practiceResp", "Practice responsibilities"],
-  ["feeTerms", "Fee terms"], ["terms", "Terms and conditions"], ["liability", "Limitation of liability"], ["confidentiality", "Confidentiality"],
-  ["dataProtection", "Data protection"], ["termination", "Termination"], ["signature", "Signature requirements"], ["renewal", "Renewal and review"],
-] as const;
-export type SectionKey = (typeof SECTIONS)[number][0];
-export type Sections = Record<SectionKey, string>;
-/** Placeholders only. The practice writes (and has reviewed) its own terms: nothing here is legal wording. */
-export const BLANK_SECTIONS: Sections = {
-  wording: "This letter confirms the basis on which {{practice}} will act for {{client}} and sets out the services, responsibilities and fees we have agreed.",
-  practice: "", clientResp: "", practiceResp: "", feeTerms: "", terms: "", liability: "", confidentiality: "", dataProtection: "", termination: "", signature: "Please sign below to confirm that you accept this letter.",
-  renewal: "This engagement will be reviewed on {{reviewDate}}, and then at least every {{years}} years, or sooner if the services or your circumstances change.",
-};
+import { DEFAULT_SECTIONS, Include, LETTER_KEYS, SECTION_KEYS, SECTIONS, SectionKey, Sections, asHtml, expandBlocks, hasText, includedFor } from "./letterSections";
+export { SECTIONS, SECTION_KEYS, DEFAULT_SECTIONS, asHtml, hasText };
+export type { SectionKey, Sections, Include };
+/** The practice's own starting wording (kept as the default until it is edited and reviewed). */
+export const BLANK_SECTIONS: Sections = DEFAULT_SECTIONS;
 export type ReviewStamp = { by: string; at: string; hash: string };
 export type EngagementSettings = {
   base: Sections;
   byType: Partial<Record<ClientType, Partial<Sections>>>;
+  /** Which client types each section is for, where that differs from the usual (guarantees are for companies, for example). */
+  include: Include;
   years: number;                                    // practice default review interval
   typeYears: Partial<Record<ClientType, number>>;    // template level
   clientYears: Record<string, number>;               // client level
@@ -43,7 +37,7 @@ export type EngagementSettings = {
 };
 export const DEFAULT_YEARS = 3;
 export const DEFAULT_REMIND = [90, 30];
-export const DEFAULT_ENGAGEMENT_SETTINGS: EngagementSettings = { base: BLANK_SECTIONS, byType: {}, years: DEFAULT_YEARS, typeYears: {}, clientYears: {}, remindDays: DEFAULT_REMIND, reviewed: {} };
+export const DEFAULT_ENGAGEMENT_SETTINGS: EngagementSettings = { base: BLANK_SECTIONS, byType: {}, include: {}, years: DEFAULT_YEARS, typeYears: {}, clientYears: {}, remindDays: DEFAULT_REMIND, reviewed: {} };
 
 const years = (v: unknown): number | undefined => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 10 ? n : undefined; };
 
@@ -53,7 +47,9 @@ export function readEngagementSettings(settings: Row[]): EngagementSettings {
   let o: Record<string, any>;
   try { o = JSON.parse(String(row.Value)); } catch { return DEFAULT_ENGAGEMENT_SETTINGS; }
   if (!o || typeof o !== "object") return DEFAULT_ENGAGEMENT_SETTINGS;
-  const secs = (x: any): Partial<Sections> => { const out: Partial<Sections> = {}; for (const [k] of SECTIONS) if (x && typeof x[k] === "string") out[k] = x[k]; return out; };
+  const secs = (x: any): Partial<Sections> => { const out: Partial<Sections> = {}; for (const k of SECTION_KEYS) if (x && typeof x[k] === "string") out[k] = asHtml(x[k]); return out; };
+  const include: Include = {};
+  for (const k of SECTION_KEYS) { const v = o.include?.[k]; if (Array.isArray(v)) include[k] = CLIENT_TYPES.map(([t]) => t).filter((t) => v.includes(t)); }
   const base = { ...BLANK_SECTIONS, ...secs(o.base) };
   const byType: EngagementSettings["byType"] = {}; const typeYears: EngagementSettings["typeYears"] = {}; const reviewed: EngagementSettings["reviewed"] = {};
   for (const [t] of CLIENT_TYPES) {
@@ -64,19 +60,25 @@ export function readEngagementSettings(settings: Row[]): EngagementSettings {
   const clientYears: Record<string, number> = {};
   for (const [k, v] of Object.entries(o.clientYears || {})) { const y = years(v); if (y) clientYears[k] = y; }
   const remind = Array.isArray(o.remindDays) ? [...new Set((o.remindDays as unknown[]).map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 365))].sort((a, b) => b - a) : DEFAULT_REMIND;
-  return { base, byType, years: years(o.years) || DEFAULT_YEARS, typeYears, clientYears, remindDays: remind.length ? remind : DEFAULT_REMIND, reviewed };
+  return { base, byType, include, years: years(o.years) || DEFAULT_YEARS, typeYears, clientYears, remindDays: remind.length ? remind : DEFAULT_REMIND, reviewed };
 }
 
-/** The wording for one client type: the practice-wide text, with any of its own sections swapped in. */
-export function templateFor(s: EngagementSettings, type: ClientType): Sections {
+/** The wording for one client type before leaving out sections that aren't for it: the practice-wide text with the type's own sections swapped in. */
+export function effectiveFor(s: EngagementSettings, type: ClientType): Sections {
   const out = { ...s.base };
-  for (const [k] of SECTIONS) { const v = s.byType[type]?.[k]; if (v !== undefined && v.trim()) out[k] = v; }
+  for (const k of SECTION_KEYS) { const v = s.byType[type]?.[k]; if (v !== undefined && hasText(v)) out[k] = v; }
   return out;
 }
-/** A short fingerprint of wording, so a template that has changed since it was reviewed is noticed. */
-export function wordingHash(sec: Sections): string {
+/** The wording a letter for this client type is made from: sections that aren't for this type are empty. */
+export function templateFor(s: EngagementSettings, type: ClientType): Sections {
+  const out = effectiveFor(s, type);
+  for (const k of SECTION_KEYS) if (!includedFor(s.include, k, type)) out[k] = "";
+  return out;
+}
+/** A short fingerprint of wording (and which sections are for which clients), so a template that has changed since it was reviewed is noticed. */
+export function wordingHash(sec: Sections, include?: Include): string {
   let h = 2166136261;
-  const t = SECTIONS.map(([k]) => sec[k]).join("\u0001");
+  const t = SECTION_KEYS.map((k) => sec[k]).join("\u0001") + (include && Object.keys(include).length ? "\u0002" + JSON.stringify(SECTION_KEYS.filter((k) => include[k]).map((k) => [k, include[k]])) : "");
   for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(16).padStart(8, "0") + t.length.toString(16);
 }
@@ -84,14 +86,14 @@ export function wordingHash(sec: Sections): string {
 export function reviewStatus(s: EngagementSettings, type: ClientType): { ok: boolean; reason: string } {
   const stamp = s.reviewed[type] || s.reviewed.base;
   if (!stamp) return { ok: false, reason: `The ${typeLabel(type).toLowerCase()} wording hasn't been reviewed yet. Review it in Settings › Engagement letters.` };
-  if (stamp.hash !== wordingHash(templateFor(s, type))) return { ok: false, reason: `The ${typeLabel(type).toLowerCase()} wording has changed since it was reviewed. Review it again in Settings › Engagement letters.` };
+  if (stamp.hash !== wordingHash(effectiveFor(s, type), s.include)) return { ok: false, reason: `The ${typeLabel(type).toLowerCase()} wording has changed since it was reviewed. Review it again in Settings › Engagement letters.` };
   return { ok: true, reason: "" };
 }
 export function reviewTemplate(s: EngagementSettings, scope: ClientType | "base", can: (a: ProposalAction) => boolean, who: string, now: string): { settings: EngagementSettings } | { error: string } {
   if (!can("configure")) return { error: "Only a manager or partner can mark wording as reviewed." };
-  const sec = scope === "base" ? s.base : templateFor(s, scope);
-  if (!sec.wording.trim()) return { error: "Add the standard engagement wording first." };
-  return { settings: { ...s, reviewed: { ...s.reviewed, [scope]: { by: who, at: now, hash: wordingHash(sec) } } } };
+  const sec = scope === "base" ? s.base : effectiveFor(s, scope);
+  if (!hasText(sec.intro)) return { error: "Add the introduction to the letter first." };
+  return { settings: { ...s, reviewed: { ...s.reviewed, [scope]: { by: who, at: now, hash: wordingHash(sec, s.include) } } } };
 }
 
 /** How many years until review: this engagement, else this client, else the client-type template, else the practice. */
@@ -159,41 +161,32 @@ export function readAgreed(v: unknown): Agreed | undefined {
 }
 const asLine = (l: AgreedLine): Line => ({ id: l.id, serviceKey: l.serviceKey, name: l.name, description: "", scope: "", exclusions: "", clientResp: "", practiceResp: "", clauses: "", frequency: l.frequency as Line["frequency"], price: l.price, setupFee: l.setupFee, vat: l.vat as Line["vat"], discount: l.discount || undefined } as Line);
 
+/** The client details a letter merges in. Only the name is needed; whatever is missing is left out. */
+export type LetterParty = { name: string; address: string; companyNumber: string; type: ClientType; registeredOffice?: string; contactFirst?: string; contactName?: string; officer?: string; manager?: string };
+export function partyOf(client: Row, type: ClientType): LetterParty {
+  const contact = [str(client.ContactFirst), str(client.ContactLast)].filter(Boolean).join(" ").trim();
+  return {
+    name: str(client.Title), address: str(client.TradingAddress || client.RegisteredOffice || client.HomeAddress).replace(/\s*\n\s*/g, ", "), companyNumber: str(client.CompanyNumber), type,
+    registeredOffice: str(client.RegisteredOffice).replace(/\s*\n\s*/g, ", "), contactFirst: str(client.ContactFirst) || (type === "individual" || type === "partnership" ? str(client.Title).split(/\s+/)[0] : ""),
+    contactName: contact || str(client.Title), officer: str(client.Partner), manager: str(client.Manager),
+  };
+}
 export type LetterInput = {
-  sections: Sections; client: { name: string; address: string; companyNumber: string; type: ClientType }; practice: string; agreed: Agreed; catalogue: CatalogueService[];
+  sections: Sections; client: LetterParty; practice: string; agreed: Agreed; catalogue: CatalogueService[];
   ref: string; date: string; effectiveDate: string; reviewDate: string; years: number; proposalRef: string; signatories: string[];
+  /** When the letter is made (an ISO time), for the date-and-time merge field. */
+  now?: string;
 };
-/** The draft letter as document blocks, ready for the existing Document Designer layout and PDF. */
-export function engagementDocument(i: LetterInput): DocContent {
-  const vars: Record<string, string> = { client: i.client.name, practice: i.practice, date: fmtD(i.date), effectivedate: fmtD(i.effectiveDate), reviewdate: i.reviewDate ? fmtD(i.reviewDate) : "the review date", years: String(i.years), reference: i.ref, proposal: i.proposalRef };
-  const sec = (k: SectionKey) => fill(i.sections[k] || "", vars);
-  const b: Block[] = [];
-  b.push(heading(`Engagement letter: ${i.client.name}`, 1), { type: "p", runs: [r(`${i.practice} · ${fmtD(i.date)}`)] }, { type: "p", runs: [r(`Reference ${i.ref}${i.proposalRef ? ` · from proposal ${i.proposalRef}` : ""}`)] });
-  b.push({ type: "p", runs: [r(`Client: ${i.client.name}${i.client.companyNumber ? ` (company number ${i.client.companyNumber})` : ""}`, { b: true })] });
-  if (i.client.address.trim()) b.push({ type: "p", runs: [r(i.client.address.replace(/\s*\n\s*/g, ", "))] });
-  b.push({ type: "p", runs: [r(`Effective from ${fmtD(i.effectiveDate)}`)] }, { type: "break" });
-  b.push(...para(sec("wording")));
-  if (sec("practice").trim()) b.push(heading("About us"), ...para(sec("practice")));
+const timeOf = (now: string | undefined) => { if (!now) return ""; const d = new Date(now); return Number.isNaN(+d) ? "" : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); };
+
+/** The services and fees as the planner builds them, for [Services] and [FeesTable]. */
+function servicesList(i: LetterInput): Block[] {
+  const names = i.agreed.lines.map((l) => l.name).filter(Boolean);
+  return names.length ? [{ type: "list", ordered: false, items: names.map((n) => [r(n)]) }] : [];
+}
+function feesTable(i: LetterInput): Block[] {
   const lines = i.agreed.lines;
-  b.push(heading("The services"));
-  for (const l of lines) {
-    const svc = i.catalogue.find((c) => c.key === l.serviceKey);
-    b.push(heading(l.name, 3));
-    const desc = svc?.clientDescription || svc?.description || "";
-    if (desc.trim()) b.push(...para(desc));
-    if (svc?.scope.trim()) b.push({ type: "p", runs: [r("What's included", { b: true })] }, ...bullets(svc.scope));
-    if (svc?.exclusions.trim()) b.push({ type: "p", runs: [r("Not included", { b: true })] }, ...bullets(svc.exclusions));
-  }
-  const withClauses = lines.filter((l) => i.catalogue.find((c) => c.key === l.serviceKey)?.clauses.trim());
-  const respFor = (k: "clientResp" | "practiceResp") => lines.filter((l) => i.catalogue.find((c) => c.key === l.serviceKey)?.[k].trim());
-  if (sec("clientResp").trim() || sec("practiceResp").trim() || respFor("clientResp").length || respFor("practiceResp").length) b.push(heading("Responsibilities"));
-  if (sec("clientResp").trim()) b.push({ type: "p", runs: [r("Your responsibilities", { b: true })] }, ...para(sec("clientResp")));
-  for (const l of respFor("clientResp")) b.push({ type: "p", runs: [r(`${l.name}: your responsibilities`, { b: true })] }, ...bullets(i.catalogue.find((c) => c.key === l.serviceKey)!.clientResp));
-  if (sec("practiceResp").trim()) b.push({ type: "p", runs: [r("Our responsibilities", { b: true })] }, ...para(sec("practiceResp")));
-  for (const l of respFor("practiceResp")) b.push({ type: "p", runs: [r(`${l.name}: our responsibilities`, { b: true })] }, ...bullets(i.catalogue.find((c) => c.key === l.serviceKey)!.practiceResp));
-  // fees as agreed
-  // every line in the agreed record was agreed: optional services the client chose are included, the rest never got here
-  const main = lines.map(asLine);
+  if (!lines.length) return para("The fees are as set out in the accepted proposal.");
   const head = ["Service", "Charged", "Net fee", "VAT", "Total"].map((h, n) => cell(h, { b: true }, n >= 2 ? "right" : undefined));
   const rows = lines.flatMap((l) => {
     const k = calcLine(asLine(l), i.agreed.vatRate);
@@ -201,21 +194,61 @@ export function engagementDocument(i: LetterInput): DocContent {
     if (k.setup) out.push([cell(`${l.name}: set-up fee`), cell("One-off"), cell(gbp(k.setup), {}, "right"), cell(""), cell(gbp(k.setup), {}, "right")]);
     return out;
   });
-  b.push(heading("Fees"));
-  if (rows.length) {
-    b.push({ type: "table", header: true, rows: [head, ...rows] });
-    const t = totalsFor(main, i.agreed.vatRate);
-    b.push({ type: "p", runs: [r(`First year, excluding VAT: ${gbp(t.firstYearNet)}. Including VAT: ${gbp(t.firstYearGross)}.${t.annualRecurringNet ? ` Each year after, excluding VAT: ${gbp(t.ongoingNet)}.` : ""}`, { b: true })] });
-  } else b.push(...para("The fees are as set out in the accepted proposal."));
-  if (sec("feeTerms").trim()) b.push(...para(sec("feeTerms")));
-  if (withClauses.length) { b.push(heading("Service schedules")); for (const l of withClauses) b.push(heading(l.name, 3), ...para(fill(i.catalogue.find((c) => c.key === l.serviceKey)!.clauses, vars))); }
-  for (const [k, title] of [["terms", "Terms and conditions"], ["liability", "Limitation of liability"], ["confidentiality", "Confidentiality"], ["dataProtection", "Data protection"], ["termination", "Termination"], ["renewal", "Review and renewal"]] as [SectionKey, string][]) {
-    if (sec(k).trim()) b.push(heading(title), ...para(sec(k)));
-  }
-  b.push(heading("Signature"));
-  if (sec("signature").trim()) b.push(...para(sec("signature")));
+  // every line in the agreed record was agreed: optional services the client chose are included, the rest never got here
+  const t = totalsFor(lines.map(asLine), i.agreed.vatRate);
+  return [
+    { type: "table", header: true, rows: [head, ...rows] },
+    { type: "p", runs: [r(`First year, excluding VAT: ${gbp(t.firstYearNet)}. Including VAT: ${gbp(t.firstYearGross)}.${t.annualRecurringNet ? ` Each year after, excluding VAT: ${gbp(t.ongoingNet)}.` : ""}`, { b: true })] },
+  ];
+}
+function signatureTable(i: LetterInput): Block[] {
   const who = i.signatories.length ? i.signatories : [""];
-  b.push({ type: "table", header: true, rows: [["Signed", "Name", "Position", "Date"].map((h) => cell(h, { b: true })), ...who.map((n) => [cell(""), cell(n), cell(""), cell("")])] });
+  return [{ type: "table", header: true, rows: [["Signed", "Name", "Position", "Date"].map((h) => cell(h, { b: true })), ...who.map((n) => [cell(""), cell(n), cell(""), cell("")])] }];
+}
+/** What a service says in the schedules: its own schedule text, or, where it has none, what was entered for it before schedules existed. */
+function scheduleBlocks(l: AgreedLine, svc: CatalogueService | undefined, vars: Record<string, string>, expand: (html: string) => Block[]): Block[] {
+  if (svc && hasText(svc.schedule)) return expand(svc.schedule);
+  const b: Block[] = [heading(l.name, 2)];
+  const desc = svc?.clientDescription || svc?.description || "";
+  if (desc.trim()) b.push(...para(desc));
+  if (svc?.scope.trim()) b.push({ type: "p", runs: [r("What's included", { b: true })] }, ...bullets(svc.scope));
+  if (svc?.exclusions.trim()) b.push({ type: "p", runs: [r("Not included", { b: true })] }, ...bullets(svc.exclusions));
+  if (svc?.clientResp.trim()) b.push({ type: "p", runs: [r("Your responsibilities", { b: true })] }, ...bullets(svc.clientResp));
+  if (svc?.practiceResp.trim()) b.push({ type: "p", runs: [r("Our responsibilities", { b: true })] }, ...bullets(svc.practiceResp));
+  if (svc?.clauses.trim()) b.push(...para(fill(svc.clauses, vars)));
+  return b;
+}
+
+/** The draft letter as document blocks, ready for the existing Document Designer layout and PDF. */
+export function engagementDocument(i: LetterInput): DocContent {
+  const c = i.client;
+  const vars: Record<string, string> = {
+    FirmName: i.practice, Name: c.name, TradingAddress: c.address, RegisteredOffice: c.registeredOffice || c.address, CompanyNumber: c.companyNumber, PrimaryContact: c.contactName || c.name,
+    PrimaryContactFirstName: c.contactFirst || (c.contactName || c.name).split(/\s+/)[0], PrimaryOfficer: c.officer || c.manager || "", Manager: c.manager || c.officer || "",
+    StartDate: fmtD(i.effectiveDate), CurrentDate: fmtD(i.date), CurrentDateAndTime: `${fmtD(i.date)}${timeOf(i.now) ? ` ${timeOf(i.now)}` : ""}`,
+    ReviewDate: i.reviewDate ? fmtD(i.reviewDate) : "the review date", ReviewYears: String(i.years), Reference: i.ref,
+  };
+  const tokens = { Services: () => servicesList(i), FeesTable: () => feesTable(i), Signature: () => signatureTable(i) };
+  const expand = (html: string) => expandBlocks(html, vars, tokens);
+  const b: Block[] = [];
+  for (const k of LETTER_KEYS) if (hasText(i.sections[k] || "")) b.push(...expand(i.sections[k]));
+  // the schedules: one page-break, the opening, each service's schedule (once, however many services share it), the closing
+  if (i.agreed.lines.length) {
+    const seen = new Set<string>();
+    const groups: Block[][] = [];
+    for (const l of i.agreed.lines) {
+      const svc = i.catalogue.find((x) => x.key === l.serviceKey);
+      const key = svc && hasText(svc.schedule) ? svc.schedule.trim() : `service:${l.serviceKey || l.name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const g = scheduleBlocks(l, svc, vars, expand);
+      if (g.length) groups.push(g);
+    }
+    b.push({ type: "break" });
+    if (hasText(i.sections.scheduleIntro)) b.push(...expand(i.sections.scheduleIntro));
+    groups.forEach((g, n) => { if (n) b.push({ type: "break" }); b.push(...g); });
+    if (hasText(i.sections.scheduleEnd)) b.push(...expand(i.sections.scheduleEnd));
+  }
   return { blocks: b };
 }
 
@@ -241,7 +274,7 @@ export function generate(i: GenerateInput, o: Ctx): { engagement: Row; log: Row;
   const yrs = reviewYears(i.settings, { clientKey: str(i.client.Key), type });
   const ref = nextRef(i.existing, Number(o.now.slice(0, 4)));
   const doc = engagementDocument({
-    sections: templateFor(i.settings, type), client: { name: str(i.client.Title), address: str(i.client.RegisteredOffice || i.client.TradingAddress || i.client.HomeAddress), companyNumber: str(i.client.CompanyNumber), type }, practice: i.practice,
+    sections: templateFor(i.settings, type), client: partyOf(i.client, type), now: o.now, practice: i.practice,
     agreed, catalogue: i.catalogue, ref, date: i.today, effectiveDate: effective, reviewDate: addYears(effective, yrs), years: yrs, proposalRef: str(i.proposal.Ref), signatories: i.signatories || [],
   });
   const body = encodeBody(doc);
@@ -263,7 +296,7 @@ export function letterFor(e: Row, i: { proposal: Row; version: Row; client: Row;
   const agreed = readAgreed(i.version.Agreed);
   if (!agreed) return undefined;
   const type = partyType(i.client);
-  return engagementDocument({ sections: templateFor(i.settings, type), client: { name: str(i.client.Title), address: str(i.client.RegisteredOffice || i.client.TradingAddress || i.client.HomeAddress), companyNumber: str(i.client.CompanyNumber), type }, practice: i.practice, agreed, catalogue: i.catalogue, ref: str(e.Ref), date: str(e.DocumentDate) || i.today, effectiveDate: effective, reviewDate: addYears(effective, yrs), years: yrs, proposalRef: str(i.proposal.Ref), signatories });
+  return engagementDocument({ sections: templateFor(i.settings, type), client: partyOf(i.client, type), practice: i.practice, agreed, catalogue: i.catalogue, ref: str(e.Ref), date: str(e.DocumentDate) || i.today, effectiveDate: effective, reviewDate: addYears(effective, yrs), years: yrs, proposalRef: str(i.proposal.Ref), signatories });
 }
 
 /** The signing request failed, was declined or ran out, so the letter goes back to approved to be sent again. */
@@ -284,7 +317,7 @@ export function regenerate(e: Row, i: Omit<GenerateInput, "proposal" | "version"
   if (!rv.ok) return { error: rv.reason };
   const yrs = reviewYears(i.settings, { engagementYears: e.ReviewYears, clientKey: str(i.client.Key), type });
   const effective = str(e.EffectiveDate) || i.today;
-  const doc = engagementDocument({ sections: templateFor(i.settings, type), client: { name: str(i.client.Title), address: str(i.client.RegisteredOffice || i.client.TradingAddress || i.client.HomeAddress), companyNumber: str(i.client.CompanyNumber), type }, practice: i.practice, agreed, catalogue: i.catalogue, ref: str(e.Ref), date: str(e.DocumentDate) || i.today, effectiveDate: effective, reviewDate: addYears(effective, yrs), years: yrs, proposalRef: str(i.proposal.Ref), signatories: readList(e.Signatories) });
+  const doc = engagementDocument({ sections: templateFor(i.settings, type), client: partyOf(i.client, type), now: o.now, practice: i.practice, agreed, catalogue: i.catalogue, ref: str(e.Ref), date: str(e.DocumentDate) || i.today, effectiveDate: effective, reviewDate: addYears(effective, yrs), years: yrs, proposalRef: str(i.proposal.Ref), signatories: readList(e.Signatories) });
   return { patches: [{ list: "Engagements", row: e, patch: { Body: encodeBody(doc), Updated: o.now } }], log: [logRow(o, "rebuilt", "engagement", str(e.Key), refsOf(e), {})], activities: [] };
 }
 

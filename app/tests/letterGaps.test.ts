@@ -10,7 +10,7 @@ const TODAY = "2026-10-26";
 const yes = () => true;
 const no = () => false;
 const settings = (): EngagementSettings => {
-  const s: EngagementSettings = { ...DEFAULT_ENGAGEMENT_SETTINGS, base: { ...BLANK_SECTIONS, terms: "Our terms apply.", feeTerms: "Fees are due in 14 days." } };
+  const s: EngagementSettings = { ...DEFAULT_ENGAGEMENT_SETTINGS, base: { ...BLANK_SECTIONS, liability: "<p>Our terms apply.</p>", fees: "<h2>Fees</h2><p>Fees are due in 14 days.</p><p>[FeesTable]</p>" } };
   const r: any = reviewTemplate(s, "base", yes, "Sam", O.now); if ("error" in r) throw new Error(r.error); return r.settings;
 };
 const catalogue = readCatalogue([
