@@ -41,13 +41,13 @@ export function portfolioRows(clients: Row[], jobs: Row[], clientServices: Row[]
   return clients.filter((c) => companyKind(c) && s(c.CompanyNumber).trim()).map((c) => {
     const v = verifiedOf(c);
     const mine = jobs.filter((j) => j.ClientKey === c.Key && isOpen(j));
-    const job = (name: string) => mine.filter((j) => svc(j.ServiceKey, name)).sort((a, b) => s(a.Deadline).localeCompare(s(b.Deadline)))[0];
+    const job = (name: string) => mine.filter((j) => (name === "ACCS" ? s(j.ServiceKey).toUpperCase().startsWith("ACCS") : svc(j.ServiceKey, name))).sort((a, b) => s(a.Deadline).localeCompare(s(b.Deadline)))[0];
     const next = (name: string) => clientServices.find((x) => x.ClientKey === c.Key && svc(x.ServiceKey, name) && s(x.NextDeadline));
     const cell = (ch: string, app: string): Cell => {
       const date = validDate(ch) ? ch : validDate(app) ? app : "";
       return { date, from: validDate(ch) ? "ch" : date ? "app" : "", pill: pillFor(date, today) };
     };
-    const acc = job("ACCS") || job("ACCOUNTS");
+    const acc = job("ACCS");
     const cs = job("CS01");
     const ct = job("CT600");
     const vat = job("VAT");

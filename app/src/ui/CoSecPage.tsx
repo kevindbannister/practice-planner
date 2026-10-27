@@ -108,7 +108,7 @@ function Portfolio() {
     <span style={{ display: "inline-flex", flexDirection: withDate ? "column" : "row", alignItems: "flex-start", gap: withDate ? 3 : 6 }} title={c.from === "app" ? "From the planner's open job. Not yet checked at Companies House." : c.from === "ch" ? "From Companies House" : undefined}>
       {withDate && <span className="mono" style={{ whiteSpace: "nowrap" }}>{dmy(c.date)}</span>}
       {c.pill && <span className={`chip ${c.pill.tone}`} style={{ whiteSpace: "nowrap" }}>{c.pill.text}</span>}
-      {c.from === "app" && !withDate && <span className="muted" aria-hidden="true">*</span>}
+      {c.from === "app" && <span className="muted" aria-hidden="true">*</span>}
     </span>
   );
   return (
@@ -120,7 +120,7 @@ function Portfolio() {
           <button type="button" className="btn" disabled={running} onClick={() => void ch.run()}>{running ? "Checking…" : "Refresh from Companies House"}</button>
         </span>
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Accounts and confirmation statement dates come from Companies House{checked ? `, last checked ${fmtDate(checked.slice(0, 10))}` : ""}. Tax return and VAT dates come from the planner's jobs. * marks a date taken from the planner because that company hasn't been checked at Companies House yet.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Accounts and confirmation statement dates come from Companies House{checked ? `, last checked ${fmtDate(checked.slice(0, 10))}` : ""}. The tax return date is the planner's open Corporation Tax job (12 months after that period ends), so it can be for an earlier period than the accounts date beside it. VAT comes from the planner's VAT job. * marks a date taken from the planner because that company hasn't been checked at Companies House yet.</p>
       <div className="table-wrap"><table className="grid" style={{ minWidth: 980 }}>
         <thead><tr>{head("name", "Company name")}{head("number", "Number")}{head("ard", "Accounts ref date")}{head("accounts", "Latest date to submit accounts")}{head("ct", "Next tax return due")}{head("csDate", "Confirmation date")}{head("cs", "Latest date to submit confirmation statement")}{head("vat", "Next VAT due")}{head("vatNumber", "VAT number")}</tr></thead>
         <tbody>{current.length ? current.map((r) => (
@@ -128,10 +128,10 @@ function Portfolio() {
             <td style={{ minWidth: 150 }}><a href={href("cosec", "company", r.key)}>{r.name}</a>{r.openFilings > 0 && <> <a className="chip amber" href={href("cosec", "filings")} title="A filing is waiting">{r.openFilings}</a></>}</td>
             <td className="mono" style={{ whiteSpace: "nowrap" }}>{r.number}</td>
             <td>{r.ard || <span className="muted">—</span>}</td>
-            <td>{pill(r.accounts)}</td>
+            <td>{pill(r.accounts, true)}</td>
             <td>{pill(r.ct, true)}</td>
             <td className="mono" style={{ whiteSpace: "nowrap" }}>{r.csDate ? dmy(r.csDate) : <span className="muted">—</span>}</td>
-            <td>{pill(r.cs)}</td>
+            <td>{pill(r.cs, true)}</td>
             <td>{pill(r.vat, true)}</td>
             <td className="mono">{r.vatNumber || <span className="muted">—</span>}</td>
           </tr>)) : <tr><td colSpan={9} className="muted">No companies match.</td></tr>}</tbody>

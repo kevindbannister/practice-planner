@@ -53,3 +53,11 @@ test("dissolved or struck-off companies are told apart", () => {
   assert.ok(!isDissolved(clients[0] as any));
   assert.ok(isDissolved({ CHVerified: JSON.stringify({ status: "Active, proposal to strike off" }) } as any));
 });
+
+test("the accounts fallback finds ACCS_LTD and ACCS_LLP jobs, and the tax return never takes the accounts date", () => {
+  const cl = [{ Key: "C9", Title: "Llp", Kind: "LLP", CompanyNumber: "OC1" }];
+  const j = [{ ClientKey: "C9", ServiceKey: "ACCS_LLP", Deadline: "2027-09-30", Status: "Open" }];
+  const r = portfolioRows(cl as any, j as any, [], [], "2026-10-27")[0];
+  assert.equal(r.accounts.date, "2027-09-30");
+  assert.equal(r.ct.date, "");
+});
