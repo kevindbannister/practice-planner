@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -357,6 +357,18 @@ export const LISTS: ListDef[] = [
   {
     key: "CoSecShareClasses", displayName: "PP CoSec Share Classes", description: "Practice Planner: classes of share each company has set up",
     columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Name"), t("Currency"), n("NominalValue"), note("Rights"), t("Status", true), t("Created"), t("Updated")],
+  },
+  {
+    key: "CoSecProfiles", displayName: "PP CoSec Profiles", description: "Practice Planner: how the practice relates to each company (service level and overrides)",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Level"), t("Responsible"), t("FilesCS01"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated")],
+  },
+  {
+    // Share transaction ledger: entries are not edited, only superseded by a correction. Holdings are replayed from it. See lib/shareLedger.ts.
+    key: "CoSecLedger", displayName: "PP CoSec Share Ledger", description: "Practice Planner: share transaction ledger (immutable entries; corrections supersede)",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Type"), t("EffectiveDate", true), t("Class"), n("Number"), t("FromHolder"), t("FromKey"), t("ToHolder"), t("ToKey"), t("Currency"),
+      n("Nominal"), n("PaidPerShare"), n("Premium"), note("Consideration"), t("TxKey"), t("IdemKey"), t("Supersedes"), note("Reason"), t("Status", true), note("Notes"), t("Created"), t("CreatedBy"),
+    ],
   },
   {
     // A request to a client's previous accountant for professional clearance and records. See lib/clearance.ts.

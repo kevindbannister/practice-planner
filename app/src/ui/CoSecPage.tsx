@@ -11,6 +11,8 @@ import { useCoSec, nameOfClient } from "./cosecKit";
 import { CoSecCompany } from "./CoSecCompany";
 import { useCompaniesHouse } from "./CompaniesHouse";
 import { Cell, PortfolioRow, isDissolved, portfolioRows } from "../lib/portfolio";
+import { AddCompany, LevelChip, PortfolioSummary } from "./CoSecFoundation";
+import { LEVELS, Level, profileFor } from "../lib/cosecProfile";
 
 const TABS: [string, string, string][] = [["", "Overview", "#/cosec"], ["filings", "Filings", "#/cosec/filings"], ["companies", "Companies", "#/cosec/companies"]];
 const dmy = (iso: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "");
@@ -94,9 +96,11 @@ function Portfolio() {
   const today = new Date().toISOString().slice(0, 10);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
+  const [level, setLevelFilter] = useState<Level | "">("");
+  const [adding, setAdding] = useState(false);
   const all = useMemo(() => portfolioRows(k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today, k.data.services), [k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today, k.data.services]);
   const byKey = new Map(k.data.clients.map((c) => [String(c.Key), c]));
-  const match = (r: PortfolioRow) => !q.trim() || `${r.name} ${r.number} ${r.vatNumber}`.toLowerCase().includes(q.trim().toLowerCase());
+  const match = (r: PortfolioRow) => (!level || profileFor(byKey.get(r.key)!, k.data.cosecProfiles).level === level) && (!q.trim() || `${r.name} ${r.number} ${r.vatNumber}`.toLowerCase().includes(q.trim().toLowerCase()));
   const order = (a: PortfolioRow, b: PortfolioRow) => sort.dir * sortValue(a, sort.key).localeCompare(sortValue(b, sort.key)) || a.name.localeCompare(b.name);
   const current = all.filter((r) => !isDissolved(byKey.get(r.key)!) && match(r)).sort(order);
   const gone = all.filter((r) => isDissolved(byKey.get(r.key)!) && match(r)).sort(order);
@@ -119,16 +123,20 @@ function Portfolio() {
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <h2 style={{ margin: 0 }}>Portfolio <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>{current.length} {current.length === 1 ? "company" : "companies"}</span></h2>
         <span className="row-wrap">
+          <select className="input" aria-label="Filter by the practice's role" value={level} onChange={(e) => setLevelFilter(e.target.value as Level | "")} style={{ width: "auto" }}><option value="">All roles</option>{LEVELS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}</select>
           <input className="input" placeholder="Find by name, number or VAT" aria-label="Find a company" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
+          {k.can("edit") && <button type="button" className="btn" onClick={() => setAdding(!adding)}>{adding ? "Close" : "Add company"}</button>}
           <button type="button" className="btn" disabled={running} onClick={() => void ch.run()}>{running ? "Checking…" : "Refresh from Companies House"}</button>
         </span>
       </div>
+      <PortfolioSummary rows={all} />
+      {adding && <AddCompany onClose={() => setAdding(false)} />}
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>Accounts and confirmation statement dates come from Companies House (hover a confirmation statement date to see the date it is made up to){checked ? `, last checked ${fmtDate(checked.slice(0, 10))}` : ""}. The tax return date is the planner's open Corporation Tax job (12 months after that period ends), so it can be for an earlier period than the accounts date beside it. VAT comes from the planner's VAT job. * marks a date taken from the planner because that company hasn't been checked at Companies House yet.</p>
       <div className="table-wrap"><table className="grid pf" style={{ minWidth: 1000 }}>
         <thead><tr>{head("name", "Company")}{head("accounts", "Latest date to submit accounts")}{head("ct", "Next tax return due")}{head("ctPay", "Corporation tax payment due")}{head("cs", "Latest date to submit confirmation statement")}{head("vat", "Next VAT due")}{head("payroll", "Payroll due")}{head("cis", "CIS return due")}<th scope="col" style={{ verticalAlign: "bottom" }}>Other statutory</th></tr></thead>
         <tbody>{current.length ? current.map((r) => (
           <tr key={r.key}>
-            <td style={{ minWidth: 150 }}><a href={href("cosec", "company", r.key)}>{r.name}</a>{r.openFilings > 0 && <> <a className="chip amber" href={href("cosec", "filings")} title="A filing is waiting">{r.openFilings}</a></>}
+            <td style={{ minWidth: 150 }}><a href={href("cosec", "company", r.key)}>{r.name}</a> <LevelChip client={byKey.get(r.key)!} />{r.openFilings > 0 && <> <a className="chip amber" href={href("cosec", "filings")} title="A filing is waiting">{r.openFilings}</a></>}
               <div className="muted mono" style={{ fontSize: 11 }}>{r.number}{r.ard ? ` · year end ${r.ard}` : ""}{r.vatNumber ? ` · VAT ${r.vatNumber}` : ""}</div></td>
             <td>{pill(r.accounts, true)}</td>
             <td>{pill(r.ct, true)}</td>

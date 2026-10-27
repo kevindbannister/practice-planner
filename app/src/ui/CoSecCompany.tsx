@@ -12,8 +12,9 @@ import { useCoSec } from "./cosecKit";
 import { useData } from "./data";
 import { newKey } from "../lib/planning";
 import { chipFor } from "./CoSecPage";
+import { Ledger, LevelChip, ServiceLevel } from "./CoSecFoundation";
 
-const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["pscs", "People with significant control"], ["registers", "Registers"], ["filings", "Filings"]];
+const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["pscs", "People with significant control"], ["registers", "Registers"], ["filings", "Filings"]];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
 export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: string }) {
@@ -25,17 +26,18 @@ export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: strin
   return (
     <div className="stack" style={{ gap: 14 }}>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>{s(client.Title)} <span className="muted">{s(client.CompanyNumber)} · {kind === "llp" ? "LLP" : "Limited company"}</span></h2>
+        <h2 style={{ margin: 0 }}>{s(client.Title)} <span className="muted">{s(client.CompanyNumber)} · {kind === "llp" ? "LLP" : "Limited company"}</span> <LevelChip client={client} /></h2>
         <a href={href("clients", clientKey)}>Open the client record</a>
       </div>
       <nav className="subtabs" aria-label="Company views">
-        {TABS.filter(([key]) => (key !== "shares" && key !== "classes") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
+        {TABS.filter(([key]) => (key !== "shares" && key !== "classes" && key !== "ledger") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
       </nav>
-      {tab === "details" && <Details client={client} />}
+      {tab === "details" && <><ServiceLevel client={client} /><Details client={client} /></>}
       {tab === "officers" && <People client={client} entity="officer" />}
       {tab === "pscs" && <People client={client} entity="psc" />}
       {tab === "shares" && kind === "limited" && <Shares client={client} />}
       {tab === "classes" && kind === "limited" && <ShareClasses client={client} />}
+      {tab === "ledger" && kind === "limited" && <Ledger client={client} />}
       {tab === "registers" && <Registers client={client} />}
       {tab === "filings" && <Filings client={client} />}
     </div>
