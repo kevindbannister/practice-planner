@@ -34,6 +34,7 @@ export type CatalogueService = {
   key: string; name: string; code: string; category: string; description: string; clientDescription: string; types: ClientType[];
   price: number; frequency: Freq; vat: Vat; setupFee: number; scope: string; exclusions: string; clientResp: string; practiceResp: string; clauses: string; /** The service's schedule in the engagement letter, as rich text (HTML). */ schedule: string;
   pricing: Pricing; offered: boolean; active: boolean; /** work can't start until an agent authorisation is recorded */ requiresAuth: boolean;
+  /** Has a statutory deadline: "yes", "no", or unset to decide from the type of work. Used to group a client's work. */ statutory?: "yes" | "no";
 };
 
 const num = (v: unknown): number => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
@@ -64,6 +65,7 @@ export function readService(r: Row): CatalogueService {
     types, price: Math.max(0, num(r.Price)), frequency: isFreq(r.PriceFrequency) ? r.PriceFrequency : "annual", vat: isVat(r.VatTreatment) ? r.VatTreatment : "standard",
     setupFee: Math.max(0, num(r.SetupFee)), scope: str(r.Scope), exclusions: str(r.Exclusions), clientResp: str(r.ClientResp), practiceResp: str(r.PracticeResp), clauses: str(r.Clauses), schedule: str(r.Schedule),
     pricing: readPricing(r.Pricing), offered: flag(r.Offered, false), active: flag(r.Active, true), requiresAuth: flag(r.RequiresAuth, false),
+    ...(str(r.Statutory) === "yes" || str(r.Statutory) === "no" ? { statutory: str(r.Statutory) as "yes" | "no" } : {}),
   };
 }
 export const readCatalogue = (rows: Row[]): CatalogueService[] => rows.filter((r) => r.Key !== "TASK").map(readService);
@@ -93,7 +95,7 @@ export function serviceRow(s: CatalogueService): Row {
   return {
     Code: s.code, Category: s.category, Description: s.description, ClientDescription: s.clientDescription, ClientTypes: s.types.join(","), Price: s.price, PriceFrequency: s.frequency,
     VatTreatment: s.vat, SetupFee: s.setupFee, Scope: s.scope, Exclusions: s.exclusions, ClientResp: s.clientResp, PracticeResp: s.practiceResp, Clauses: s.clauses, Schedule: s.schedule,
-    Pricing: JSON.stringify(s.pricing), Offered: s.offered, Active: s.active, RequiresAuth: s.requiresAuth,
+    Pricing: JSON.stringify(s.pricing), Offered: s.offered, Active: s.active, RequiresAuth: s.requiresAuth, Statutory: s.statutory || "",
   };
 }
 

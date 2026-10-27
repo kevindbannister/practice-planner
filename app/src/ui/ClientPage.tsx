@@ -32,6 +32,7 @@ import { ClientEngagements } from "./EngagementsPage";
 import { ClientOnboardingCard } from "./OnboardingPage";
 import { ClientFees } from "./FeesPanel";
 import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
+import { sectionJobs, waitingOnClient } from "../lib/workGroups";
 
 export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "comms" | "meetings" | "tax" | "activity" | "portal" }) {
   const idx = useIndex();
@@ -430,14 +431,73 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     })),
   ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 
-  const cards: OverviewCard[] = [
-    ...jobs.map((j) => ({ id: `job:${j.Key}`, label: String(j.Title), node: <JobCard job={j} /> })),
-    ...(!jobs.length ? [{ id: "nojobs", label: "Open work", node: <div className="card empty">No open work for this client.</div> }] : []),
-    { id: "tasks", label: "Tasks", node: (
-<section className="card pad stack" aria-labelledby="tasks-h">
-          <h2 id="tasks-h">Tasks</h2>
+  const sections = sectionJobs(jobs, data.services, (k) => idx.serviceName.get(k) || k);
+  const waiting = waitingOnClient(jobs, (j) => data.stageTemplates.filter((t) => t.ServiceKey === j.ServiceKey));
+  const upcoming = jobs.filter((j) => j.Deadline).sort((a, b) => String(a.Deadline).localeCompare(String(b.Deadline))).slice(0, 8);
+  const buttons = (
+    <span className="row-wrap" style={{ gap: 8 }}>
+      <button type="button" className="btn small" onClick={() => open({ kind: "task", clientKey: c.Key })}>+ Task</button>
+      <button type="button" className="btn small" onClick={() => open({ kind: "newJob", clientKey: c.Key })}>+ Job</button>
+    </span>
+  );
+  const section = (title: string, list: Job[], first: boolean) => (
+    <section className="wk-section" aria-label={title}>
+      <div className="wk-head"><h2>{title} <span className="chip">{list.length}</span></h2>{first && buttons}</div>
+      <div className="wk-grid">{list.map((j) => <div key={j.Key} className="wk-cell"><JobCard job={j} /></div>)}</div>
+    </section>
+  );
+  const none = !sections.statutory.length && !sections.other.length;
+
+  return (
+    <div className="wk-layout">
+      <div className="wk-main">
+        {none && <div className="wk-head"><h2>Work</h2>{buttons}</div>}
+        {none && <div className="card empty">No open work for this client.</div>}
+        {sections.statutory.length > 0 && section("Statutory work", sections.statutory, true)}
+        {sections.other.length > 0 && section("Other services", sections.other, !sections.statutory.length)}
+      </div>
+
+      <aside className="wk-summary" aria-label="Work summary">
+        <h2 className="wk-sum-title">Work summary</h2>
+        <section className="card pad stack wk-card" aria-labelledby="up-h">
+          <h3 id="up-h">Upcoming work</h3>
+          {upcoming.length ? (
+            <ol className="wk-list">
+              {upcoming.map((j) => (
+                <li key={j.Key}>
+                  <span className="mono" style={{ color: jobState(j, today).state === "ok" ? "var(--muted)" : "var(--amber-ink)" }}>{fmtDate(j.Deadline)}</span>
+                  <span>{j.Title}</span>
+                </li>
+              ))}
+            </ol>
+          ) : <p className="muted" style={{ margin: 0 }}>Nothing coming up.</p>}
+        </section>
+        <section className="card pad stack wk-card" aria-labelledby="done-h">
+          <h3 id="done-h">Completed work</h3>
+          {history.length ? (
+            <>
+              <ol className="wk-list">
+                {history.slice(0, 5).map((h) => (
+                  <li key={h.key}><span className="mono muted">{h.date ? fmtDate(h.date) : "closed"}</span><span>{h.title}</span></li>
+                ))}
+              </ol>
+              {history.length > 5 && (
+                <details>
+                  <summary>{history.length - 5} earlier</summary>
+                  <ol className="wk-list" style={{ marginTop: 6 }}>
+                    {history.slice(5, 30).map((h) => (
+                      <li key={h.key}><span className="mono muted">{h.date ? fmtDate(h.date) : "closed"}</span><span>{h.title}</span></li>
+                    ))}
+                  </ol>
+                </details>
+              )}
+            </>
+          ) : <p className="muted" style={{ margin: 0 }}>Nothing yet.</p>}
+        </section>
+        <section className="card pad stack wk-card" aria-labelledby="tasks-h">
+          <h3 id="tasks-h">Open tasks</h3>
           {tasks.length ? (
-            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+            <ul className="wk-list tasks">
               {tasks.map((t) => (
                 <li key={t.Key}>
                   <button type="button" className="task-row" onClick={() => open({ kind: "task", key: t.Key })}>
@@ -450,51 +510,26 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="muted" style={{ margin: 0 }}>No open tasks. Advisory work, meetings and one-offs go here.</p>
-          )}
-</section>
-    ) },
-    { id: "next", label: "Coming up", node: (
-<section className="card pad stack" aria-labelledby="next-h">
-          <h2 id="next-h">Coming up</h2>
-          <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
-            {jobs.filter((j) => j.Deadline).slice(0, 8).map((j) => (
-              <li key={j.Key} style={{ display: "flex", gap: 12 }}>
-                <span className="mono" style={{ flex: "0 0 80px", fontSize: 12, color: jobState(j, today).state === "ok" ? "var(--muted)" : "var(--amber-ink)" }}>
-                  {fmtDate(j.Deadline)}
-                </span>
-                <span>{j.Title}</span>
-              </li>
-            ))}
-          </ol>
-</section>
-    ) },
-    { id: "hist", label: "Done before", node: (
-<section className="card pad stack" aria-labelledby="hist-h">
-          <h2 id="hist-h">Done before</h2>
-          {history.length ? (
-            <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
-              {history.slice(0, 12).map((h) => (
-                <li key={h.key} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                  <span>{h.title}</span>
-                  <span className="mono muted" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{h.date ? fmtDate(h.date) : "closed"}</span>
+          ) : <p className="muted" style={{ margin: 0 }}>No open tasks.</p>}
+        </section>
+        <section className="card pad stack wk-card" aria-labelledby="wait-h">
+          <h3 id="wait-h">Waiting on client</h3>
+          {waiting.length ? (
+            <ul className="wk-list tasks">
+              {waiting.map((w) => (
+                <li key={String(w.job.Key)}>
+                  <button type="button" className="task-row" onClick={() => open({ kind: "job", key: String(w.job.Key) })}>
+                    <span style={{ fontWeight: 600 }}>{w.job.Title}</span>
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {w.reason}{w.since ? ` since ${fmtDate(w.since, { year: false })}` : ""}{w.chaseOn ? ` · ${w.reason.startsWith("Records") ? "expected" : "chase on"} ${fmtDate(w.chaseOn, { year: false })}` : ""}
+                    </span>
+                  </button>
                 </li>
               ))}
-            </ol>
-          ) : (
-            <p className="muted" style={{ margin: 0 }}>Nothing yet.</p>
-          )}
-</section>
-    ) },
-  ];
-  return (
-    <div className="stack" style={{ gap: 12 }}>
-      <div className="row-wrap" style={{ justifyContent: "flex-end" }}>
-        <button type="button" className="btn" onClick={() => open({ kind: "task", clientKey: c.Key })}>+ Task</button>
-        <button type="button" className="btn" onClick={() => open({ kind: "newJob", clientKey: c.Key })}>+ Job</button>
-      </div>
-      <OverviewGrid cards={cards} columns={[{ w: 36, ids: jobs.map((j) => `job:${j.Key}`).concat("nojobs") }, { w: 24, ids: ["tasks", "next", "hist"] }]} name="the work tab" store="work" />
+            </ul>
+          ) : <p className="muted" style={{ margin: 0 }}>Nothing waiting on the client.</p>}
+        </section>
+      </aside>
     </div>
   );
 }
