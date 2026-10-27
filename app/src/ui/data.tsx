@@ -6,7 +6,7 @@ import { PlannerSettings, newKey, readSettings } from "../lib/planning";
 import { changeEvents, createdEvent } from "../lib/timeline";
 import { readConfig, Answer, Template } from "../lib/checklist";
 import { planChecklist, practiceId, templateFromRow } from "../lib/checklistRows";
-import { LISTS, ListKey, Row } from "../lib/schema";
+import { LISTS, LIST_BY_KEY, ListKey, Row } from "../lib/schema";
 import { SharePointStore, friendlyError } from "../lib/sharepoint";
 import { Snapshot, Source as CoSecSource, detectClientChange } from "../lib/cosec";
 import { Written } from "../lib/sales";
@@ -171,14 +171,14 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     reload();
   }, [reload]);
 
-  const track = useCallback(async <T,>(work: () => Promise<T>): Promise<T> => {
+  const track = useCallback(async <T,>(work: () => Promise<T>, operation = "Saving a change"): Promise<T> => {
     setSave({ state: "saving" });
     try {
       const out = await work();
       setSave({ state: "saved", at: new Date() });
       return out;
     } catch (e) {
-      setSave({ state: "error", error: friendlyError(e) });
+      setSave({ state: "error", error: `${operation}: ${friendlyError(e)}` });
       throw e;
     }
   }, []);
@@ -239,7 +239,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       for (const k of Object.keys(patch)) before[k] = row[k] ?? "";
       apply(patch); // show the change at once
       try {
-        await track(() => store.update(list, row._id!, patch));
+        await track(() => store.update(list, row._id!, patch), `Updating ${LIST_BY_KEY[list].displayName}`);
         log(changeEvents(list, row, patch, { actor: user || "", now: new Date().toISOString(), newKey }));
       } catch (e) {
         apply(before); // put it back if SharePoint refused
@@ -260,7 +260,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
         setData((d) => ({ ...d, [key]: (d[key] as Row[]).map((r) => (byId.has(r._id) ? { ...r, ...normalise(pick(byId.get(r._id)!)) } : r)) }));
       apply((c) => c.patch);
       try {
-        await track(() => store.updateMany(list, changes.map((c) => ({ itemId: c.row._id!, patch: c.patch }))));
+        await track(() => store.updateMany(list, changes.map((c) => ({ itemId: c.row._id!, patch: c.patch }))), `Updating ${LIST_BY_KEY[list].displayName}`);
       } catch (e) {
         apply((c) => Object.fromEntries(Object.keys(c.patch).map((k) => [k, c.row[k] ?? ""])));
         throw e;
@@ -271,7 +271,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
 
   const create = useCallback(
     async (list: ListKey, row: Row) => {
-      const created = await track(() => store.create(list, row));
+      const created = await track(() => store.create(list, row), `Creating a record in ${LIST_BY_KEY[list].displayName}`);
       const full = { ...row, ...created };
       setData((d) => ({ ...d, [keyFor(list)]: [...(d[keyFor(list)] as Row[]), full] }));
       const made = createdEvent(list, full, { actor: user || "", now: new Date().toISOString(), newKey });
@@ -290,9 +290,9 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
         const r = await store.createMany(list, rows);
         const all = await store.readAll(list);
         setData((d) => ({ ...d, [keyFor(list)]: all }));
+        if (r.failed) throw new Error(r.error || `${r.failed} couldn't be saved`);
         return r;
-      });
-      if (res.failed) throw new Error(res.error || `${res.failed} couldn't be saved`);
+      }, `Creating records in ${LIST_BY_KEY[list].displayName}`);
     },
     [store, track],
   );
@@ -301,16 +301,18 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     async (list: ListKey, rows: Row[]) => {
       if (!rows.length) return;
       const ids = new Set(rows.map((r) => r._id));
-      const res = await track(() => store.removeMany(list, [...ids] as string[]));
+      await track(async () => {
+        const result = await store.removeMany(list, [...ids] as string[]);
+        if (result.failed) throw new Error(`${result.failed} couldn't be removed`);
+      }, `Removing records from ${LIST_BY_KEY[list].displayName}`);
       setData((d) => ({ ...d, [keyFor(list)]: (d[keyFor(list)] as Row[]).filter((r) => !ids.has(r._id)) }));
-      if (res.failed) throw new Error(`${res.failed} couldn't be removed`);
     },
     [store, track],
   );
 
   const remove = useCallback(
     async (list: ListKey, row: Row) => {
-      await track(() => store.remove(list, row._id!));
+      await track(() => store.remove(list, row._id!), `Removing a record from ${LIST_BY_KEY[list].displayName}`);
       setData((d) => ({ ...d, [keyFor(list)]: (d[keyFor(list)] as Row[]).filter((r) => r._id !== row._id) }));
     },
     [store, track],
