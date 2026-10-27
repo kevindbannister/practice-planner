@@ -3,7 +3,7 @@
 import { GRAPH } from "../config";
 
 export class GraphError extends Error {
-  constructor(public status: number, message: string, public code?: string) {
+  constructor(public status: number, message: string, public code?: string, public path?: string) {
     super(message);
   }
 }
@@ -59,7 +59,7 @@ export class HttpGraph implements Graph {
     }
     if (res.status === 204) return undefined;
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new GraphError(res.status, json?.error?.message || res.statusText, json?.error?.code);
+    if (!res.ok) throw new GraphError(res.status, json?.error?.message || res.statusText, json?.error?.code, method + " " + path.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, "").split("?")[0]);
     return json;
   }
 

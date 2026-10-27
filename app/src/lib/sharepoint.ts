@@ -174,7 +174,12 @@ export class SharePointStore {
 export function friendlyError(e: unknown): string {
   if (e instanceof GraphError) {
     if (e.status === 401) return "Your sign-in has expired. Reload the page to sign in again.";
-    if (e.status === 403) return "Microsoft 365 refused access. Check the app's permissions have admin consent.";
+    if (e.status === 403) {
+      // Say what was refused, so it can be told apart: the app's permissions, or this person's rights on the site.
+      const what = [e.code, e.message].filter(Boolean).join(": ");
+      const where = e.path ? ` (${e.path.replace(/\/sites\/[^/]+\/lists\/([^/]+)/, "/lists/$1")})` : "";
+      return `Microsoft 365 refused access${where}. ${what ? what + ". " : ""}Either the app's permissions need admin consent, or your account can't edit the Practice Planner site.`;
+    }
     if (e.status === 404) return "The Practice Planner SharePoint site couldn't be found.";
     return `SharePoint said: ${e.message}`;
   }
