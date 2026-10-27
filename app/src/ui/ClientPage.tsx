@@ -30,6 +30,7 @@ import { ClientOpportunities } from "./SalesPage";
 import { ClientEngagements } from "./EngagementsPage";
 import { ClientOnboardingCard } from "./OnboardingPage";
 import { ClientFees } from "./FeesPanel";
+import { officerName, pscName } from "../lib/cosecForms";
 import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
 import { sectionJobs, waitingOnClient } from "../lib/workGroups";
 
@@ -217,6 +218,8 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     { id: "services", label: "Services and fees", node: <ServicesCard client={c} jobs={jobs} /> },
     { id: "fees", label: "Fee schedule", node: <ClientFees client={c} /> },
     ...(c.Kind === "Individual" ? [{ id: "portal", label: "Portal access", node: <IndividualPortalAccess client={c} /> }] : []),
+    { id: "profile", label: "Company profile", node: <ProfileCard client={c} /> },
+    ...(company ? [{ id: "people", label: "Directors and people", node: <PeopleCard client={c} /> }] : []),
     { id: "contact", label: "Contact", node: (
     <EditableCard
       title="Contact"
@@ -296,8 +299,8 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
 
 const STANDARD_COLUMNS: DefaultColumn[] = [
   { w: 30, ids: ["work", "gaps", "services", "fees"] },
-  { w: 15, ids: ["portal", "contact", "refs", "addresses", "team"] },
-  { w: 15, ids: ["compliance", "sales", "letters", "cis"] },
+  { w: 15, ids: ["profile", "portal", "contact", "refs", "addresses", "team"] },
+  { w: 15, ids: ["people", "compliance", "sales", "letters", "cis"] },
 ];
 
 /** Key, normal or low-touch: how much this client matters when the planner decides what comes first. */
@@ -330,6 +333,59 @@ function ImportanceRow({ client: c }: { client: Client }) {
         {failed && <span className="error-text" role="alert">Couldn't save</span>}
       </span>
     </div>
+  );
+}
+
+/** The facts that identify the client: type, status, dates, nature of business, who it is registered as. */
+function ProfileCard({ client: c }: { client: Client }) {
+  const company = c.Kind === "Ltd" || c.Kind === "LLP";
+  const row = (label: string, v: ReactNode) => <div className="kv" key={label}><span>{label}</span><span>{v || "—"}</span></div>;
+  const status = String(c.Status || "active");
+  return (
+    <section className="card pad stack" aria-labelledby="prof-h">
+      <h2 id="prof-h">Company profile</h2>
+      {row("Type", KIND_LABEL[c.Kind as string] || (c.Kind as string))}
+      {row("Status", <span style={{ textTransform: "capitalize" }}>{status}</span>)}
+      {c.TradingName ? row("Trading as", c.TradingName as string) : null}
+      {company && row("Incorporated", c.Incorporated ? fmtDate(c.Incorporated as string) : "")}
+      {row("Client since", c.Engaged ? fmtDate(c.Engaged as string) : "")}
+      {row("Year end", c.YearEnd as string)}
+      {company && row("Companies House", c.CompanyNumber ? <a href={companiesHouseUrl(String(c.CompanyNumber))} target="_blank" rel="noreferrer">{String(c.CompanyNumber)}</a> : "")}
+      {row("Nature of business", [c.SIC, c.BusinessActivity].filter(Boolean).join(" · "))}
+      {c.Website ? row("Website", <a href={String(c.Website).startsWith("http") ? String(c.Website) : `https://${c.Website}`} target="_blank" rel="noreferrer">{String(c.Website)}</a>) : null}
+    </section>
+  );
+}
+
+/** Current directors, secretaries and people with significant control, from the Co Sec registers. */
+function PeopleCard({ client: c }: { client: Client }) {
+  const { data } = useData();
+  const officers = data.cosecOfficers.filter((o) => o.ClientKey === c.Key && o.Status === "current");
+  const pscs = data.cosecPscs.filter((p) => p.ClientKey === c.Key && p.Status === "current");
+  return (
+    <section className="card pad stack" aria-labelledby="ppl-h">
+      <div className="card-head" style={{ padding: 0 }}>
+        <h2 id="ppl-h">Directors and people</h2>
+        <a href={href("cosec", "company", c.Key as string)} style={{ fontSize: 13 }}>Co Sec</a>
+      </div>
+      {officers.length === 0 && pscs.length === 0 ? <div className="empty">None recorded. Import them in Co Sec.</div> : (
+        <>
+          {officers.map((o) => (
+            <div className="kv" key={String(o.Key)}>
+              <span>{officerName(o)}</span>
+              <span>{String(o.Role || "Director")}{o.AppointedOn ? <span className="muted"> · since {fmtDate(String(o.AppointedOn))}</span> : null}</span>
+            </div>
+          ))}
+          {pscs.length > 0 && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Significant control</div>}
+          {pscs.map((p) => (
+            <div className="kv" key={String(p.Key)}>
+              <span>{pscName(p)}</span>
+              <span className="muted">{String(p.Natures || "").split("\n")[0] || "PSC"}</span>
+            </div>
+          ))}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -778,7 +834,7 @@ function ServicesCard({ client: c, jobs }: { client: Client; jobs: Job[] }) {
       {keys.length ? (
         <div className="table-wrap">
           <table className="grid">
-            <thead><tr><th scope="col">Service</th><th scope="col">Fee</th><th scope="col">Next deadline</th><th scope="col">We do this</th></tr></thead>
+            <thead><tr><th scope="col">Service</th><th scope="col">Fee</th><th scope="col">Next deadline</th><th scope="col">Internal</th><th scope="col">Stage</th><th scope="col">Records</th><th scope="col">We do this</th></tr></thead>
             <tbody>
               {keys.map((k) => {
                 const s = rows.find((r) => r.ServiceKey === k);
@@ -793,7 +849,16 @@ function ServicesCard({ client: c, jobs }: { client: Client; jobs: Job[] }) {
                     <td className="mono">
                       {s?.Fee ? `${fmtMoney(s.Fee as number)} ${s.FeePeriod || ""}` : <span className="muted">In package</span>}
                     </td>
-                    <td className="mono">{fmtDate(s?.NextDeadline as string) || "—"}</td>
+                    <td className="mono">{fmtDate((openJob?.Deadline as string) || (s?.NextDeadline as string)) || "—"}</td>
+                    <td className="mono">{openJob?.InternalDeadline ? fmtDate(openJob.InternalDeadline as string) : "—"}</td>
+                    <td>
+                      {openJob ? (() => {
+                        const total = data.stageTemplates.filter((t) => t.ServiceKey === k).length;
+                        const left = total ? Math.max(0, total - Number(openJob.StageNo || 1)) : 0;
+                        return <>{openJob.StageName || "—"}{total ? <div className="cell-sub">{left} {left === 1 ? "stage" : "stages"} to go</div> : null}</>;
+                      })() : <span className="muted">—</span>}
+                    </td>
+                    <td>{openJob ? (openJob.RecordsReceived ? `Received ${fmtDate(openJob.RecordsReceived as string)}` : openJob.RecordsExpected ? `Expected ${fmtDate(openJob.RecordsExpected as string)}` : "Not set") : <span className="muted">—</span>}</td>
                     <td>
                       {asking === k ? (
                         <div className="stack" style={{ gap: 6, maxWidth: 260 }}>
