@@ -330,6 +330,7 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("PracticeId", true), t("Ref", true), t("ClientKey", true), t("Form", true), t("Title"), t("Status", true), t("Target", true), t("Source"), t("SourceKey"),
       note("Before"), note("After"), note("Payload"), t("Assignee"), note("EventKeys"), note("Clarification"), t("Due"),
       t("EditedBy"), t("ApprovedBy"), t("ApprovedAt"), t("SubmittedBy"), t("SubmittedAt"), t("GatewayRef"), t("GatewayStatus"), note("GatewayNote"), t("ChRef"), t("AcceptedAt"), note("RejectReason"),
+      t("ApprovalState", true), note("ApprovalNote"), t("ApprovalDecidedBy"), t("ApprovalDecidedAt"), t("ApprovalMethod"), t("ApprovalSigningId"), t("ApprovalPortalDocId"), t("ApprovalDocKey"), t("ApprovalSignedDocKey"), t("ApprovalSealedDocId"), note("ApprovalSignatories"), t("ApprovalSentAt"), t("ApprovalBy"), t("ApprovalAt"), note("ApprovalEvidence"),
       note("History"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
   },

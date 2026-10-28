@@ -2,7 +2,7 @@
 // The register of members is the one register every company must still keep; the others are the company's own records now that
 // Companies House holds the official information (see the note on each register).
 import { Row } from "./schema";
-import { Entry, holderId, readEntry, replay } from "./shareLedger";
+import { Entry, canon, holderId, readEntry, replay } from "./shareLedger";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 export type Register = { id: "members" | "transactions" | "directors" | "secretaries" | "members-llp" | "pscs"; title: string; required: boolean; note: string; columns: string[]; rows: string[][]; sensitive: boolean };
@@ -15,7 +15,7 @@ const personName = (r: Row) => [str(r.Title), str(r.First), str(r.Last)].filter(
 
 /** Members as at a date: everyone who has held shares up to then, what they hold, when they became a member and (if so) when they stopped. */
 export function membersRegister(entries: Entry[], asOf: string): Register {
-  const act = entries.filter((e) => e.active && e.date <= asOf).sort((a, b) => a.date.localeCompare(b.date) || a.created.localeCompare(b.created));
+  const act = canon(entries).filter((e) => e.active && e.date <= asOf).sort((a, b) => a.date.localeCompare(b.date) || a.created.localeCompare(b.created));
   const bal = new Map<string, { name: string; total: number; entered: string; ceased: string }>();
   const move = (name: string, key: string, delta: number, date: string) => {
     const id = holderId(name, key); const cur = bal.get(id) || { name: name.trim(), total: 0, entered: "", ceased: "" };

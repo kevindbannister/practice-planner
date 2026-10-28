@@ -3,7 +3,7 @@
 import { Row } from "./schema";
 
 export type CompanyKind = "limited" | "llp";
-export type FormDef = { id: string; title: string; applies: CompanyKind[]; /** Can be sent from the planner through the Companies House gateway (api/cosec). Only forms with a message built and tested there. */ gateway: boolean };
+export type FormDef = { id: string; title: string; applies: CompanyKind[]; /** Can be sent from the planner through the Companies House gateway (api/cosec). Only forms with a message built and tested there. */ gateway: boolean; /** Nothing is sent to Companies House for this: it is completed inside the planner and reported in the next confirmation statement. */ noFiling?: boolean };
 
 export const FORMS: FormDef[] = [
   { id: "AD01", title: "Change of registered office address", applies: ["limited", "llp"], gateway: true },
@@ -32,6 +32,7 @@ export const FORMS: FormDef[] = [
   { id: "PSC06", title: "Change of another registrable person's details", applies: ["limited", "llp"], gateway: false },
   { id: "PSC07", title: "Notice of ceasing to be a person with significant control", applies: ["limited", "llp"], gateway: false },
   { id: "SH01", title: "Return of allotment of shares", applies: ["limited"], gateway: false },
+  { id: "STT", title: "Share transfer (nothing is filed; shown in the next confirmation statement)", applies: ["limited"], gateway: false, noFiling: true },
 ];
 export const formDef = (id: string): FormDef | undefined => FORMS.find((f) => f.id === id);
 export const formTitle = (id: string): string => formDef(id)?.title || id;

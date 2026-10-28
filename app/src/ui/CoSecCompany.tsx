@@ -2,7 +2,7 @@
 // waiting to be filed), officers, persons with significant control, shares, the printable registers and its filings.
 import { useMemo, useState } from "react";
 import { fmtDate } from "../lib/domain";
-import { PENDING_TARGET, STATUS_LABEL, appointPerson, allotShares, changePerson, companyKind, isOpenTx, officersFromCh, pendingFor, pscsFromCh, terminatePerson, transferShares, txStatus, verifiedFrom, verifiedOf } from "../lib/cosec";
+import { PENDING_TARGET, STATUS_LABEL, appointPerson, allotShares, changePerson, companyKind, isOpenTx, officersFromCh, pendingFor, pscsFromCh, terminatePerson, prepareTransfer, txStatus, verifiedFrom, verifiedOf } from "../lib/cosec";
 import { OFFICER_ROLES, PSC_KINDS, officerName, pscName } from "../lib/cosecForms";
 import { chNumber } from "../lib/companiesHouse";
 import { Row } from "../lib/schema";
@@ -260,7 +260,7 @@ function Shares({ client }: { client: Row }) {
           <div className="doc-field" style={{ minWidth: 260 }}><span>From {s(t.from.Holder)}: transfer to</span><HolderPicker company={client} value={t.to} valueKey={t.toKey} onPick={(name, key) => setT({ ...t, to: name, toKey: key })} /></div>
           <label className="doc-field"><span>Shares</span><input className="input" style={{ width: 110 }} value={t.number} onChange={(e) => setT({ ...t, number: e.target.value })} /></label>
           <label className="doc-field"><span>Date</span><input className="input" type="date" value={t.date} onChange={(e) => setT({ ...t, date: e.target.value })} /></label>
-          <button type="button" className="btn primary" disabled={busy} onClick={() => go(async () => { const r: any = transferShares(client, t.from, { holder: t.to, holderKey: t.toKey }, Number(t.number), t.date, k.can("edit"), k.ctx()); if ("error" in r) return r; await k.apply(r); return { text: "Transfer recorded in the register. Check the next confirmation statement." }; })}>Record the transfer</button>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => go(async () => { const r: any = prepareTransfer(client, { fromRow: s(t.from.Key), from: s(t.from.Holder), fromKey: s(t.from.HolderKey), to: t.to, toKey: t.toKey, class: s(t.from.Class), number: Number(t.number), date: t.date }, k.snap(), k.can("edit"), k.ctx()); if ("error" in r) return r; await k.apply(r); const made = (r.creates || []).find((c: any) => c.list === "CoSecTransactions"); if (made) window.location.hash = href("cosec", "filing", s(made.row.Key)); return { text: "Transfer prepared. Decide on client approval, then review and complete it." }; })}>Prepare the transfer</button>
           <button type="button" className="btn" onClick={() => setT(null)}>Cancel</button>
         </div>
       )}
