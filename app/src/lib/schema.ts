@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -330,6 +330,7 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("PracticeId", true), t("Ref", true), t("ClientKey", true), t("Form", true), t("Title"), t("Status", true), t("Target", true), t("Source"), t("SourceKey"),
       note("Before"), note("After"), note("Payload"), t("Assignee"), note("EventKeys"), note("Clarification"), t("Due"),
       t("EditedBy"), t("ApprovedBy"), t("ApprovedAt"), t("SubmittedBy"), t("SubmittedAt"), t("GatewayRef"), t("GatewayStatus"), note("GatewayNote"), t("ChRef"), t("AcceptedAt"), note("RejectReason"),
+      t("ApprovalState", true), note("ApprovalNote"), t("ApprovalDecidedBy"), t("ApprovalDecidedAt"), t("ApprovalMethod"), t("ApprovalSigningId"), t("ApprovalPortalDocId"), t("ApprovalDocKey"), t("ApprovalSignedDocKey"), t("ApprovalSealedDocId"), note("ApprovalSignatories"), t("ApprovalSentAt"), t("ApprovalBy"), t("ApprovalAt"), note("ApprovalEvidence"),
       note("History"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
   },
@@ -337,14 +338,14 @@ export const LISTS: ListDef[] = [
     key: "CoSecOfficers", displayName: "PP CoSec Officers", description: "Practice Planner: directors, secretaries and LLP members (internal register)",
     columns: [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Role"), t("Kind"), t("Status", true), t("Title"), t("First"), t("Last"), t("CorporateName"), t("DOB"), t("Nationality"), t("Occupation"), t("CountryOfResidence"),
-      note("ServiceAddress"), note("ResidentialAddress"), t("AppointedOn"), t("ResignedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("Created"), t("Updated"),
+      note("ServiceAddress"), note("ResidentialAddress"), t("AppointedOn"), t("ResignedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("IdStatus"), t("IdCheckedOn"), note("IdNote"), t("Created"), t("Updated"),
     ],
   },
   {
     key: "CoSecPscs", displayName: "PP CoSec PSCs", description: "Practice Planner: persons with significant control (internal register)",
     columns: [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Kind"), t("Status", true), t("Title"), t("First"), t("Last"), t("CorporateName"), t("DOB"), t("Nationality"), t("CountryOfResidence"),
-      note("ServiceAddress"), note("ResidentialAddress"), note("Natures"), t("NotifiedOn"), t("CeasedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("Created"), t("Updated"),
+      note("ServiceAddress"), note("ResidentialAddress"), note("Natures"), t("NotifiedOn"), t("CeasedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("IdStatus"), t("IdCheckedOn"), note("IdNote"), t("Created"), t("Updated"),
     ],
   },
   {
@@ -356,7 +357,7 @@ export const LISTS: ListDef[] = [
   },
   {
     key: "CoSecShareClasses", displayName: "PP CoSec Share Classes", description: "Practice Planner: classes of share each company has set up",
-    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Name"), t("Currency"), n("NominalValue"), note("Rights"), t("Status", true), t("Created"), t("Updated")],
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Name"), t("Currency"), n("NominalValue"), note("Rights"), t("Votes"), t("Dividends"), t("Redeemable"), note("Restrictions"), t("Status", true), t("Created"), t("Updated")],
   },
   {
     key: "CoSecProfiles", displayName: "PP CoSec Profiles", description: "Practice Planner: how the practice relates to each company (service level and overrides)",
@@ -367,8 +368,28 @@ export const LISTS: ListDef[] = [
     key: "CoSecLedger", displayName: "PP CoSec Share Ledger", description: "Practice Planner: share transaction ledger (immutable entries; corrections supersede)",
     columns: [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Type"), t("EffectiveDate", true), t("Class"), n("Number"), t("FromHolder"), t("FromKey"), t("ToHolder"), t("ToKey"), t("Currency"),
-      n("Nominal"), n("PaidPerShare"), n("Premium"), note("Consideration"), t("TxKey"), t("IdemKey"), t("Supersedes"), note("Reason"), t("Status", true), note("Notes"), t("Created"), t("CreatedBy"),
+      n("Nominal"), n("PaidPerShare"), n("Premium"), note("Consideration"), t("TxKey"), t("IdemKey"), t("Supersedes"), note("Reason"), t("Status", true), note("Notes"), t("Source", true), t("Created"), t("CreatedBy"),
     ],
+  },
+  {
+    // Historical imports: what was extracted, what the reviewer decided, and what was committed. Staged items are never part of the live records.
+    key: "CoSecImports", displayName: "PP CoSec Imports", description: "Practice Planner: historical corporate-record imports (audit of what was proposed and approved)",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Method"), t("SourceName"), t("Status", true), note("Summary"), note("Items"), t("ApprovedBy"), t("ApprovedAt"), t("Created"), t("CreatedBy")],
+  },
+  {
+    // Share certificates: numbered per company, never edited or deleted; replaced or cancelled certificates stay on record. See lib/cosecCertificates.ts.
+    key: "CoSecCertificates", displayName: "PP CoSec Certificates", description: "Practice Planner: share certificates issued, cancelled and replaced",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Number", true), t("Holder"), t("HolderKey"), t("Class"), n("NumberOfShares"), t("IssuedOn"), t("Status", true), t("Replaces"), t("TxKey"), note("Reason"), t("Created"), t("CreatedBy"), t("Updated")],
+  },
+  {
+    // Dividends: the calculation is stored as lines so it can be re-checked later. See lib/cosecDividends.ts.
+    key: "CoSecDividends", displayName: "PP CoSec Dividends", description: "Practice Planner: dividends proposed, declared and paid",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Ref"), t("Type"), t("RecordDate"), t("DeclaredOn"), t("PaidOn"), t("Currency"), note("Rates"), note("Lines"), n("TotalPence"), note("Waivers"), t("ReviewedBy"), t("ReviewedAt"), note("ReviewNote"), t("Status", true), note("Notes"), t("Created"), t("CreatedBy"), t("Updated")],
+  },
+  {
+    // Dormant (never traded) accounts jobs: the checks, confirmations, figures at preparation, and what happened at each step. See lib/cosecDormant.ts.
+    key: "CoSecAccounts", displayName: "PP CoSec Accounts", description: "Practice Planner: dormant company accounts jobs and their progress to acceptance",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("PeriodStart"), t("PeriodEnd", true), t("Kind"), t("Status", true), note("Confirmations"), note("Figures"), t("Deadline"), t("PreparedOn"), t("ApprovedBy"), t("ApprovedOn"), t("SignedRef"), t("FiledOn"), t("FiledVia"), t("FiledRef"), t("AcceptedOn"), note("Evidence"), note("Notes"), t("LateLastYear"), t("Created"), t("CreatedBy"), t("Updated")],
   },
   {
     // A request to a client's previous accountant for professional clearance and records. See lib/clearance.ts.

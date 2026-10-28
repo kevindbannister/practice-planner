@@ -6,6 +6,10 @@
 // the client's own records, and the four pictures of a company are kept apart: the planner's current data, the proposed
 // change (the draft), what Companies House last showed (Clients.CHVerified), and the internal registers (CoSec lists).
 import { Config } from "./checklist";
+import { approvalGate, approvalOf } from "./cosecApproval";
+import { blankCs01, buildCs01, cs01Issues, readCs01 } from "./cosecCs01";
+import { DEFAULT_FEES } from "./cosecFees";
+import { NewEntry, readEntry, record } from "./shareLedger";
 import { sameAddress, sameName } from "./companiesHouse";
 import { Addr, CompanyKind, OfficerOp, addrIssues, addrText, formDef, formTitle, officerForm, officerName, parseAddress, pscForm, pscName } from "./cosecForms";
 import { ProposalAction, proposalCan } from "./proposals";
@@ -17,10 +21,10 @@ const json = <T,>(v: unknown, fallback: T): T => { try { const x = JSON.parse(st
 
 // ------------------------------------------------------------------ states
 
-export type TxStatus = "draft" | "info" | "approved" | "submitted" | "accepted" | "rejected" | "declined" | "cancelled" | "external";
+export type TxStatus = "draft" | "info" | "approved" | "submitted" | "accepted" | "rejected" | "declined" | "cancelled" | "external" | "completed";
 export const STATUS_LABEL: Record<TxStatus, string> = {
   draft: "Awaiting review", info: "Needs information", approved: "Approved, ready to submit", submitted: "Submitted, awaiting Companies House", accepted: "Accepted by Companies House",
-  rejected: "Rejected by Companies House", declined: "Declined by the practice", cancelled: "Cancelled", external: "Filed externally",
+  rejected: "Rejected by Companies House", declined: "Declined by the practice", cancelled: "Cancelled", external: "Filed externally", completed: "Completed (no filing needed)",
 };
 /** Still needs somebody's attention. */
 export const OPEN_STATUSES: TxStatus[] = ["draft", "info", "approved", "submitted", "rejected"];
@@ -64,7 +68,7 @@ const responsible = (client: Row): string => str(client.Manager) || str(client.P
 
 // ------------------------------------------------------------------ the snapshot the engine reads
 
-export type Snapshot = { clients: Row[]; officers: Row[]; pscs: Row[]; shares: Row[]; /** share classes the company has set up; when given, shares can only be allotted in one of them */ classes?: Row[]; txs: Row[]; events: Row[] };
+export type Snapshot = { clients: Row[]; officers: Row[]; pscs: Row[]; shares: Row[]; /** share classes the company has set up; when given, shares can only be allotted in one of them */ classes?: Row[]; /** the share ledger, so completing a share transaction can be checked against it and written to it */ ledger?: Row[]; txs: Row[]; events: Row[] };
 
 /** What Companies House last showed, as kept in Clients.CHVerified. */
 export type Verified = { at?: string; name?: string; office?: string; sic?: string; ard?: string; /** accounts due and the period they cover, confirmation statement due and the date it is made up to (all as Companies House shows them) */ accDue?: string; accTo?: string; csDue?: string; csTo?: string; status?: string };
@@ -122,7 +126,7 @@ export function prepare(p: Proposed, snap: Pick<Snapshot, "txs" | "events">, o: 
   const key = o.newKey("CT");
   const inFlight = mine.find((t) => txStatus(t) === "submitted");
   const tx: Row = {
-    Key: key, PracticeId: o.pid, Ref: nextRef(snap.txs, Number(o.now.slice(0, 4))), ClientKey: p.clientKey, Form: p.form, Title: p.title, Status: "draft", Target: p.target, Source: p.source, SourceKey: p.sourceKey,
+    Key: key, PracticeId: o.pid, Ref: nextRef(snap.txs, Number(o.now.slice(0, 4))), ClientKey: p.clientKey, Form: p.form, Title: p.title, Status: "draft", ApprovalState: "undecided", Target: p.target, Source: p.source, SourceKey: p.sourceKey,
     Before: p.before, After: p.after, Payload: JSON.stringify(p.payload), Assignee: p.assignee, EventKeys: JSON.stringify([p.eventKey]), Clarification: "", Due: "", EditedBy: "", ApprovedBy: "", ApprovedAt: "",
     SubmittedBy: "", SubmittedAt: "", GatewayRef: "", GatewayStatus: "", GatewayNote: "", ChRef: "", AcceptedAt: "", RejectReason: "",
     History: JSON.stringify([{ at: o.now, by: o.actor, what: "prepared", note: [p.note, inFlight ? `A filing for this (${inFlight.Ref}) is already with Companies House.` : "", NOT_FILED].filter(Boolean).join(" ") }]), Created: o.now, CreatedBy: o.actor, Updated: o.now,
@@ -369,6 +373,26 @@ export function allotShares(company: Row, a: Allotment, snap: Snapshot, can: boo
   r.creates = [{ list: "CoSecShares", row }, ...(r.creates || [])];
   return r;
 }
+export type TransferInput = { fromRow?: string; from: string; fromKey?: string; to: string; toKey?: string; class: string; number: number; date: string; consideration?: string };
+/** A share transfer as a transaction: it goes through the same approval and review as the rest, then completes without a filing and moves the ledger. */
+export function prepareTransfer(company: Row, t: TransferInput, snap: Snapshot, can: boolean, o: Ctx): Prepared | { error: string } {
+  if (!can) return { error: "You can't prepare transactions." };
+  if (companyKind(company) !== "limited") return { error: "Only limited companies have share capital." };
+  if (!t.from.trim() || !t.to.trim() || !t.class.trim()) return { error: "Enter who transfers, who receives and the class." };
+  if (!(t.number > 0) || !Number.isInteger(t.number)) return { error: "Enter a whole number of shares above nothing." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t.date)) return { error: "Enter the date of the transfer." };
+  if (t.from.trim().toLowerCase() === t.to.trim().toLowerCase()) return { error: "A holder can't transfer shares to themselves." };
+  if (t.fromRow) {
+    const row = snap.shares.find((x) => x.Key === t.fromRow);
+    if (!row || str(row.Status) !== "current") return { error: "That holding isn't current." };
+    if (t.number > Number(row.Number)) return { error: "Enter a number of shares up to what the holder has." };
+  }
+  const key = o.newKey("CH");
+  const e: NewEntry = { type: "transfer", date: t.date, cls: t.class, number: t.number, from: t.from, to: t.to };
+  if (snap.ledger) { const r = record(e, str(company.Key), snap.ledger.map(readEntry), undefined, o.actor, o.now); if (r.error) return { error: r.error }; }
+  const p: Proposed = { clientKey: str(company.Key), clientName: str(company.Title), form: "STT", target: `share:${key}:transfer`, title: `Transfer of ${t.number} ${t.class} shares from ${t.from} to ${t.to}`, before: "", after: `${t.number} ${t.class} from ${t.from} to ${t.to}`, payload: { op: "transfer", fromRow: t.fromRow || "", from: t.from, fromKey: t.fromKey || "", to: t.to, toKey: t.toKey || "", class: t.class, number: t.number, date: t.date, consideration: t.consideration || "" }, source: "cosec", sourceKey: key, eventKey: `cosec:transfer:${key}`, assignee: "", entity: "share", entityKey: key, field: "transfer" };
+  return directDraft(p, snap, o);
+}
 export function transferShares(company: Row, from: Row, to: { holder: string; holderKey?: string }, number: number, date: string, can: boolean, o: Ctx): Written | { error: string } {
   if (!can) return { error: "You can't change the register." };
   if (str(from.Status) !== "current") return { error: "That holding isn't current." };
@@ -389,7 +413,7 @@ export function transferShares(company: Row, from: Row, to: { holder: string; ho
 
 /** What the planner must also record: the client's last-verified Companies House data. */
 export type CoSecWritten = Written & { verified?: { clientKey: string; value: Verified } };
-export type TxAction = "edit" | "clarify" | "answer" | "approve" | "decline" | "external" | "cancel" | "reopen" | "submitted" | "result";
+export type TxAction = "complete" | "edit" | "clarify" | "answer" | "approve" | "decline" | "external" | "cancel" | "reopen" | "submitted" | "result";
 export type TxInput = { payload?: Record<string, unknown>; after?: string; note?: string; ref?: string; gatewayRef?: string; result?: { status: "accepted" | "rejected" | "pending"; chRef?: string; reason?: string } };
 
 /** What is still missing before a draft can be approved and filed. Forms that are filed another way only need the basics. */
@@ -405,7 +429,7 @@ export function txIssues(tx: Row): string[] {
       if (!str(p.date).trim()) out.push("Date of appointment");
       if (!person(d).trim()) out.push("Name");
       if (str(tx.Form) === "AP01" || str(tx.Form) === "LLAP01") {
-        for (const [f, l] of [["DOB", "Date of birth"], ["Nationality", "Nationality"], ["Occupation", "Occupation"], ["CountryOfResidence", "Country of residence"]] as const) if (!str(d[f]).trim()) out.push(l);
+        for (const [f, l] of [["DOB", "Date of birth"], ["Nationality", "Nationality"], ["CountryOfResidence", "Country of residence"]] as const) if (!str(d[f]).trim()) out.push(l);
         out.push(...addrIssues(parseAddress(str(d.ServiceAddress)), "Service address"), ...addrIssues(parseAddress(str(d.ResidentialAddress)), "Residential address"));
       }
       break;
@@ -414,6 +438,8 @@ export function txIssues(tx: Row): string[] {
     case "CH01": case "CH02": case "CH03": case "CH04": case "LLCH01": case "LLCH02": case "PSC04": case "PSC05": case "PSC06":
       if (!Object.keys(p.changes || {}).length) out.push("At least one changed detail");
       break;
+    case "CS01": out.push(...cs01Issues(tx)); break;
+    case "STT": { if (!str(p.from).trim() || !str(p.to).trim() || !str(p.class).trim() || !(Number(p.number) > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(str(p.date))) out.push("Who transfers, who receives, the class, the number of shares and the date"); break; }
     case "SH01": { const d = p.details || {}; if (!(Number(d.Number) > 0) || !str(d.Class).trim() || !str(p.date).trim()) out.push("Class, number of shares and date"); break; }
   }
   return out;
@@ -421,7 +447,7 @@ export function txIssues(tx: Row): string[] {
 
 export const canSubmitVia = (tx: Row): boolean => !!formDef(str(tx.Form))?.gateway;
 
-export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: Ctx, snap?: Pick<Snapshot, "officers" | "pscs" | "shares" | "clients">): CoSecWritten | { error: string } {
+export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: Ctx, snap?: Pick<Snapshot, "officers" | "pscs" | "shares" | "clients" | "ledger"> & Partial<Pick<Snapshot, "txs" | "classes">> & { fees?: import("./cosecFees").FeeSchedule }): CoSecWritten | { error: string } {
   const st = txStatus(tx);
   const ck = str(tx.ClientKey);
   const refs = { clientKey: ck };
@@ -438,7 +464,10 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
       if (!can("edit")) return fail("You can't edit filings.");
       if (!EDITABLE.includes(st)) return fail("Only a draft can be edited.");
       const patch: Row = { Status: "draft", EditedBy: o.actor, ApprovedBy: "", ApprovedAt: "" };
-      if (input.payload) patch.Payload = JSON.stringify(input.payload);
+      if (input.payload) {
+        patch.Payload = JSON.stringify(input.payload);
+        if (str(tx.Payload) && JSON.stringify(input.payload) !== str(tx.Payload) && (approvalOf(tx) === "approved" || approvalOf(tx) === "awaiting")) Object.assign(patch, { ApprovalState: "required", ApprovalSigningId: "", ApprovalBy: "", ApprovalAt: "", ApprovalEvidence: "" });
+      }
       if (input.after !== undefined) patch.After = input.after;
       return done(patch, "edited", input.note);
     }
@@ -456,9 +485,13 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
     case "approve": {
       if (!can("approve")) return fail("Only a manager or partner can approve a filing.");
       if (st !== "draft" && st !== "rejected") return fail(st === "approved" ? "Already approved." : "Only a draft awaiting review can be approved.");
+      const gate = approvalGate(tx);
+      if (gate) return fail(gate);
       if (cfg.independentReview && str(tx.EditedBy) && str(tx.EditedBy).toLowerCase() === o.actor.toLowerCase()) return fail("Independent review is on: someone other than the person who edited this draft must approve it.");
       const issues = txIssues(tx);
       if (issues.length) return fail(`Still needed before it can be approved: ${issues.join(", ")}.`);
+      const notReady = cs01NotReady(tx, snap, o);
+      if (notReady) return fail(`Not ready to approve: ${notReady}`);
       return done({ Status: "approved", ApprovedBy: o.actor, ApprovedAt: o.now, RejectReason: st === "rejected" ? "" : str(tx.RejectReason) }, "approved", input.note, { type: "cosec-approved", title: `${tx.Form} approved: ${str(tx.Title)}`, summary: "Approved, not yet submitted to Companies House." });
     }
     case "decline": {
@@ -477,7 +510,19 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
       if (st !== "declined" && st !== "cancelled" && st !== "rejected") return fail("Only a declined, cancelled or rejected filing can be reopened.");
       return done({ Status: "draft", ApprovedBy: "", ApprovedAt: "" }, "reopened", input.note);
     }
+    case "complete": {
+      if (!can("approve")) return fail("Only a manager or partner can complete a transaction.");
+      if (!formDef(str(tx.Form))?.noFiling) return fail(`${tx.Form} is filed with Companies House: submit it, or record it as filed externally.`);
+      if (st !== "approved") return fail("Approve it before it is completed.");
+      const gate = approvalGate(tx);
+      if (gate) return fail(gate);
+      const problem = ledgerProblem(tx, snap, o);
+      if (problem) return fail(problem);
+      const w = done({ Status: "completed", AcceptedAt: o.now }, "completed without filing", input.note, { type: "cosec-completed", title: `${tx.Form} completed: ${str(tx.Title)}`, summary: "Recorded in the company's records. Nothing is filed for this; it is reported in the next confirmation statement." });
+      return mergeV(w, reconcile(tx, o, snap));
+    }
     case "external": {
+      if (formDef(str(tx.Form))?.noFiling) return fail("Nothing is filed for this: complete it instead.");
       if (!can("approve")) return fail("Only a manager or partner can record a filing made elsewhere.");
       if (!OPEN_STATUSES.includes(st)) return fail("That filing is already closed.");
       const w = done({ Status: "external", ChRef: str(input.ref), AcceptedAt: o.now }, "filed externally", input.note || input.ref, { type: "cosec-filed", title: `${tx.Form} filed externally: ${str(tx.Title)}`, summary: input.note });
@@ -504,8 +549,43 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
   }
 }
 
+/** For a confirmation statement: the first thing in the company's records that stops it being filed, or nothing. Other forms have no extra check. */
+function cs01NotReady(tx: Row, snap: (Partial<Snapshot> & { fees?: import("./cosecFees").FeeSchedule }) | undefined, o: Ctx): string | undefined {
+  if (str(tx.Form) !== "CS01" || !snap?.clients) return undefined;
+  const client = snap.clients.find((c) => c.Key === tx.ClientKey);
+  if (!client) return undefined;
+  const m = buildCs01({ client, payload: readCs01(tx), officers: (snap.officers || []).filter((x) => x.ClientKey === tx.ClientKey), pscs: (snap.pscs || []).filter((x) => x.ClientKey === tx.ClientKey), ledger: (snap.ledger || []).map(readEntry), classes: snap.classes || [], txs: snap.txs || [], fees: snap.fees || DEFAULT_FEES, today: o.now.slice(0, 10), selfTx: str(tx.Key) });
+  return m.blockers[0];
+}
+/** Start a confirmation statement draft for a company, made up to a date. Nothing is filed. A draft already open for the same date is reused. */
+export function prepareCs01(company: Row, madeUpTo: string, snap: Snapshot, can: boolean, o: Ctx): Prepared | { error: string } {
+  if (!can) return { error: "You can't prepare filings." };
+  if (!companyKind(company)) return { error: "Only companies and LLPs file confirmation statements." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(madeUpTo)) return { error: "Enter the date the statement is made up to." };
+  if (snap.txs.some((t) => str(t.ClientKey) === str(company.Key) && str(t.Form) === "CS01" && str(t.Target) === `cs01:${madeUpTo}` && ["accepted", "external"].includes(txStatus(t)))) return { error: "A statement made up to that date has already been filed." };
+  const key = o.newKey("CS");
+  const p: Proposed = { clientKey: str(company.Key), clientName: str(company.Title), form: "CS01", target: `cs01:${madeUpTo}`, title: `Confirmation statement made up to ${madeUpTo}`, before: "", after: `Made up to ${madeUpTo}`, payload: blankCs01(madeUpTo, str(company.Email)), source: "cosec", sourceKey: key, eventKey: `cosec:cs01:${key}`, assignee: responsible(company), entity: "company", entityKey: str(company.Key), field: "confirmation-statement" };
+  return directDraft(p, snap, o);
+}
+
+/** The ledger entry a share transaction stands for: an allotment (SH01) or a transfer (STT). Other transactions don't touch the ledger. */
+export function ledgerEntryFor(tx: Row): NewEntry | undefined {
+  const p = json<Record<string, any>>(tx.Payload, {});
+  const idem = `tx:${str(tx.Key)}`;
+  if (str(tx.Form) === "SH01") { const d = p.details || {}; return { type: "allotment", date: str(p.date), cls: str(d.Class), number: Number(d.Number), to: str(d.Holder), toKey: str(d.HolderKey), currency: str(d.Currency) || "GBP", nominal: Number(d.NominalValue) || 0, paid: Number(d.PaidPerShare) || 0, txKey: str(tx.Key), idem, notes: `Allotment ${str(tx.Ref)}` }; }
+  if (str(tx.Form) === "STT") return { type: "transfer", date: str(p.date), cls: str(p.class), number: Number(p.number), from: str(p.from), fromKey: str(p.fromKey), to: str(p.to), toKey: str(p.toKey), consideration: str(p.consideration), txKey: str(tx.Key), idem, notes: `Transfer ${str(tx.Ref)}` };
+  return undefined;
+}
+/** Whether completing a share transaction would break the ledger (for example, transferring shares the holder doesn't have on that date). */
+function ledgerProblem(tx: Row, snap: Pick<Snapshot, "ledger"> | undefined, o: Ctx): string | undefined {
+  const e = ledgerEntryFor(tx);
+  if (!e || !snap?.ledger) return undefined;
+  const r = record(e, str(tx.ClientKey), snap.ledger.map(readEntry), undefined, o.actor, o.now);
+  return r.error;
+}
+
 /** After acceptance (or a filing made elsewhere): bring the internal register and the last-verified record into line, and close the work. */
-export function reconcile(tx: Row, o: Ctx, snap?: Pick<Snapshot, "officers" | "pscs" | "shares" | "clients">): CoSecWritten {
+export function reconcile(tx: Row, o: Ctx, snap?: Pick<Snapshot, "officers" | "pscs" | "shares" | "clients" | "ledger">): CoSecWritten {
   const w: CoSecWritten = empty();
   const p = json<Record<string, any>>(tx.Payload, {});
   const form = str(tx.Form);
@@ -523,6 +603,29 @@ export function reconcile(tx: Row, o: Ctx, snap?: Pick<Snapshot, "officers" | "p
   else if (form === "PSC07") patchPerson("CoSecPscs", { Status: "ceased", CeasedOn: str(p.date) });
   else if (/^PSC0[4-6]$/.test(form)) patchPerson("CoSecPscs", p.changes || {});
   else if (form === "SH01" && p.who) { const row = snap?.shares.find((x) => x.Key === p.who); if (row) w.patches.push({ list: "CoSecShares", row, patch: { Status: "current", Updated: o.now } }); }
+  // share transactions also go into the share ledger, once (the transaction's key is the idempotency key)
+  const entry = ledgerEntryFor(tx);
+  if (entry) {
+    const r = record(entry, str(tx.ClientKey), (snap?.ledger || []).map(readEntry), undefined, o.actor, o.now);
+    if (r.row) w.creates!.push({ list: "CoSecLedger", row: { ...r.row, PracticeId: o.pid, TxKey: str(tx.Key), Source: `tx:${str(tx.Key)}` } });
+    else if (r.error) w.activities.push(activityRow(o, "cosec-flag", `${form} could not be added to the share ledger: ${r.error}`, undefined, { clientKey: str(tx.ClientKey) }, "Check the ledger and add the entry by hand.", `cosec:ledgerfail:${str(tx.Key)}`));
+  }
+  if (form === "STT") {
+    const from = snap?.shares.find((x) => x.Key === p.fromRow);
+    if (from && str(from.Status) === "current") {
+      const n = Number(p.number); const left = Number(from.Number) - n;
+      w.patches.push({ list: "CoSecShares", row: from, patch: left > 0 ? { Number: left, Updated: o.now } : { Status: "former", To: str(p.date), Updated: o.now } });
+      w.creates!.push({ list: "CoSecShares", row: { Key: o.newKey("CH"), PracticeId: o.pid, ClientKey: str(tx.ClientKey), Holder: str(p.to), HolderKey: str(p.toKey), Class: str(from.Class), Number: n, Currency: str(from.Currency), NominalValue: from.NominalValue, PaidPerShare: from.PaidPerShare, Status: "current", From: str(p.date), To: "", Event: "transfer", CertificateNo: "", Source: "cosec", Notes: `From ${str(from.Holder)}`, Created: o.now, Updated: o.now } });
+    }
+  }
+  if (form === "CS01") {
+    const m = str(p.madeUpTo);
+    const client = snap?.clients.find((c) => c.Key === tx.ClientKey);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(m)) {
+      const d = new Date(`${m}T00:00:00Z`); d.setUTCFullYear(d.getUTCFullYear() + 1); d.setUTCDate(d.getUTCDate() + 14);
+      w.verified = { clientKey: str(tx.ClientKey), value: { ...(client ? verifiedOf(client) : {}), csTo: m, csDue: d.toISOString().slice(0, 10), at: o.now } };
+    }
+  }
   // what Companies House now shows: the planner's refresh (when it can reach Companies House) replaces this with the official record
   const field = form === "AD01" ? "office" : form === "NM01" ? "name" : form === "AA01" ? "ard" : "";
   if (field) {

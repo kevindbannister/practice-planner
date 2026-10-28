@@ -118,3 +118,18 @@ test("opening balances carry the register in, only for what the ledger lacks", (
   // and running it again adds nothing
   assert.equal(openingFromRegister(register, merged, "C1", "2018-05-01", "Kevin", NOW).length, 0);
 });
+
+test("a holder named by key in one entry and by name in another is one holder", async () => {
+  const { replay: rp, readEntry: re } = await import("../src/lib/shareLedger.ts");
+  const mk = (o: Record<string, unknown>) => re({ Key: String(o.n), ClientKey: "C", Status: "active", Class: "Ordinary", Created: String(o.n), ...o });
+  const r = rp([mk({ n: "1", Type: "allotment", EffectiveDate: "2026-10-28", Number: 100, ToHolder: "Adam French" }), mk({ n: "2", Type: "transfer", EffectiveDate: "2026-10-28", Number: 40, FromHolder: "Adam French", FromKey: "C9", ToHolder: "Bea", ToKey: "C8" })]);
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.holdings.find((h) => h.name === "Adam French")!.number, 60);
+});
+
+test("a transfer on the same day as the allotment that created the shares is allowed", async () => {
+  const { record: rec, readEntry: re } = await import("../src/lib/shareLedger.ts");
+  const ex = [re({ Key: "L1", ClientKey: "C1", Type: "allotment", EffectiveDate: "2026-10-28", Class: "Ordinary", Number: 100, ToHolder: "A", Status: "active", Created: "2026-10-28T10:00:00Z" })];
+  assert.equal(rec({ type: "transfer", date: "2026-10-28", cls: "Ordinary", number: 40, from: "A", to: "B" }, "C1", ex, undefined, "k", "now").error, undefined);
+  assert.ok(rec({ type: "transfer", date: "2026-10-27", cls: "Ordinary", number: 40, from: "A", to: "B" }, "C1", ex, undefined, "k", "now").error, "but not the day before");
+});

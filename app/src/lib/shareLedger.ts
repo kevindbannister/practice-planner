@@ -34,7 +34,17 @@ export type Replay = { holdings: Holding[]; problems: string[] };
 const order = (a: Entry, b: Entry) => a.date.localeCompare(b.date) || a.created.localeCompare(b.created) || a.key.localeCompare(b.key);
 
 /** What each holder has as at a date (inclusive). Reports any point where someone would hold fewer than nothing. */
-export function replay(entries: Entry[], asOf = "9999-12-31"): Replay {
+const nameKey = (n: string) => n.trim().toLowerCase().replace(/\s+/g, " ");
+/** Entries where the same person is sometimes named with a record key and sometimes by name alone are treated as one holder: a name learned with a key stands for that key. */
+export function canon(entries: Entry[]): Entry[] {
+  const keys = new Map<string, Set<string>>();
+  const learn = (name: string, key: string) => { if (!name.trim() || !key) return; const k = nameKey(name); keys.set(k, (keys.get(k) || new Set()).add(key)); };
+  for (const e of entries) { learn(e.from, e.fromKey); learn(e.to, e.toKey); }
+  const pick = (name: string, key: string) => { if (key || !name.trim()) return key; const s = keys.get(nameKey(name)); return s && s.size === 1 ? [...s][0] : key; };
+  return entries.map((e) => (e.fromKey && e.toKey) || (!e.from && !e.to) ? e : { ...e, fromKey: pick(e.from, e.fromKey), toKey: pick(e.to, e.toKey) });
+}
+export function replay(entriesIn: Entry[], asOf = "9999-12-31"): Replay {
+  const entries = canon(entriesIn);
   const bal = new Map<string, Holding>();
   const problems: string[] = [];
   const move = (e: Entry, name: string, key: string, delta: number) => {
@@ -70,7 +80,7 @@ export function ownership(holdings: Holding[]): { issued: number; byClass: { cls
   return { issued, byClass: classes.map((c) => ({ cls: c, issued: classTotal(c) })), holders };
 }
 
-export type NewEntry = { type: EntryType; date: string; cls: string; number: number; from?: string; fromKey?: string; to?: string; toKey?: string; currency?: string; nominal?: number; paid?: number; premium?: number; consideration?: string; txKey?: string; idem?: string; notes?: string };
+export type NewEntry = { type: EntryType; date: string; cls: string; number: number; from?: string; fromKey?: string; to?: string; toKey?: string; currency?: string; nominal?: number; paid?: number; premium?: number; consideration?: string; txKey?: string; idem?: string; notes?: string; source?: string };
 
 /** Problems with a proposed entry, judged against the existing ledger. Empty means it can be recorded. */
 export function entryProblems(e: NewEntry, existing: Entry[], classes?: string[]): string[] {
@@ -87,7 +97,7 @@ export function entryProblems(e: NewEntry, existing: Entry[], classes?: string[]
     if (holderId(e.from || "", e.fromKey) === holderId(e.to || "", e.toKey) && (e.from || "").trim()) out.push("A holder can't transfer shares to themselves.");
   }
   if (out.length) return out;
-  const probe: Entry = { key: "~new", clientKey: "", type: e.type, date: e.date, cls: e.cls, number: e.number, from: e.from || "", fromKey: e.fromKey || "", to: e.to || "", toKey: e.toKey || "", currency: e.currency || "GBP", nominal: e.nominal || 0, paid: e.paid || 0, premium: e.premium || 0, consideration: e.consideration || "", txKey: "", idem: "", supersedes: "", reason: "", active: true, created: "~", notes: "" };
+  const probe: Entry = { key: "~new", clientKey: "", type: e.type, date: e.date, cls: e.cls, number: e.number, from: e.from || "", fromKey: e.fromKey || "", to: e.to || "", toKey: e.toKey || "", currency: e.currency || "GBP", nominal: e.nominal || 0, paid: e.paid || 0, premium: e.premium || 0, consideration: e.consideration || "", txKey: "", idem: "", supersedes: "", reason: "", active: true, created: "9999-12-31T23:59:59.999Z", notes: "" };
   const before = new Set(replay(existing).problems);
   const added = replay([...existing, probe]).problems.filter((p) => !before.has(p));
   return added.length ? [added[0].replace("would hold", "would be left holding"), "Shares can only move if the holder has them on that date, and every later date."].slice(0, 2) : [];
@@ -97,7 +107,7 @@ export type Written = { creates: Row[]; patches: { row: Row; patch: Row }[]; ski
 let counter = 0;
 const newKey = () => `SL${Date.now().toString(36)}${(counter++).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 export function entryRow(e: NewEntry, clientKey: string, by: string, now: string, key = newKey()): Row {
-  return { Key: key, PracticeId: "", ClientKey: clientKey, Type: e.type, EffectiveDate: e.date, Class: e.cls.trim(), Number: e.number, FromHolder: e.from || "", FromKey: e.fromKey || "", ToHolder: e.to || "", ToKey: e.toKey || "", Currency: e.currency || "GBP", Nominal: e.nominal || 0, PaidPerShare: e.paid || 0, Premium: e.premium || 0, Consideration: e.consideration || "", TxKey: e.txKey || "", IdemKey: e.idem || "", Supersedes: "", Reason: "", Status: "active", Notes: e.notes || "", Created: now, CreatedBy: by };
+  return { Key: key, PracticeId: "", ClientKey: clientKey, Type: e.type, EffectiveDate: e.date, Class: e.cls.trim(), Number: e.number, FromHolder: e.from || "", FromKey: e.fromKey || "", ToHolder: e.to || "", ToKey: e.toKey || "", Currency: e.currency || "GBP", Nominal: e.nominal || 0, PaidPerShare: e.paid || 0, Premium: e.premium || 0, Consideration: e.consideration || "", TxKey: e.txKey || "", IdemKey: e.idem || "", Supersedes: "", Reason: "", Status: "active", Notes: e.notes || "", Source: e.source || "", Created: now, CreatedBy: by };
 }
 
 /** Record an entry once: the same idempotency key (a retry, a page refresh) is skipped. */

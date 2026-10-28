@@ -16,7 +16,7 @@ function world(clients: any[] = [{ ...ltd }, { ...person }]) {
   let id = 100;
   const lists: Record<string, string> = { CoSecTransactions: "txs", CoSecEvents: "events", CoSecOfficers: "officers", CoSecPscs: "pscs", CoSecShares: "shares" };
   const apply = (w: any) => {
-    for (const c of w.creates || []) { const arr = (s as any)[lists[c.list]]; if (arr) arr.push({ _id: String(++id), ...c.row }); }
+    for (const c of w.creates || []) { const arr = (s as any)[lists[c.list]]; if (arr) arr.push({ _id: String(++id), ...c.row, ...(c.list === "CoSecTransactions" ? { ApprovalState: "not-required" } : {}) }); }
     for (const p of w.patches || []) { const arr = (s as any)[lists[p.list]] || (p.list === "Clients" ? s.clients : undefined); const r = arr?.find((x: any) => x.Key === p.row.Key); if (r) Object.assign(r, p.patch); }
     if (w.verified) { const c = s.clients.find((x) => x.Key === w.verified.clientKey); if (c) c.CHVerified = JSON.stringify(w.verified.value); }
     return w;

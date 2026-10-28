@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { fmtDate } from "../lib/domain";
 import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, TxAction, TxInput } from "../lib/cosec";
-import { Addr, BLANK_ADDR, addrIssues, addrText, formTitle } from "../lib/cosecForms";
+import { Addr, BLANK_ADDR, addrIssues, addrText, formTitle, formDef } from "../lib/cosecForms";
 import { GatewayError } from "../lib/cosecGateway";
 import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
@@ -12,11 +12,13 @@ import { CoSecCompany } from "./CoSecCompany";
 import { useCompaniesHouse } from "./CompaniesHouse";
 import { Cell, PortfolioRow, isDissolved, portfolioRows } from "../lib/portfolio";
 import { AddCompany, LevelChip, PortfolioSummary } from "./CoSecFoundation";
+import { ApprovalPanel } from "./CoSecApproval";
+import { Cs01InFiling } from "./CoSecCs01";
 import { LEVELS, Level, profileFor } from "../lib/cosecProfile";
 
 const TABS: [string, string, string][] = [["", "Overview", "#/cosec"], ["filings", "Filings", "#/cosec/filings"], ["companies", "Companies", "#/cosec/companies"]];
 const dmy = (iso: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "");
-const chipFor = (s: TxStatus) => (s === "accepted" || s === "external" ? "green" : s === "rejected" ? "red" : s === "draft" || s === "info" ? "amber" : s === "declined" || s === "cancelled" ? "" : "blue");
+const chipFor = (s: TxStatus) => (s === "accepted" || s === "external" || s === "completed" ? "green" : s === "rejected" ? "red" : s === "draft" || s === "info" ? "amber" : s === "declined" || s === "cancelled" ? "" : "blue");
 
 export function CoSecPage() {
   const { parts } = useRoute();
@@ -296,7 +298,7 @@ function FilingDetail({ txKey }: { txKey: string }) {
           <h2 style={{ margin: 0 }}>{form}: {formTitle(form)}</h2>
           <span className={`chip ${chipFor(st)}`}>{STATUS_LABEL[st]}</span>
         </div>
-        {(st !== "accepted" && st !== "external") && <p role="note" className="chip amber" style={{ alignSelf: "flex-start" }}>{NOT_FILED}</p>}
+        {(st !== "accepted" && st !== "external" && st !== "completed" && !formDef(form)?.noFiling) && <p role="note" className="chip amber" style={{ alignSelf: "flex-start" }}>{NOT_FILED}</p>}
         <dl className="kv" style={{ display: "grid", gridTemplateColumns: "max-content 1fr", gap: "6px 16px", margin: 0 }}>
           <dt>Company</dt><dd><a href={href("cosec", "company", String(tx.ClientKey))}>{nameOfClient(k.data, tx.ClientKey)}</a></dd>
           <dt>Reference</dt><dd>{String(tx.Ref)}</dd>
@@ -326,6 +328,17 @@ function FilingDetail({ txKey }: { txKey: string }) {
             {form === "SH01" && [["Holder", "Holder"], ["Class", "Class"], ["Number", "Number of shares"], ["NominalValue", "Nominal value"], ["PaidPerShare", "Paid per share"], ["Currency", "Currency"]].map(([f, l]) => <Field key={f} label={l} value={String(details[f] ?? "")} disabled={!editable} onChange={(v) => setP({ details: { ...details, [f]: v } })} />)}
           </div>
         )}
+        {form === "CS01" && <Cs01InFiling tx={tx} client={client} />}
+        {form === "STT" && (
+          <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+            <Field label="Transferor" value={String(p.from || "")} disabled={!editable} onChange={(v) => setP({ from: v })} />
+            <Field label="Transferee" value={String(p.to || "")} disabled={!editable} onChange={(v) => setP({ to: v })} />
+            <Field label="Class" value={String(p.class || "")} disabled={!editable} onChange={(v) => setP({ class: v })} />
+            <Field label="Number of shares" value={String(p.number || "")} disabled={!editable} onChange={(v) => setP({ number: Number(v) || v })} />
+            <Field label="Date of transfer" type="date" value={String(p.date || "")} disabled={!editable} onChange={(v) => setP({ date: v })} />
+            <Field label="Consideration" value={String(p.consideration || "")} disabled={!editable} onChange={(v) => setP({ consideration: v })} />
+          </div>
+        )}
         {(/^(TM|LLTM)/.test(form) || form === "PSC07") && <Field label="Date it ended" type="date" value={String(p.date || "")} disabled={!editable} onChange={(v) => setP({ date: v })} />}
         {p.changes && Object.keys(p.changes).length > 0 && (
           <div className="table-wrap"><table className="grid"><thead><tr><th scope="col">Detail</th><th scope="col">Was</th><th scope="col">Now</th></tr></thead>
@@ -333,14 +346,18 @@ function FilingDetail({ txKey }: { txKey: string }) {
         )}
         {issues.length > 0 && <p role="alert" style={{ margin: 0, color: "var(--amber-ink)" }}>Still needed before approval: {issues.join(", ")}.</p>}
         {!formTitle(form) && null}
-        {!canSubmitVia(tx) && <p className="muted" style={{ margin: 0 }}>{form} can't be sent from the planner yet. Approve it, file it at Companies House, then record it as filed externally.</p>}
+        {formDef(form)?.noFiling && <p className="muted" style={{ margin: 0 }}>Nothing is filed with Companies House for a share transfer. Once approved, completing it records it in the share ledger and register, and the next confirmation statement reports it.</p>}
+        {!canSubmitVia(tx) && !formDef(form)?.noFiling && <p className="muted" style={{ margin: 0 }}>{form} can't be sent from the planner yet. Approve it, file it at Companies House, then record it as filed externally.</p>}
       </section>
+
+      <ApprovalPanel tx={tx} client={client} />
 
       <section className="card pad stack" aria-label="Actions">
         <h3 style={{ margin: 0 }}>Actions</h3>
         <div className="row-wrap">
           {dirty && <button type="button" className="btn" disabled={busy || !editable} onClick={save}>Save changes to the draft</button>}
           {(st === "draft" || st === "rejected") && <button type="button" className="btn primary" disabled={busy || !k.can("approve")} onClick={() => doAct("approve", {}, "Approved. It has not been submitted yet.")}>Approve</button>}
+          {st === "approved" && formDef(form)?.noFiling && <button type="button" className="btn primary" disabled={busy || !k.can("approve")} onClick={() => doAct("complete", {}, "Completed. The ledger and register are updated. Nothing is filed for this.")}>Complete (nothing to file)</button>}
           {st === "approved" && canSubmitVia(tx) && <button type="button" className="btn primary" disabled={busy || !k.can("submit")} onClick={submit}>{busy ? "Sending…" : "Submit to Companies House"}</button>}
           {st === "submitted" && <button type="button" className="btn" disabled={busy} onClick={check}>Check the answer from Companies House</button>}
           {st === "info" && <button type="button" className="btn" disabled={busy} onClick={() => doAct("answer", { note }, "Marked as answered.")}>Mark as answered</button>}

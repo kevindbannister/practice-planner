@@ -2,7 +2,7 @@
 // waiting to be filed), officers, persons with significant control, shares, the printable registers and its filings.
 import { useMemo, useState } from "react";
 import { fmtDate } from "../lib/domain";
-import { PENDING_TARGET, STATUS_LABEL, appointPerson, allotShares, changePerson, companyKind, isOpenTx, officersFromCh, pendingFor, pscsFromCh, terminatePerson, transferShares, txStatus, verifiedFrom, verifiedOf } from "../lib/cosec";
+import { PENDING_TARGET, STATUS_LABEL, appointPerson, allotShares, changePerson, companyKind, isOpenTx, officersFromCh, pendingFor, pscsFromCh, terminatePerson, prepareTransfer, txStatus, verifiedFrom, verifiedOf } from "../lib/cosec";
 import { OFFICER_ROLES, PSC_KINDS, officerName, pscName } from "../lib/cosecForms";
 import { chNumber } from "../lib/companiesHouse";
 import { Row } from "../lib/schema";
@@ -13,8 +13,13 @@ import { useData } from "./data";
 import { newKey } from "../lib/planning";
 import { chipFor } from "./CoSecPage";
 import { Ledger, LevelChip, ServiceLevel } from "./CoSecFoundation";
+import { ImportHistory, RegistersTab } from "./CoSecImport";
+import { Cs01Tab } from "./CoSecCs01";
+import { AccountsTab } from "./CoSecAccounts";
+import { CertificatesTab, DividendsTab, OwnershipCheck } from "./CoSecCapital";
+import { ID_LABEL, IdStatus, idOf } from "../lib/cosecCs01";
 
-const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["pscs", "People with significant control"], ["registers", "Registers"], ["filings", "Filings"]];
+const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["certificates", "Certificates"], ["dividends", "Dividends"], ["accounts", "Dormant accounts"], ["pscs", "People with significant control"], ["cs01", "Confirmation statement"], ["registers", "Registers"], ["import", "Import history"], ["filings", "Filings"]];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
 export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: string }) {
@@ -30,15 +35,20 @@ export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: strin
         <a href={href("clients", clientKey)}>Open the client record</a>
       </div>
       <nav className="subtabs" aria-label="Company views">
-        {TABS.filter(([key]) => (key !== "shares" && key !== "classes" && key !== "ledger") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
+        {TABS.filter(([key]) => (key !== "shares" && key !== "classes" && key !== "ledger" && key !== "certificates" && key !== "dividends" && key !== "accounts") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
       </nav>
       {tab === "details" && <><ServiceLevel client={client} /><Details client={client} /></>}
       {tab === "officers" && <People client={client} entity="officer" />}
       {tab === "pscs" && <People client={client} entity="psc" />}
       {tab === "shares" && kind === "limited" && <Shares client={client} />}
-      {tab === "classes" && kind === "limited" && <ShareClasses client={client} />}
+      {tab === "classes" && kind === "limited" && <><ShareClasses client={client} /><OwnershipCheck client={client} /></>}
+      {tab === "certificates" && kind === "limited" && <CertificatesTab client={client} />}
+      {tab === "dividends" && kind === "limited" && <DividendsTab client={client} />}
+      {tab === "accounts" && kind === "limited" && <AccountsTab client={client} />}
       {tab === "ledger" && kind === "limited" && <Ledger client={client} />}
-      {tab === "registers" && <Registers client={client} />}
+      {tab === "registers" && <RegistersTab client={client} />}
+      {tab === "import" && <ImportHistory client={client} />}
+      {tab === "cs01" && <Cs01Tab client={client} />}
       {tab === "filings" && <Filings client={client} />}
     </div>
   );
@@ -153,7 +163,7 @@ function People({ client, entity }: { client: Row; entity: "officer" | "psc" }) 
         <button type="button" className="btn" disabled={!k.can("edit")} onClick={() => setAdding(isOff ? { Role: companyKind(client) === "llp" ? "member" : "director", Kind: "individual" } : { Kind: "individual" })}>{isOff ? "Appoint someone" : "Add a PSC"}</button>
       </div>
       <div className="table-wrap"><table className="grid" style={{ minWidth: 620 }}>
-        <thead><tr><th scope="col">Name</th>{isOff && <th scope="col">Role</th>}<th scope="col">Status</th><th scope="col">{isOff ? "Appointed" : "Notified"}</th><th scope="col">Linked to</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+        <thead><tr><th scope="col">Name</th>{isOff && <th scope="col">Role</th>}<th scope="col">Status</th><th scope="col">{isOff ? "Appointed" : "Notified"}</th><th scope="col">Identity</th><th scope="col">Linked to</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
         <tbody>{list.length ? list.map((x) => {
           const open = pendingFor(k.data.cosecTx, s(client.Key)).filter((t) => { try { return JSON.parse(s(t.Payload)).who === x.Key; } catch { return false; } });
           return (
@@ -161,6 +171,7 @@ function People({ client, entity }: { client: Row; entity: "officer" | "psc" }) 
               <td>{nameOf(x)}</td>{isOff && <td>{OFFICER_ROLES.find(([r]) => r === x.Role)?.[1] || s(x.Role)}</td>}
               <td>{s(x.Status) === "current" ? "Current" : s(x.Status) === "pending" ? <span className="chip amber">Pending filing</span> : s(x.Status) === "resigned" || s(x.Status) === "ceased" ? `Ended ${fmtDate(s(x.ResignedOn || x.CeasedOn))}` : s(x.Status)}{open.length > 0 && s(x.Status) === "current" && <> <a className="chip amber" href={href("cosec", "filing", s(open[0].Key))}>Pending Co Sec review</a></>}</td>
               <td>{fmtDate(s(x.AppointedOn || x.NotifiedOn))}</td>
+              <td>{s(x.Status) === "current" ? <select className="input" aria-label={`Identity verification for ${nameOf(x)}`} disabled={!k.can("edit")} value={idOf(x)} onChange={(e) => void k.update(isOff ? "CoSecOfficers" : "CoSecPscs", x, { IdStatus: e.target.value, IdCheckedOn: new Date().toISOString().slice(0, 10) } as Row)} style={{ width: "auto" }}>{(Object.keys(ID_LABEL) as IdStatus[]).map((v) => <option key={v} value={v}>{ID_LABEL[v]}</option>)}</select> : null}</td>
               <td><PersonLink row={x} /></td>
               <td>{s(x.Status) === "current" && k.can("edit") && <div className="row-wrap"><button type="button" className="linkbtn" onClick={() => setChanging({ row: x, changes: {} })}>Change details</button><button type="button" className="linkbtn" onClick={() => setEnding({ row: x, date: "" })}>{isOff ? "End appointment" : "Ceased"}</button></div>}</td>
             </tr>);
@@ -258,7 +269,7 @@ function Shares({ client }: { client: Row }) {
           <div className="doc-field" style={{ minWidth: 260 }}><span>From {s(t.from.Holder)}: transfer to</span><HolderPicker company={client} value={t.to} valueKey={t.toKey} onPick={(name, key) => setT({ ...t, to: name, toKey: key })} /></div>
           <label className="doc-field"><span>Shares</span><input className="input" style={{ width: 110 }} value={t.number} onChange={(e) => setT({ ...t, number: e.target.value })} /></label>
           <label className="doc-field"><span>Date</span><input className="input" type="date" value={t.date} onChange={(e) => setT({ ...t, date: e.target.value })} /></label>
-          <button type="button" className="btn primary" disabled={busy} onClick={() => go(async () => { const r: any = transferShares(client, t.from, { holder: t.to, holderKey: t.toKey }, Number(t.number), t.date, k.can("edit"), k.ctx()); if ("error" in r) return r; await k.apply(r); return { text: "Transfer recorded in the register. Check the next confirmation statement." }; })}>Record the transfer</button>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => go(async () => { const r: any = prepareTransfer(client, { fromRow: s(t.from.Key), from: s(t.from.Holder), fromKey: s(t.from.HolderKey), to: t.to, toKey: t.toKey, class: s(t.from.Class), number: Number(t.number), date: t.date }, k.snap(), k.can("edit"), k.ctx()); if ("error" in r) return r; await k.apply(r); const made = (r.creates || []).find((c: any) => c.list === "CoSecTransactions"); if (made) window.location.hash = href("cosec", "filing", s(made.row.Key)); return { text: "Transfer prepared. Decide on client approval, then review and complete it." }; })}>Prepare the transfer</button>
           <button type="button" className="btn" onClick={() => setT(null)}>Cancel</button>
         </div>
       )}
@@ -329,7 +340,7 @@ function ShareClasses({ client }: { client: Row }) {
     if (all.some((c) => c.Key !== f.Key && s(c.Name).toLowerCase() === name.toLowerCase())) return setMsg({ ok: false, text: "This company already has a share class with that name." });
     setBusy(true); setMsg(undefined);
     try {
-      const fields = { Name: name, Currency: s(f.Currency) || "GBP", NominalValue: Number(f.NominalValue) || 1, Rights: s(f.Rights), Updated: now() };
+      const fields = { Name: name, Currency: s(f.Currency) || "GBP", NominalValue: Number(f.NominalValue) || 1, Rights: s(f.Rights), Votes: s(f.Votes).trim(), Dividends: s(f.Dividends) === "no" ? "no" : "yes", Redeemable: s(f.Redeemable) === "yes" ? "yes" : "no", Restrictions: s(f.Restrictions), Updated: now() };
       if (f.Key) await update("CoSecShareClasses", all.find((c) => c.Key === f.Key)!, fields);
       else await create("CoSecShareClasses", { Key: newKey("SC"), PracticeId: k.ctx().pid, ClientKey: s(client.Key), ...fields, Status: "current", Created: now() });
       setF(null);
@@ -364,7 +375,7 @@ function ShareClasses({ client }: { client: Row }) {
         <thead><tr><th scope="col">Share class</th><th scope="col">Number of shares</th><th scope="col">Number of holders</th><th scope="col">Status</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
         <tbody>{list.length ? list.map((c) => { const st = stats(s(c.Name)); return (
           <tr key={s(c.Key)}>
-            <td>{s(c.Name)}{c.Rights ? <div className="cell-sub">{s(c.Rights)}</div> : null}<div className="cell-sub">{s(c.Currency)} {s(c.NominalValue)} nominal</div></td>
+            <td>{s(c.Name)}{c.Rights ? <div className="cell-sub">{s(c.Rights)}</div> : null}<div className="cell-sub">{s(c.Votes).trim() === "" ? "1 vote" : `${s(c.Votes)} vote${s(c.Votes) === "1" ? "" : "s"}`} per share · {s(c.Dividends) === "no" ? "no dividends" : "dividends"}{s(c.Redeemable) === "yes" ? " · redeemable" : ""}</div><div className="cell-sub">{s(c.Currency)} {s(c.NominalValue)} nominal</div></td>
             <td>{st.shares.toLocaleString("en-GB")}</td><td>{st.holders}</td>
             <td>{c.Status === "former" ? "Former" : "Current"}</td>
             <td>{k.can("edit") && <span className="row-wrap" style={{ gap: 8 }}>
@@ -379,6 +390,10 @@ function ShareClasses({ client }: { client: Row }) {
             <label className="doc-field"><span>Name</span><input className="input" placeholder="Ordinary £1.00" value={s(f.Name)} onChange={(e) => setF({ ...f, Name: e.target.value })} /></label>
             <label className="doc-field"><span>Currency</span><input className="input" value={s(f.Currency)} onChange={(e) => setF({ ...f, Currency: e.target.value })} /></label>
             <label className="doc-field"><span>Nominal value each</span><input className="input" value={s(f.NominalValue)} onChange={(e) => setF({ ...f, NominalValue: e.target.value })} /></label>
+            <label className="doc-field"><span>Votes per share</span><input className="input" inputMode="numeric" placeholder="1" value={s(f.Votes)} onChange={(e) => setF({ ...f, Votes: e.target.value })} /></label>
+            <label className="doc-field"><span>Dividend rights</span><select className="input" value={s(f.Dividends) === "no" ? "no" : "yes"} onChange={(e) => setF({ ...f, Dividends: e.target.value })}><option value="yes">Shares in dividends</option><option value="no">No dividend rights</option></select></label>
+            <label className="doc-field"><span>Redeemable</span><select className="input" value={s(f.Redeemable) === "yes" ? "yes" : "no"} onChange={(e) => setF({ ...f, Redeemable: e.target.value })}><option value="no">No</option><option value="yes">Yes</option></select></label>
+            <label className="doc-field" style={{ gridColumn: "1 / -1" }}><span>Restrictions (optional)</span><input className="input" placeholder="Transfer or other restrictions" value={s(f.Restrictions)} onChange={(e) => setF({ ...f, Restrictions: e.target.value })} /></label>
             <label className="doc-field" style={{ gridColumn: "1 / -1" }}><span>Rights (optional)</span><input className="input" placeholder="Voting, dividend and capital rights" value={s(f.Rights)} onChange={(e) => setF({ ...f, Rights: e.target.value })} /></label>
           </div>
           <div className="row-wrap"><button type="button" className="btn primary" disabled={busy} onClick={() => void save()}>Save share class</button><button type="button" className="btn" onClick={() => { setF(null); setMsg(undefined); }}>Cancel</button></div>
@@ -390,34 +405,6 @@ function ShareClasses({ client }: { client: Row }) {
 }
 
 // ------------------------------------------------------------------ registers and filings
-
-function Registers({ client }: { client: Row }) {
-  const k = useCoSec();
-  const mine = (rows: Row[]) => rows.filter((x) => x.ClientKey === client.Key);
-  const officers = mine(k.data.cosecOfficers).filter((x) => x.Status !== "pending");
-  const pscs = mine(k.data.cosecPscs).filter((x) => x.Status !== "pending");
-  const shares = mine(k.data.cosecShares).filter((x) => x.Status !== "pending");
-  return (
-    <section className="card pad stack" aria-label="Registers">
-      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h3 style={{ margin: 0 }}>Statutory registers</h3>
-        <button type="button" className="btn" onClick={() => window.print()}>Print</button>
-      </div>
-      <p className="muted" style={{ margin: 0 }}>Brought up to date when a filing is accepted by Companies House or recorded as filed elsewhere. Residential addresses are kept here and are not public.</p>
-      <h4 style={{ margin: "6px 0 0" }}>Register of directors, secretaries and members</h4>
-      <div className="table-wrap"><table className="grid"><thead><tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col">Service address</th><th scope="col">Residential address</th><th scope="col">Appointed</th><th scope="col">Ended</th></tr></thead>
-        <tbody>{officers.length ? officers.map((x) => <tr key={s(x.Key)}><td>{officerName(x)}</td><td>{s(x.Role)}</td><td>{s(x.ServiceAddress)}</td><td>{s(x.ResidentialAddress)}</td><td>{fmtDate(s(x.AppointedOn))}</td><td>{fmtDate(s(x.ResignedOn))}</td></tr>) : <tr><td colSpan={6} className="muted">Empty.</td></tr>}</tbody></table></div>
-      <h4 style={{ margin: "6px 0 0" }}>Register of people with significant control</h4>
-      <div className="table-wrap"><table className="grid"><thead><tr><th scope="col">Name</th><th scope="col">Nature of control</th><th scope="col">Notified</th><th scope="col">Ceased</th></tr></thead>
-        <tbody>{pscs.length ? pscs.map((x) => <tr key={s(x.Key)}><td>{pscName(x)}</td><td>{(() => { try { return (JSON.parse(s(x.Natures)) as string[]).map((n) => n.replace(/-/g, " ")).join("; "); } catch { return s(x.Natures); } })()}</td><td>{fmtDate(s(x.NotifiedOn))}</td><td>{fmtDate(s(x.CeasedOn))}</td></tr>) : <tr><td colSpan={4} className="muted">Empty.</td></tr>}</tbody></table></div>
-      {companyKind(client) === "limited" && <>
-        <h4 style={{ margin: "6px 0 0" }}>Register of members</h4>
-        <div className="table-wrap"><table className="grid"><thead><tr><th scope="col">Member</th><th scope="col">Class</th><th scope="col">Shares</th><th scope="col">From</th><th scope="col">To</th></tr></thead>
-          <tbody>{shares.length ? shares.map((x) => <tr key={s(x.Key)}><td>{s(x.Holder)}</td><td>{s(x.Class)}</td><td>{Number(x.Number).toLocaleString("en-GB")}</td><td>{fmtDate(s(x.From))}</td><td>{fmtDate(s(x.To))}</td></tr>) : <tr><td colSpan={5} className="muted">Empty.</td></tr>}</tbody></table></div>
-      </>}
-    </section>
-  );
-}
 
 function Filings({ client }: { client: Row }) {
   const k = useCoSec();
