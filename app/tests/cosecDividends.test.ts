@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseRate, parsePounds, pounds, calculate, draft, review, declare, markPaid, cancelDividend, verify, readDividend, dividendDocs } from "../src/lib/cosecDividends.ts";
+import { parseRate, parsePounds, pounds, calculate, draft, review, declare, markPaid, verify, readDividend, dividendDocs } from "../src/lib/cosecDividends.ts";
 import { readEntry } from "../src/lib/shareLedger.ts";
 import { readRights } from "../src/lib/cosecShares.ts";
 
@@ -59,7 +59,6 @@ test("can't declare without the profits review; ledger drift blocks it; lifecycl
   assert.match(declare(row, "2025-01-03", ledger, rights, "n").error!, /already declared/);
   assert.match(markPaid(row, "2025-01-01", "n").error!, /before it was declared/);
   Object.assign(row, markPaid(row, "2025-01-10", "n").patch!);
-  assert.match(cancelDividend(row, "oops", "n").error!, /paid can't be cancelled/);
   assert.equal(draft({ type: "final", recordDate: "2025-03-01", basis: { mode: "per-share", rates: { Ordinary: "1" } }, waivers: [] }, [row], "C1", ledger, rights, "me", "n").row!.Ref, "DIV-2025-02");
 });
 test("draft refuses a dividend of nothing and a ledger with problems", () => {

@@ -4,7 +4,7 @@ import { Row } from "./schema";
 import { Entry } from "./shareLedger";
 import { owners } from "./cosecShares";
 import { addMonths } from "./cosecDormant";
-import { readDividend } from "./cosecDividends";
+import { readDividend, parseRate } from "./cosecDividends";
 
 const str = (v: unknown): string => (v == null ? "" : String(v).trim());
 const addDays = (d: string, n: number) => { const t = new Date(`${d}T00:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -23,17 +23,23 @@ export function years(accTo: string | undefined, today: string): { current: Year
   return { current: mk(end), prior: mk(addMonths(end, -12)) };
 }
 
-export type DivRow = { key: string; ref: string; type: string; date: string; totalPence: string; status: string };
+export type DivRow = { key: string; ref: string; type: string; date: string; totalPence: string; status: string; rate: string; payees: { name: string; pence: string; waived: boolean }[] };
 export type DivYear = Year & { rows: DivRow[]; totalPence: string; drafts: number };
-/** Dividends declared or paid in each year, by the date declared. Drafts and cancelled ones aren't counted; drafts are noted. */
-export function dividendYears(rows: Row[], clientKey: string, accTo: string | undefined, today: string): { current: DivYear; prior: DivYear } {
+const ratePhrase = (b: ReturnType<typeof readDividend>["basis"]): string => {
+  if (!b) return "";
+  if (b.mode === "aggregate") return "shared equally across the shares";
+  return Object.entries(b.rates).map(([cls, r]) => { const m = parseRate(r); const p = m === null ? r : `${(Number(m) / 10000).toFixed(4).replace(/\.?0+$/, "")}p`; return `${p} a ${cls} share`; }).join(", ");
+};
+/** Dividends declared or paid in each of the last `n` years, by the date declared, newest year first. Drafts aren't counted; they are noted. */
+export function dividendYears(rows: Row[], clientKey: string, accTo: string | undefined, today: string, n = 3): DivYear[] {
   const ys = years(accTo, today); const mine = rows.filter((r) => str(r.ClientKey) === clientKey).map(readDividend);
-  const pick = (y: Year): DivYear => {
+  const list: Year[] = [ys.current, ys.prior];
+  while (list.length < n) { const last = list[list.length - 1]; const end = addDays(last.start, -1); const start = addDays(addMonths(end, -12), 1); list.push({ label: `${start.split("-").reverse().join("/")} to ${end.split("-").reverse().join("/")}`, start, end }); }
+  return list.slice(0, n).map((y): DivYear => {
     const live = mine.filter((d) => (d.status === "declared" || d.status === "paid") && d.declaredOn >= y.start && d.declaredOn <= y.end).sort((a, b) => a.declaredOn.localeCompare(b.declaredOn));
     const drafts = mine.filter((d) => d.status === "draft" && d.recordDate >= y.start && d.recordDate <= y.end).length;
-    return { ...y, rows: live.map((d) => ({ key: d.key, ref: d.ref, type: d.type, date: d.declaredOn, totalPence: d.totalPence, status: d.status })), totalPence: live.reduce((s, d) => s + BigInt(d.totalPence), 0n).toString(), drafts };
-  };
-  return { current: pick(ys.current), prior: pick(ys.prior) };
+    return { ...y, rows: live.map((d) => ({ key: d.key, ref: d.ref, type: d.type, date: d.declaredOn, totalPence: d.totalPence, status: d.status, rate: ratePhrase(d.basis), payees: d.lines.map((l) => ({ name: l.holder, pence: l.paidPence, waived: l.waived })) })), totalPence: live.reduce((t, d) => t + BigInt(d.totalPence), 0n).toString(), drafts };
+  });
 }
 
 export type Holder = { name: string; shares: number; percent: number; votePercent?: number; classes: string };

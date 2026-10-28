@@ -8,8 +8,8 @@ import { Rights } from "./cosecShares";
 import { Block, textPdf } from "./cosecDocs";
 
 const str = (v: unknown): string => (v == null ? "" : String(v).trim());
-export type DivStatus = "draft" | "declared" | "paid" | "cancelled";
-export const DIV_LABEL: Record<DivStatus, string> = { draft: "Draft", declared: "Declared", paid: "Paid", cancelled: "Cancelled" };
+export type DivStatus = "draft" | "declared" | "paid";
+export const DIV_LABEL: Record<DivStatus, string> = { draft: "Draft", declared: "Declared", paid: "Paid" };
 export type DivType = "interim" | "final";
 
 /** A rate in pounds per share as text ("0.0125") becomes millionths of a pound. Text, not floating point, so nothing is lost. */
@@ -141,13 +141,6 @@ export function markPaid(row: Row, date: string, now: string): { error?: string;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Give the date it was paid." };
   if (date < d.declaredOn) return { error: "It can't have been paid before it was declared." };
   return { patch: { Status: "paid", PaidOn: date, Updated: now } };
-}
-export function cancelDividend(row: Row, reason: string, now: string): { error?: string; patch?: Row } {
-  const d = readDividend(row);
-  if (d.status === "paid") return { error: "A dividend that has been paid can't be cancelled: record the correction separately." };
-  if (d.status === "cancelled") return { error: "Already cancelled." };
-  if (!reason.trim()) return { error: "Say why it is being cancelled." };
-  return { patch: { Status: "cancelled", Notes: `${d.notes ? d.notes + "\n" : ""}Cancelled: ${reason.trim()}`, Updated: now } };
 }
 /** A declared dividend can't be reviewed or changed in place; to alter it, cancel and draft again. */
 

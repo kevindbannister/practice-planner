@@ -56,11 +56,15 @@ export function Overview({ client, base, children }: { client: Row; base: string
         </section>}
         {limited && <section className="card pad stack" aria-label="Dividends">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}><h3 style={{ margin: 0 }}>Dividends</h3><a href={go("dividends")}>Open</a></div>
-          {[dv.current, dv.prior].map((y, i) => (
+          {dv.map((y, i) => (
             <div key={i} className="stack" style={{ gap: 4 }}>
-              <strong>{i === 0 ? "This year" : "Last year"} <span className="muted" style={{ fontWeight: 400 }}>{y.label}</span></strong>
-              {y.rows.length ? <>{y.rows.map((r) => <div key={r.key} className="row-wrap" style={{ justifyContent: "space-between" }}><span>{r.ref} · {r.type === "final" ? "final" : "interim"} · {fmtDate(r.date)}{r.status === "declared" ? " (not yet paid)" : ""}</span><span>{pounds(BigInt(r.totalPence))}</span></div>)}
-                <div className="row-wrap" style={{ justifyContent: "space-between" }}><strong>Total</strong><strong>{pounds(BigInt(y.totalPence))}</strong></div></> : <span className="muted">None declared.</span>}
+              <strong>{i === 0 ? "This year" : i === 1 ? "Last year" : "Year before"} <span className="muted" style={{ fontWeight: 400 }}>{y.label}</span></strong>
+              {y.rows.length ? <>{y.rows.map((r) => (
+                <div key={r.key} className="stack" style={{ gap: 0 }}>
+                  <div className="row-wrap" style={{ justifyContent: "space-between" }}><span>{r.ref} · {r.type === "final" ? "final" : "interim"} · {fmtDate(r.date)}{r.status === "declared" ? " (not yet paid)" : ""}</span><strong>{pounds(BigInt(r.totalPence))}</strong></div>
+                  <span className="muted" style={{ fontSize: 13 }}>{r.rate ? `${r.rate}. ` : ""}{r.payees.map((p) => `${p.name} ${p.waived ? "waived" : pounds(BigInt(p.pence))}`).join(", ")}</span>
+                </div>))}
+                {y.rows.length > 1 && <div className="row-wrap" style={{ justifyContent: "space-between" }}><strong>Total</strong><strong>{pounds(BigInt(y.totalPence))}</strong></div>}</> : <span className="muted">None declared.</span>}
               {y.drafts > 0 && <span className="muted">{y.drafts} draft not counted.</span>}
             </div>))}
         </section>}

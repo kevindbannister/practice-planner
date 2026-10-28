@@ -5,7 +5,7 @@ import { fmtDate, todayIso } from "../lib/domain";
 import { readEntry, replay } from "../lib/shareLedger";
 import { BAND_LABEL, owners, pscCheck, rightsMap } from "../lib/cosecShares";
 import { CERT_LABEL, Cert, cancel, certificatePdf, certsFor, coverage, issue, readCert, replace, reissue } from "../lib/cosecCertificates";
-import { Basis, DIV_LABEL, Waiver, calculate, cancelDividend, declare, dividendDocs, draft, markPaid, pounds, readDividend, review, verify } from "../lib/cosecDividends";
+import { Basis, DIV_LABEL, Waiver, calculate, declare, dividendDocs, draft, markPaid, pounds, readDividend, review, verify } from "../lib/cosecDividends";
 import { officerName } from "../lib/cosecForms";
 import { Row } from "../lib/schema";
 import { downloadFile } from "./commsKit";
@@ -140,7 +140,7 @@ export function CertificatesTab({ client }: { client: Row }) {
 
 export function DividendsTab({ client }: { client: Row }) {
   const { k, ck, entries, rights, company } = useCapital(client);
-  const { create, update } = useData();
+  const { create, update, remove } = useData();
   const file = useFiling();
   const rows = k.data.cosecDividends.filter((r) => r.ClientKey === ck).sort((a, b) => s(b.Created).localeCompare(s(a.Created)));
   const [adding, setAdding] = useState(false);
@@ -186,16 +186,16 @@ export function DividendsTab({ client }: { client: Row }) {
           <div className="row-wrap"><button type="button" className="btn primary" disabled={busy} onClick={create_}>Save draft</button><button type="button" className="btn" onClick={() => setAdding(false)}>Cancel</button></div>
         </div>)}
       {rows.length === 0 && !adding && <p className="muted" style={{ margin: 0 }}>No dividends yet.</p>}
-      {rows.map((r) => <DividendCard key={s(r.Key)} row={r} entries={entries} rights={rights} company={company} directors={directors} busy={busy} run={run} update={update} file={file} />)}
+      {rows.map((r) => <DividendCard key={s(r.Key)} row={r} entries={entries} rights={rights} company={company} directors={directors} busy={busy} run={run} update={update} remove={remove} file={file} />)}
       <Note m={msg} />
     </section>
   );
 }
 
-function DividendCard({ row, entries, rights, company, directors, busy, run, update, file }: { row: Row; entries: ReturnType<typeof readEntry>[]; rights: ReturnType<typeof rightsMap>; company: { name: string; number: string }; directors: string[]; busy: boolean; run: (fn: () => Promise<void>, ok: string) => Promise<void>; update: ReturnType<typeof useData>["update"]; file: ReturnType<typeof useFiling> }) {
+function DividendCard({ row, entries, rights, company, directors, busy, run, update, remove, file }: { row: Row; entries: ReturnType<typeof readEntry>[]; rights: ReturnType<typeof rightsMap>; company: { name: string; number: string }; directors: string[]; busy: boolean; run: (fn: () => Promise<void>, ok: string) => Promise<void>; update: ReturnType<typeof useData>["update"]; remove: ReturnType<typeof useData>["remove"]; file: ReturnType<typeof useFiling> }) {
   const k = useCoSec();
   const d = readDividend(row);
-  const [sure, setSure] = useState(false); const [note, setNote] = useState(""); const [date, setDate] = useState(todayIso()); const [why, setWhy] = useState(""); const [err, setErr] = useState("");
+  const [sure, setSure] = useState(false); const [note, setNote] = useState(""); const [date, setDate] = useState(todayIso()); const [err, setErr] = useState(""); const [del, setDel] = useState(false);
   const v = useMemo(() => (d.status === "draft" || d.status === "declared" ? verify(row, entries, rights) : { ok: true, problems: [] as string[] }), [row, entries, rights, d.status]);
   const apply = (r: { error?: string; patch?: Row }, ok: string) => { if (r.error || !r.patch) return setErr(r.error || ""); setErr(""); void run(() => update("CoSecDividends", row, r.patch!).then(() => undefined), ok); };
   const docs = async (save: boolean) => {
@@ -205,7 +205,7 @@ function DividendCard({ row, entries, rights, company, directors, busy, run, upd
   };
   return (
     <div className="card pad stack" role="group" aria-label={`Dividend ${d.ref}`}>
-      <div className="row-wrap" style={{ justifyContent: "space-between" }}><strong>{d.ref} · {d.type === "final" ? "Final" : "Interim"} · {pounds(BigInt(d.totalPence))}</strong><span className={`chip ${d.status === "paid" ? "green" : d.status === "cancelled" ? "red" : "amber"}`}>{DIV_LABEL[d.status]}</span></div>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}><strong>{d.ref} · {d.type === "final" ? "Final" : "Interim"} · {pounds(BigInt(d.totalPence))}</strong><span className={`chip ${d.status === "paid" ? "green" : "amber"}`}>{DIV_LABEL[d.status]}</span></div>
       <span className="muted">Record date {fmtDate(d.recordDate)}{d.declaredOn ? ` · declared ${fmtDate(d.declaredOn)}` : ""}{d.paidOn ? ` · paid ${fmtDate(d.paidOn)}` : ""}</span>
       <div className="table-wrap"><table className="grid" style={{ minWidth: 420 }}><thead><tr><th scope="col">Shareholder</th><th scope="col">Shares</th><th scope="col">Payable</th></tr></thead><tbody>
         {d.lines.map((l, i) => <tr key={i}><td>{l.holder} <span className="cell-sub">{l.cls}</span></td><td>{l.shares.toLocaleString("en-GB")}</td><td>{l.waived ? `Waived (${l.waiverRef})` : pounds(BigInt(l.paidPence))}</td></tr>)}</tbody></table></div>
@@ -219,10 +219,11 @@ function DividendCard({ row, entries, rights, company, directors, busy, run, upd
         <input className="input" type="date" aria-label="Date" value={date} onChange={(e) => setDate(e.target.value)} />
         {d.status === "draft" && <button type="button" className="btn primary" disabled={busy} onClick={() => apply(declare(row, date, entries, rights, now()), "Dividend declared.")}>Declare dividend</button>}
         {d.status === "declared" && <button type="button" className="btn primary" disabled={busy} onClick={() => apply(markPaid(row, date, now()), "Marked paid.")}>Mark as paid</button>}
-        <input className="input" aria-label="Reason for cancelling" placeholder="Reason to cancel" value={why} onChange={(e) => setWhy(e.target.value)} />
-        <button type="button" className="btn" disabled={busy} onClick={() => apply(cancelDividend(row, why, now()), "Cancelled.")}>Cancel dividend</button></div>}
-      {d.status === "paid" && <p className="muted" style={{ margin: 0 }}>Paid dividends are a record and can't be changed.</p>}
-      {d.status !== "cancelled" && <div className="row-wrap"><button type="button" className="linkbtn" onClick={() => void run(() => docs(false), "Documents downloaded.")}>Download minutes, schedule and vouchers</button><button type="button" className="linkbtn" disabled={busy} onClick={() => void run(() => docs(true), "Saved to the client's documents.")}>Save to documents</button>{d.status === "draft" && <span className="muted">Marked as draft until declared.</span>}</div>}
+        </div>}
+      {k.can("edit") && (del
+        ? <div className="row-wrap" role="alert"><span>{d.status === "paid" ? "This dividend has been paid. Deleting it removes it completely and it can't be got back." : "Delete this dividend completely? It can't be got back."}</span><button type="button" className="btn" disabled={busy} onClick={() => void run(() => remove("CoSecDividends", row), "Deleted.")}>Yes, delete it</button><button type="button" className="btn" onClick={() => setDel(false)}>Keep it</button></div>
+        : <div><button type="button" className="linkbtn" onClick={() => setDel(true)}>Delete dividend</button></div>)}
+      {<div className="row-wrap"><button type="button" className="linkbtn" onClick={() => void run(() => docs(false), "Documents downloaded.")}>Download minutes, schedule and vouchers</button><button type="button" className="linkbtn" disabled={busy} onClick={() => void run(() => docs(true), "Saved to the client's documents.")}>Save to documents</button>{d.status === "draft" && <span className="muted">Marked as draft until declared.</span>}</div>}
       {err && <p role="alert" style={{ margin: 0, color: "var(--red-ink)" }}>{err}</p>}
     </div>
   );

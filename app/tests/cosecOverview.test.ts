@@ -18,8 +18,12 @@ test("dividends by year: declared and paid only, by declaration date, drafts not
     { Key: "5", ClientKey: "C2", Status: "paid", DeclaredOn: "2026-05-01", TotalPence: "7", Ref: "E", RecordDate: "2026-05-01" },
   ];
   const d = dividendYears(rows, "C1", "2027-03-31", "2026-10-28");
-  assert.deepEqual([d.current.rows.map((r) => r.ref), d.current.totalPence, d.current.drafts], [["A"], "10000", 1]);
-  assert.deepEqual([d.prior.rows.map((r) => r.ref), d.prior.totalPence], [["B"], "5050"]);
+  assert.equal(d.length, 3);
+  assert.deepEqual([d[0].rows.map((r) => r.ref), d[0].totalPence, d[0].drafts], [["A"], "10000", 1]);
+  assert.deepEqual([d[1].rows.map((r) => r.ref), d[1].totalPence], [["B"], "5050"]);
+  assert.deepEqual([d[2].label, d[2].rows.length], ["01/04/2024 to 31/03/2025", 0], "the third year is the one before last year");
+  const per = dividendYears([{ Key: "9", ClientKey: "C1", Status: "paid", DeclaredOn: "2026-05-01", TotalPence: "126", Ref: "P", Rates: JSON.stringify({ mode: "per-share", rates: { Ordinary: "0.125" } }), Lines: JSON.stringify([{ holder: "Ann", paidPence: "38", waived: false }]) }], "C1", "2027-03-31", "2026-10-28")[0].rows[0];
+  assert.deepEqual([per.rate, per.payees[0].name, per.payees[0].pence], ["12.5p a Ordinary share", "Ann", "38"]);
 });
 test("shareholders: from the ledger with percentages, else the register", () => {
   const e = (k: string, o: any) => readEntry({ Key: k, ClientKey: "C1", Status: "active", Created: k, Class: "Ordinary", Type: "allotment", EffectiveDate: "2020-01-01", ...o });
