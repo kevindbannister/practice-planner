@@ -6,7 +6,9 @@
 // the client's own records, and the four pictures of a company are kept apart: the planner's current data, the proposed
 // change (the draft), what Companies House last showed (Clients.CHVerified), and the internal registers (CoSec lists).
 import { Config } from "./checklist";
-import { approvalGate } from "./cosecApproval";
+import { approvalGate, approvalOf } from "./cosecApproval";
+import { blankCs01, buildCs01, cs01Issues, readCs01 } from "./cosecCs01";
+import { DEFAULT_FEES } from "./cosecFees";
 import { NewEntry, readEntry, record } from "./shareLedger";
 import { sameAddress, sameName } from "./companiesHouse";
 import { Addr, CompanyKind, OfficerOp, addrIssues, addrText, formDef, formTitle, officerForm, officerName, parseAddress, pscForm, pscName } from "./cosecForms";
@@ -427,7 +429,7 @@ export function txIssues(tx: Row): string[] {
       if (!str(p.date).trim()) out.push("Date of appointment");
       if (!person(d).trim()) out.push("Name");
       if (str(tx.Form) === "AP01" || str(tx.Form) === "LLAP01") {
-        for (const [f, l] of [["DOB", "Date of birth"], ["Nationality", "Nationality"], ["Occupation", "Occupation"], ["CountryOfResidence", "Country of residence"]] as const) if (!str(d[f]).trim()) out.push(l);
+        for (const [f, l] of [["DOB", "Date of birth"], ["Nationality", "Nationality"], ["CountryOfResidence", "Country of residence"]] as const) if (!str(d[f]).trim()) out.push(l);
         out.push(...addrIssues(parseAddress(str(d.ServiceAddress)), "Service address"), ...addrIssues(parseAddress(str(d.ResidentialAddress)), "Residential address"));
       }
       break;
@@ -436,6 +438,7 @@ export function txIssues(tx: Row): string[] {
     case "CH01": case "CH02": case "CH03": case "CH04": case "LLCH01": case "LLCH02": case "PSC04": case "PSC05": case "PSC06":
       if (!Object.keys(p.changes || {}).length) out.push("At least one changed detail");
       break;
+    case "CS01": out.push(...cs01Issues(tx)); break;
     case "STT": { if (!str(p.from).trim() || !str(p.to).trim() || !str(p.class).trim() || !(Number(p.number) > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(str(p.date))) out.push("Who transfers, who receives, the class, the number of shares and the date"); break; }
     case "SH01": { const d = p.details || {}; if (!(Number(d.Number) > 0) || !str(d.Class).trim() || !str(p.date).trim()) out.push("Class, number of shares and date"); break; }
   }
@@ -444,7 +447,7 @@ export function txIssues(tx: Row): string[] {
 
 export const canSubmitVia = (tx: Row): boolean => !!formDef(str(tx.Form))?.gateway;
 
-export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: Ctx, snap?: Pick<Snapshot, "officers" | "pscs" | "shares" | "clients" | "ledger">): CoSecWritten | { error: string } {
+export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: Ctx, snap?: Pick<Snapshot, "officers" | "pscs" | "shares" | "clients" | "ledger"> & Partial<Pick<Snapshot, "txs" | "classes">> & { fees?: import("./cosecFees").FeeSchedule }): CoSecWritten | { error: string } {
   const st = txStatus(tx);
   const ck = str(tx.ClientKey);
   const refs = { clientKey: ck };
@@ -461,7 +464,10 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
       if (!can("edit")) return fail("You can't edit filings.");
       if (!EDITABLE.includes(st)) return fail("Only a draft can be edited.");
       const patch: Row = { Status: "draft", EditedBy: o.actor, ApprovedBy: "", ApprovedAt: "" };
-      if (input.payload) patch.Payload = JSON.stringify(input.payload);
+      if (input.payload) {
+        patch.Payload = JSON.stringify(input.payload);
+        if (str(tx.Payload) && JSON.stringify(input.payload) !== str(tx.Payload) && (approvalOf(tx) === "approved" || approvalOf(tx) === "awaiting")) Object.assign(patch, { ApprovalState: "required", ApprovalSigningId: "", ApprovalBy: "", ApprovalAt: "", ApprovalEvidence: "" });
+      }
       if (input.after !== undefined) patch.After = input.after;
       return done(patch, "edited", input.note);
     }
@@ -484,6 +490,8 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
       if (cfg.independentReview && str(tx.EditedBy) && str(tx.EditedBy).toLowerCase() === o.actor.toLowerCase()) return fail("Independent review is on: someone other than the person who edited this draft must approve it.");
       const issues = txIssues(tx);
       if (issues.length) return fail(`Still needed before it can be approved: ${issues.join(", ")}.`);
+      const notReady = cs01NotReady(tx, snap, o);
+      if (notReady) return fail(`Not ready to approve: ${notReady}`);
       return done({ Status: "approved", ApprovedBy: o.actor, ApprovedAt: o.now, RejectReason: st === "rejected" ? "" : str(tx.RejectReason) }, "approved", input.note, { type: "cosec-approved", title: `${tx.Form} approved: ${str(tx.Title)}`, summary: "Approved, not yet submitted to Companies House." });
     }
     case "decline": {
@@ -541,6 +549,25 @@ export function act(tx: Row, action: TxAction, input: TxInput, cfg: Config, o: C
   }
 }
 
+/** For a confirmation statement: the first thing in the company's records that stops it being filed, or nothing. Other forms have no extra check. */
+function cs01NotReady(tx: Row, snap: (Partial<Snapshot> & { fees?: import("./cosecFees").FeeSchedule }) | undefined, o: Ctx): string | undefined {
+  if (str(tx.Form) !== "CS01" || !snap?.clients) return undefined;
+  const client = snap.clients.find((c) => c.Key === tx.ClientKey);
+  if (!client) return undefined;
+  const m = buildCs01({ client, payload: readCs01(tx), officers: (snap.officers || []).filter((x) => x.ClientKey === tx.ClientKey), pscs: (snap.pscs || []).filter((x) => x.ClientKey === tx.ClientKey), ledger: (snap.ledger || []).map(readEntry), classes: snap.classes || [], txs: snap.txs || [], fees: snap.fees || DEFAULT_FEES, today: o.now.slice(0, 10), selfTx: str(tx.Key) });
+  return m.blockers[0];
+}
+/** Start a confirmation statement draft for a company, made up to a date. Nothing is filed. A draft already open for the same date is reused. */
+export function prepareCs01(company: Row, madeUpTo: string, snap: Snapshot, can: boolean, o: Ctx): Prepared | { error: string } {
+  if (!can) return { error: "You can't prepare filings." };
+  if (!companyKind(company)) return { error: "Only companies and LLPs file confirmation statements." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(madeUpTo)) return { error: "Enter the date the statement is made up to." };
+  if (snap.txs.some((t) => str(t.ClientKey) === str(company.Key) && str(t.Form) === "CS01" && str(t.Target) === `cs01:${madeUpTo}` && ["accepted", "external"].includes(txStatus(t)))) return { error: "A statement made up to that date has already been filed." };
+  const key = o.newKey("CS");
+  const p: Proposed = { clientKey: str(company.Key), clientName: str(company.Title), form: "CS01", target: `cs01:${madeUpTo}`, title: `Confirmation statement made up to ${madeUpTo}`, before: "", after: `Made up to ${madeUpTo}`, payload: blankCs01(madeUpTo, str(company.Email)), source: "cosec", sourceKey: key, eventKey: `cosec:cs01:${key}`, assignee: responsible(company), entity: "company", entityKey: str(company.Key), field: "confirmation-statement" };
+  return directDraft(p, snap, o);
+}
+
 /** The ledger entry a share transaction stands for: an allotment (SH01) or a transfer (STT). Other transactions don't touch the ledger. */
 export function ledgerEntryFor(tx: Row): NewEntry | undefined {
   const p = json<Record<string, any>>(tx.Payload, {});
@@ -589,6 +616,14 @@ export function reconcile(tx: Row, o: Ctx, snap?: Pick<Snapshot, "officers" | "p
       const n = Number(p.number); const left = Number(from.Number) - n;
       w.patches.push({ list: "CoSecShares", row: from, patch: left > 0 ? { Number: left, Updated: o.now } : { Status: "former", To: str(p.date), Updated: o.now } });
       w.creates!.push({ list: "CoSecShares", row: { Key: o.newKey("CH"), PracticeId: o.pid, ClientKey: str(tx.ClientKey), Holder: str(p.to), HolderKey: str(p.toKey), Class: str(from.Class), Number: n, Currency: str(from.Currency), NominalValue: from.NominalValue, PaidPerShare: from.PaidPerShare, Status: "current", From: str(p.date), To: "", Event: "transfer", CertificateNo: "", Source: "cosec", Notes: `From ${str(from.Holder)}`, Created: o.now, Updated: o.now } });
+    }
+  }
+  if (form === "CS01") {
+    const m = str(p.madeUpTo);
+    const client = snap?.clients.find((c) => c.Key === tx.ClientKey);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(m)) {
+      const d = new Date(`${m}T00:00:00Z`); d.setUTCFullYear(d.getUTCFullYear() + 1); d.setUTCDate(d.getUTCDate() + 14);
+      w.verified = { clientKey: str(tx.ClientKey), value: { ...(client ? verifiedOf(client) : {}), csTo: m, csDue: d.toISOString().slice(0, 10), at: o.now } };
     }
   }
   // what Companies House now shows: the planner's refresh (when it can reach Companies House) replaces this with the official record

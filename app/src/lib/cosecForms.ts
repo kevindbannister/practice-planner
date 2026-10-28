@@ -8,6 +8,7 @@ export type FormDef = { id: string; title: string; applies: CompanyKind[]; /** C
 export const FORMS: FormDef[] = [
   { id: "AD01", title: "Change of registered office address", applies: ["limited", "llp"], gateway: true },
   { id: "NM01", title: "Change of name by special resolution", applies: ["limited"], gateway: false },
+  { id: "CS01", title: "Confirmation statement", applies: ["limited", "llp"], gateway: false },
   { id: "AA01", title: "Change of accounting reference date", applies: ["limited", "llp"], gateway: false },
   { id: "AP01", title: "Appointment of a director", applies: ["limited"], gateway: false },
   { id: "AP02", title: "Appointment of a corporate director", applies: ["limited"], gateway: false },

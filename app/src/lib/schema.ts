@@ -338,14 +338,14 @@ export const LISTS: ListDef[] = [
     key: "CoSecOfficers", displayName: "PP CoSec Officers", description: "Practice Planner: directors, secretaries and LLP members (internal register)",
     columns: [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Role"), t("Kind"), t("Status", true), t("Title"), t("First"), t("Last"), t("CorporateName"), t("DOB"), t("Nationality"), t("Occupation"), t("CountryOfResidence"),
-      note("ServiceAddress"), note("ResidentialAddress"), t("AppointedOn"), t("ResignedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("Created"), t("Updated"),
+      note("ServiceAddress"), note("ResidentialAddress"), t("AppointedOn"), t("ResignedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("IdStatus"), t("IdCheckedOn"), note("IdNote"), t("Created"), t("Updated"),
     ],
   },
   {
     key: "CoSecPscs", displayName: "PP CoSec PSCs", description: "Practice Planner: persons with significant control (internal register)",
     columns: [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Kind"), t("Status", true), t("Title"), t("First"), t("Last"), t("CorporateName"), t("DOB"), t("Nationality"), t("CountryOfResidence"),
-      note("ServiceAddress"), note("ResidentialAddress"), note("Natures"), t("NotifiedOn"), t("CeasedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("Created"), t("Updated"),
+      note("ServiceAddress"), note("ResidentialAddress"), note("Natures"), t("NotifiedOn"), t("CeasedOn"), t("PersonClientKey"), t("ChId"), t("Source"), note("Notes"), t("IdStatus"), t("IdCheckedOn"), note("IdNote"), t("Created"), t("Updated"),
     ],
   },
   {

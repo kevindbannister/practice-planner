@@ -24,7 +24,7 @@ const MANDATORY: Record<string, string> = {
 export function defaultApproval(form: string): { required: boolean; mandatory: boolean; reason: string } {
   const mandatory = !!MANDATORY[form];
   if (mandatory) return { required: true, mandatory, reason: MANDATORY[form] };
-  if (/^(AP|LLAP|TM|LLTM|CH|LLCH|PSC)/.test(form) || form === "AD01" || form === "AA01") return { required: true, mandatory: false, reason: "The company is making this change, so its directors normally confirm it first." };
+  if (/^(AP|LLAP|TM|LLTM|CH|LLCH|PSC)/.test(form) || form === "AD01" || form === "AA01" || form === "CS01") return { required: true, mandatory: false, reason: "The company is making this change, so its directors normally confirm it first." };
   return { required: false, mandatory: false, reason: "" };
 }
 
@@ -111,6 +111,7 @@ const WORDING: Record<string, string> = {
   AD01: "The company confirms that its registered office address is to be changed as set out above, with effect from the date stated.",
   NM01: "The members resolve by special resolution that the name of the company be changed as set out above.",
   SH01: "The directors resolve to allot the shares set out above on the terms stated, and confirm they have authority to do so.",
+  CS01: "The directors confirm that the information set out above is correct as at the date the statement is made up to, and that the company's intended future activities are lawful.",
   STT: "The directors approve the transfer of the shares set out above and agree that the register of members be updated.",
 };
 export const wordingFor = (form: string) => WORDING[form] || (/^(AP|LLAP)/.test(form) ? "The company confirms the appointment set out above." : /^(TM|LLTM)/.test(form) ? "The company confirms that the appointment set out above has ended on the date stated." : /^(CH|LLCH|PSC0[4-6])/.test(form) ? "The company confirms that the details set out above are correct and are to be updated." : /^PSC/.test(form) ? "The company confirms the details of the person with significant control set out above." : "The company confirms the change set out above.");
@@ -124,8 +125,12 @@ export function summaryOf(tx: Row, company: { name: string; number: string }, fo
   const details: [string, string][] = [];
   for (const [k, v] of Object.entries((p.details || {}) as Record<string, unknown>)) if (str(v).trim() && FIELD_LABEL[k]) details.push([FIELD_LABEL[k], str(v)]);
   for (const [k, v] of Object.entries((p.changes || {}) as Record<string, unknown>)) details.push([FIELD_LABEL[k] || k, `${str(p.before?.[k]) ? `${str(p.before[k])} → ` : ""}${str(v)}`]);
+  if (str(tx.Form) === "CS01") {
+    details.push(["Made up to", str(p.madeUpTo)], ["Registered email", str(p.email)]);
+    for (const [k, v] of Object.entries((p.snapshot || {}) as Record<string, unknown>)) if (Array.isArray(v) && v.length) details.push([k === "capital" ? "Share capital" : k === "shareholders" ? "Shareholders" : k === "officers" ? "Officers" : k, v.map(str).join("\n")]);
+  }
   if (p.from || p.to) { details.push(["From", str(p.from)], ["To", str(p.to)]); if (p.number) details.push(["Shares", `${str(p.number)} ${str(p.class)}`]); if (p.consideration) details.push(["Consideration", str(p.consideration)]); }
-  return { company: company.name, number: company.number, title: str(tx.Title), form: str(tx.Form), formTitle, effective: str(p.date || p.newDate || ""), current: str(tx.Before), proposed: str(tx.After), details, wording: wordingFor(str(tx.Form)), signatories, practice, ref: str(tx.Ref) };
+  return { company: company.name, number: company.number, title: str(tx.Title), form: str(tx.Form), formTitle, effective: str(p.date || p.newDate || p.madeUpTo || ""), current: str(tx.Before), proposed: str(tx.After), details, wording: wordingFor(str(tx.Form)), signatories, practice, ref: str(tx.Ref) };
 }
 
 /** A one-or-two page PDF: what is proposed, the wording, and a signature block for each signatory. */

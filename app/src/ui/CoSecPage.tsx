@@ -13,6 +13,7 @@ import { useCompaniesHouse } from "./CompaniesHouse";
 import { Cell, PortfolioRow, isDissolved, portfolioRows } from "../lib/portfolio";
 import { AddCompany, LevelChip, PortfolioSummary } from "./CoSecFoundation";
 import { ApprovalPanel } from "./CoSecApproval";
+import { Cs01InFiling } from "./CoSecCs01";
 import { LEVELS, Level, profileFor } from "../lib/cosecProfile";
 
 const TABS: [string, string, string][] = [["", "Overview", "#/cosec"], ["filings", "Filings", "#/cosec/filings"], ["companies", "Companies", "#/cosec/companies"]];
@@ -327,6 +328,7 @@ function FilingDetail({ txKey }: { txKey: string }) {
             {form === "SH01" && [["Holder", "Holder"], ["Class", "Class"], ["Number", "Number of shares"], ["NominalValue", "Nominal value"], ["PaidPerShare", "Paid per share"], ["Currency", "Currency"]].map(([f, l]) => <Field key={f} label={l} value={String(details[f] ?? "")} disabled={!editable} onChange={(v) => setP({ details: { ...details, [f]: v } })} />)}
           </div>
         )}
+        {form === "CS01" && <Cs01InFiling tx={tx} client={client} />}
         {form === "STT" && (
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
             <Field label="Transferor" value={String(p.from || "")} disabled={!editable} onChange={(v) => setP({ from: v })} />

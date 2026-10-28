@@ -14,8 +14,10 @@ import { newKey } from "../lib/planning";
 import { chipFor } from "./CoSecPage";
 import { Ledger, LevelChip, ServiceLevel } from "./CoSecFoundation";
 import { ImportHistory, RegistersTab } from "./CoSecImport";
+import { Cs01Tab } from "./CoSecCs01";
+import { ID_LABEL, IdStatus, idOf } from "../lib/cosecCs01";
 
-const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["pscs", "People with significant control"], ["registers", "Registers"], ["import", "Import history"], ["filings", "Filings"]];
+const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["pscs", "People with significant control"], ["cs01", "Confirmation statement"], ["registers", "Registers"], ["import", "Import history"], ["filings", "Filings"]];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
 export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: string }) {
@@ -41,6 +43,7 @@ export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: strin
       {tab === "ledger" && kind === "limited" && <Ledger client={client} />}
       {tab === "registers" && <RegistersTab client={client} />}
       {tab === "import" && <ImportHistory client={client} />}
+      {tab === "cs01" && <Cs01Tab client={client} />}
       {tab === "filings" && <Filings client={client} />}
     </div>
   );
@@ -155,7 +158,7 @@ function People({ client, entity }: { client: Row; entity: "officer" | "psc" }) 
         <button type="button" className="btn" disabled={!k.can("edit")} onClick={() => setAdding(isOff ? { Role: companyKind(client) === "llp" ? "member" : "director", Kind: "individual" } : { Kind: "individual" })}>{isOff ? "Appoint someone" : "Add a PSC"}</button>
       </div>
       <div className="table-wrap"><table className="grid" style={{ minWidth: 620 }}>
-        <thead><tr><th scope="col">Name</th>{isOff && <th scope="col">Role</th>}<th scope="col">Status</th><th scope="col">{isOff ? "Appointed" : "Notified"}</th><th scope="col">Linked to</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+        <thead><tr><th scope="col">Name</th>{isOff && <th scope="col">Role</th>}<th scope="col">Status</th><th scope="col">{isOff ? "Appointed" : "Notified"}</th><th scope="col">Identity</th><th scope="col">Linked to</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
         <tbody>{list.length ? list.map((x) => {
           const open = pendingFor(k.data.cosecTx, s(client.Key)).filter((t) => { try { return JSON.parse(s(t.Payload)).who === x.Key; } catch { return false; } });
           return (
@@ -163,6 +166,7 @@ function People({ client, entity }: { client: Row; entity: "officer" | "psc" }) 
               <td>{nameOf(x)}</td>{isOff && <td>{OFFICER_ROLES.find(([r]) => r === x.Role)?.[1] || s(x.Role)}</td>}
               <td>{s(x.Status) === "current" ? "Current" : s(x.Status) === "pending" ? <span className="chip amber">Pending filing</span> : s(x.Status) === "resigned" || s(x.Status) === "ceased" ? `Ended ${fmtDate(s(x.ResignedOn || x.CeasedOn))}` : s(x.Status)}{open.length > 0 && s(x.Status) === "current" && <> <a className="chip amber" href={href("cosec", "filing", s(open[0].Key))}>Pending Co Sec review</a></>}</td>
               <td>{fmtDate(s(x.AppointedOn || x.NotifiedOn))}</td>
+              <td>{s(x.Status) === "current" ? <select className="input" aria-label={`Identity verification for ${nameOf(x)}`} disabled={!k.can("edit")} value={idOf(x)} onChange={(e) => void k.update(isOff ? "CoSecOfficers" : "CoSecPscs", x, { IdStatus: e.target.value, IdCheckedOn: new Date().toISOString().slice(0, 10) } as Row)} style={{ width: "auto" }}>{(Object.keys(ID_LABEL) as IdStatus[]).map((v) => <option key={v} value={v}>{ID_LABEL[v]}</option>)}</select> : null}</td>
               <td><PersonLink row={x} /></td>
               <td>{s(x.Status) === "current" && k.can("edit") && <div className="row-wrap"><button type="button" className="linkbtn" onClick={() => setChanging({ row: x, changes: {} })}>Change details</button><button type="button" className="linkbtn" onClick={() => setEnding({ row: x, date: "" })}>{isOff ? "End appointment" : "Ceased"}</button></div>}</td>
             </tr>);
