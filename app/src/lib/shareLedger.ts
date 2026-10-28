@@ -70,7 +70,7 @@ export function ownership(holdings: Holding[]): { issued: number; byClass: { cls
   return { issued, byClass: classes.map((c) => ({ cls: c, issued: classTotal(c) })), holders };
 }
 
-export type NewEntry = { type: EntryType; date: string; cls: string; number: number; from?: string; fromKey?: string; to?: string; toKey?: string; currency?: string; nominal?: number; paid?: number; premium?: number; consideration?: string; txKey?: string; idem?: string; notes?: string };
+export type NewEntry = { type: EntryType; date: string; cls: string; number: number; from?: string; fromKey?: string; to?: string; toKey?: string; currency?: string; nominal?: number; paid?: number; premium?: number; consideration?: string; txKey?: string; idem?: string; notes?: string; source?: string };
 
 /** Problems with a proposed entry, judged against the existing ledger. Empty means it can be recorded. */
 export function entryProblems(e: NewEntry, existing: Entry[], classes?: string[]): string[] {
@@ -97,7 +97,7 @@ export type Written = { creates: Row[]; patches: { row: Row; patch: Row }[]; ski
 let counter = 0;
 const newKey = () => `SL${Date.now().toString(36)}${(counter++).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 export function entryRow(e: NewEntry, clientKey: string, by: string, now: string, key = newKey()): Row {
-  return { Key: key, PracticeId: "", ClientKey: clientKey, Type: e.type, EffectiveDate: e.date, Class: e.cls.trim(), Number: e.number, FromHolder: e.from || "", FromKey: e.fromKey || "", ToHolder: e.to || "", ToKey: e.toKey || "", Currency: e.currency || "GBP", Nominal: e.nominal || 0, PaidPerShare: e.paid || 0, Premium: e.premium || 0, Consideration: e.consideration || "", TxKey: e.txKey || "", IdemKey: e.idem || "", Supersedes: "", Reason: "", Status: "active", Notes: e.notes || "", Created: now, CreatedBy: by };
+  return { Key: key, PracticeId: "", ClientKey: clientKey, Type: e.type, EffectiveDate: e.date, Class: e.cls.trim(), Number: e.number, FromHolder: e.from || "", FromKey: e.fromKey || "", ToHolder: e.to || "", ToKey: e.toKey || "", Currency: e.currency || "GBP", Nominal: e.nominal || 0, PaidPerShare: e.paid || 0, Premium: e.premium || 0, Consideration: e.consideration || "", TxKey: e.txKey || "", IdemKey: e.idem || "", Supersedes: "", Reason: "", Status: "active", Notes: e.notes || "", Source: e.source || "", Created: now, CreatedBy: by };
 }
 
 /** Record an entry once: the same idempotency key (a retry, a page refresh) is skipped. */

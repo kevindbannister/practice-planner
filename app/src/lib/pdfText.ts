@@ -51,3 +51,19 @@ export async function pdfLines(data: Uint8Array, pdfjs?: PdfJs): Promise<Item[][
   }
   return out;
 }
+
+/** The text of each page as plain lines (words of a line joined with spaces), for reading a register PDF. */
+export async function pdfPageText(data: Uint8Array, pdfjs?: PdfJs): Promise<string[][]> {
+  const lib = pdfjs || (await loadPdfJs());
+  const doc = await lib.getDocument({ data, isEvalSupported: false }).promise;
+  const pages: string[][] = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    const content = await (await doc.getPage(p)).getTextContent();
+    const words = content.items.filter((i) => i.str.trim()).map((i) => ({ x: i.transform[4], y: i.transform[5], text: i.str.trim() }));
+    words.sort((a, b) => b.y - a.y || a.x - b.x);
+    const lines: { y: number; t: string[] }[] = [];
+    for (const w of words) { const l = lines[lines.length - 1]; if (l && Math.abs(l.y - w.y) <= 2.5) l.t.push(w.text); else lines.push({ y: w.y, t: [w.text] }); }
+    pages.push(lines.map((l) => l.t.join(" ")));
+  }
+  return pages;
+}

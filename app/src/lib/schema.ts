@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -367,8 +367,13 @@ export const LISTS: ListDef[] = [
     key: "CoSecLedger", displayName: "PP CoSec Share Ledger", description: "Practice Planner: share transaction ledger (immutable entries; corrections supersede)",
     columns: [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Type"), t("EffectiveDate", true), t("Class"), n("Number"), t("FromHolder"), t("FromKey"), t("ToHolder"), t("ToKey"), t("Currency"),
-      n("Nominal"), n("PaidPerShare"), n("Premium"), note("Consideration"), t("TxKey"), t("IdemKey"), t("Supersedes"), note("Reason"), t("Status", true), note("Notes"), t("Created"), t("CreatedBy"),
+      n("Nominal"), n("PaidPerShare"), n("Premium"), note("Consideration"), t("TxKey"), t("IdemKey"), t("Supersedes"), note("Reason"), t("Status", true), note("Notes"), t("Source", true), t("Created"), t("CreatedBy"),
     ],
+  },
+  {
+    // Historical imports: what was extracted, what the reviewer decided, and what was committed. Staged items are never part of the live records.
+    key: "CoSecImports", displayName: "PP CoSec Imports", description: "Practice Planner: historical corporate-record imports (audit of what was proposed and approved)",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Method"), t("SourceName"), t("Status", true), note("Summary"), note("Items"), t("ApprovedBy"), t("ApprovedAt"), t("Created"), t("CreatedBy")],
   },
   {
     // A request to a client's previous accountant for professional clearance and records. See lib/clearance.ts.

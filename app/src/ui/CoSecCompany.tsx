@@ -13,8 +13,9 @@ import { useData } from "./data";
 import { newKey } from "../lib/planning";
 import { chipFor } from "./CoSecPage";
 import { Ledger, LevelChip, ServiceLevel } from "./CoSecFoundation";
+import { ImportHistory, RegistersTab } from "./CoSecImport";
 
-const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["pscs", "People with significant control"], ["registers", "Registers"], ["filings", "Filings"]];
+const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["pscs", "People with significant control"], ["registers", "Registers"], ["import", "Import history"], ["filings", "Filings"]];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
 export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: string }) {
@@ -38,7 +39,8 @@ export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: strin
       {tab === "shares" && kind === "limited" && <Shares client={client} />}
       {tab === "classes" && kind === "limited" && <ShareClasses client={client} />}
       {tab === "ledger" && kind === "limited" && <Ledger client={client} />}
-      {tab === "registers" && <Registers client={client} />}
+      {tab === "registers" && <RegistersTab client={client} />}
+      {tab === "import" && <ImportHistory client={client} />}
       {tab === "filings" && <Filings client={client} />}
     </div>
   );
@@ -390,34 +392,6 @@ function ShareClasses({ client }: { client: Row }) {
 }
 
 // ------------------------------------------------------------------ registers and filings
-
-function Registers({ client }: { client: Row }) {
-  const k = useCoSec();
-  const mine = (rows: Row[]) => rows.filter((x) => x.ClientKey === client.Key);
-  const officers = mine(k.data.cosecOfficers).filter((x) => x.Status !== "pending");
-  const pscs = mine(k.data.cosecPscs).filter((x) => x.Status !== "pending");
-  const shares = mine(k.data.cosecShares).filter((x) => x.Status !== "pending");
-  return (
-    <section className="card pad stack" aria-label="Registers">
-      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h3 style={{ margin: 0 }}>Statutory registers</h3>
-        <button type="button" className="btn" onClick={() => window.print()}>Print</button>
-      </div>
-      <p className="muted" style={{ margin: 0 }}>Brought up to date when a filing is accepted by Companies House or recorded as filed elsewhere. Residential addresses are kept here and are not public.</p>
-      <h4 style={{ margin: "6px 0 0" }}>Register of directors, secretaries and members</h4>
-      <div className="table-wrap"><table className="grid"><thead><tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col">Service address</th><th scope="col">Residential address</th><th scope="col">Appointed</th><th scope="col">Ended</th></tr></thead>
-        <tbody>{officers.length ? officers.map((x) => <tr key={s(x.Key)}><td>{officerName(x)}</td><td>{s(x.Role)}</td><td>{s(x.ServiceAddress)}</td><td>{s(x.ResidentialAddress)}</td><td>{fmtDate(s(x.AppointedOn))}</td><td>{fmtDate(s(x.ResignedOn))}</td></tr>) : <tr><td colSpan={6} className="muted">Empty.</td></tr>}</tbody></table></div>
-      <h4 style={{ margin: "6px 0 0" }}>Register of people with significant control</h4>
-      <div className="table-wrap"><table className="grid"><thead><tr><th scope="col">Name</th><th scope="col">Nature of control</th><th scope="col">Notified</th><th scope="col">Ceased</th></tr></thead>
-        <tbody>{pscs.length ? pscs.map((x) => <tr key={s(x.Key)}><td>{pscName(x)}</td><td>{(() => { try { return (JSON.parse(s(x.Natures)) as string[]).map((n) => n.replace(/-/g, " ")).join("; "); } catch { return s(x.Natures); } })()}</td><td>{fmtDate(s(x.NotifiedOn))}</td><td>{fmtDate(s(x.CeasedOn))}</td></tr>) : <tr><td colSpan={4} className="muted">Empty.</td></tr>}</tbody></table></div>
-      {companyKind(client) === "limited" && <>
-        <h4 style={{ margin: "6px 0 0" }}>Register of members</h4>
-        <div className="table-wrap"><table className="grid"><thead><tr><th scope="col">Member</th><th scope="col">Class</th><th scope="col">Shares</th><th scope="col">From</th><th scope="col">To</th></tr></thead>
-          <tbody>{shares.length ? shares.map((x) => <tr key={s(x.Key)}><td>{s(x.Holder)}</td><td>{s(x.Class)}</td><td>{Number(x.Number).toLocaleString("en-GB")}</td><td>{fmtDate(s(x.From))}</td><td>{fmtDate(s(x.To))}</td></tr>) : <tr><td colSpan={5} className="muted">Empty.</td></tr>}</tbody></table></div>
-      </>}
-    </section>
-  );
-}
 
 function Filings({ client }: { client: Row }) {
   const k = useCoSec();
