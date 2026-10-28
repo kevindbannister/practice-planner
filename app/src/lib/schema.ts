@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -357,7 +357,7 @@ export const LISTS: ListDef[] = [
   },
   {
     key: "CoSecShareClasses", displayName: "PP CoSec Share Classes", description: "Practice Planner: classes of share each company has set up",
-    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Name"), t("Currency"), n("NominalValue"), note("Rights"), t("Status", true), t("Created"), t("Updated")],
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Name"), t("Currency"), n("NominalValue"), note("Rights"), t("Votes"), t("Dividends"), t("Redeemable"), note("Restrictions"), t("Status", true), t("Created"), t("Updated")],
   },
   {
     key: "CoSecProfiles", displayName: "PP CoSec Profiles", description: "Practice Planner: how the practice relates to each company (service level and overrides)",
@@ -375,6 +375,16 @@ export const LISTS: ListDef[] = [
     // Historical imports: what was extracted, what the reviewer decided, and what was committed. Staged items are never part of the live records.
     key: "CoSecImports", displayName: "PP CoSec Imports", description: "Practice Planner: historical corporate-record imports (audit of what was proposed and approved)",
     columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Method"), t("SourceName"), t("Status", true), note("Summary"), note("Items"), t("ApprovedBy"), t("ApprovedAt"), t("Created"), t("CreatedBy")],
+  },
+  {
+    // Share certificates: numbered per company, never edited or deleted; replaced or cancelled certificates stay on record. See lib/cosecCertificates.ts.
+    key: "CoSecCertificates", displayName: "PP CoSec Certificates", description: "Practice Planner: share certificates issued, cancelled and replaced",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Number", true), t("Holder"), t("HolderKey"), t("Class"), n("NumberOfShares"), t("IssuedOn"), t("Status", true), t("Replaces"), t("TxKey"), note("Reason"), t("Created"), t("CreatedBy"), t("Updated")],
+  },
+  {
+    // Dividends: the calculation is stored as lines so it can be re-checked later. See lib/cosecDividends.ts.
+    key: "CoSecDividends", displayName: "PP CoSec Dividends", description: "Practice Planner: dividends proposed, declared and paid",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Ref"), t("Type"), t("RecordDate"), t("DeclaredOn"), t("PaidOn"), t("Currency"), note("Rates"), note("Lines"), n("TotalPence"), note("Waivers"), t("ReviewedBy"), t("ReviewedAt"), note("ReviewNote"), t("Status", true), note("Notes"), t("Created"), t("CreatedBy"), t("Updated")],
   },
   {
     // A request to a client's previous accountant for professional clearance and records. See lib/clearance.ts.

@@ -15,9 +15,10 @@ import { chipFor } from "./CoSecPage";
 import { Ledger, LevelChip, ServiceLevel } from "./CoSecFoundation";
 import { ImportHistory, RegistersTab } from "./CoSecImport";
 import { Cs01Tab } from "./CoSecCs01";
+import { CertificatesTab, DividendsTab, OwnershipCheck } from "./CoSecCapital";
 import { ID_LABEL, IdStatus, idOf } from "../lib/cosecCs01";
 
-const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["pscs", "People with significant control"], ["cs01", "Confirmation statement"], ["registers", "Registers"], ["import", "Import history"], ["filings", "Filings"]];
+const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["certificates", "Certificates"], ["dividends", "Dividends"], ["pscs", "People with significant control"], ["cs01", "Confirmation statement"], ["registers", "Registers"], ["import", "Import history"], ["filings", "Filings"]];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
 export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: string }) {
@@ -33,13 +34,15 @@ export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: strin
         <a href={href("clients", clientKey)}>Open the client record</a>
       </div>
       <nav className="subtabs" aria-label="Company views">
-        {TABS.filter(([key]) => (key !== "shares" && key !== "classes" && key !== "ledger") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
+        {TABS.filter(([key]) => (key !== "shares" && key !== "classes" && key !== "ledger" && key !== "certificates" && key !== "dividends") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
       </nav>
       {tab === "details" && <><ServiceLevel client={client} /><Details client={client} /></>}
       {tab === "officers" && <People client={client} entity="officer" />}
       {tab === "pscs" && <People client={client} entity="psc" />}
       {tab === "shares" && kind === "limited" && <Shares client={client} />}
-      {tab === "classes" && kind === "limited" && <ShareClasses client={client} />}
+      {tab === "classes" && kind === "limited" && <><ShareClasses client={client} /><OwnershipCheck client={client} /></>}
+      {tab === "certificates" && kind === "limited" && <CertificatesTab client={client} />}
+      {tab === "dividends" && kind === "limited" && <DividendsTab client={client} />}
       {tab === "ledger" && kind === "limited" && <Ledger client={client} />}
       {tab === "registers" && <RegistersTab client={client} />}
       {tab === "import" && <ImportHistory client={client} />}
@@ -335,7 +338,7 @@ function ShareClasses({ client }: { client: Row }) {
     if (all.some((c) => c.Key !== f.Key && s(c.Name).toLowerCase() === name.toLowerCase())) return setMsg({ ok: false, text: "This company already has a share class with that name." });
     setBusy(true); setMsg(undefined);
     try {
-      const fields = { Name: name, Currency: s(f.Currency) || "GBP", NominalValue: Number(f.NominalValue) || 1, Rights: s(f.Rights), Updated: now() };
+      const fields = { Name: name, Currency: s(f.Currency) || "GBP", NominalValue: Number(f.NominalValue) || 1, Rights: s(f.Rights), Votes: s(f.Votes).trim(), Dividends: s(f.Dividends) === "no" ? "no" : "yes", Redeemable: s(f.Redeemable) === "yes" ? "yes" : "no", Restrictions: s(f.Restrictions), Updated: now() };
       if (f.Key) await update("CoSecShareClasses", all.find((c) => c.Key === f.Key)!, fields);
       else await create("CoSecShareClasses", { Key: newKey("SC"), PracticeId: k.ctx().pid, ClientKey: s(client.Key), ...fields, Status: "current", Created: now() });
       setF(null);
@@ -370,7 +373,7 @@ function ShareClasses({ client }: { client: Row }) {
         <thead><tr><th scope="col">Share class</th><th scope="col">Number of shares</th><th scope="col">Number of holders</th><th scope="col">Status</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
         <tbody>{list.length ? list.map((c) => { const st = stats(s(c.Name)); return (
           <tr key={s(c.Key)}>
-            <td>{s(c.Name)}{c.Rights ? <div className="cell-sub">{s(c.Rights)}</div> : null}<div className="cell-sub">{s(c.Currency)} {s(c.NominalValue)} nominal</div></td>
+            <td>{s(c.Name)}{c.Rights ? <div className="cell-sub">{s(c.Rights)}</div> : null}<div className="cell-sub">{s(c.Votes).trim() === "" ? "1 vote" : `${s(c.Votes)} vote${s(c.Votes) === "1" ? "" : "s"}`} per share · {s(c.Dividends) === "no" ? "no dividends" : "dividends"}{s(c.Redeemable) === "yes" ? " · redeemable" : ""}</div><div className="cell-sub">{s(c.Currency)} {s(c.NominalValue)} nominal</div></td>
             <td>{st.shares.toLocaleString("en-GB")}</td><td>{st.holders}</td>
             <td>{c.Status === "former" ? "Former" : "Current"}</td>
             <td>{k.can("edit") && <span className="row-wrap" style={{ gap: 8 }}>
@@ -385,6 +388,10 @@ function ShareClasses({ client }: { client: Row }) {
             <label className="doc-field"><span>Name</span><input className="input" placeholder="Ordinary £1.00" value={s(f.Name)} onChange={(e) => setF({ ...f, Name: e.target.value })} /></label>
             <label className="doc-field"><span>Currency</span><input className="input" value={s(f.Currency)} onChange={(e) => setF({ ...f, Currency: e.target.value })} /></label>
             <label className="doc-field"><span>Nominal value each</span><input className="input" value={s(f.NominalValue)} onChange={(e) => setF({ ...f, NominalValue: e.target.value })} /></label>
+            <label className="doc-field"><span>Votes per share</span><input className="input" inputMode="numeric" placeholder="1" value={s(f.Votes)} onChange={(e) => setF({ ...f, Votes: e.target.value })} /></label>
+            <label className="doc-field"><span>Dividend rights</span><select className="input" value={s(f.Dividends) === "no" ? "no" : "yes"} onChange={(e) => setF({ ...f, Dividends: e.target.value })}><option value="yes">Shares in dividends</option><option value="no">No dividend rights</option></select></label>
+            <label className="doc-field"><span>Redeemable</span><select className="input" value={s(f.Redeemable) === "yes" ? "yes" : "no"} onChange={(e) => setF({ ...f, Redeemable: e.target.value })}><option value="no">No</option><option value="yes">Yes</option></select></label>
+            <label className="doc-field" style={{ gridColumn: "1 / -1" }}><span>Restrictions (optional)</span><input className="input" placeholder="Transfer or other restrictions" value={s(f.Restrictions)} onChange={(e) => setF({ ...f, Restrictions: e.target.value })} /></label>
             <label className="doc-field" style={{ gridColumn: "1 / -1" }}><span>Rights (optional)</span><input className="input" placeholder="Voting, dividend and capital rights" value={s(f.Rights)} onChange={(e) => setF({ ...f, Rights: e.target.value })} /></label>
           </div>
           <div className="row-wrap"><button type="button" className="btn primary" disabled={busy} onClick={() => void save()}>Save share class</button><button type="button" className="btn" onClick={() => { setF(null); setMsg(undefined); }}>Cancel</button></div>

@@ -211,7 +211,7 @@ export function Ledger({ client }: { client: Row }) {
           <h3 style={{ margin: 0 }}>Who holds what</h3>
           <span className="row-wrap"><label className="row-wrap muted" style={{ fontSize: 13 }}>As at <input className="input" type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} style={{ width: "auto" }} /></label>{canEdit && <button type="button" className="btn primary" onClick={() => setAdding(!adding)} disabled={!ready}>{adding ? "Close" : "Add entry"}</button>}</span>
         </div>
-        <p className="muted" style={{ margin: 0, fontSize: 13 }}>Worked out from the ledger below, never typed in. Percentages are by number of shares; voting and dividend rights are not yet taken into account, so this is not a test of who has significant control.</p>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>Worked out from the ledger below, never typed in. Percentages here are by number of shares. Votes and the people-with-significant-control check are under Share classes.</p>
         {at.problems.length > 0 && <div className="alert red" role="alert"><strong>The ledger doesn't add up</strong><span>{at.problems[0]}</span></div>}
         {!own.holders.length ? <p className="muted" style={{ margin: 0 }}>{entries.length ? "No shares were held on that date." : "The ledger is empty. Add an opening balance, or carry in the register below."}</p> : (
           <div className="table-wrap"><table className="grid" style={{ minWidth: 520 }}>
