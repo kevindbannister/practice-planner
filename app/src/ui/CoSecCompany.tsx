@@ -15,14 +15,18 @@ import { chipFor } from "./CoSecPage";
 import { Ledger, LevelChip, ServiceLevel } from "./CoSecFoundation";
 import { ImportHistory, RegistersTab } from "./CoSecImport";
 import { Cs01Tab } from "./CoSecCs01";
+import { Overview } from "./CoSecOverview";
 import { AccountsTab } from "./CoSecAccounts";
 import { CertificatesTab, DividendsTab, OwnershipCheck } from "./CoSecCapital";
 import { ID_LABEL, IdStatus, idOf } from "../lib/cosecCs01";
 
-const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["certificates", "Certificates"], ["dividends", "Dividends"], ["accounts", "Dormant accounts"], ["pscs", "People with significant control"], ["cs01", "Confirmation statement"], ["registers", "Registers"], ["import", "Import history"], ["filings", "Filings"]];
+const TABS: [string, string][] = [["overview", "Overview"], ["officers", "Officers"], ["shares", "Shareholders"], ["pscs", "People with significant control"], ["registers", "Registers"], ["filings", "Filings"]];
+/** Screens opened from buttons on the overview rather than from the tab bar. */
+const SCREENS: Record<string, string> = { classes: "Share classes and ownership", ledger: "Share ledger", certificates: "Share certificates", dividends: "Dividends", accounts: "Dormant accounts", cs01: "Confirmation statement", import: "Import history" };
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
-export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: string }) {
+export function CoSecCompany({ clientKey, tab: tabIn }: { clientKey: string; tab: string }) {
+  const tab = tabIn === "details" ? "overview" : tabIn;
   const k = useCoSec();
   const client = k.data.clients.find((c) => c.Key === clientKey);
   if (!client) return <div className="card empty"><p>That company isn't here. <a href="#/cosec/companies">Back to companies</a></p></div>;
@@ -34,10 +38,14 @@ export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: strin
         <h2 style={{ margin: 0 }}>{s(client.Title)} <span className="muted">{s(client.CompanyNumber)} · {kind === "llp" ? "LLP" : "Limited company"}</span> <LevelChip client={client} /></h2>
         <a href={href("clients", clientKey)}>Open the client record</a>
       </div>
-      <nav className="subtabs" aria-label="Company views">
-        {TABS.filter(([key]) => (key !== "shares" && key !== "classes" && key !== "ledger" && key !== "certificates" && key !== "dividends" && key !== "accounts") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
-      </nav>
-      {tab === "details" && <><ServiceLevel client={client} /><Details client={client} /></>}
+      {SCREENS[tab] ? (
+        <div className="row-wrap" style={{ gap: 12 }}><a className="btn" href={`#/cosec/company/${clientKey}/overview`}>← Overview</a><h3 style={{ margin: 0 }}>{SCREENS[tab]}</h3></div>
+      ) : (
+        <nav className="subtabs" aria-label="Company views">
+          {TABS.filter(([key]) => key !== "shares" || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
+        </nav>
+      )}
+      {tab === "overview" && <Overview client={client} base={`#/cosec/company/${clientKey}`}><ServiceLevel client={client} /><Details client={client} /></Overview>}
       {tab === "officers" && <People client={client} entity="officer" />}
       {tab === "pscs" && <People client={client} entity="psc" />}
       {tab === "shares" && kind === "limited" && <Shares client={client} />}

@@ -2437,3 +2437,10 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
   label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) { min-height: 40px; align-items: center; }
   .btn { min-height: 44px; }
 }
+
+/* Co Sec company overview */
+.ov-three { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 900px) { .ov-three { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.ov-actions { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.ov-action { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; height: auto; padding: 12px 14px; text-decoration: none; }
+.ov-action .muted { font-size: 13px; font-weight: 400; }
