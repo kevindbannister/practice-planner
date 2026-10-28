@@ -6,6 +6,8 @@ import { COSEC_ONLY, LEVELS, Level, addCompany, counts, filesCs01, findDuplicate
 import { ENTRY_LABEL, Entry, EntryType, NewEntry, openingFromRegister, ownership, readEntry, reconcile, record, replay, supersede } from "../lib/shareLedger";
 import { PortfolioRow } from "../lib/portfolio";
 import { newKey } from "../lib/planning";
+import { createLead } from "../lib/sales";
+import { useData } from "./data";
 import { Row } from "../lib/schema";
 import { href } from "./bits";
 import { useCompaniesHouse } from "./CompaniesHouse";
@@ -50,6 +52,7 @@ export function LevelChip({ client }: { client: Row }) {
 
 export function AddCompany({ onClose }: { onClose: () => void }) {
   const k = useCoSec();
+  const { create: add } = useData();
   const ch = useCompaniesHouse();
   const [how, setHow] = useState<"existing" | "ch" | "manual">("ch");
   const [name, setName] = useState("");
@@ -78,11 +81,19 @@ export function AddCompany({ onClose }: { onClose: () => void }) {
 
   const create = (c: { name: string; number: string; kind: "Ltd" | "LLP"; incorporated?: string; office?: string }) => run(async () => {
     if (!k.can("edit")) throw new Error("You can't add companies.");
-    const a = addCompany({ name: c.name, number: c.number, kind: c.kind, incorporated: c.incorporated, registeredOffice: c.office, level }, clients, newKey, now(), k.me);
-    if (a.error) throw new Error(a.duplicate ? `${a.error} Open it from the portfolio, or choose "Existing XProFlow company".` : a.error);
-    await k.apply({ creates: [{ list: "Clients", row: a.client! }, { list: "CoSecProfiles", row: a.profile! }], patches: [], log: [], activities: [] });
+    if (!validNumber(c.number)) throw new Error("A company number is 8 characters, e.g. 01234567 or SC123456.");
+    const n = normNumber(c.number);
+    if (!c.name.trim()) throw new Error("Enter the company's name.");
+    const dupe = findDuplicate(clients, n);
+    if (dupe) throw new Error(`${s(dupe.Title)} is already a client with that number.`);
+    const lead = k.data.leads.find((l) => s(l.Notes).includes(`Company number: ${n}`) && s(l.Status) !== "closed");
+    if (lead) throw new Error(`${s(lead.Title)} is already on the prospect list with that number.`);
+    const o = k.ctx();
+    const r = createLead({ name: c.name.trim(), kind: "business", contactName: "", email: "", phone: "", source: "Company secretarial", owner: k.me, notes: [`Company number: ${n}`, c.kind === "LLP" ? "LLP" : "", c.incorporated && `Incorporated ${c.incorporated}`, c.office && `Registered office: ${c.office}`].filter(Boolean).join("\n") }, o);
+    if ("error" in r) throw new Error(r.error);
+    await add("Leads", r.lead); await add("SalesLog", r.log); await add("Activities", r.activity);
     onClose();
-    return "Added.";
+    return "Added to the prospect list.";
   });
 
   const useExisting = () => run(async () => {
@@ -121,7 +132,7 @@ export function AddCompany({ onClose }: { onClose: () => void }) {
         {how === "manual" && <button type="button" className="btn primary" disabled={busy} onClick={() => void create({ name, number, kind })}>Add company</button>}
         {how === "existing" && <button type="button" className="btn primary" disabled={busy || !existing} onClick={() => void useExisting()}>Add to Co Sec</button>}
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>A company that isn't a client is kept as one record marked "Co Sec only", so it is never a second copy. Adding a company does not make the practice responsible for any filing unless you choose a managed role.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>A company that isn't a client yet is added to the prospect list (Sales › Leads) with its company number. It joins Co Sec when it becomes a client. Choosing "Existing XProFlow company" adds a current client straight to Co Sec.</p>
     </section>
   );
 }
