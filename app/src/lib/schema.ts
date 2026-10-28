@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -385,6 +385,11 @@ export const LISTS: ListDef[] = [
     // Dividends: the calculation is stored as lines so it can be re-checked later. See lib/cosecDividends.ts.
     key: "CoSecDividends", displayName: "PP CoSec Dividends", description: "Practice Planner: dividends proposed, declared and paid",
     columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Ref"), t("Type"), t("RecordDate"), t("DeclaredOn"), t("PaidOn"), t("Currency"), note("Rates"), note("Lines"), n("TotalPence"), note("Waivers"), t("ReviewedBy"), t("ReviewedAt"), note("ReviewNote"), t("Status", true), note("Notes"), t("Created"), t("CreatedBy"), t("Updated")],
+  },
+  {
+    // Dormant (never traded) accounts jobs: the checks, confirmations, figures at preparation, and what happened at each step. See lib/cosecDormant.ts.
+    key: "CoSecAccounts", displayName: "PP CoSec Accounts", description: "Practice Planner: dormant company accounts jobs and their progress to acceptance",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("PeriodStart"), t("PeriodEnd", true), t("Kind"), t("Status", true), note("Confirmations"), note("Figures"), t("Deadline"), t("PreparedOn"), t("ApprovedBy"), t("ApprovedOn"), t("SignedRef"), t("FiledOn"), t("FiledVia"), t("FiledRef"), t("AcceptedOn"), note("Evidence"), note("Notes"), t("LateLastYear"), t("Created"), t("CreatedBy"), t("Updated")],
   },
   {
     // A request to a client's previous accountant for professional clearance and records. See lib/clearance.ts.

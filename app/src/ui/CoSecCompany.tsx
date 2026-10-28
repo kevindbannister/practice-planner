@@ -15,10 +15,11 @@ import { chipFor } from "./CoSecPage";
 import { Ledger, LevelChip, ServiceLevel } from "./CoSecFoundation";
 import { ImportHistory, RegistersTab } from "./CoSecImport";
 import { Cs01Tab } from "./CoSecCs01";
+import { AccountsTab } from "./CoSecAccounts";
 import { CertificatesTab, DividendsTab, OwnershipCheck } from "./CoSecCapital";
 import { ID_LABEL, IdStatus, idOf } from "../lib/cosecCs01";
 
-const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["certificates", "Certificates"], ["dividends", "Dividends"], ["pscs", "People with significant control"], ["cs01", "Confirmation statement"], ["registers", "Registers"], ["import", "Import history"], ["filings", "Filings"]];
+const TABS: [string, string][] = [["details", "Details"], ["officers", "Officers"], ["shares", "Shareholders"], ["classes", "Share classes"], ["ledger", "Share ledger"], ["certificates", "Certificates"], ["dividends", "Dividends"], ["accounts", "Dormant accounts"], ["pscs", "People with significant control"], ["cs01", "Confirmation statement"], ["registers", "Registers"], ["import", "Import history"], ["filings", "Filings"]];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
 export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: string }) {
@@ -34,7 +35,7 @@ export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: strin
         <a href={href("clients", clientKey)}>Open the client record</a>
       </div>
       <nav className="subtabs" aria-label="Company views">
-        {TABS.filter(([key]) => (key !== "shares" && key !== "classes" && key !== "ledger" && key !== "certificates" && key !== "dividends") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
+        {TABS.filter(([key]) => (key !== "shares" && key !== "classes" && key !== "ledger" && key !== "certificates" && key !== "dividends" && key !== "accounts") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
       </nav>
       {tab === "details" && <><ServiceLevel client={client} /><Details client={client} /></>}
       {tab === "officers" && <People client={client} entity="officer" />}
@@ -43,6 +44,7 @@ export function CoSecCompany({ clientKey, tab }: { clientKey: string; tab: strin
       {tab === "classes" && kind === "limited" && <><ShareClasses client={client} /><OwnershipCheck client={client} /></>}
       {tab === "certificates" && kind === "limited" && <CertificatesTab client={client} />}
       {tab === "dividends" && kind === "limited" && <DividendsTab client={client} />}
+      {tab === "accounts" && kind === "limited" && <AccountsTab client={client} />}
       {tab === "ledger" && kind === "limited" && <Ledger client={client} />}
       {tab === "registers" && <RegistersTab client={client} />}
       {tab === "import" && <ImportHistory client={client} />}
