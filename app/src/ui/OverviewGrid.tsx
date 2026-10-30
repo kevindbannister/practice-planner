@@ -43,7 +43,7 @@ function ColumnPicker({ value, onPick }: { value?: number; onPick: (n: number) =
   );
 }
 
-export function OverviewGrid({ cards, columns, name, store: tab }: { cards: OverviewCard[]; columns: DefaultColumn[]; name: string; store: string }) {
+export function OverviewGrid({ cards, columns, name, store: tab, arrangeSignal = 0 }: { cards: OverviewCard[]; columns: DefaultColumn[]; name: string; store: string; /** Raise this number to start arranging (the button lives in the page header). */ arrangeSignal?: number }) {
   const { data, saveSetting, user } = useData();
   const key = `${tab}Layout:${user || "me"}`;
   const wrap = useRef<HTMLDivElement>(null);
@@ -65,6 +65,12 @@ export function OverviewGrid({ cards, columns, name, store: tab }: { cards: Over
   const layout = useMemo(() => settle(draft ?? base, measured), [draft, base, measured]);
   const narrow = width > 0 && width < NARROW;
   const arranging = draft !== null && !narrow;
+  const lastSignal = useRef(arrangeSignal);
+  useEffect(() => {
+    if (arrangeSignal === lastSignal.current) return;
+    lastSignal.current = arrangeSignal;
+    if (!narrow && draft === null) { setNote(""); setDraftN(saved?.n); setDraft(settle(base, measured)); }
+  }); // eslint-disable-line react-hooks/exhaustive-deps
 
   // width of the area
   useLayoutEffect(() => {
@@ -162,18 +168,13 @@ export function OverviewGrid({ cards, columns, name, store: tab }: { cards: Over
     setDraftN(n);
     setDraft(settle(columnsLayout(n, readingOrder(layout), measured), measured));
   };
-  /** Forget the saved arrangement altogether (it is saved now: no separate Save needed). */
-  const resetSaved = async () => {
-    setBusy(true); setErr(""); setNote("");
-    try { await saveSetting(key, null); setDraft(null); setNote("Back to the standard layout."); } catch { setErr("Couldn't reset the layout. Try again."); } finally { setBusy(false); }
-  };
   const setBody = useCallback((id: string) => (el: HTMLElement | null) => { if (el) bodies.current.set(id, el); else bodies.current.delete(id); }, []);
 
   const stacked = narrow ? readingOrder(layout).map((id) => cards.find((c) => c.id === id)!).filter(Boolean) : null;
 
   return (
     <div>
-      {!narrow && (
+      {!narrow && (arranging || err) && (
         <div className="ovg-bar no-print" role="toolbar" aria-label={`Arrange ${name}`}>
           {arranging ? (
             <>
@@ -187,12 +188,7 @@ export function OverviewGrid({ cards, columns, name, store: tab }: { cards: Over
             </>
           ) : (
             <>
-              {note && <span className="muted" role="status">{note}</span>}
               {err && <span className="error-text" role="alert">{err}</span>}
-              <span className="grow" />
-              <ColumnPicker value={saved?.n} onPick={(n) => { setNote(""); setDraftN(n); setDraft(settle(columnsLayout(n, readingOrder(layout), measured), measured)); }} />
-              {saved && <button type="button" className="btn" onClick={resetSaved} disabled={busy}>Reset to standard layout</button>}
-              <button type="button" className="btn" onClick={() => { setNote(""); setDraftN(saved?.n); setDraft(settle(base, measured)); }}>Arrange cards</button>
             </>
           )}
         </div>

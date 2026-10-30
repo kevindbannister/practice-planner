@@ -2444,3 +2444,10 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .ov-actions { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 .ov-action { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; height: auto; padding: 12px 14px; text-decoration: none; }
 .ov-action .muted { font-size: 13px; font-weight: 400; }
+
+/* Client page: arrange-cards and settings buttons at the far right of the tabs */
+.tabs-row { display: flex; align-items: flex-end; gap: 8px; border-bottom: 0.5px solid var(--line-strong); }
+.tabs-row > .tabs { flex: 1; min-width: 0; border-bottom: 0; }
+.tabs-tools { display: inline-flex; gap: 6px; padding-bottom: 4px; flex: none; }
+.btn.iconbtn { width: 38px; min-width: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+@media (max-width: 720px) { .btn.iconbtn.tabs-arrange { display: none; } }

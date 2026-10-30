@@ -50,7 +50,8 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
   const meetingsCount = allData.meetings.filter((m) => m.ClientKey === clientKey).length;
   const owingCount = allData.taxPayments.filter((p) => p.ClientKey === clientKey && !p.PaidOn && Number(p.Amount) > 0).length;
-  const [editingElements, setEditingElements] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [arrangeTick, setArrangeTick] = useState(0);
   const c = idx.clientByKey.get(clientKey);
   if (!c) {
     return (
@@ -75,7 +76,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         <div className="stack" style={{ gap: 8 }}>
           <div className="row-wrap" style={{ gap: "8px 14px" }}>
             <h1>{c.Title}</h1>
-            <LogoPicker client={c} />
+            <LogoPicker client={c} showOnly />
           </div>
           <div className="row-wrap" style={{ gap: 6 }}>
             <span className="chip green">{c.Status === "active" || !c.Status ? "Active" : String(c.Status)}</span>
@@ -91,18 +92,10 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         </div>
         <div className="row-wrap">
           {ch && <a className="btn" href={ch} target="_blank" rel="noreferrer">Companies House</a>}
-          {elementsUrl(c) ? (
-            <span className="btn-pair">
-              <a className="btn" href={elementsUrl(c)} target="_blank" rel="noreferrer noopener" title="Open this client in Iris Elements">Iris Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span></a>
-              <button type="button" className="btn iconbtn-sm" aria-label="Edit the Iris Elements link" title="Edit the Iris Elements link" aria-expanded={editingElements} onClick={() => setEditingElements((v) => !v)}><Icon name="cog" size={16} /></button>
-            </span>
-          ) : (
-            <button type="button" className="btn" aria-expanded={editingElements} onClick={() => setEditingElements((v) => !v)}><Icon name="cog" size={16} /> Add Iris Elements link</button>
-          )}
+          {elementsUrl(c) && <a className="btn" href={elementsUrl(c)} target="_blank" rel="noreferrer noopener" title="Open this client in Iris Elements">Iris Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span></a>}
           {c.Email && <a className="btn" href={`mailto:${c.Email}`}>Email</a>}
         </div>
       </div>
-      {editingElements && <ElementsEditor client={c} onClose={() => setEditingElements(false)} />}
 
       {(urgent.length > 0 || (tab === "overview" && (amlAlert || loe.warn))) && (
         <section className="alerts" aria-label="Needs attention">
@@ -140,6 +133,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         const chip = (n?: number) => (n ? <span className="chip" style={{ marginLeft: 4 }}>{n}</span> : null);
         return (
           <>
+            <div className="tabs-row">
             <nav className="tabs" aria-label="Client sections">
               {groups.map((g) => {
                 const sub = g.tabs.length > 1;
@@ -147,6 +141,11 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
                 return <a key={g.label} href={to(g.tabs[0].key)} aria-current={g === active ? "page" : undefined}>{g.label}{g.tabs.length === 1 && g.tabs[0].key === "work" ? chip(jobs.length) : sub ? chip(count) : null}</a>;
               })}
             </nav>
+            <span className="tabs-tools">
+              {tab === "overview" && <button type="button" className="btn iconbtn tabs-arrange" aria-label="Arrange cards" title="Arrange cards" onClick={() => setArrangeTick((n) => n + 1)}><Icon name="layout" size={18} /></button>}
+              <button type="button" className="btn iconbtn" aria-label="Client settings" title="Client settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((v) => !v)}><Icon name="cog" size={18} /></button>
+            </span>
+            </div>
             {active.tabs.length > 1 && (
               <nav className="tabs sub-tabs" aria-label={`${active.label} sections`} style={{ fontSize: 13, marginTop: -8 }}>
                 {active.tabs.map((t) => <a key={t.key} href={to(t.key)} aria-current={tab === t.key ? "page" : undefined}>{t.label}{chip(t.count)}</a>)}
@@ -156,6 +155,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         );
       })()}
 
+      {settingsOpen && <ClientSettings client={c} onClose={() => setSettingsOpen(false)} />}
       {tab === "meetings" && (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
@@ -174,7 +174,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       {tab === "aml" && <AmlTab client={c} />}
       {tab === "forms" && <ClientForms client={c} />}
       {tab === "portal" && <div className="stack"><ClientPortalUsers client={c} /><ClientMessages client={c} /><ClientRequests client={c} /><ClientDocuments client={c} /></div>}
-      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "aml" || tab === "forms" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
+      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "aml" || tab === "forms" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} arrangeSignal={arrangeTick} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>
@@ -192,7 +192,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
   );
 }
 
-function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
+function Overview({ client: c, jobs, arrangeSignal }: { client: Client; jobs: Job[]; arrangeSignal: number }) {
   const { data } = useData();
   const idx = useIndex();
   const gaps = recordGaps(c, idx.servicesByClient.get(c.Key) || new Set());
@@ -277,7 +277,6 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     { id: "team", label: "Team", node: (
     <section className="card pad stack" aria-labelledby="team-h">
       <h2 id="team-h">Team</h2>
-      <ImportanceRow client={c} />
       <div className="kv"><span>Partner</span><span>{(c.Partner as string) || "—"}</span></div>
       <div className="kv"><span>Manager</span><span>{(c.Manager as string) || "—"}</span></div>
       {c.Engaged && <div className="kv"><span>Client since</span><span>{fmtDate(c.Engaged as string)}</span></div>}
@@ -300,7 +299,7 @@ function Overview({ client: c, jobs }: { client: Client; jobs: Job[] }) {
     <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
     ) },
   ];
-  return <OverviewGrid cards={cards} columns={STANDARD_COLUMNS} name="the overview" store="overview" />;
+  return <OverviewGrid cards={cards} columns={STANDARD_COLUMNS} name="the overview" store="overview" arrangeSignal={arrangeSignal} />;
 }
 
 const STANDARD_COLUMNS: DefaultColumn[] = [
@@ -716,7 +715,7 @@ function JobCard({ job: j }: { job: Job }) {
 }
 
 /** The client's logo, with Add / Change / Remove. Drop an image on it, or pick a file. */
-function LogoPicker({ client: c }: { client: Client }) {
+function LogoPicker({ client: c, showOnly = false }: { client: Client; showOnly?: boolean }) {
   const { update } = useData();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -762,12 +761,12 @@ function LogoPicker({ client: c }: { client: Client }) {
       ) : (
         <ClientBadge client={c} size="lg" />
       )}
-      <span className="logo-actions">
+      {!showOnly && <span className="logo-actions">
         <button type="button" className="linkbtn" disabled={busy} onClick={() => input.current?.click()}>
           {busy ? "Saving…" : logo ? "Change logo" : "Add logo"}
         </button>
         {logo && !busy && <button type="button" className="linkbtn muted-link" onClick={remove}>Remove</button>}
-      </span>
+      </span>}
       <input ref={input} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" hidden
         aria-label={`Choose a logo for ${c.Title}`} onChange={(e) => void use(e.target.files?.[0])} />
       {error && <span className="error-text" role="alert" style={{ flexBasis: "100%" }}>{error}</span>}
@@ -775,19 +774,37 @@ function LogoPicker({ client: c }: { client: Client }) {
   );
 }
 
+/** The cog beside the tabs: things that set up the client rather than things you work with every day. */
+function ClientSettings({ client: c, onClose }: { client: Client; onClose: () => void }) {
+  return (
+    <section className="card pad stack" aria-label="Client settings">
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <h2 style={{ margin: 0 }}>Client settings</h2>
+        <button type="button" className="btn small" onClick={onClose}>Close</button>
+      </div>
+      <div className="kv" style={{ alignItems: "center" }}><span>Logo</span><LogoPicker client={c} /></div>
+      <div className="kv" style={{ alignItems: "center" }}><span>Iris Elements link</span><ElementsEditor client={c} onClose={() => undefined} inline /></div>
+      <ImportanceRow client={c} />
+    </section>
+  );
+}
+
 /** Edit box for the client's Elements link (opened from the cog beside the Iris Elements button). It flows through to all their jobs. */
-function ElementsEditor({ client: c, onClose }: { client: Client; onClose: () => void }) {
+function ElementsEditor({ client: c, onClose, inline = false }: { client: Client; onClose: () => void; inline?: boolean }) {
   const { update } = useData();
   const [draft, setDraft] = useState(String(c.ElementsLink || ""));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [done, setDone] = useState(false);
   const saveIt = async () => {
+    setDone(false);
     const v = draft.trim();
     if (v && !/^https:\/\/\S+$/i.test(v)) return setError("That should be a full web address starting https://");
     setBusy(true);
     try {
       if (v !== String(c.ElementsLink || "")) await update("Clients", c, { ElementsLink: v });
-      onClose();
+      setError(undefined);
+      if (inline) setDone(true); else onClose();
     } catch {
       setError("Couldn't save. Your change is still here; try again.");
     } finally {
@@ -798,10 +815,11 @@ function ElementsEditor({ client: c, onClose }: { client: Client; onClose: () =>
     <div className="row-wrap" style={{ gap: 10 }}>
       <span className="elements-edit">
         <label className="sr-only" htmlFor="elements-link-input">Elements link for {c.Title}</label>
-        <input id="elements-link-input" className="input" value={draft} placeholder="https://elements.iris.co.uk/…" autoFocus
+        <input id="elements-link-input" className="input" value={draft} placeholder="https://elements.iris.co.uk/…" autoFocus={!inline}
           onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void saveIt(); if (e.key === "Escape") onClose(); }} />
         <button type="button" className="btn small primary" onClick={saveIt} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
-        <button type="button" className="btn small" onClick={onClose} disabled={busy}>Cancel</button>
+        {!inline && <button type="button" className="btn small" onClick={onClose} disabled={busy}>Cancel</button>}
+        {done && <span role="status" className="muted">Saved.</span>}
         {error && <span className="error-text" role="alert">{error}</span>}
       </span>
     </div>

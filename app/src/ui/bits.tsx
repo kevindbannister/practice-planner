@@ -50,7 +50,7 @@ export function DeadlineChip({ job, today = todayIso() }: { job: Job; today?: st
 
 export type IconName =
   | "check" | "close" | "search" | "left" | "right" | "alert" | "plan" | "clients" | "groups" | "settings" | "sun" | "moon"
-  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag" | "up" | "down" | "letter" | "refresh" | "copy" | "cog";
+  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag" | "up" | "down" | "letter" | "refresh" | "copy" | "cog" | "layout";
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", "aria-hidden": true } as const;
@@ -63,6 +63,8 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       );
+    case "layout":
+      return <svg {...common}><rect x="2" y="2.5" width="5" height="11" rx="1.2" {...stroke} /><rect x="9" y="2.5" width="5" height="4.5" rx="1.2" {...stroke} /><rect x="9" y="9" width="5" height="4.5" rx="1.2" {...stroke} /></svg>;
     case "check":
       return <svg {...common}><path d="M3 8.5l3 3 7-7" {...stroke} /></svg>;
     case "close":
