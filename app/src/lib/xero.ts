@@ -24,10 +24,10 @@ export type ScopeGroup = { key: string; label: string; scopes: string[]; classic
 /** What the app can ask Xero for. "classic" is the older broad scope for apps made before 2 March 2026. */
 export const SCOPE_GROUPS: ScopeGroup[] = [
   { key: "core", label: "Organisation details, chart of accounts and contacts", scopes: ["accounting.settings.read", "accounting.contacts.read"], required: true },
-  { key: "reports", label: "Trial balance, bank summary and aged reports", scopes: ["accounting.reports.trialbalance.read", "accounting.reports.banksummary.read", "accounting.reports.aged.read"], classic: ["accounting.reports.read"] },
-  { key: "ledger", label: "Nominal ledger transactions (Xero's Account Data API, in beta)", scopes: ["accountdata.balances.read", "accountdata.transactions.read"], note: "Shows every transaction behind each account. If Xero refuses it when you connect, your app hasn't got the beta yet: untick it and the ledger is rebuilt from the documents below." },
+  { key: "reports", label: "Trial balance and bank summary reports", scopes: ["accounting.reports.trialbalance.read", "accounting.reports.banksummary.read"], classic: ["accounting.reports.read"] },
+  { key: "ledger", label: "Nominal ledger transactions (Xero's Account Data API, in beta)", scopes: ["accountdata.balances.read", "accountdata.transactions.read"], offByDefault: true, note: "Shows every transaction behind each account. It isn't in the list of scopes most Xero apps can pick: Xero has to switch the beta on for your app first. Until then leave it unticked and the ledger is rebuilt from the documents below." },
   { key: "documents", label: "Invoices, bills, credit notes, payments, bank transactions and manual journals", scopes: ["accounting.invoices.read", "accounting.payments.read", "accounting.banktransactions.read", "accounting.manualjournals.read"], classic: ["accounting.transactions.read"], note: "Used for unreconciled bank items, and to rebuild the ledger when the Account Data API isn't available." },
-  { key: "payroll", label: "Payroll (UK): pay runs and payslips", scopes: ["payroll.payruns.read", "payroll.payslip.read", "payroll.employees.read"] },
+  { key: "payroll", label: "Payroll (UK): pay runs and payslips", scopes: ["payroll.payruns.read", "payroll.payslip.read"] },
   { key: "journals", label: "Full journals (only if Xero has approved your app for the Journals endpoint)", scopes: ["accounting.journals.read"], offByDefault: true, note: "Xero limits this to approved apps on its Advanced tier, and apps made after 2 March 2026 can't ask for it." },
 ];
 
@@ -609,7 +609,7 @@ export async function readFromXero(
       log.push(`Trial balance at ${to}: ${tb.length} accounts, debits ${dr.toFixed(2)}, credits ${cr.toFixed(2)}${Math.abs(dr - cr) > 0.004 ? " (doesn't balance)" : ""}. Last year's: ${priorTb.length} accounts.`);
     } catch (e) {
       if (!scopeMissing(e)) throw e;
-      problems.push("The trial balance couldn't be read: tick \"Trial balance, bank summary and aged reports\" in Settings › Xero and connect again.");
+      problems.push("The trial balance couldn't be read: tick \"Trial balance and bank summary reports\" in Settings › Xero and connect again.");
     }
   }
 

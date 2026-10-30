@@ -9,7 +9,7 @@ import {
   DEFAULT_OPTIONS, ImportPart, contactBalances, ledgerCheck, parseTrialBalance, payrollByMonth, r2, readFromXero, scopesFor, vatByQuarter, vatPeriods, xDate, yearStart, matchClient,
 } from "../src/lib/xero";
 
-const connected = (groups = DEFAULT_OPTIONS.groups) => {
+const connected = (groups = [...DEFAULT_OPTIONS.groups, "ledger"]) => {
   let sealed: string | undefined = "demo:" + btoa(JSON.stringify(scopesFor({ groups, classic: false })));
   return new FakeXero({ read: () => sealed, write: (s) => void (sealed = s) });
 };
@@ -27,8 +27,9 @@ test("dates and years", () => {
 
 test("scopes: granular by default, the older broad ones for older apps", () => {
   const s = scopesFor(DEFAULT_OPTIONS);
-  assert.ok(s.includes("accounting.reports.trialbalance.read") && s.includes("accountdata.transactions.read") && s.includes("payroll.payslip.read"));
-  assert.ok(!s.includes("accounting.journals.read"));
+  assert.ok(s.includes("accounting.reports.trialbalance.read") && !s.includes("accountdata.transactions.read") && s.includes("payroll.payslip.read"));
+  assert.ok(!s.includes("accounting.journals.read") && !s.includes("accounting.reports.aged.read") && !s.includes("payroll.employees.read"));
+  assert.ok(scopesFor({ ...DEFAULT_OPTIONS, groups: [...DEFAULT_OPTIONS.groups, "ledger"] }).includes("accountdata.transactions.read"));
   const old = scopesFor({ ...DEFAULT_OPTIONS, classic: true });
   assert.ok(old.includes("accounting.reports.read") && old.includes("accounting.transactions.read") && !old.includes("accounting.invoices.read"));
 });
