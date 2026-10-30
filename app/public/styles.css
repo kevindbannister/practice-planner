@@ -2499,4 +2499,14 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
   .paper-main textarea.input { min-height: 0; }
   .paper-main .lead-toggle { min-height: 26px; }
   .paper-main .linkbtn, .paper-main .iconbtn { min-height: 28px; }
+  /* line tables: boxes fill their column from the left (a lead schedule's right-aligned 130px boxes were leaking into them), small remove button, faint column lines */
+  .paper-main table.lines .input.cell { width: 100%; max-width: none; margin-left: 0; display: block; text-align: left; }
+  .paper-main table.grid.lines td .input.money.cell, .paper-main table.grid.lines td.num .input.cell { text-align: right; max-width: none; }
+  .paper-main table.lines td { padding: 2px 6px; vertical-align: middle; }
+  .paper-main table.lines th { padding: 5px 8px; }
+  .paper-main table.lines th:first-child, .paper-main table.lines td:first-child { padding-left: 6px; }
+  .paper-main table.lines th + th, .paper-main table.lines td + td { border-left: 1px solid color-mix(in srgb, var(--line) 55%, transparent); }
+  .paper-main table.lines td:last-child, .paper-main table.lines th:last-child { width: 30px; padding: 2px 4px; text-align: center; }
+  .paper-main table.lines .iconbtn { width: 22px; height: 22px; min-width: 22px; min-height: 22px; border-radius: 6px; padding: 0; }
+  .paper-main table.lines .iconbtn svg { width: 11px; height: 11px; }
 }
