@@ -2461,3 +2461,15 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 @media (min-width: 721px) {
   .bar-actions.collapsed .bar-actions-in { overflow: hidden; clip-path: none; }
 }
+
+/* the ledger behind a trial balance account: tight rows, like a ledger printout */
+.tb-ledger > td { padding: 4px 0 8px 12px; }
+.tb-ledger .stack, .ledger.stack { gap: 6px !important; }
+.ledger-wrap { max-height: 480px; border-radius: 8px; }
+table.grid.ledger-table { font-size: 12.5px; line-height: 1.25; }
+table.grid.ledger-table th { padding: 5px 10px; font-size: 11px; }
+table.grid.ledger-table td { padding: 3px 10px; }
+table.grid.ledger-table th:first-child, table.grid.ledger-table td:first-child { padding-left: 10px; }
+table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
+.ledger-bank { padding: 5px 10px; border-radius: 8px; }
+.ledger .row-wrap { gap: 6px; }
