@@ -2456,3 +2456,8 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .ovg-order li { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 0.5px solid var(--line-strong); border-radius: 12px; padding: 8px 10px; }
 .ovg-order-n { color: var(--muted); width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
 .ovg-order-l { flex: 1; font-weight: 600; }
+
+/* folded top-bar tools must not widen the page (their buttons were still sticking out sideways, giving a sideways scroll edge on tablets) */
+@media (min-width: 721px) {
+  .bar-actions.collapsed .bar-actions-in { overflow: hidden; clip-path: none; }
+}
