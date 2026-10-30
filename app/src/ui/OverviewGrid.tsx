@@ -8,7 +8,7 @@ import { COLS, COLUMN_CHOICES, GAP, MIN_W, ROW, Layout, Measured, autoHeight, co
 export type OverviewCard = { id: string; label: string; node: ReactNode };
 export type DefaultColumn = { w: number; ids: string[] };
 
-const NARROW = 900; // below this the cards stack in one column and can't be rearranged
+const NARROW = 900; // below this the cards stack in one column; that mobile order is arranged separately, with up and down buttons
 
 function savedFor(settings: { Key?: unknown; Value?: unknown }[], key: string): Saved | null {
   const row = settings.find((s) => s.Key === key);
@@ -65,11 +65,32 @@ export function OverviewGrid({ cards, columns, name, store: tab, arrangeSignal =
   const layout = useMemo(() => settle(draft ?? base, measured), [draft, base, measured]);
   const narrow = width > 0 && width < NARROW;
   const arranging = draft !== null && !narrow;
+  // The phone layout is one column, so it is just an order. It is saved separately from the desktop layout.
+  const mobileKey = `${tab}Mobile:${user || "me"}`;
+  const [mDraft, setMDraft] = useState<string[] | null>(null);
+  const savedMobile = useMemo(() => {
+    const row = data.settings.find((x) => x.Key === mobileKey);
+    try { const v = JSON.parse(String(row?.Value ?? "")); return Array.isArray(v) ? (v as unknown[]).map(String) : null; } catch { return null; }
+  }, [data.settings, mobileKey]);
+  const defaultOrder = useMemo(() => readingOrder(settle(base, measured)).filter((id) => ids.includes(id)), [base, measured, idKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mobileOrder = useMemo(() => {
+    if (!savedMobile) return defaultOrder;
+    const kept = savedMobile.filter((id, i) => ids.includes(id) && savedMobile.indexOf(id) === i);
+    return [...kept, ...defaultOrder.filter((id) => !kept.includes(id))];
+  }, [savedMobile, defaultOrder, idKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const arrangingM = mDraft !== null && narrow;
+  const moveM = (id: string, by: number) => setMDraft((d) => { if (!d) return d; const i = d.indexOf(id), j = i + by; if (i < 0 || j < 0 || j >= d.length) return d; const n = [...d]; [n[i], n[j]] = [n[j], n[i]]; return n; });
+  const saveM = async () => {
+    if (!mDraft) return;
+    setBusy(true); setErr("");
+    try { await saveSetting(mobileKey, JSON.stringify(mDraft) === JSON.stringify(defaultOrder) ? null : mDraft); setMDraft(null); } catch { setErr("Couldn't save the order. Try again."); } finally { setBusy(false); }
+  };
   const lastSignal = useRef(arrangeSignal);
   useEffect(() => {
     if (arrangeSignal === lastSignal.current) return;
     lastSignal.current = arrangeSignal;
-    if (!narrow && draft === null) { setNote(""); setDraftN(saved?.n); setDraft(settle(base, measured)); }
+    if (narrow) { if (mDraft === null) setMDraft([...mobileOrder]); }
+    else if (draft === null) { setNote(""); setDraftN(saved?.n); setDraft(settle(base, measured)); }
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
   // width of the area
@@ -170,10 +191,20 @@ export function OverviewGrid({ cards, columns, name, store: tab, arrangeSignal =
   };
   const setBody = useCallback((id: string) => (el: HTMLElement | null) => { if (el) bodies.current.set(id, el); else bodies.current.delete(id); }, []);
 
-  const stacked = narrow ? readingOrder(layout).map((id) => cards.find((c) => c.id === id)!).filter(Boolean) : null;
+  const stacked = narrow ? (mDraft ?? mobileOrder).map((id) => cards.find((c) => c.id === id)!).filter(Boolean) : null;
 
   return (
-    <div>
+    <div ref={wrap}>
+      {arrangingM && (
+        <div className="ovg-bar no-print" role="toolbar" aria-label={`Arrange ${name} for mobile`}>
+          <span className="muted">Phone and narrow view: use the arrows to put the cards in the order you want.</span>
+          <span className="grow" />
+          {err && <span className="error-text" role="alert">{err}</span>}
+          <button type="button" className="btn" onClick={() => setMDraft([...defaultOrder])} disabled={busy}>Standard order</button>
+          <button type="button" className="btn" onClick={() => { setMDraft(null); setErr(""); }} disabled={busy}>Cancel</button>
+          <button type="button" className="btn primary" onClick={() => void saveM()} disabled={busy}>{busy ? "Saving…" : "Save order"}</button>
+        </div>
+      )}
       {!narrow && (arranging || err) && (
         <div className="ovg-bar no-print" role="toolbar" aria-label={`Arrange ${name}`}>
           {arranging ? (
@@ -194,10 +225,15 @@ export function OverviewGrid({ cards, columns, name, store: tab, arrangeSignal =
         </div>
       )}
 
-      {stacked ? (
+      {stacked && arrangingM ? (
+        <ol className="ovg-order" aria-label="Card order">{stacked.map((c, i) => (
+          <li key={c.id}><span className="ovg-order-n">{i + 1}</span><span className="ovg-order-l">{c.label}</span>
+            <button type="button" className="btn iconbtn" aria-label={`Move ${c.label} up`} disabled={i === 0} onClick={() => moveM(c.id, -1)}>↑</button>
+            <button type="button" className="btn iconbtn" aria-label={`Move ${c.label} down`} disabled={i === stacked.length - 1} onClick={() => moveM(c.id, 1)}>↓</button></li>))}</ol>
+      ) : stacked ? (
         <div className="ov-col">{stacked.map((c) => <div key={c.id} className="ovg-stack">{c.node}</div>)}</div>
       ) : (
-        <div ref={wrap} className={`ovg${arranging ? " arranging" : ""}`} style={{ height: colW ? heightOf(layout, measured) * ROW : undefined }}>
+        <div className={`ovg${arranging ? " arranging" : ""}`} style={{ height: colW ? heightOf(layout, measured) * ROW : undefined }}>
           {colW > 0 && layout.map((it) => {
             const c = cards.find((x) => x.id === it.id);
             if (!c) return null;

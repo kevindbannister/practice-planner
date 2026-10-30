@@ -2450,4 +2450,9 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .tabs-row > .tabs { flex: 1; min-width: 0; border-bottom: 0; }
 .tabs-tools { display: inline-flex; gap: 6px; padding-bottom: 4px; flex: none; }
 .btn.iconbtn { width: 38px; min-width: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-@media (max-width: 720px) { .btn.iconbtn.tabs-arrange { display: none; } }
+
+/* Arranging the phone (one column) order */
+.ovg-order { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ovg-order li { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 0.5px solid var(--line-strong); border-radius: 12px; padding: 8px 10px; }
+.ovg-order-n { color: var(--muted); width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
+.ovg-order-l { flex: 1; font-weight: 600; }
