@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { FakeXero } from "../src/lib/fakeXero";
 import { acctKey } from "../src/lib/papers";
 import {
-  DEFAULT_OPTIONS, ImportPart, contactBalances, ledgerCheck, parseTrialBalance, payrollByMonth, r2, readFromXero, scopesFor, vatByQuarter, vatPeriods, xDate, yearStart, matchClient,
+  DEFAULT_OPTIONS, ImportPart, contactBalances, ledgerCheck, parseTrialBalance, payrollByMonth, r2, readFromXero, outstandingFromInvoices, scopesFor, vatByQuarter, vatPeriods, xDate, yearStart, matchClient,
 } from "../src/lib/xero";
 
 const connected = (groups = [...DEFAULT_OPTIONS.groups, "ledger"]) => {
@@ -123,4 +123,27 @@ test("a Xero organisation finds its client by name", () => {
   assert.equal(matchClient("The Kent Stove Company Ltd (demo figures)", clients)?.Key, "C1");
   assert.equal(matchClient("RYE BUILDERS LIMITED", clients)?.Key, "C2");
   assert.equal(matchClient("Someone Else Ltd", clients), undefined);
+});
+
+test("debtors and creditors from documents include the minus balances: unused credit notes, prepayments, overpayments", () => {
+  const invs = [
+    { Type: "ACCREC", Status: "AUTHORISED", Date: "2026-03-01", Total: 100, Contact: { Name: "Acme" } },
+    { Type: "ACCPAY", Status: "AUTHORISED", Date: "2026-03-01", Total: 60, Contact: { Name: "Bolt" } },
+  ];
+  const credits = [
+    { Type: "ACCRECCREDIT", Status: "AUTHORISED", Date: "2026-03-10", Total: 30, Contact: { Name: "Acme" }, Allocations: [{ Amount: 10, Date: "2026-03-15" }] },
+    { Type: "ACCRECCREDIT", Status: "AUTHORISED", Date: "2026-04-10", Total: 40, Contact: { Name: "Zed Ltd" } },
+    { Type: "RECEIVE-OVERPAYMENT", Status: "PAID", Date: "2026-02-01", Total: 25, Contact: { Name: "Zed Ltd" }, Allocations: [{ Amount: 25, Date: "2026-05-20" }] },
+    { Type: "ACCPAYCREDIT", Status: "AUTHORISED", Date: "2026-03-12", Total: 15, Contact: { Name: "Bolt" } },
+    { Type: "SPEND-PREPAYMENT", Status: "AUTHORISED", Date: "2026-03-12", Total: 5, Contact: { Name: "Cog" } },
+    { Type: "ACCRECCREDIT", Status: "AUTHORISED", Date: "2026-05-10", Total: 99, Contact: { Name: "Late" } },
+  ];
+  const deb = outstandingFromInvoices(invs, "ACCREC", "2026-04-30", credits);
+  const get = (l: { contact: string; balance: number }[], n: string) => l.find((x) => x.contact === n)?.balance;
+  assert.equal(get(deb, "Acme"), 80); // 100 less 20 of the credit note still unused
+  assert.equal(get(deb, "Zed Ltd"), -65); // 40 credit note plus 25 overpayment not yet allocated at the year end
+  assert.equal(get(deb, "Late"), undefined);
+  const cred = outstandingFromInvoices(invs, "ACCPAY", "2026-04-30", credits);
+  assert.equal(get(cred, "Bolt"), -45); // debit-signed: 60 owed less the 15 credit (the caller flips it to 45 owing)
+  assert.equal(get(cred, "Cog"), 5);
 });

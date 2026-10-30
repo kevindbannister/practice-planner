@@ -451,8 +451,21 @@ export function contactBalances(lines: LedgerLine[], controlKey: string): Contac
 }
 
 /** Outstanding at the year end from invoices and bills (when there's no ledger): total less payments and credits by then. */
-export function outstandingFromInvoices(invoices: Doc[], type: "ACCREC" | "ACCPAY", to: string): ContactBalance[] {
+export function outstandingFromInvoices(invoices: Doc[], type: "ACCREC" | "ACCPAY", to: string, credits: Doc[] = []): ContactBalance[] {
   const by = new Map<string, number>();
+  // credit notes, prepayments and overpayments not yet used against an invoice: the minus balances
+  for (const c of credits) {
+    const t = String(c.Type || "");
+    if (!(type === "ACCREC" ? /^(ACCRECCREDIT|RECEIVE-)/ : /^(ACCPAYCREDIT|SPEND-)/).test(t)) continue;
+    if (!["AUTHORISED", "PAID"].includes(c.Status)) continue;
+    if (xDate(c.DateString || c.Date) > to) continue;
+    let left = num(c.Total);
+    for (const a of c.Allocations || []) if (xDate(a.Date || a.DateString) <= to) left -= num(a.Amount);
+    for (const p of c.Payments || []) if (xDate(p.Date || p.DateString) <= to) left -= num(p.Amount);
+    if (Math.abs(left) < 0.005) continue;
+    const name = c.Contact?.Name || "(no contact)";
+    by.set(name, r2((by.get(name) || 0) + (type === "ACCREC" ? -left : left)));
+  }
   for (const inv of invoices) {
     if (inv.Type !== type || !["AUTHORISED", "PAID"].includes(inv.Status)) continue;
     if (xDate(inv.DateString || inv.Date) > to) continue;
@@ -695,10 +708,25 @@ export async function readFromXero(
       try {
         const open = `Date <= ${whereDate(to)} AND (Status == "AUTHORISED" OR FullyPaidOnDate > ${whereDate(to)})`;
         const invs = await pagedAccounting(api, id, "Invoices", "Invoices", { where: open }, (n) => say(`Reading unpaid invoices… ${n}`));
-        debtors = outstandingFromInvoices(invs, "ACCREC", to);
-        creditors = outstandingFromInvoices(invs, "ACCPAY", to).map((x) => ({ ...x, balance: -x.balance }));
+        // credits not yet used are the minus balances; if Xero won't show them, say so rather than leave them out silently
+        let credits: Doc[] = [];
+        let creditsMissing = false;
+        const cwhere = `Date <= ${whereDate(to)}`;
+        for (const [path, key] of [["CreditNotes", "CreditNotes"], ["Prepayments", "Prepayments"], ["Overpayments", "Overpayments"]] as const) {
+          try {
+            say(`Reading ${path.replace(/s$/, "").toLowerCase()}s…`);
+            credits = credits.concat(await pagedAccounting(api, id, path, key, { where: cwhere }));
+          } catch (e) {
+            if (!scopeMissing(e) && !(e instanceof XeroError && e.code === "not-found")) throw e;
+            creditsMissing = true;
+          }
+        }
+        debtors = outstandingFromInvoices(invs, "ACCREC", to, credits);
+        creditors = outstandingFromInvoices(invs, "ACCPAY", to, credits).map((x) => ({ ...x, balance: -x.balance }));
         done = true;
-        book.notes.push("Customers' and suppliers' balances are from invoices and bills less payments and credits dated by the year end; unallocated credit notes and overpayments aren't included.");
+        book.notes.push(creditsMissing
+          ? "Customers' and suppliers' balances are from invoices and bills less payments and credits dated by the year end. Xero wouldn't show some credit notes, prepayments or overpayments, so those minus balances may be missing."
+          : "Customers' and suppliers' balances are from invoices and bills less payments and credits dated by the year end, including credit notes, prepayments and overpayments not yet used (the minus balances).");
       } catch (e) {
         if (!scopeMissing(e)) throw e;
         problems.push("Customers' and suppliers' balances couldn't be worked out without the ledger or the invoices.");
