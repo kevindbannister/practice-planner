@@ -2473,3 +2473,30 @@ table.grid.ledger-table th:first-child, table.grid.ledger-table td:first-child {
 table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 .ledger-bank { padding: 5px 10px; border-radius: 8px; }
 .ledger .row-wrap { gap: 6px; }
+
+/* working papers: tighter main sections (desktop and tablet; phones keep their larger tap targets) */
+@media (min-width: 721px) {
+  .paper-main { gap: 10px; }
+  .paper-main .card.pad { padding: 14px 16px; }
+  .paper-main .card-head { padding: 10px 16px; }
+  .paper-main .stack { gap: 8px; }
+  .paper-main table.grid:not(.ledger-table) { font-size: 13px; line-height: 1.3; }
+  .paper-main table.grid:not(.ledger-table) th { padding: 6px 10px; font-size: 11.5px; }
+  .paper-main table.grid:not(.ledger-table) td { padding: 4px 10px; }
+  .paper-main table.grid:not(.ledger-table) th:first-child, .paper-main table.grid:not(.ledger-table) td:first-child { padding-left: 12px; }
+  .paper-main table.lines .input.cell { min-height: 28px; padding: 2px 8px; font-size: 13px; border-radius: 6px; }
+  .paper-main table.lines select.input.cell { padding-right: 22px; }
+  .paper-main .lead-label td { padding-top: 8px; padding-bottom: 3px; }
+  .paper-main .paper-stat { padding: 5px 10px; min-width: 130px; }
+  .paper-main .paper-stat strong { font-size: 14px; }
+  .paper-main .stat-row, .paper-main .setup-row { gap: 8px; }
+  .paper-main .setup-field { gap: 2px; }
+  .paper-main table.grid:not(.ledger-table) .input { min-height: 28px; padding-top: 2px; padding-bottom: 2px; font-size: 13px; border-radius: 6px; }
+  .paper-main table.grid:not(.ledger-table) td .input.money, .paper-main table.lead td .input { max-width: 150px; }
+  .paper-main .seg button { min-height: 30px; padding: 0 12px; font-size: 13px; }
+  .paper-main .seg { border-radius: 8px; }
+  .paper-main .lead-mode { gap: 6px; }
+  .paper-main textarea.input { min-height: 0; }
+  .paper-main .lead-toggle { min-height: 26px; }
+  .paper-main .linkbtn, .paper-main .iconbtn { min-height: 28px; }
+}
