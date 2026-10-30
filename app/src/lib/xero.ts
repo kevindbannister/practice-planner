@@ -620,27 +620,32 @@ export async function readFromXero(
 
   // the nominal ledger
   let docs: Documents | null = null;
+  const docGaps: string[] = [];
+  let docWhy = "";
   const readDocs = async (): Promise<Documents | null> => {
     if (docs) return docs;
-    try {
-      const between = `Date >= ${whereDate(from)} AND Date <= ${whereDate(to)}`;
-      say("Reading invoices and bills…");
-      const invoices = await pagedAccounting(api, id, "Invoices", "Invoices", { where: between }, (n) => say(`Reading invoices and bills… ${n}`));
-      say("Reading credit notes…");
-      const creditNotes = await pagedAccounting(api, id, "CreditNotes", "CreditNotes", { where: between });
-      say("Reading payments…");
-      const payments = await pagedAccounting(api, id, "Payments", "Payments", { where: between }, (n) => say(`Reading payments… ${n}`));
-      say("Reading bank transactions…");
-      const bankTransactions = await pagedAccounting(api, id, "BankTransactions", "BankTransactions", { where: between }, (n) => say(`Reading bank transactions… ${n}`));
-      const bankTransfers = ((await api.get(id, "accounting", "BankTransfers", { where: between })) as any)?.BankTransfers || [];
-      say("Reading manual journals…");
-      const manualJournals = await pagedAccounting(api, id, "ManualJournals", "ManualJournals", { where: between });
-      docs = { invoices, creditNotes, payments, bankTransactions, bankTransfers, manualJournals };
-      return docs;
-    } catch (e) {
-      if (!scopeMissing(e)) throw e;
-      return null;
-    }
+    const between = `Date >= ${whereDate(from)} AND Date <= ${whereDate(to)}`;
+    // each kind is read on its own: Xero can refuse one (a user without bank access, say) and still allow the rest
+    const part = async <T,>(label: string, fn: () => Promise<T>, empty: T): Promise<T> => {
+      say(`Reading ${label}…`);
+      try {
+        return await fn();
+      } catch (e) {
+        if (!scopeMissing(e)) throw e;
+        docGaps.push(label);
+        if (!docWhy && e instanceof XeroError) docWhy = e.message;
+        return empty;
+      }
+    };
+    const invoices = await part("invoices and bills", () => pagedAccounting(api, id, "Invoices", "Invoices", { where: between }, (n) => say(`Reading invoices and bills… ${n}`)), [] as Doc[]);
+    if (docGaps.includes("invoices and bills")) return null;
+    const creditNotes = await part("credit notes", () => pagedAccounting(api, id, "CreditNotes", "CreditNotes", { where: between }), [] as Doc[]);
+    const payments = await part("payments", () => pagedAccounting(api, id, "Payments", "Payments", { where: between }, (n) => say(`Reading payments… ${n}`)), [] as Doc[]);
+    const bankTransactions = await part("bank transactions", () => pagedAccounting(api, id, "BankTransactions", "BankTransactions", { where: between }, (n) => say(`Reading bank transactions… ${n}`)), [] as Doc[]);
+    const bankTransfers = await part("bank transfers", async () => ((await api.get(id, "accounting", "BankTransfers", { where: between })) as any)?.BankTransfers || [], [] as Doc[]);
+    const manualJournals = await part("manual journals", () => pagedAccounting(api, id, "ManualJournals", "ManualJournals", { where: between }), [] as Doc[]);
+    docs = { invoices, creditNotes, payments, bankTransactions, bankTransfers, manualJournals };
+    return docs;
   };
 
   let ledgerFromApi = false;
@@ -658,9 +663,10 @@ export async function readFromXero(
         book.lines = rebuildLedger(d, accounts, from, to);
         book.source = "rebuilt";
         log.push(`Nominal ledger: ${book.lines.length} lines rebuilt from ${d.invoices.length} invoices and bills, ${d.payments.length} payments, ${d.bankTransactions.length} bank transactions and ${d.manualJournals.length} manual journals (the Account Data API isn't available to this connection).`);
+        if (docGaps.length) book.notes.push(`Xero wouldn't let this connection read ${docGaps.join(", ")}, so the ledger is missing those.`);
         book.notes.push("Rebuilt from documents: payroll postings, fixed asset depreciation, currency revaluations and conversion balances aren't included, so some accounts won't reach the trial balance.");
       } else {
-        problems.push("The nominal ledger couldn't be read: tick \"Nominal ledger transactions\" (or \"Invoices, bills…\") in Settings › Xero and connect again.");
+        problems.push(`The nominal ledger couldn't be read. ${docWhy || (e instanceof XeroError ? e.message : "")} If you've already ticked "Nominal ledger transactions" or "Invoices, bills…" in Settings › Xero and connected again, check your Xero user can see this organisation's invoices (Xero refuses a user with limited access, even when the app has the scope).`.replace(/\s+/g, " "));
       }
     }
     if (book.lines.length && tb.length) {
