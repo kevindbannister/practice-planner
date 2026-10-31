@@ -35,6 +35,7 @@ import { ClientFees } from "./FeesPanel";
 import { SigningRequests } from "./SigningRequests";
 import { XeroInvoices } from "./XeroInvoices";
 import { ClearanceCard, ClearanceTab } from "./Clearance";
+import { DisengageTab } from "./Disengage";
 import { AmlCard, AmlTab } from "./AmlTab";
 import { TaxRefsCard } from "./TaxRefs";
 import { ClientForms } from "./Forms";
@@ -46,7 +47,7 @@ import { officerName, pscName } from "../lib/cosecForms";
 import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
 import { sectionJobs, waitingOnClient } from "../lib/workGroups";
 
-export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "papers" | "numbers" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "invoices" | "clearance" | "aml" | "forms" | "portal" }) {
+export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "papers" | "numbers" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "invoices" | "clearance" | "disengage" | "aml" | "forms" | "portal" }) {
   const idx = useIndex();
   const { data: allData } = useData();
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
@@ -128,7 +129,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
           { label: "Communication", tabs: [{ key: "timeline", label: "Communication" }, { key: "activity", label: "Activity" }, { key: "comms", label: "Letters and emails", count: commsCount }, { key: "meetings", label: "Meetings", count: meetingsCount }] },
           { label: "Documents", tabs: [{ key: "signing", label: "Signing requests" }, { key: "forms", label: "Forms" }, { key: "portal", label: "Portal" }] },
           { label: "Finance", tabs: [{ key: "invoices", label: "Invoices" }, { key: "tax", label: "Tax payments", count: owingCount }, { key: "numbers", label: "Numbers" }] },
-          { label: "Compliance", tabs: [{ key: "aml", label: "AML" }, { key: "clearance", label: "Clearance" }] },
+          { label: "Compliance", tabs: [{ key: "aml", label: "AML" }, { key: "clearance", label: "Clearance" }, { key: "disengage", label: "Ceasing to act" }] },
         ];
         const to = (k: typeof tab) => (k === "overview" ? href("clients", c.Key) : href("clients", c.Key, k));
         const active = groups.find((g) => g.tabs.some((t) => t.key === tab)) || groups[0];
@@ -173,10 +174,11 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       {tab === "signing" && <SigningRequests client={c} />}
       {tab === "invoices" && <XeroInvoices client={c} />}
       {tab === "clearance" && <ClearanceTab client={c} />}
+      {tab === "disengage" && <DisengageTab client={c} />}
       {tab === "aml" && <AmlTab client={c} />}
       {tab === "forms" && <ClientForms client={c} />}
       {tab === "portal" && <div className="stack"><ClientPortalUsers client={c} /><ClientMessages client={c} /><ClientRequests client={c} /><ClientDocuments client={c} /></div>}
-      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "aml" || tab === "forms" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} arrangeSignal={arrangeTick} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : tab === "papers" ? <ClientPapers client={c} jobs={jobs} /> : tab === "numbers" ? <ClientNumbers client={c} /> : (
+      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "disengage" || tab === "aml" || tab === "forms" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} arrangeSignal={arrangeTick} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : tab === "papers" ? <ClientPapers client={c} jobs={jobs} /> : tab === "numbers" ? <ClientNumbers client={c} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>
