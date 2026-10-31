@@ -15,7 +15,7 @@ import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { Icon, companiesHouseUrl } from "./bits";
 import { readSetting, useData } from "./data";
-import { BookMeta, LedgerTable, bookKeyFor, useXeroBook } from "./XeroLedger";
+import { BookMeta, LedgerExtras, LedgerTable, bookKeyFor, useXeroBook } from "./XeroLedger";
 import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, IRIS_BUILT_IN, Mapping, accountsFigures, controlNote, mapTb, onSide, paperAccounts, parseChart, savedMaps, tbTotals } from "../lib/tbMap";
 
 // ------------------------------------------------------------------ saving
@@ -221,6 +221,7 @@ function TbItems({ section, sb }: { section: Section; sb: Sub }) {
   const [moving, setMoving] = useState<string>();
   const [ledger, setLedger] = useState<string>();
   const { book } = useXeroBook(w.setup("xero/main") as BookMeta);
+  const { data } = useData();
   if (!maps) return null;
   const base = `${section.key}/${sb.key}`;
   const keys = sb.kind === "register" ? [`${base}#cost`, `${base}#dep`] : sb.split ? [base, `${base}#after`] : [base];
@@ -234,6 +235,17 @@ function TbItems({ section, sb }: { section: Section; sb: Sub }) {
   };
   const cols = (hasJournals ? 6 : 4) + (book ? 1 : 0);
   const ledgerKey = (m: Mapping) => (book ? bookKeyFor(book, m.acct.key, m.acct.code) : undefined);
+  // which extra views suit an account: control accounts, VAT and PAYE, with the schedules they reconcile to
+  const ledgerExtras = (m: Mapping): LedgerExtras => {
+    const label = controlNote(m.acct.account, m.dest)?.label || "";
+    const kind: LedgerExtras["kind"] = /Debtors control/.test(label) ? "debtors" : /Creditors control/.test(label) ? "creditors" : /VAT control/.test(label) ? "vat" : /Payroll control/.test(label) && /paye|p a y e|national insurance/i.test(m.acct.account) ? "paye" : undefined;
+    if (!kind) return {};
+    const stagger = (w.setup("xero/main") as { stagger?: number[] }).stagger;
+    const n = (x: unknown) => (typeof x === "number" ? x : Number(x) || 0);
+    if (kind === "vat") return { kind, stagger, vat: linesFor(data.paperLines, w.client.Key, w.period, "vat", "returns").map((l) => ({ Detail: l.Detail, out: n(l.f.out), inp: n(l.f.in), paid: n(l.f.paid) })) };
+    if (kind === "paye") return { kind, payroll: linesFor(data.paperLines, w.client.Key, w.period, "wages", "records").map((l) => ({ Detail: l.Detail, due: Math.round((n(l.f.paye) + n(l.f.eeni) + n(l.f.erni)) * 100) / 100 })) };
+    return { kind };
+  };
   const countOf = (k?: string) => (book && k ? book.lines.reduce((n, l) => n + (l.a === k ? 1 : 0), 0) : 0);
   const side = (n: number, d: (typeof blocks)[number]["dest"]) => onSide(n, d.side);
   return (
@@ -279,7 +291,7 @@ function TbItems({ section, sb }: { section: Section; sb: Sub }) {
                           })()}
                         </tr>
                         {book && ledger === m.acct.key && ledgerKey(m) && (
-                          <tr className="tb-ledger"><td colSpan={cols}><LedgerTable book={book} accountKey={ledgerKey(m)!} name={m.acct.account} normal={b.dest.side} /></td></tr>
+                          <tr className="tb-ledger"><td colSpan={cols}><LedgerTable book={book} accountKey={ledgerKey(m)!} name={m.acct.account} normal={b.dest.side} extras={ledgerExtras(m)} /></td></tr>
                         )}
                         {open && (
                           <tr className="tb-move"><td colSpan={cols}>
