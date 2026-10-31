@@ -2,6 +2,7 @@
 // group, set importance, a task for each). Pure logic: the screen passes in what it has and gets back what to show
 // or what to save.
 import { Client, KIND_LABEL, amlLabel, contactName, importanceOf, loeLabel } from "./domain";
+import { CustomDef, CustomTest, Values, hasTest, matchCustom } from "./customFields";
 import { Row } from "./schema";
 
 export type Criteria = {
@@ -23,20 +24,23 @@ export type Criteria = {
   aml: "" | "attention" | "ok";
   loe: "" | "signed" | "missing";
   work: "" | "overdue" | "open" | "none";
+  /** Tests on the practice's own client fields. */
+  custom: CustomTest[];
 };
 
 export const NO_FILTERS: Criteria = {
   search: "", kind: "all", attention: false, group: "", services: [], serviceMode: "any", feeMin: null, feeMax: null, feeNone: false,
-  importance: "", vat: "", yearEnd: "", aml: "", loe: "", work: "",
+  importance: "", vat: "", yearEnd: "", aml: "", loe: "", work: "", custom: [],
 };
 
 /** What the screen knows about one client. `services` are the work the client currently has (not stopped). */
-export type FilterRow = { client: Client; groups: string[]; services: string[]; attention: boolean; open: number; overdue: number };
+export type FilterRow = { client: Client; groups: string[]; services: string[]; attention: boolean; open: number; overdue: number; /** values of the practice's own fields */ custom?: Values };
 
 const isCompany = (c: Client) => c.Kind === "Ltd" || c.Kind === "LLP";
 
-export function matchRow(f: Criteria, r: FilterRow): boolean {
+export function matchRow(f: Criteria, r: FilterRow, defs: CustomDef[] = []): boolean {
   const c = r.client;
+  if (f.custom.length && !matchCustom(defs, f.custom, r.custom || {})) return false;
   if (f.kind === "companies" && !isCompany(c)) return false;
   if (f.kind === "individuals" && isCompany(c)) return false;
   if (f.attention && !r.attention) return false;
@@ -73,12 +77,16 @@ export function matchRow(f: Criteria, r: FilterRow): boolean {
 /** How many filters are switched on, not counting the search box and the client type buttons (which are always in view). */
 export function activeFilters(f: Criteria): number {
   return [
-    f.attention, !!f.group, f.services.length > 0, f.feeMin !== null || f.feeMax !== null || f.feeNone, !!f.importance, !!f.vat, !!f.yearEnd, !!f.aml, !!f.loe, !!f.work,
+    f.attention, !!f.group, f.services.length > 0, f.feeMin !== null || f.feeMax !== null || f.feeNone, !!f.importance, !!f.vat, !!f.yearEnd, !!f.aml, !!f.loe, !!f.work, f.custom.some(hasTest),
   ].filter(Boolean).length;
 }
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
 const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => (allowed.includes(v as T) ? (v as T) : fallback);
+
+const readTests = (raw: unknown): CustomTest[] => (Array.isArray(raw) ? raw : []).filter((t): t is Record<string, unknown> => !!t && typeof t === "object" && typeof (t as Record<string, unknown>).key === "string").map((t) => ({
+  key: String(t.key), min: num(t.min), max: num(t.max), is: typeof t.is === "string" ? t.is : "", from: typeof t.from === "string" ? t.from : "", to: typeof t.to === "string" ? t.to : "",
+})).slice(0, 20);
 
 /** Reads saved criteria (older or damaged ones too) into a complete set. */
 export function readCriteria(raw: unknown): Criteria {
@@ -99,6 +107,7 @@ export function readCriteria(raw: unknown): Criteria {
     aml: pick(o.aml, ["", "attention", "ok"] as const, ""),
     loe: pick(o.loe, ["", "signed", "missing"] as const, ""),
     work: pick(o.work, ["", "overdue", "open", "none"] as const, ""),
+    custom: readTests(o.custom),
   };
 }
 
@@ -130,6 +139,12 @@ export const yearEndText = (ye?: string): string => {
 };
 
 export type ExportRow = FilterRow & { groupNames: string[]; serviceNames: string[]; nextJob?: string; nextDeadline?: string };
+/** The practice's own client fields, as extra columns on the export. */
+const withCustom = (table: string[][], rows: ExportRow[], defs: CustomDef[]): string[][] => {
+  const mine = defs.filter((d) => d.appliesTo === "client");
+  if (!mine.length) return table;
+  return table.map((row, i) => [...row, ...(i === 0 ? mine.map((d) => d.label) : mine.map((d) => { const v = String(rows[i - 1].custom?.[d.key] ?? ""); return d.type === "yesno" ? (v === "yes" ? "Yes" : v === "no" ? "No" : "") : v; }))]);
+};
 
 const q = (s: string) => `"${s.replace(/"/g, '""')}"`;
 /** A cell that opens as text in a spreadsheet, whatever it says (a leading = + - or @ would otherwise run as a formula). */
@@ -140,8 +155,8 @@ const cell = (v: string | number): string => {
 
 export const EXPORT_COLUMNS = ["Client", "Type", "Company number", "Year end", "Email", "Mobile", "Groups", "Services", "Annual fees", "Importance", "VAT registered", "AML", "Engagement letter", "Open jobs", "Overdue jobs", "Next job", "Next deadline"];
 
-export function exportTable(rows: ExportRow[]): string[][] {
-  return [
+export function exportTable(rows: ExportRow[], defs: CustomDef[] = []): string[][] {
+  return withCustom([
     EXPORT_COLUMNS,
     ...rows.map((r) => {
       const c = r.client;
@@ -151,7 +166,7 @@ export function exportTable(rows: ExportRow[]): string[][] {
         amlLabel(c.XamaStatus).text, loeLabel(c.LoEStatus).text, String(r.open), String(r.overdue), r.nextJob || "", r.nextDeadline || "",
       ];
     }),
-  ];
+  ], rows, defs);
 }
 export const toCsv = (table: string[][]): string => table.map((row) => row.map(cell).join(",")).join("\r\n");
 

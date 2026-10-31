@@ -1,4 +1,5 @@
 // The full client page: overview and work tabs, with editable contact and references.
+import { CustomDetailsCard } from "./CustomFields";
 import { XamaClientPanel } from "./XamaClientPanel";
 import { CisCard } from "./CisCard";
 import { cisStatus } from "../lib/cis";
@@ -254,6 +255,7 @@ function Overview({ client: c, jobs, arrangeSignal }: { client: Client; jobs: Jo
     { id: "fees", label: "Fee schedule", node: <ClientFees client={c} /> },
     ...(c.Kind === "Individual" ? [{ id: "portal", label: "Portal access", node: <IndividualPortalAccess client={c} /> }] : []),
     { id: "profile", label: "Company profile", node: <ProfileCard client={c} /> },
+    { id: "custom", label: "Your own details", node: <CustomDetailsCard clientKey={c.Key} /> },
     ...(company ? [{ id: "people", label: "Directors and people", node: <PeopleCard client={c} /> }] : []),
     { id: "contact", label: "Contact", node: (
     <EditableCard
@@ -308,7 +310,7 @@ function Overview({ client: c, jobs, arrangeSignal }: { client: Client; jobs: Jo
 
 const STANDARD_COLUMNS: DefaultColumn[] = [
   { w: 30, ids: ["work", "gaps", "services", "fees"] },
-  { w: 15, ids: ["profile", "portal", "contact", "refs", "addresses", "team"] },
+  { w: 15, ids: ["profile", "custom", "portal", "contact", "refs", "addresses", "team"] },
   { w: 15, ids: ["people", "compliance", "aml", "sales", "letters", "clearance", "memos", "cis"] },
 ];
 

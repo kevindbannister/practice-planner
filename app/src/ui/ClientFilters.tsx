@@ -8,6 +8,7 @@ import { readSetting, useData } from "./data";
 import { TASK_TYPES } from "./Editors";
 import { todayIso } from "../lib/domain";
 import { BulkEmail, BulkForm } from "./ClientBulk";
+import { CustomDef, CustomTest, hasTest } from "../lib/customFields";
 
 type Option = [string, string];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -60,7 +61,7 @@ function ServicePicker({ chosen, services, set }: { chosen: string[]; services: 
   );
 }
 
-export function FilterPanel({ f, set, groups, services }: { f: Criteria; set: (p: Partial<Criteria>) => void; groups: { key: string; title: string }[]; services: { key: string; title: string }[] }) {
+export function FilterPanel({ f, set, groups, services, custom = [] }: { f: Criteria; set: (p: Partial<Criteria>) => void; groups: { key: string; title: string }[]; services: { key: string; title: string }[]; custom?: CustomDef[] }) {
   return (
     <section className="card pad cf-panel" aria-label="More filters">
       <div className="cf-grid">
@@ -87,10 +88,31 @@ export function FilterPanel({ f, set, groups, services }: { f: Criteria; set: (p
         <Pick label="Year end" value={f.yearEnd} onChange={(v) => set({ yearEnd: v })} options={[["", "Any month"], ...MONTH_NAMES.map((m, i): Option => [String(i + 1).padStart(2, "0"), m])]} />
         <Pick label="AML" value={f.aml} onChange={(v) => set({ aml: v as Criteria["aml"] })} options={[["", "Any"], ["attention", "Needs attention"], ["ok", "In order"]]} />
         <Pick label="Engagement letter" value={f.loe} onChange={(v) => set({ loe: v as Criteria["loe"] })} options={[["", "Any"], ["signed", "Signed"], ["missing", "Not signed or none"]]} />
+        {custom.filter((d) => d.appliesTo === "client").map((d) => <CustomFilter key={d.key} def={d} test={f.custom.find((t) => t.key === d.key)} set={(t) => set({ custom: [...f.custom.filter((x) => x.key !== d.key), ...(hasTest(t) ? [t] : [])] })} />)}
         <Pick label="Open work" value={f.work} onChange={(v) => set({ work: v as Criteria["work"] })} options={[["", "Any"], ["overdue", "Has overdue work"], ["open", "Has open work"], ["none", "No open work"]]} />
       </div>
     </section>
   );
+}
+
+/** One of the practice's own fields as a filter: a range for numbers and dates, a pick for yes/no and choices, a search for text. */
+function CustomFilter({ def, test, set }: { def: CustomDef; test?: CustomTest; set: (t: CustomTest) => void }) {
+  const t: CustomTest = test || { key: def.key };
+  if (def.type === "number") return (
+    <div className="field"><span>{def.label}</span><div className="row-wrap" style={{ gap: 6, flexWrap: "nowrap" }}>
+      <Fee label={`${def.label} from`} placeholder="From" value={t.min ?? null} onChange={(n) => set({ ...t, min: n })} />
+      <Fee label={`${def.label} to`} placeholder="To" value={t.max ?? null} onChange={(n) => set({ ...t, max: n })} />
+    </div></div>
+  );
+  if (def.type === "date") return (
+    <div className="field"><span>{def.label}</span><div className="row-wrap" style={{ gap: 6, flexWrap: "nowrap" }}>
+      <input className="input" type="date" aria-label={`${def.label} from`} value={t.from || ""} onChange={(e) => set({ ...t, from: e.target.value })} />
+      <input className="input" type="date" aria-label={`${def.label} to`} value={t.to || ""} onChange={(e) => set({ ...t, to: e.target.value })} />
+    </div></div>
+  );
+  if (def.type === "text") return <label className="field"><span>{def.label}</span><input className="input" value={t.is || ""} placeholder="Contains" onChange={(e) => set({ ...t, is: e.target.value })} /></label>;
+  const opts: Option[] = def.type === "yesno" ? [["yes", "Yes"], ["no", "No"]] : def.options.map((o): Option => [o, o]);
+  return <Pick label={def.label} value={t.is || ""} onChange={(v) => set({ ...t, is: v })} options={[["", "Any"], ...opts]} />;
 }
 
 /** Saved filter combinations ("VAT clients", "Key clients without a signed letter"), kept in Settings. */
@@ -140,7 +162,7 @@ type Mode = "" | "group" | "importance" | "task" | "email" | "form";
  * What to do with the clients shown (or the ticked ones). Export and the email list change nothing; adding to a group,
  * setting importance and creating tasks write to the clients, so they say how many clients first and ask to confirm.
  */
-export function ActionBar({ targets, label, ticked }: { targets: ExportRow[]; label: string; ticked: boolean }) {
+export function ActionBar({ targets, label, ticked, custom = [] }: { targets: ExportRow[]; label: string; ticked: boolean; custom?: CustomDef[] }) {
   const { data, createMany, updateMany } = useData();
   const [mode, setMode] = useState<Mode>("");
   const [note, setNote] = useState("");
@@ -168,7 +190,7 @@ export function ActionBar({ targets, label, ticked }: { targets: ExportRow[]; la
   };
 
   const exportCsv = () => {
-    downloadFile(new TextEncoder().encode("﻿" + toCsv(exportTable(targets))), `Clients ${todayIso()}.csv`, "text/csv");
+    downloadFile(new TextEncoder().encode("﻿" + toCsv(exportTable(targets, custom))), `Clients ${todayIso()}.csv`, "text/csv");
     setNote(`Downloaded ${words}.`);
   };
   const copyEmails = async () => {

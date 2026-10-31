@@ -9,6 +9,8 @@ import { readTemplate } from "../lib/forms";
 import { newKey } from "../lib/planning";
 import { mailAllowed, outlookDraft, useCommsPrefs } from "./commsKit";
 import { useData } from "./data";
+import { useCustomDefs } from "./CustomFields";
+import { mergeValues, valuesOf } from "../lib/customFields";
 
 const nowIso = () => new Date().toISOString();
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -33,7 +35,9 @@ export function BulkEmail({ clients, done }: { clients: Client[]; done: (note: s
   const [progress, setProgress] = useState("");
   const [failed, setFailed] = useState<string[]>([]);
   const today = todayIso();
-  const plan = useMemo(() => planEmails(clients, subject, body, branding, today, data.comms), [clients, subject, body, branding, today, data.comms]);
+  const defs = useCustomDefs();
+  const customOf = useMemo(() => (key: string) => mergeValues(defs, "client", valuesOf(data.customValues, "client", key)), [defs, data.customValues]);
+  const plan = useMemo(() => planEmails(clients, subject, body, branding, today, data.comms, customOf), [clients, subject, body, branding, today, data.comms, customOf]);
   const first = plan.drafts[0];
   const blanks = [...new Set(plan.drafts.flatMap((d) => d.blanks))];
   const allowed = mailAllowed();
@@ -67,7 +71,7 @@ export function BulkEmail({ clients, done }: { clients: Client[]; done: (note: s
       <label className="field"><span>Subject</span><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Your records for the year end" list="bulk-starters" />
         <datalist id="bulk-starters">{EMAIL_STARTERS.map((s) => <option key={s} value={s} />)}</datalist></label>
       <label className="field"><span>Message</span><textarea className="input" rows={7} value={body} onChange={(e) => setBody(e.target.value)} /></label>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>Merge fields fill in each client's own details: {FIELD_HELP.join("  ")}. Your email signature is added.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 12 }}>Merge fields fill in each client's own details: {[...FIELD_HELP, ...defs.filter((d) => d.appliesTo === "client").map((d) => `{{client.custom.${d.key}}}`)].join("  ")}. Your email signature is added.</p>
       {plan.problems.map((p) => <p key={p} className="error-text" role="alert" style={{ margin: 0 }}>{p}</p>)}
       {first && !plan.problems.length && (
         <div className="import-list" aria-label="Preview">

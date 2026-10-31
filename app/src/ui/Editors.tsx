@@ -2,6 +2,7 @@
 // and jobs. Open them from anywhere with useEditor().open(...). Every field saves as
 // soon as it's changed.
 import { JobTime, TrackedHint } from "./JobTime";
+import { CustomValuesEditor } from "./CustomFields";
 import { StageMailOffer, StageMailSettings, useStageRules } from "./StageMail";
 import { StageRule, ruleOnMove } from "../lib/stageMail";
 import { createContext, ReactNode, useContext, useEffect, useId, useRef, useState } from "react";
@@ -337,6 +338,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       )}
 
       <JobTime job={job} stages={stages} current={current} open={isOpen(job)} />
+      <CustomValuesEditor kind="job" entityKey={job.Key} clientKey={job.ClientKey} />
       {mailOffer && <StageMailOffer job={job} rule={mailOffer.rule} stageName={mailOffer.stageName} onClose={() => setMailOffer(null)} />}
 
       {stages.length > 0 && (

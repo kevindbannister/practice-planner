@@ -1,4 +1,6 @@
 // Clients list with filters, and the quick look panel for the selected client.
+import { useCustomDefs } from "./CustomFields";
+import { valuesOf } from "../lib/customFields";
 import { useMemo, useState } from "react";
 import { Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtMoney, holdLabel, importanceLabel, importanceOf, isOnHold, jobState, loeLabel, recordGaps, todayIso } from "../lib/domain";
 import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, companiesHouseUrl, go, href, useRoute } from "./bits";
@@ -30,12 +32,13 @@ export function ClientsPage() {
         const attention = live.some((j) => j.Priority === "urgent" || jobState(j, today).state === "overdue");
         const services = [...(idx.servicesByClient.get(c.Key) || [])].filter((k) => !idx.servicesOff.has(`${c.Key}|${k}`));
         const groupRows = idx.groupsByMember.get(c.Key) || [];
-        return { client: c, next: jobs[0], groupRows, groups: groupRows.map((g) => String(g.Key)), services, attention, open: jobs.length, overdue };
+        return { client: c, next: jobs[0], groupRows, groups: groupRows.map((g) => String(g.Key)), services, attention, open: jobs.length, overdue, custom: valuesOf(data.customValues, "client", c.Key) };
       }),
-    [data.clients, idx, today],
+    [data.clients, data.customValues, idx, today],
   );
   const attentionCount = rows.filter((r) => r.attention).length;
-  const shown = rows.filter((r) => matchRow(f, r));
+  const customDefs = useCustomDefs();
+  const shown = rows.filter((r) => matchRow(f, r, customDefs));
   const serviceOptions = useMemo(() => data.services.filter((s) => s.Title).map((s) => ({ key: String(s.Key), title: String(s.Title) })).sort((a, b) => a.title.localeCompare(b.title)), [data.services]);
   const groupOptions = data.groups.map((g) => ({ key: String(g.Key), title: String(g.Title) }));
   const nFilters = activeFilters(f);
@@ -44,7 +47,7 @@ export function ClientsPage() {
   const chosen = shown.filter((r) => picked.has(r.client.Key));
   const targets = chosen.length ? chosen : shown;
   const exportRows: ExportRow[] = targets.map((r) => ({
-    client: r.client, groups: r.groups, services: r.services, attention: r.attention, open: r.open, overdue: r.overdue,
+    client: r.client, groups: r.groups, services: r.services, attention: r.attention, open: r.open, overdue: r.overdue, custom: r.custom,
     groupNames: r.groupRows.map((g) => String(g.Title)), serviceNames: r.services.map((k) => idx.serviceName.get(k) || k),
     nextJob: r.next ? String(r.next.Title || "") : "", nextDeadline: r.next?.Deadline ? fmtDate(r.next.Deadline) : "",
   }));
@@ -100,13 +103,13 @@ export function ClientsPage() {
           </button>
           {(nFilters > 0 || f.search || f.kind !== "all") && <button type="button" className="linkbtn" onClick={() => setF(NO_FILTERS)}>Clear filters</button>}
         </div>
-        {moreOpen && <FilterPanel f={f} set={set} groups={groupOptions} services={serviceOptions} />}
+        {moreOpen && <FilterPanel f={f} set={set} groups={groupOptions} services={serviceOptions} custom={customDefs} />}
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
           <ViewsBar f={f} apply={setF} />
           <span className="muted" aria-live="polite">{shown.length} of {data.clients.length} clients</span>
         </div>
         {shown.length > 0 && (
-          <ActionBar targets={exportRows} ticked={chosen.length > 0} label={chosen.length ? `${chosen.length} ticked` : `All ${shown.length} shown`} />
+          <ActionBar custom={customDefs} targets={exportRows} ticked={chosen.length > 0} label={chosen.length ? `${chosen.length} ticked` : `All ${shown.length} shown`} />
         )}
 
         <div className="card table-wrap">

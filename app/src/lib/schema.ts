@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -426,6 +426,11 @@ export const LISTS: ListDef[] = [
     // Time worked on a job, by stage: from the timer or typed in. One running timer at a time (a row with no Ended).
     key: "JobTime", displayName: "PP Job Time", description: "Practice Planner: time worked on each job by stage (timer and manual entries)",
     columns: [t("Key", true), t("PracticeId", true), t("JobKey", true), t("ClientKey", true), n("StageNo"), t("StageName"), t("Started"), t("Ended"), n("Hours"), t("Kind"), note("Note"), t("CreatedBy"), t("Created")],
+  },
+  {
+    // Values of the practice's own custom fields, one row per client or job. Json maps field key to value. The fields themselves are the Settings key custom-fields.
+    key: "CustomValues", displayName: "PP Custom Values", description: "Practice Planner: values of the practice's own fields on clients and jobs",
+    columns: [t("Key", true), t("PracticeId", true), t("Kind", true), t("EntityKey", true), t("ClientKey", true), note("Json"), t("Updated")],
   },
   ...portalLists(),
 ];

@@ -170,3 +170,29 @@ test("a task for each client: needs a name, and a second press doesn't double up
   assert.equal("DueDate" in bare, false);
   assert.equal("EstimateHours" in bare, false);
 });
+
+// ---- the practice's own fields
+import { readDefs } from "../src/lib/customFields.ts";
+import { exportTable as exportTableC, readCriteria as readCriteriaC, activeFilters as activeC, matchRow as matchC, NO_FILTERS as NONE } from "../src/lib/clientFilter.ts";
+
+const cdefs = readDefs([{ label: "Transactions", type: "number" }, { label: "CIS", type: "yesno" }]);
+const crow = (v: Record<string, string>) => ({ client: { Key: "C1", Title: "A Ltd", Kind: "Ltd" } as never, groups: [], services: [], attention: false, open: 0, overdue: 0, custom: v });
+
+test("filtering on the practice's own fields, counted as a filter and read back from a saved view", () => {
+  const f = { ...NONE, custom: [{ key: "transactions", min: 30 }] };
+  assert.equal(matchC(f, crow({ transactions: "40" }), cdefs), true);
+  assert.equal(matchC(f, crow({ transactions: "10" }), cdefs), false);
+  assert.equal(matchC(f, crow({}), cdefs), false);
+  assert.equal(activeC(f), 1);
+  assert.equal(activeC({ ...NONE, custom: [{ key: "transactions" }] }), 0);
+  assert.deepEqual(readCriteriaC(JSON.parse(JSON.stringify(f))).custom, [{ key: "transactions", min: 30, max: null, is: "", from: "", to: "" }]);
+  assert.deepEqual(readCriteriaC({ custom: "bad" }).custom, []);
+  assert.equal(readCriteriaC({}).custom.length, 0); // older saved views have none
+});
+
+test("export adds a column for each client field", () => {
+  const t = exportTableC([{ ...crow({ transactions: "40", cis: "yes" }), groupNames: [], serviceNames: [] }], cdefs);
+  assert.deepEqual(t[0].slice(-2), ["Transactions", "CIS"]);
+  assert.deepEqual(t[1].slice(-2), ["40", "Yes"]);
+  assert.equal(exportTableC([{ ...crow({}), groupNames: [], serviceNames: [] }])[0].length, 17); // no fields: the same columns as before
+});

@@ -11,8 +11,8 @@ import { Row } from "./schema";
 const s = (v: unknown) => String(v ?? "").trim();
 
 /** Merge fields for one client: everything in docFields, plus a friendly greeting and the first name. */
-export function bulkValues(client: Client, branding: Branding, today: string): Record<string, string> {
-  const v = resolveValues({ client, branding, today, reference: "" });
+export function bulkValues(client: Client, branding: Branding, today: string, custom: Record<string, string> = {}): Record<string, string> {
+  const v = { ...resolveValues({ client, branding, today, reference: "" }), ...custom };
   v["client.greeting"] = emailGreeting(client);
   v["client.first_name"] = s(client.ContactPreferred || client.ContactFirst);
   return v;
@@ -35,11 +35,11 @@ export type EmailPlan = {
 };
 
 /** The email for each client. Clients with no address, or who already have a drafted email with this subject, are left out. */
-export function planEmails(clients: Client[], subject: string, body: string, branding: Branding, today: string, comms: Row[]): EmailPlan {
+export function planEmails(clients: Client[], subject: string, body: string, branding: Branding, today: string, comms: Row[], custom: (clientKey: string) => Record<string, string> = () => ({})): EmailPlan {
   const problems: string[] = [];
   if (!subject.trim()) problems.push("Give the email a subject.");
   if (!body.trim()) problems.push("Write the message.");
-  const sample = clients[0] ? bulkValues(clients[0], branding, today) : {};
+  const sample = clients[0] ? bulkValues(clients[0], branding, today, custom(clients[0].Key)) : {};
   const bad = unknownFields(`${subject}\n${body}`, sample);
   if (bad.length) problems.push(`These merge fields don't exist: ${bad.map((k) => `{{${k}}}`).join(", ")}.`);
 
@@ -52,7 +52,7 @@ export function planEmails(clients: Client[], subject: string, body: string, bra
     const to = s(c.Email);
     if (!to) { noEmail.push(c); continue; }
     if (done.has(c.Key)) { already.push(c); continue; }
-    const values = bulkValues(c, branding, today);
+    const values = bulkValues(c, branding, today, custom(c.Key));
     drafts.push({ client: c, to, subject: fill(subject.trim(), values), body: fill(body, values), blanks: used.filter((k) => k in values && !s(values[k])) });
   }
   return { drafts, noEmail, already, problems };
