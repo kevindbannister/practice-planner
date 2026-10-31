@@ -27,6 +27,7 @@ export const SCOPE_GROUPS: ScopeGroup[] = [
   { key: "reports", label: "Trial balance and bank summary reports", scopes: ["accounting.reports.trialbalance.read", "accounting.reports.banksummary.read"], classic: ["accounting.reports.read"] },
   { key: "ledger", label: "Nominal ledger transactions (Xero's Account Data API, in beta)", scopes: ["accountdata.balances.read", "accountdata.transactions.read"], offByDefault: true, note: "Shows every transaction behind each account. It isn't in the list of scopes most Xero apps can pick: Xero has to switch the beta on for your app first. Until then leave it unticked and the ledger is rebuilt from the documents below." },
   { key: "documents", label: "Invoices, bills, credit notes, payments, bank transactions and manual journals", scopes: ["accounting.invoices.read", "accounting.payments.read", "accounting.banktransactions.read", "accounting.manualjournals.read"], classic: ["accounting.transactions.read"], note: "Used for unreconciled bank items, and to rebuild the ledger when the Account Data API isn't available." },
+  { key: "assets", label: "Fixed asset register (Xero's Assets API)", scopes: ["assets.read"], note: "Cost, additions, disposals and depreciation for each asset, into the Fixed assets registers." },
   { key: "payroll", label: "Payroll (UK): pay runs and payslips", scopes: ["payroll.payruns.read", "payroll.payslip.read"] },
   { key: "journals", label: "Full journals (only if Xero has approved your app for the Journals endpoint)", scopes: ["accounting.journals.read"], offByDefault: true, note: "Xero limits this to approved apps on its Advanced tier, and apps made after 2 March 2026 can't ask for it." },
 ];
@@ -562,9 +563,60 @@ export function payrollByMonth(runs: { paymentDate: string; slips: Doc[] }[]): P
   return [...by.values()].sort((a, b) => (a.month < b.month ? -1 : 1)).map((m) => ({ ...m, gross: r2(m.gross), paye: r2(m.paye), studentLoan: r2(m.studentLoan), eeni: r2(m.eeni), eepen: r2(m.eepen), erni: r2(m.erni), erpen: r2(m.erpen), net: r2(m.net) }));
 }
 
+// ------------------------------------------------------------------ fixed assets
+
+export type AssetLine = { Detail: string; Remark: string; f: Record<string, unknown> };
+export type AssetGroup = { sub: string; label: string; lines: AssetLine[]; costCf: number; depCf: number; nbvCf: number; types: string[] };
+
+/** Which Fixed assets schedule an asset type belongs in, by its name. Anything unrecognised goes to Plant and machinery. */
+const ASSET_SUBS: [string, string, RegExp][] = [
+  ["freehold", "Freehold property", /freehold|land|building|propert/i],
+  ["motor", "Motor vehicles", /vehicle|motor|\bcars?\b|\bvans?\b|lorr/i],
+  ["computer", "Computer equipment", /computer|laptop|\bit\b|hardware|software/i],
+  ["fixtures", "Fixtures and fittings", /fixture|fitting|furniture|office/i],
+  ["plant", "Plant and machinery", /plant|machine|equip|tool/i],
+];
+export const assetSubFor = (typeName: string) => ASSET_SUBS.find(([, , re]) => re.test(typeName)) || ASSET_SUBS[4];
+
+/**
+ * Xero's asset register as the papers' registers for one year. Xero reports each asset's accumulated depreciation
+ * at the start of its current financial year and to date, so the figures are right for the year still open in Xero;
+ * for an earlier year they are checked against the trial balance by the caller.
+ */
+export function registerFromAssets(assets: Doc[], types: Doc[], from: string, to: string): AssetGroup[] {
+  const typeName = new Map<string, string>();
+  for (const t of types) typeName.set(String(t.assetTypeId || ""), String(t.assetTypeName || ""));
+  const by = new Map<string, AssetGroup>();
+  for (const a of assets) {
+    const status = String(a.assetStatus || "").toUpperCase();
+    if (status === "DRAFT") continue;
+    const bought = xDate(a.purchaseDate), sold = a.disposalDate ? xDate(a.disposalDate) : "";
+    if (!bought || bought > to || (sold && sold < from)) continue;
+    const price = r2(num(a.purchasePrice));
+    const d = a.bookDepreciationDetail || {};
+    const prior = r2(num(d.priorAccumDepreciationAmount)), cur = r2(num(d.currentAccumDepreciationAmount));
+    const tn = String(a.assetType?.assetTypeName || typeName.get(String(a.assetTypeId || a.assetType?.assetTypeId || "")) || "");
+    const [sub, label] = assetSubFor(tn);
+    const inYear = bought >= from;
+    const soldNow = !!sold && sold >= from && sold <= to;
+    const depBf = inYear ? 0 : prior;
+    const charge = r2(cur - depBf);
+    const f: Record<string, unknown> = { date: bought, costBf: inYear ? 0 : price, add: inYear ? price : 0, depBf, chargeOver: charge };
+    if (soldNow) { f.disp = price; f.depDisp = cur; }
+    const bits = [a.assetNumber ? `Asset ${a.assetNumber}` : "", tn, soldNow ? `Sold ${sold}${a.disposalPrice !== undefined ? ` for ${num(a.disposalPrice).toFixed(2)}` : ""}` : ""].filter(Boolean);
+    const g = by.get(sub) || { sub, label, lines: [], costCf: 0, depCf: 0, nbvCf: 0, types: [] };
+    g.lines.push({ Detail: String(a.assetName || a.assetNumber || "Asset"), Remark: bits.join(" · "), f });
+    if (tn && !g.types.includes(tn)) g.types.push(tn);
+    if (!soldNow) { g.costCf = r2(g.costCf + price); g.depCf = r2(g.depCf + depBf + charge); }
+    g.nbvCf = r2(g.costCf - g.depCf);
+    by.set(sub, g);
+  }
+  return ASSET_SUBS.map(([k]) => by.get(k)).filter((g): g is AssetGroup => !!g);
+}
+
 // ------------------------------------------------------------------ the import
 
-export type ImportPart = "tb" | "ledger" | "lists" | "bank" | "vat" | "payroll";
+export type ImportPart = "tb" | "ledger" | "lists" | "bank" | "vat" | "payroll" | "assets";
 export type XeroImport = {
   tb: TbLine[];
   priorTb: TbLine[];
@@ -573,6 +625,7 @@ export type XeroImport = {
   creditors: ContactBalance[];
   vat: VatQuarter[];
   payroll: PayMonth[];
+  fixedAssets: AssetGroup[];
   /** short notes on what came in and what didn't */
   log: string[];
   problems: string[];
@@ -783,6 +836,48 @@ export async function readFromXero(
     }
   }
 
+  // fixed assets from the asset register
+  let fixedAssets: AssetGroup[] = [];
+  if (parts.has("assets")) {
+    say("Reading the fixed asset register…");
+    try {
+      const assets: Doc[] = [];
+      for (const status of ["REGISTERED", "DISPOSED"]) {
+        for (let page = 1; page < 100; page++) {
+          const j: any = await api.get(id, "assets", "Assets", { status, page, pageSize: 200 });
+          const list: Doc[] = j?.items || [];
+          assets.push(...list);
+          if (!list.length || (j?.pagination?.pageCount && page >= j.pagination.pageCount)) break;
+        }
+      }
+      let types: Doc[] = [];
+      try {
+        const t: any = await api.get(id, "assets", "AssetTypes");
+        types = Array.isArray(t) ? t : t?.items || [];
+      } catch (e) {
+        if (!scopeMissing(e) && !(e instanceof XeroError && e.code === "not-found")) throw e;
+      }
+      fixedAssets = registerFromAssets(assets, types, from, to);
+      log.push(`Fixed assets: ${assets.length} in Xero's register, ${fixedAssets.reduce((a, g) => a + g.lines.length, 0)} in the year's registers.`);
+      // agree each asset type's cost less depreciation to the trial balance
+      if (tb.length) {
+        for (const t of types) {
+          const cost = accounts.find((x) => x.id === t.fixedAssetAccountId), dep = accounts.find((x) => x.id === t.accumulatedDepreciationAccountId);
+          if (!cost) continue;
+          const tbNbv = r2((book.closing[cost.key] || 0) + (dep ? book.closing[dep.key] || 0 : 0));
+          const mine = fixedAssets.find((g) => g.types.includes(String(t.assetTypeName || "")));
+          const got = mine ? r2(mine.lines.length ? mine.nbvCf : 0) : 0;
+          if (mine && Math.abs(got - tbNbv) > 0.005 && fixedAssets.filter((g) => g.types.includes(String(t.assetTypeName || ""))).length === 1) {
+            book.notes.push(`${t.assetTypeName}: the register's net book value ${got.toFixed(2)} differs from the trial balance ${tbNbv.toFixed(2)}. Xero gives each asset's depreciation for its current financial year, so an earlier year, or a depreciation journal posted by hand, won't agree.`);
+          }
+        }
+      }
+    } catch (e) {
+      if (!scopeMissing(e)) throw e;
+      problems.push("The fixed asset register couldn't be read: tick \"Fixed asset register\" in Settings › Xero and connect again (and your Xero plan has to include fixed assets).");
+    }
+  }
+
   // payroll by month
   let payroll: PayMonth[] = [];
   if (parts.has("payroll")) {
@@ -816,7 +911,7 @@ export async function readFromXero(
     }
   }
 
-  return { tb, priorTb, book, debtors, creditors, vat, payroll, log, problems };
+  return { tb, priorTb, book, debtors, creditors, vat, payroll, fixedAssets, log, problems };
 }
 
 // ------------------------------------------------------------------ linking companies to Xero organisations

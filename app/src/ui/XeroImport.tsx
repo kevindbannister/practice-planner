@@ -18,6 +18,7 @@ const PARTS: [ImportPart, string, string][] = [
   ["lists", "Debtors and creditors listings", "Each customer's and supplier's balance at the year end, into Trade debtors and Trade creditors."],
   ["bank", "Bank", "Xero's bank summary and the items not reconciled at the year end, shown under each bank account."],
   ["vat", "VAT by quarter", "Output VAT, input VAT and payments for each quarter, into the VAT return summary."],
+  ["assets", "Fixed assets", "Each asset's cost, additions, disposals and depreciation from Xero's asset register, into the Fixed assets registers."],
   ["payroll", "Payroll", "Gross pay, PAYE, NI and pensions by month from Xero Payroll, into Wages records."],
 ];
 const STAGGERS: [string, number[]][] = [["Quarters to Mar, Jun, Sep, Dec", [3, 6, 9, 12]], ["Quarters to Apr, Jul, Oct, Jan", [1, 4, 7, 10]], ["Quarters to May, Aug, Nov, Feb", [2, 5, 8, 11]], ["Monthly returns", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]]];
@@ -67,7 +68,8 @@ export function XeroImport({ client, period }: { client: Client; period: string 
   const rowsOf = (p: string, sec: string, sub: string, list: { Code?: string; Detail?: string; Amount?: number; Remark?: string; f?: Record<string, unknown> }[]): Row[] => {
     const now = new Date().toISOString();
     return list.map((x, i) => {
-      const f = Object.fromEntries(Object.entries(x.f || {}).filter(([, v]) => v !== undefined && v !== "" && v !== 0));
+      // a typed charge of 0 means "no charge", so it stays; other zeros are just empty
+      const f = Object.fromEntries(Object.entries(x.f || {}).filter(([k, v]) => v !== undefined && v !== "" && (v !== 0 || k === "chargeOver")));
       return {
         Key: newKey("PL"), ClientKey: client.Key, PeriodEnd: p, SectionKey: sec, SubKey: sub, Code: x.Code || undefined, Detail: x.Detail || undefined, Amount: x.Amount,
         Remark: x.Remark || undefined, Figures: Object.keys(f).length ? JSON.stringify(f) : undefined, Seq: i + 1, Updated: now,
@@ -98,6 +100,9 @@ export function XeroImport({ client, period }: { client: Client; period: string 
       if (parts.has("vat") && r.vat.length && vatAcct) await w.writeSetup("vat/returns", { bf: r2(-(r.book.opening[vatAcct.key] || 0)) });
       if (parts.has("vat") && r.vat.length) {
         put(period, "vat", "returns", r.vat.map((q) => ({ Detail: q.label, f: { out: q.out, in: q.inp, paid: q.paid }, Remark: q.other ? `Other entries on the VAT account (journals): ${money(q.other)}` : "" })));
+      }
+      if (parts.has("assets")) {
+        for (const g of r.fixedAssets) put(period, "fixed", g.sub, g.lines.map((x) => ({ Detail: x.Detail, Remark: x.Remark, f: x.f })));
       }
       if (parts.has("payroll") && r.payroll.length) {
         put(period, "wages", "records", r.payroll.map((m) => ({ Detail: m.label, f: { gross: m.gross, paye: r2(m.paye + m.studentLoan), eeni: m.eeni, eepen: m.eepen, erni: m.erni, erpen: m.erpen }, Remark: m.studentLoan ? `PAYE includes student loan ${money(m.studentLoan)}` : "" })));
@@ -138,6 +143,7 @@ export function XeroImport({ client, period }: { client: Client; period: string 
     lists: mine(period, "debtors", "trade").length + mine(period, "creditors", "trade").length,
     vat: mine(period, "vat", "returns").length,
     payroll: mine(period, "wages", "records").length,
+    assets: ["freehold", "motor", "fixtures", "plant", "computer"].reduce((a, k) => a + mine(period, "fixed", k).length, 0),
   };
   return (
     <section className="card pad stack import-panel" aria-label="Import from Xero">

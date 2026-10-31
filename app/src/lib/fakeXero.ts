@@ -232,6 +232,22 @@ export class FakeXero implements XeroApi {
     return { currencyCode: "GBP", lines: page, pagination: more ? { pageSize: 200, nextToken: btoa(JSON.stringify({ ...state, offset: state.offset + 200 })) } : null };
   }
 
+  /** The asset register: three plant items whose cost and depreciation add up to the demo books' plant accounts. */
+  private assets(path: string, q: Query) {
+    const cost = byCode.get("720")!, dep = byCode.get("721")!;
+    const type = { assetTypeId: "11111111-1111-4111-8111-111111111111", assetTypeName: "Plant and Machinery", fixedAssetAccountId: cost.id, accumulatedDepreciationAccountId: dep.id, depreciationExpenseAccountId: byCode.get("416")?.id };
+    if (path === "AssetTypes") return [type];
+    if (path !== "Assets") throw new XeroError("not-found", "Xero returned an error (404).");
+    if (String(q.status) !== "REGISTERED" || Number(q.page || 1) > 1) return { pagination: { page: Number(q.page || 1), pageSize: 200, pageCount: 1, itemCount: 0 }, items: [] };
+    const priorTotal = -this.balanceAt("721", "2025-04-30"), curTotal = -this.balanceAt("721", "2026-04-30");
+    const items = [["Lathe", "PM-001", 18000, "2021-06-14"], ["Compressor", "PM-002", 9000, "2022-02-03"], ["Welding rig", "PM-003", 3000, "2023-09-21"]].map(([name, no, price, date]) => ({
+      assetId: `aaaaaaaa-0000-4000-8000-00000000000${String(no).slice(-1)}`, assetName: name, assetNumber: no, purchaseDate: xDateOut(String(date)), purchasePrice: price, assetStatus: "Registered", assetTypeId: type.assetTypeId,
+      bookDepreciationSetting: { depreciationMethod: "DiminishingValue100", depreciationRate: 0.25 },
+      bookDepreciationDetail: { priorAccumDepreciationAmount: Math.round(priorTotal * (Number(price) / 30000) * 100) / 100, currentAccumDepreciationAmount: Math.round(curTotal * (Number(price) / 30000) * 100) / 100 },
+    }));
+    return { pagination: { page: 1, pageSize: 200, pageCount: 1, itemCount: items.length }, items };
+  }
+
   private payroll(path: string, q: Query) {
     if (path === "PayRuns") {
       if (Number(q.page || 1) > 1) return { payRuns: [] };
@@ -338,6 +354,10 @@ export class FakeXero implements XeroApi {
     if (api === "accountdata") {
       this.need("ledger");
       return this.accountData(query) as T;
+    }
+    if (api === "assets") {
+      this.need("assets");
+      return this.assets(path, query) as T;
     }
     if (api === "payroll") {
       this.need("payroll");

@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { FakeXero } from "../src/lib/fakeXero";
 import { acctKey } from "../src/lib/papers";
 import {
-  DEFAULT_OPTIONS, ImportPart, contactBalances, ledgerCheck, parseTrialBalance, payrollByMonth, r2, readFromXero, outstandingFromInvoices, scopesFor, vatByQuarter, vatPeriods, xDate, yearStart, matchClient,
+  DEFAULT_OPTIONS, ImportPart, contactBalances, ledgerCheck, parseTrialBalance, payrollByMonth, r2, readFromXero, outstandingFromInvoices, registerFromAssets, scopesFor, vatByQuarter, vatPeriods, xDate, yearStart, matchClient,
 } from "../src/lib/xero";
 
 const connected = (groups = [...DEFAULT_OPTIONS.groups, "ledger"]) => {
@@ -146,4 +146,47 @@ test("debtors and creditors from documents include the minus balances: unused cr
   const cred = outstandingFromInvoices(invs, "ACCPAY", "2026-04-30", credits);
   assert.equal(get(cred, "Bolt"), -45); // debit-signed: 60 owed less the 15 credit (the caller flips it to 45 owing)
   assert.equal(get(cred, "Cog"), 5);
+});
+
+test("fixed assets: Xero's register becomes the papers' registers, by asset type, for the year", () => {
+  const types = [{ assetTypeId: "t1", assetTypeName: "Computer Equipment" }, { assetTypeId: "t2", assetTypeName: "Motor Vehicles" }];
+  const assets = [
+    { assetName: "Laptop", assetNumber: "FA-1", purchaseDate: "2024-06-01T00:00:00", purchasePrice: 1200, assetStatus: "Registered", assetTypeId: "t1", bookDepreciationDetail: { priorAccumDepreciationAmount: 300, currentAccumDepreciationAmount: 600 } },
+    { assetName: "New PC", assetNumber: "FA-2", purchaseDate: "2025-08-10T00:00:00", purchasePrice: 900, assetStatus: "Registered", assetTypeId: "t1", bookDepreciationDetail: { priorAccumDepreciationAmount: 0, currentAccumDepreciationAmount: 180 } },
+    { assetName: "Van", assetNumber: "FA-3", purchaseDate: "2022-01-01T00:00:00", purchasePrice: 10000, assetStatus: "Disposed", disposalDate: "2025-12-01T00:00:00", disposalPrice: 4000, assetTypeId: "t2", bookDepreciationDetail: { priorAccumDepreciationAmount: 6000, currentAccumDepreciationAmount: 7000 } },
+    { assetName: "Old car", assetNumber: "FA-4", purchaseDate: "2018-01-01T00:00:00", purchasePrice: 5000, assetStatus: "Disposed", disposalDate: "2024-01-01T00:00:00", assetTypeId: "t2", bookDepreciationDetail: {} },
+    { assetName: "Draft thing", purchaseDate: "2025-09-01T00:00:00", purchasePrice: 50, assetStatus: "Draft", assetTypeId: "t1", bookDepreciationDetail: {} },
+    { assetName: "Next year", purchaseDate: "2026-06-01T00:00:00", purchasePrice: 70, assetStatus: "Registered", assetTypeId: "t1", bookDepreciationDetail: {} },
+  ];
+  const g = registerFromAssets(assets, types, "2025-05-01", "2026-04-30");
+  assert.deepEqual(g.map((x) => x.sub), ["motor", "computer"]);
+  const comp = g.find((x) => x.sub === "computer")!;
+  assert.equal(comp.lines.length, 2);
+  assert.deepEqual([comp.costCf, comp.depCf, comp.nbvCf], [2100, 780, 1320]);
+  const laptop = comp.lines[0].f;
+  assert.deepEqual([laptop.costBf, laptop.add, laptop.depBf, laptop.chargeOver], [1200, 0, 300, 300]);
+  const pc = comp.lines[1].f;
+  assert.deepEqual([pc.costBf, pc.add, pc.depBf, pc.chargeOver], [0, 900, 0, 180]);
+  const van = g.find((x) => x.sub === "motor")!;
+  assert.equal(van.lines.length, 1);
+  assert.deepEqual([van.lines[0].f.disp, van.lines[0].f.depDisp, van.lines[0].f.chargeOver], [10000, 7000, 1000]);
+  assert.equal(van.nbvCf, 0);
+  assert.match(van.lines[0].Remark, /Sold 2025-12-01 for 4000.00/);
+});
+
+test("fixed assets: a full read from the demo Xero fills the plant register and agrees to the trial balance", async () => {
+  const x = await readFromXero(connected(), T, "2026-04-30", new Set<ImportPart>(["tb", "assets"]), { quarterEnds: [3, 6, 9, 12] });
+  assert.equal(x.problems.length, 0, x.problems.join(" "));
+  assert.equal(x.fixedAssets.length, 1);
+  const plant = x.fixedAssets[0];
+  assert.equal(plant.sub, "plant");
+  assert.equal(plant.lines.length, 3);
+  assert.equal(plant.costCf, 30000);
+  assert.ok(!x.book.notes.some((n) => /differs from the trial balance/.test(n)), x.book.notes.join(" | "));
+});
+
+test("fixed assets: refused by Xero, the import says which tick to use", async () => {
+  const x = await readFromXero(connected(DEFAULT_OPTIONS.groups.filter((g) => g !== "assets")), T, "2026-04-30", new Set<ImportPart>(["assets"]), { quarterEnds: [3, 6, 9, 12] });
+  assert.equal(x.fixedAssets.length, 0);
+  assert.ok(x.problems.some((p) => /Fixed asset register/.test(p)));
 });
