@@ -1,6 +1,7 @@
 // Side panels for editing a job (dates, stage, completion) and adding or editing tasks
 // and jobs. Open them from anywhere with useEditor().open(...). Every field saves as
 // soon as it's changed.
+import { JobTime, TrackedHint } from "./JobTime";
 import { createContext, ReactNode, useContext, useEffect, useId, useRef, useState } from "react";
 import {
   HOLD_WARN_DAYS, Job, Task, WAIT_KINDS, fmtDate, fmtHours, holdAlert, holdLabel, holdPatch, isOnHold, isOpen, jobState, resumePatch, todayIso,
@@ -327,6 +328,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         </section>
       )}
 
+      <JobTime job={job} stages={stages} current={current} open={isOpen(job)} />
+
       {stages.length > 0 && (
         <section className="stack" aria-labelledby="stages-h" style={{ gap: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -428,6 +431,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
                 </div>
               )}
               <TimePicker value={actual} onChange={setActual} estimate={jobHours(job, data.services)} label="How long did it take? (optional, sets next year's estimate; you can add it later)" />
+              <TrackedHint jobKey={job.Key} onUse={(h) => setActual(String(h))} />
               {error && <p className="error-text" role="alert">{error}</p>}
               <div className="form-actions">
                 <button type="button" className="btn" onClick={() => setCompleting(false)} disabled={busy}>Cancel</button>

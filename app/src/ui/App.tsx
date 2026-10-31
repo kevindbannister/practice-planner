@@ -29,6 +29,7 @@ import { SalesPage } from "./SalesPage";
 import { CoSecPage } from "./CoSecPage";
 import { AdvisoryPage } from "./AdvisoryPage";
 import { CoSecSync, setCoSecDemo } from "./cosecKit";
+import { TimerChip } from "./JobTime";
 import { useSales } from "./salesKit";
 import { salesAlerts } from "../lib/sales";
 import { onboardingAlerts } from "../lib/onboarding";
@@ -123,6 +124,7 @@ export function App({ demo }: { demo: boolean }) {
                 <TopBar section={section} demo={demo} ready={status === "ready"} />
                 {status === "ready" && <ActionSync />}
                 {status === "ready" && <CoSecSync />}
+                {status === "ready" && <TimerChip />}
                 <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
                   {body}
                 </PageBoundary>

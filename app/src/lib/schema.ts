@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -421,6 +421,11 @@ export const LISTS: ListDef[] = [
   {
     key: "AdvisoryPlans", displayName: "PP Advisory Plans", description: "Practice Planner: each advisory client's Freedom Plan (Freedom Number, where the business is now, levers). One row per client; Json holds the plan.",
     columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Kind", true), note("Json"), t("Created"), t("Updated"), t("UpdatedBy")],
+  },
+  {
+    // Time worked on a job, by stage: from the timer or typed in. One running timer at a time (a row with no Ended).
+    key: "JobTime", displayName: "PP Job Time", description: "Practice Planner: time worked on each job by stage (timer and manual entries)",
+    columns: [t("Key", true), t("PracticeId", true), t("JobKey", true), t("ClientKey", true), n("StageNo"), t("StageName"), t("Started"), t("Ended"), n("Hours"), t("Kind"), note("Note"), t("CreatedBy"), t("Created")],
   },
   ...portalLists(),
 ];

@@ -73,6 +73,7 @@ export type Data = {
   formTemplates: Row[];
   formRequests: Row[];
   advisoryPlans: Row[];
+  jobTime: Row[];
 };
 
 type Status = "connecting" | "needs-setup" | "loading" | "ready" | "error";
@@ -106,7 +107,7 @@ type Ctx = {
 const EMPTY: Data = {
   clients: [], contacts: [], groups: [], members: [], services: [], stageTemplates: [],
   clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [], comms: [], taxPayments: [], meetings: [], papers: [], paperLines: [], projects: [], docTemplates: [], docVersions: [], documents: [], activities: [],
-  checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [], feeHistory: [], feeCharges: [], clientCosts: [], actions: [], cosecEvents: [], cosecTx: [], cosecOfficers: [], cosecPscs: [], cosecShares: [], cosecShareClasses: [], clearances: [], amlAssessments: [], authorisations: [], hmrcAuths: [], cosecProfiles: [], cosecLedger: [], cosecImports: [], cosecCertificates: [], cosecDividends: [], cosecAccounts: [], hmrcEvents: [], formTemplates: [], formRequests: [], advisoryPlans: [],
+  checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [], feeHistory: [], feeCharges: [], clientCosts: [], actions: [], cosecEvents: [], cosecTx: [], cosecOfficers: [], cosecPscs: [], cosecShares: [], cosecShareClasses: [], clearances: [], amlAssessments: [], authorisations: [], hmrcAuths: [], cosecProfiles: [], cosecLedger: [], cosecImports: [], cosecCertificates: [], cosecDividends: [], cosecAccounts: [], hmrcEvents: [], formTemplates: [], formRequests: [], advisoryPlans: [], jobTime: [],
 };
 
 const DataContext = createContext<Ctx | null>(null);
@@ -127,7 +128,7 @@ export const SOURCE: [keyof Data, ListKey][] = [
   ["clientStages", "ClientServiceStages"], ["jobs", "Jobs"], ["history", "JobHistory"], ["tasks", "Tasks"],
   ["settings", "Settings"], ["chFlags", "CHFlags"], ["comms", "Communications"], ["taxPayments", "TaxPayments"], ["meetings", "Meetings"], ["papers", "WorkingPapers"], ["paperLines", "PaperLines"], ["projects", "Projects"],
   ["docTemplates", "DocTemplates"], ["docVersions", "DocVersions"], ["documents", "Documents"], ["activities", "Activities"],
-  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"], ["feeHistory", "FeeHistory"], ["feeCharges", "FeeCharges"], ["clientCosts", "ClientCosts"], ["actions", "Actions"], ["cosecEvents", "CoSecEvents"], ["cosecTx", "CoSecTransactions"], ["cosecOfficers", "CoSecOfficers"], ["cosecPscs", "CoSecPscs"], ["cosecShares", "CoSecShares"], ["cosecShareClasses", "CoSecShareClasses"], ["clearances", "Clearances"], ["amlAssessments", "AmlAssessments"], ["authorisations", "Authorisations"], ["hmrcAuths", "HmrcAuthorisations"], ["cosecProfiles", "CoSecProfiles"], ["cosecLedger", "CoSecLedger"], ["cosecImports", "CoSecImports"], ["cosecCertificates", "CoSecCertificates"], ["cosecDividends", "CoSecDividends"], ["cosecAccounts", "CoSecAccounts"], ["hmrcEvents", "HmrcAuthEvents"], ["formTemplates", "FormTemplates"], ["formRequests", "FormRequests"], ["advisoryPlans", "AdvisoryPlans"],
+  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"], ["feeHistory", "FeeHistory"], ["feeCharges", "FeeCharges"], ["clientCosts", "ClientCosts"], ["actions", "Actions"], ["cosecEvents", "CoSecEvents"], ["cosecTx", "CoSecTransactions"], ["cosecOfficers", "CoSecOfficers"], ["cosecPscs", "CoSecPscs"], ["cosecShares", "CoSecShares"], ["cosecShareClasses", "CoSecShareClasses"], ["clearances", "Clearances"], ["amlAssessments", "AmlAssessments"], ["authorisations", "Authorisations"], ["hmrcAuths", "HmrcAuthorisations"], ["cosecProfiles", "CoSecProfiles"], ["cosecLedger", "CoSecLedger"], ["cosecImports", "CoSecImports"], ["cosecCertificates", "CoSecCertificates"], ["cosecDividends", "CoSecDividends"], ["cosecAccounts", "CoSecAccounts"], ["hmrcEvents", "HmrcAuthEvents"], ["formTemplates", "FormTemplates"], ["formRequests", "FormRequests"], ["advisoryPlans", "AdvisoryPlans"], ["jobTime", "JobTime"],
 ];
 const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 

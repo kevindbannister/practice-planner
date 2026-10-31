@@ -2584,3 +2584,10 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 @media (max-width: 720px) { .cf-multi-list { left: auto; right: 0; min-width: 0; width: min(260px, calc(100vw - 48px)); } }
 .cf-actions { padding: 12px 16px; }
 .cf-confirm { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+/* running job timer */
+.jt-chip { position: fixed; left: 16px; bottom: 16px; z-index: 1000; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px); padding: 8px 12px; border-radius: 999px; background: var(--surface, #fff); border: 1px solid var(--line, #d8dee6); box-shadow: 0 6px 20px rgba(15, 30, 60, .18); font-size: 13px; }
+.jt-chip a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jt-dot { width: 9px; height: 9px; border-radius: 50%; background: #d92d20; animation: jt-pulse 1.4s ease-in-out infinite; flex: none; }
+@keyframes jt-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .jt-dot { animation: none; } }
