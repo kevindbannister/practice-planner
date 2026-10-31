@@ -32,7 +32,7 @@ export type InviteResult = { user: PortalPerson; created: boolean; emailed: bool
 
 export type ProposalLinkInput = { proposalKey: string; ref: string; version: number; title: string; recipientName: string; recipientEmail: string; validUntil: string; bodyHash: string; practiceName?: string; content: { blocks: unknown[] }; optional: { id: string; label: string; price: string }[] };
 export type ProposalAnswer = { id: string; proposalKey: string; ref: string; version: number; bodyHash: string; decision: "accept" | "decline"; name: string; optional: string[]; reason: string; at: string; ip: string; ua: string; consentVersion: number; consentText: string };
-export type ProposalLinkInfo = { id: string; version: number; status: "open" | "accepted" | "declined" | "revoked" | "expired"; createdAt: string; createdBy: string; expiresAt: string; viewedAt: string; to: string; answeredAt: string };
+export type ProposalLinkInfo = { id: string; version: number; status: "open" | "accepted" | "declined" | "revoked" | "expired"; createdAt: string; createdBy: string; expiresAt: string; viewedAt: string; lastViewedAt?: string; viewCount?: number; to: string; answeredAt: string };
 
 export class PortalAdminError extends Error {
   constructor(public code: string, message: string, public status = 0) {

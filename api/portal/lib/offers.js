@@ -125,10 +125,9 @@ function createOffers({ audit, mailer, now = () => Date.now(), practiceName = "Y
       if (s === "revoked") throw gone("withdrawn", "This proposal has been withdrawn. Please contact the practice.");
       if (s === "expired") throw gone("expired", "This proposal has expired. Please contact the practice for an up-to-date one.");
       if (s === "accepted" || s === "declined") return { ...base, status: s, answeredAt: l.decision?.at || "" };
-      if (!l.viewedAt) {
-        await store.update(COLL, l.id, { viewedAt: iso(now()) });
-        await ev(store, { type: "proposal.link-viewed", recordId: l.id, meta: { ref: l.ref, version: l.version } });
-      }
+      // every open is counted so staff can see interest; only the first is written to the audit trail
+      await store.update(COLL, l.id, { viewedAt: l.viewedAt || iso(now()), lastViewedAt: iso(now()), viewCount: (Number(l.viewCount) || (l.viewedAt ? 1 : 0)) + 1 });
+      if (!l.viewedAt) await ev(store, { type: "proposal.link-viewed", recordId: l.id, meta: { ref: l.ref, version: l.version } });
       return { ...base, status: "open", blocks: l.blocks, optional: l.optional, consent: CONSENT, consentVersion: CONSENT_VERSION };
     },
 
@@ -181,7 +180,7 @@ function createOffers({ audit, mailer, now = () => Date.now(), practiceName = "Y
     /** Links for a proposal (never the token), so staff can see what's out there. */
     async linksFor(store, proposalKey) {
       return (await store.find(COLL, (l) => l.proposalKey === String(proposalKey))).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).map((l) => ({
-        id: l.id, version: l.version, status: statusOf(l), createdAt: l.createdAt, createdBy: l.createdBy, expiresAt: iso(expiry(l)), viewedAt: l.viewedAt, to: l.recipientEmail, answeredAt: l.decision?.at || "",
+        id: l.id, version: l.version, status: statusOf(l), createdAt: l.createdAt, createdBy: l.createdBy, expiresAt: iso(expiry(l)), viewedAt: l.viewedAt, lastViewedAt: l.lastViewedAt || l.viewedAt || "", viewCount: Number(l.viewCount) || (l.viewedAt ? 1 : 0), to: l.recipientEmail, answeredAt: l.decision?.at || "",
       }));
     },
     async revoke(store, staff, id) {

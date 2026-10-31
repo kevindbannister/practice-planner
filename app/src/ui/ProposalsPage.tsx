@@ -1,6 +1,7 @@
 // Sales › Proposals: the list, the builder, the review and send steps, and recording what the client decided.
 import { useEffect, useMemo, useState } from "react";
-import { PortalAdminApi } from "../lib/portalAdmin";
+import { PortalAdminApi, ProposalLinkInfo } from "../lib/portalAdmin";
+import { linkStatus, linksForVersion, openedLine } from "../lib/proposalLinks";
 import { getAccessToken } from "../lib/auth";
 import { isDemo } from "./commsKit";
 import { addDays } from "../lib/planning";
@@ -163,6 +164,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
   const [sealed, setSealed] = useState<boolean | undefined>();
   const api = useMemo(() => new PortalAdminApi(async () => (isDemo() ? "demo" : getAccessToken())), []);
   const [link, setLink] = useState<{ url: string; expiresAt: string }>();
+  const [linkTick, setLinkTick] = useState(0);
   const vkey = version ? `${version.Key}:${version.Updated}` : "";
   useEffect(() => { if (version && !dirty) setContent(readContent(version.Body)); }, [vkey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setDirty(false); setPanel(""); setLink(undefined); setErr(undefined); setInfo(undefined); if (version) setContent(readContent(version.Body)); }, [version?.Key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -257,8 +259,10 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
       recipientEmail: content.recipientEmail.trim(), validUntil: content.validUntil, bodyHash: await hashText(body), practiceName: brand.tradingName || brand.practiceName || undefined, content: doc, optional: opt,
     });
     setLink({ url: `${window.location.origin}/accept/${out.token}`, expiresAt: out.expiresAt });
+    setLinkTick((n) => n + 1);
   });
   const checkReplies = () => run(async () => {
+    setLinkTick((n) => n + 1);
     const all = (await api.proposalResults()).filter((r) => r.proposalKey === String(proposal.Key));
     if (!all.length) { setInfo("No replies through the secure link yet."); return true; }
     const done: string[] = [];
@@ -334,6 +338,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
             <button type="button" className="btn" disabled={busy} onClick={view}>Preview PDF</button>
           </div>
         )}
+        {["sent", "accepted", "rejected", "expired"].includes(status) && <SecureLinkStatus api={api} proposalKey={String(proposal.Key)} version={Number(version.Version)} canWithdraw={s.pcan("send")} tick={linkTick} />}
         {status === "review" && <ul className="plain muted" style={{ marginTop: 10 }}>{reviewSummary(content, totals).map((x) => <li key={x}>{x}</li>)}</ul>}
 
         {panel === "return" && <ReasonForm label="What needs changing?" action="Return to draft" onCancel={() => setPanel("")} onGo={(t) => step("draft", { note: t })} />}
@@ -495,3 +500,45 @@ function AcceptForm({ content, defaultName, defaultEmail, onGo, onCancel }: { co
   );
 }
 
+
+
+/** Secure links that went out for this version: who, whether opened, and a way to withdraw. An "open" can also be an email security scanner, so it shows interest, not proof of reading. */
+function SecureLinkStatus({ api, proposalKey, version, canWithdraw, tick }: { api: PortalAdminApi; proposalKey: string; version: number; canWithdraw: boolean; tick: number }) {
+  const [links, setLinks] = useState<ProposalLinkInfo[] | null>(null);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let live = true;
+    api.proposalLinks(proposalKey).then((r) => { if (live) { setLinks(r); setMsg(""); } }).catch((e) => { if (live) { setLinks([]); setMsg(e instanceof Error ? e.message : "Couldn't load the links."); } });
+    return () => { live = false; };
+  }, [api, proposalKey, tick, n]);
+  const mine = links ? linksForVersion(links, version) : [];
+  if (links && !mine.length && !msg) return null;
+  const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const withdraw = async (id: string) => {
+    if (!window.confirm("Withdraw this link? It will stop working straight away.")) return;
+    setBusy(true);
+    try { await api.revokeProposalLink(id); setN((x) => x + 1); } catch (e) { setMsg(e instanceof Error ? e.message : "Couldn't withdraw it."); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card" style={{ padding: 12, marginTop: 12 }} role="group" aria-label="Secure links">
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <strong>Secure links</strong>
+        <button type="button" className="linkbtn" onClick={() => setN((x) => x + 1)}>Refresh</button>
+      </div>
+      {links === null && <p className="muted" style={{ margin: "6px 0 0" }}>Loading…</p>}
+      {msg && <p className="muted" style={{ margin: "6px 0 0" }}>{msg}</p>}
+      {mine.map((l) => (
+        <div key={l.id} className="row-wrap" style={{ justifyContent: "space-between", gap: 8, borderTop: "1px solid var(--line)", paddingTop: 6, marginTop: 6 }}>
+          <span>
+            <strong>{l.to || "No address"}</strong> <span className="chip">{linkStatus(l)}</span>
+            <span className="muted" style={{ display: "block", fontSize: 13 }}>{openedLine(l, when)} · made {fmtDate(l.createdAt.slice(0, 10))}{l.status === "open" && l.expiresAt ? ` · valid until ${fmtDate(l.expiresAt.slice(0, 10))}` : ""}</span>
+          </span>
+          {l.status === "open" && canWithdraw && <button type="button" className="btn small" disabled={busy} onClick={() => void withdraw(l.id)}>Withdraw</button>}
+        </div>
+      ))}
+      {mine.length > 0 && <p className="muted" style={{ margin: "8px 0 0", fontSize: 12 }}>An open can also come from an email security scanner, so treat it as a sign of interest, not proof it was read.</p>}
+    </div>
+  );
+}

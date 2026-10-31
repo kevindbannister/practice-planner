@@ -33,6 +33,17 @@ test("the link shows the proposal, drops unknown block types, and notes the firs
   assert.equal(JSON.stringify(links.body).includes(token), false);
 });
 
+test("each open of the link is counted, with the first and last time", async () => {
+  const h = setup();
+  const { token } = await make(h);
+  const q = () => h.call("default", "GET", "admin/proposal-links", { headers: { "x-staff": "Kevin" }, query: { proposalKey: "p1" } });
+  assert.equal((await q()).body.links[0].viewCount, 0);
+  await pub(h, token); await pub(h, token); await pub(h, token);
+  const l = (await q()).body.links[0];
+  assert.equal(l.viewCount, 3);
+  assert.ok(l.viewedAt && l.lastViewedAt >= l.viewedAt);
+});
+
 test("a bad or unknown token is a 404 and nothing leaks", async () => {
   const h = setup();
   await make(h);
