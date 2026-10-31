@@ -18,7 +18,7 @@ const ACCOUNTS = new Set(["ACCS_LTD", "ACCS_LLP"]);
 const PAPER_JOBS = new Set(["ACCS_LTD", "ACCS_LLP", "CT600"]);
 
 /** The periods to choose from for a company: its accounts jobs, and its year ends. */
-function periodsFor(c: Client, jobs: Job[], today: string): { all: string[]; current: string } {
+export function periodsFor(c: Client, jobs: Job[], today: string): { all: string[]; current: string } {
   const fromJobs = jobs.filter((j) => ACCOUNTS.has(j.ServiceKey || "") && j.PeriodEnd).map((j) => j.PeriodEnd as string);
   const ends = yearEnds(c.YearEnd as string | undefined, today, 3);
   const all = [...new Set([...fromJobs, ...ends])].sort((a, b) => b.localeCompare(a));
