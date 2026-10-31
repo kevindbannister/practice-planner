@@ -27,6 +27,7 @@ import { CommsPage } from "./Comms";
 import { PapersPage } from "./PapersPage";
 import { SalesPage } from "./SalesPage";
 import { CoSecPage } from "./CoSecPage";
+import { AdvisoryPage } from "./AdvisoryPage";
 import { CoSecSync, setCoSecDemo } from "./cosecKit";
 import { useSales } from "./salesKit";
 import { salesAlerts } from "../lib/sales";
@@ -94,6 +95,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <SalesPage />;
   } else if (section === "cosec") {
     body = <CoSecPage />;
+  } else if (section === "advisory") {
+    body = <AdvisoryPage />;
   } else if (section === "actions") {
     body = <ActionCentrePage />;
   } else if (section === "chase") {
@@ -141,7 +144,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
   const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"], ["chase", "Chase", "clock"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"], ["advisory", "Advisory", "flag"], ["chase", "Chase", "clock"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
   ];
   return (
     <header className="topbar">

@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -417,6 +417,10 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("TemplateKey", true), n("TemplateVersion"), t("Status", true), t("DueDate"), note("Fields"), note("Answers"), note("Written"),
       t("CompletedOn"), t("CompletedBy"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
+  },
+  {
+    key: "AdvisoryPlans", displayName: "PP Advisory Plans", description: "Practice Planner: each advisory client's Freedom Plan (Freedom Number, where the business is now, levers). One row per client; Json holds the plan.",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Kind", true), note("Json"), t("Created"), t("Updated"), t("UpdatedBy")],
   },
   ...portalLists(),
 ];
