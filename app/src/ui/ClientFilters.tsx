@@ -7,6 +7,7 @@ import { downloadFile } from "./commsKit";
 import { readSetting, useData } from "./data";
 import { TASK_TYPES } from "./Editors";
 import { todayIso } from "../lib/domain";
+import { BulkEmail, BulkForm } from "./ClientBulk";
 
 type Option = [string, string];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -133,7 +134,7 @@ export function ViewsBar({ f, apply }: { f: Criteria; apply: (c: Criteria) => vo
   );
 }
 
-type Mode = "" | "group" | "importance" | "task";
+type Mode = "" | "group" | "importance" | "task" | "email" | "form";
 
 /**
  * What to do with the clients shown (or the ticked ones). Export and the email list change nothing; adding to a group,
@@ -191,6 +192,8 @@ export function ActionBar({ targets, label, ticked }: { targets: ExportRow[]; la
         <div className="row-wrap" style={{ gap: 8 }}>
           <button type="button" className="btn small" disabled={!n} onClick={exportCsv}>Export CSV</button>
           <button type="button" className="btn small" disabled={!n} onClick={() => void copyEmails()}>Copy email addresses</button>
+          <button type="button" className="btn small" disabled={!n} aria-expanded={mode === "email"} onClick={() => open("email")}>Email each…</button>
+          <button type="button" className="btn small" disabled={!n} aria-expanded={mode === "form"} onClick={() => open("form")}>Send a form to each…</button>
           <button type="button" className="btn small" disabled={!n} aria-expanded={mode === "group"} onClick={() => open("group")}>Add to group…</button>
           <button type="button" className="btn small" disabled={!n} aria-expanded={mode === "importance"} onClick={() => open("importance")}>Set importance…</button>
           <button type="button" className="btn small" disabled={!n} aria-expanded={mode === "task"} onClick={() => open("task")}>Create a task for each…</button>
@@ -200,6 +203,18 @@ export function ActionBar({ targets, label, ticked }: { targets: ExportRow[]; la
 
       {mode !== "" && (
         <div className="cf-confirm stack" style={{ gap: 10 }}>
+          {mode === "email" && (
+            <>
+              <p className="muted" style={{ margin: 0 }}>Email {words}: {ticked ? "the ones you ticked" : "everyone currently shown"}. Each gets their own copy.</p>
+              <BulkEmail clients={clients} done={(m) => { setNote(m); setMode(""); }} />
+            </>
+          )}
+          {mode === "form" && (
+            <>
+              <p className="muted" style={{ margin: 0 }}>Send a form to {words}: {ticked ? "the ones you ticked" : "everyone currently shown"}.</p>
+              <BulkForm clients={clients} done={(m) => { setNote(m); setMode(""); }} />
+            </>
+          )}
           {mode === "group" && (
             <>
               <Pick label="Add to group" value={group} onChange={setGroup} options={[["", "Choose a group…"], ...data.groups.map((g): Option => [String(g.Key), String(g.Title)])]} />
