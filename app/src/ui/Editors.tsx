@@ -2,6 +2,8 @@
 // and jobs. Open them from anywhere with useEditor().open(...). Every field saves as
 // soon as it's changed.
 import { JobTime, TrackedHint } from "./JobTime";
+import { StageMailOffer, StageMailSettings, useStageRules } from "./StageMail";
+import { StageRule, ruleOnMove } from "../lib/stageMail";
 import { createContext, ReactNode, useContext, useEffect, useId, useRef, useState } from "react";
 import {
   HOLD_WARN_DAYS, Job, Task, WAIT_KINDS, fmtDate, fmtHours, holdAlert, holdLabel, holdPatch, isOnHold, isOpen, jobState, resumePatch, todayIso,
@@ -157,6 +159,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const gate = useJobBlockers(jobKey);
   const checks = useChecklists();
   const [why, setWhy] = useState("");
+  const stageRules = useStageRules();
+  const [mailOffer, setMailOffer] = useState<{ rule: StageRule; stageName: string } | null>(null);
   useEffect(() => {
     if (ask) window.requestAnimationFrame(() => askRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   }, [!!ask]);
@@ -169,6 +173,10 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const save = (patch: Row) => update("Jobs", job, patch);
   const num = (v: string) => (v === "" ? "" : Number(v));
   const setStage = (n: number) => {
+    const offer = ruleOnMove(stageRules, job.ServiceKey || "", current, n);
+    const nameOf = (stageAt(stages, current) || stages[current - 1])?.Title as string || "";
+    if (offer && !(isWaitStage(stageAt(stages, n) || stages[n - 1]) && !inFinalise(job) && isOpen(job))) setMailOffer({ rule: offer, stageName: nameOf });
+    else setMailOffer(null);
     const target = stageAt(stages, n) || stages[n - 1];
     const name = (target?.Title as string) || "";
     // reaching a "records received" stage means the records are in
@@ -329,6 +337,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       )}
 
       <JobTime job={job} stages={stages} current={current} open={isOpen(job)} />
+      {mailOffer && <StageMailOffer job={job} rule={mailOffer.rule} stageName={mailOffer.stageName} onClose={() => setMailOffer(null)} />}
 
       {stages.length > 0 && (
         <section className="stack" aria-labelledby="stages-h" style={{ gap: 8 }}>
@@ -365,6 +374,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
               );
             })}
           </ol>
+          <StageMailSettings job={job} stages={stages} />
           {ask ? (
             <div className="wait-box" role="group" aria-labelledby="ask-h" ref={askRef}>
               <h3 id="ask-h">{String(ask.StageName || "Next stage")}: the client has it</h3>
