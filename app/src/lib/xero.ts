@@ -24,7 +24,7 @@ export type ScopeGroup = { key: string; label: string; scopes: string[]; classic
 /** What the app can ask Xero for. "classic" is the older broad scope for apps made before 2 March 2026. */
 export const SCOPE_GROUPS: ScopeGroup[] = [
   { key: "core", label: "Organisation details, chart of accounts and contacts", scopes: ["accounting.settings.read", "accounting.contacts.read"], required: true },
-  { key: "reports", label: "Trial balance and bank summary reports", scopes: ["accounting.reports.trialbalance.read", "accounting.reports.banksummary.read"], classic: ["accounting.reports.read"] },
+  { key: "reports", label: "Trial balance, bank summary and profit and loss reports", scopes: ["accounting.reports.trialbalance.read", "accounting.reports.banksummary.read", "accounting.reports.profitandloss.read"], classic: ["accounting.reports.read"] },
   { key: "ledger", label: "Nominal ledger transactions (Xero's Account Data API, in beta)", scopes: ["accountdata.balances.read", "accountdata.transactions.read"], offByDefault: true, note: "Shows every transaction behind each account. It isn't in the list of scopes most Xero apps can pick: Xero has to switch the beta on for your app first. Until then leave it unticked and the ledger is rebuilt from the documents below." },
   { key: "documents", label: "Invoices, bills, credit notes, payments, bank transactions and manual journals", scopes: ["accounting.invoices.read", "accounting.payments.read", "accounting.banktransactions.read", "accounting.manualjournals.read"], classic: ["accounting.transactions.read"], note: "Used for unreconciled bank items, and to rebuild the ledger when the Account Data API isn't available." },
   { key: "assets", label: "Fixed asset register (Xero's Assets API)", scopes: ["assets.read"], note: "Cost, additions, disposals and depreciation for each asset, into the Fixed assets registers." },
@@ -614,6 +614,64 @@ export function registerFromAssets(assets: Doc[], types: Doc[], from: string, to
   return ASSET_SUBS.map(([k]) => by.get(k)).filter((g): g is AssetGroup => !!g);
 }
 
+/** Every document kind for a date range, each read on its own. Xero can refuse one kind (bank access, say) and still allow the rest. */
+export async function readDocuments(api: XeroApi, id: string, from: string, to: string, say: (m: string) => void = () => undefined): Promise<{ docs: Documents; gaps: string[]; why: string; invoicesMissing: boolean }> {
+  const gaps: string[] = [];
+  let why = "";
+  const between = `Date >= ${whereDate(from)} AND Date <= ${whereDate(to)}`;
+  const part = async <T,>(label: string, fn: () => Promise<T>, empty: T): Promise<T> => {
+    say(`Reading ${label}…`);
+    try {
+      return await fn();
+    } catch (e) {
+      if (!scopeMissing(e)) throw e;
+      gaps.push(label);
+      if (!why && e instanceof XeroError) why = e.message;
+      return empty;
+    }
+  };
+  const invoices = await part("invoices and bills", () => pagedAccounting(api, id, "Invoices", "Invoices", { where: between }, (n) => say(`Reading invoices and bills… ${n}`)), [] as Doc[]);
+  const invoicesMissing = gaps.includes("invoices and bills");
+  const creditNotes = await part("credit notes", () => pagedAccounting(api, id, "CreditNotes", "CreditNotes", { where: between }), [] as Doc[]);
+  const payments = await part("payments", () => pagedAccounting(api, id, "Payments", "Payments", { where: between }, (n) => say(`Reading payments… ${n}`)), [] as Doc[]);
+  const bankTransactions = await part("bank transactions", () => pagedAccounting(api, id, "BankTransactions", "BankTransactions", { where: between }, (n) => say(`Reading bank transactions… ${n}`)), [] as Doc[]);
+  const bankTransfers = await part("bank transfers", async () => ((await api.get(id, "accounting", "BankTransfers", { where: between })) as any)?.BankTransfers || [], [] as Doc[]);
+  const manualJournals = await part("manual journals", () => pagedAccounting(api, id, "ManualJournals", "ManualJournals", { where: between }), [] as Doc[]);
+  return { docs: { invoices, creditNotes, payments, bankTransactions, bankTransfers, manualJournals }, gaps, why, invoicesMissing };
+}
+
+// ------------------------------------------------------------------ profit and loss
+
+export type PLRow = { id: string; code: string; name: string; section: "income" | "cos" | "other" | "expense"; amounts: number[] };
+export type PL = { months: string[]; rows: PLRow[] };
+
+/** Xero's profit and loss report: each account with its amount in each column (one column, or one per month). */
+export function parseProfitAndLoss(report: any, accounts: XAccount[]): PL {
+  const r = report?.Reports?.[0] || report;
+  const head: string[] = [];
+  const rows: PLRow[] = [];
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const sectionOf = (t: string): PLRow["section"] => (/other income/i.test(t) ? "other" : /cost|direct|purchase|cogs/i.test(t) ? "cos" : /income|revenue|sales|trading/i.test(t) ? "income" : "expense");
+  const walk = (list: any[], section: string) => {
+    for (const row of list || []) {
+      if (row.RowType === "Header") {
+        if (!head.length) head.push(...(row.Cells || []).map((c: any) => String(c.Value ?? "")));
+      } else if (row.RowType === "Section") walk(row.Rows, row.Title || section);
+      else if (row.RowType === "Row") {
+        const cells = (row.Cells || []).map((c: any) => String(c.Value ?? ""));
+        const label = (cells[0] || "").trim();
+        if (!label) continue;
+        const id = String((row.Cells?.[0]?.Attributes || []).find((x: any) => /account/i.test(String(x.Id)))?.Value || "");
+        const acct = byId.get(id);
+        const m = label.match(/^(.*)\s+\(([^()]+)\)\s*$/);
+        rows.push({ id, code: acct?.code ?? (m ? m[2].trim() : ""), name: acct?.name || (m ? m[1].trim() : label), section: sectionOf(section), amounts: cells.slice(1).map(num) });
+      }
+    }
+  };
+  walk(r?.Rows || [], "");
+  return { months: head.slice(1), rows };
+}
+
 // ------------------------------------------------------------------ the import
 
 export type ImportPart = "tb" | "ledger" | "lists" | "bank" | "vat" | "payroll" | "assets";
@@ -675,7 +733,7 @@ export async function readFromXero(
       log.push(`Trial balance at ${to}: ${tb.length} accounts, debits ${dr.toFixed(2)}, credits ${cr.toFixed(2)}${Math.abs(dr - cr) > 0.004 ? " (doesn't balance)" : ""}. Last year's: ${priorTb.length} accounts.`);
     } catch (e) {
       if (!scopeMissing(e)) throw e;
-      problems.push("The trial balance couldn't be read: tick \"Trial balance and bank summary reports\" in Settings › Xero and connect again.");
+      problems.push("The trial balance couldn't be read: tick \"Trial balance, bank summary and profit and loss reports\" in Settings › Xero and connect again.");
     }
   }
 
@@ -690,27 +748,11 @@ export async function readFromXero(
   let docWhy = "";
   const readDocs = async (): Promise<Documents | null> => {
     if (docs) return docs;
-    const between = `Date >= ${whereDate(from)} AND Date <= ${whereDate(to)}`;
-    // each kind is read on its own: Xero can refuse one (a user without bank access, say) and still allow the rest
-    const part = async <T,>(label: string, fn: () => Promise<T>, empty: T): Promise<T> => {
-      say(`Reading ${label}…`);
-      try {
-        return await fn();
-      } catch (e) {
-        if (!scopeMissing(e)) throw e;
-        docGaps.push(label);
-        if (!docWhy && e instanceof XeroError) docWhy = e.message;
-        return empty;
-      }
-    };
-    const invoices = await part("invoices and bills", () => pagedAccounting(api, id, "Invoices", "Invoices", { where: between }, (n) => say(`Reading invoices and bills… ${n}`)), [] as Doc[]);
-    if (docGaps.includes("invoices and bills")) return null;
-    const creditNotes = await part("credit notes", () => pagedAccounting(api, id, "CreditNotes", "CreditNotes", { where: between }), [] as Doc[]);
-    const payments = await part("payments", () => pagedAccounting(api, id, "Payments", "Payments", { where: between }, (n) => say(`Reading payments… ${n}`)), [] as Doc[]);
-    const bankTransactions = await part("bank transactions", () => pagedAccounting(api, id, "BankTransactions", "BankTransactions", { where: between }, (n) => say(`Reading bank transactions… ${n}`)), [] as Doc[]);
-    const bankTransfers = await part("bank transfers", async () => ((await api.get(id, "accounting", "BankTransfers", { where: between })) as any)?.BankTransfers || [], [] as Doc[]);
-    const manualJournals = await part("manual journals", () => pagedAccounting(api, id, "ManualJournals", "ManualJournals", { where: between }), [] as Doc[]);
-    docs = { invoices, creditNotes, payments, bankTransactions, bankTransfers, manualJournals };
+    const r = await readDocuments(api, id, from, to, say);
+    docGaps.push(...r.gaps);
+    if (!docWhy && r.why) docWhy = r.why;
+    if (r.invoicesMissing) return null;
+    docs = r.docs;
     return docs;
   };
 

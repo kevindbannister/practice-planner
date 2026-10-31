@@ -196,6 +196,39 @@ export class FakeXero implements XeroApi {
     };
   }
 
+  /** The profit and loss for a period, or one column a month when asked for monthly. Income is shown positive. */
+  private profitAndLoss(q: Query) {
+    const from = String(q.fromDate), to = String(q.toDate);
+    const M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const head = (iso: string) => `${Number(iso.slice(8, 10))} ${M[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+    const cols: [string, string][] = [];
+    if (q.timeframe === "MONTH") {
+      for (let d = from.slice(0, 7); d <= to.slice(0, 7); ) {
+        const [y, m] = d.split("-").map(Number);
+        const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+        cols.push([`${d}-01` < from ? from : `${d}-01`, end > to ? to : end]);
+        const nx = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7);
+        d = nx;
+      }
+    } else cols.push([from, to]);
+    const plAccts = ACCOUNTS.filter((a) => PL.has(a.type));
+    const section = (t: string) => (t === "OTHERINCOME" ? "Other Income" : t === "DIRECTCOSTS" ? "Less Cost of Sales" : t === "REVENUE" || t === "SALES" ? "Trading Income" : "Operating Expenses");
+    const groups = new Map<string, { title: string; rows: { cells: string[]; id?: string }[] }>();
+    for (const a of plAccts) {
+      const vals = cols.map(([f, t]) => {
+        const sum = this.books.filter((e) => e.date >= f && e.date <= t).reduce((s, e) => s + e.lines.filter((l) => l.code === a.code).reduce((x, l) => x + l.amt, 0), 0);
+        return r2(a.type === "REVENUE" || a.type === "SALES" || a.type === "OTHERINCOME" ? -sum : sum);
+      });
+      if (vals.every((v) => v === 0)) continue;
+      const title = section(a.type);
+      const g = groups.get(title) || { title, rows: [] };
+      g.rows.push({ cells: [`${a.name} (${a.code})`, ...vals.map((v) => v.toFixed(2))], id: a.id });
+      groups.set(title, g);
+    }
+    const order = ["Trading Income", "Less Cost of Sales", "Operating Expenses", "Other Income"];
+    return this.report("Profit and Loss", ["", ...cols.map(([, t]) => head(t))], order.filter((t) => groups.has(t)).map((t) => groups.get(t)!));
+  }
+
   private trialBalance(date: string) {
     const groups: Record<string, string> = { ASSET: "Assets", LIABILITY: "Liabilities", EQUITY: "Equity", REVENUE: "Revenue", EXPENSE: "Expenses" };
     const sections = Object.entries(groups).map(([cls, title]) => ({
@@ -335,6 +368,10 @@ export class FakeXero implements XeroApi {
     if (api === "accounting" && path === "Reports/TrialBalance") {
       this.need("reports");
       return this.trialBalance(String(query.date)) as T;
+    }
+    if (api === "accounting" && path === "Reports/ProfitAndLoss") {
+      this.need("reports");
+      return this.profitAndLoss(query) as T;
     }
     if (api === "accounting" && path === "Reports/BankSummary") {
       this.need("reports");
