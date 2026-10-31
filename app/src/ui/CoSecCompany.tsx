@@ -15,12 +15,13 @@ import { chipFor } from "./CoSecPage";
 import { Ledger, LevelChip, ServiceLevel } from "./CoSecFoundation";
 import { ImportHistory, RegistersTab } from "./CoSecImport";
 import { Cs01Tab } from "./CoSecCs01";
+import { OwnershipChart } from "./CoSecChart";
 import { Overview } from "./CoSecOverview";
 import { AccountsTab } from "./CoSecAccounts";
 import { CertificatesTab, DividendsTab, OwnershipCheck } from "./CoSecCapital";
 import { ID_LABEL, IdStatus, idOf } from "../lib/cosecCs01";
 
-const TABS: [string, string][] = [["overview", "Overview"], ["officers", "Officers"], ["shares", "Shareholders"], ["pscs", "People with significant control"], ["registers", "Registers"], ["filings", "Filings"]];
+const TABS: [string, string][] = [["overview", "Overview"], ["officers", "Officers"], ["shares", "Shareholders"], ["chart", "Ownership chart"], ["pscs", "People with significant control"], ["registers", "Registers"], ["filings", "Filings"]];
 /** Screens opened from buttons on the overview rather than from the tab bar. */
 const SCREENS: Record<string, string> = { classes: "Share classes and ownership", ledger: "Share ledger", certificates: "Share certificates", dividends: "Dividends", accounts: "Dormant accounts", cs01: "Confirmation statement", import: "Import history" };
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
@@ -42,13 +43,14 @@ export function CoSecCompany({ clientKey, tab: tabIn }: { clientKey: string; tab
         <div className="row-wrap" style={{ gap: 12 }}><a className="btn" href={`#/cosec/company/${clientKey}/overview`}>← Overview</a><h3 style={{ margin: 0 }}>{SCREENS[tab]}</h3></div>
       ) : (
         <nav className="subtabs" aria-label="Company views">
-          {TABS.filter(([key]) => key !== "shares" || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
+          {TABS.filter(([key]) => (key !== "shares" && key !== "chart") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
         </nav>
       )}
       {tab === "overview" && <Overview client={client} base={`#/cosec/company/${clientKey}`}><ServiceLevel client={client} /><Details client={client} /></Overview>}
       {tab === "officers" && <People client={client} entity="officer" />}
       {tab === "pscs" && <People client={client} entity="psc" />}
       {tab === "shares" && kind === "limited" && <Shares client={client} />}
+      {tab === "chart" && kind === "limited" && <OwnershipChart client={client} />}
       {tab === "classes" && kind === "limited" && <><ShareClasses client={client} /><OwnershipCheck client={client} /></>}
       {tab === "certificates" && kind === "limited" && <CertificatesTab client={client} />}
       {tab === "dividends" && kind === "limited" && <DividendsTab client={client} />}
