@@ -6,8 +6,8 @@ import { elementsUrl } from "../lib/elements";
 import { ElementsImport } from "./ElementsImport";
 import { useData, useIndex } from "./data";
 import { svcClass } from "../lib/serviceColour";
-
-type KindFilter = "all" | "companies" | "individuals";
+import { Criteria, ExportRow, NO_FILTERS, activeFilters, matchRow } from "../lib/clientFilter";
+import { ActionBar, FilterPanel, ViewsBar } from "./ClientFilters";
 
 export function ClientsPage() {
   const { data } = useData();
@@ -16,34 +16,41 @@ export function ClientsPage() {
   const selectedKey = query.get("c");
   const today = todayIso();
 
-  const [search, setSearch] = useState("");
-  const [kind, setKind] = useState<KindFilter>("all");
-  const [attentionOnly, setAttentionOnly] = useState(false);
-  const [group, setGroup] = useState("");
+  const [f, setF] = useState<Criteria>(NO_FILTERS);
+  const set = (p: Partial<Criteria>) => setF((x) => ({ ...x, ...p }));
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
 
   const rows = useMemo(
     () =>
       data.clients.map((c) => {
         const jobs = idx.jobsByClient.get(c.Key) || [];
-        const attention = jobs.some((j) => !isOnHold(j) && (j.Priority === "urgent" || jobState(j, today).state === "overdue"));
-        return { client: c, next: jobs[0], groups: idx.groupsByMember.get(c.Key) || [], attention };
+        const live = jobs.filter((j) => !isOnHold(j));
+        const overdue = live.filter((j) => jobState(j, today).state === "overdue").length;
+        const attention = live.some((j) => j.Priority === "urgent" || jobState(j, today).state === "overdue");
+        const services = [...(idx.servicesByClient.get(c.Key) || [])].filter((k) => !idx.servicesOff.has(`${c.Key}|${k}`));
+        const groupRows = idx.groupsByMember.get(c.Key) || [];
+        return { client: c, next: jobs[0], groupRows, groups: groupRows.map((g) => String(g.Key)), services, attention, open: jobs.length, overdue };
       }),
     [data.clients, idx, today],
   );
   const attentionCount = rows.filter((r) => r.attention).length;
+  const shown = rows.filter((r) => matchRow(f, r));
+  const serviceOptions = useMemo(() => data.services.filter((s) => s.Title).map((s) => ({ key: String(s.Key), title: String(s.Title) })).sort((a, b) => a.title.localeCompare(b.title)), [data.services]);
+  const groupOptions = data.groups.map((g) => ({ key: String(g.Key), title: String(g.Title) }));
+  const nFilters = activeFilters(f);
 
-  const shown = rows.filter((r) => {
-    const c = r.client;
-    if (kind === "companies" && !(c.Kind === "Ltd" || c.Kind === "LLP")) return false;
-    if (kind === "individuals" && (c.Kind === "Ltd" || c.Kind === "LLP")) return false;
-    if (attentionOnly && !r.attention) return false;
-    if (group && !r.groups.some((g) => g.Key === group)) return false;
-    if (search) {
-      const hay = [c.Title, c.CompanyNumber, contactName(c), c.Email].join(" ").toLowerCase();
-      if (!hay.includes(search.toLowerCase())) return false;
-    }
-    return true;
-  });
+  // actions apply to the ticked clients, or to everyone shown when none are ticked
+  const chosen = shown.filter((r) => picked.has(r.client.Key));
+  const targets = chosen.length ? chosen : shown;
+  const exportRows: ExportRow[] = targets.map((r) => ({
+    client: r.client, groups: r.groups, services: r.services, attention: r.attention, open: r.open, overdue: r.overdue,
+    groupNames: r.groupRows.map((g) => String(g.Title)), serviceNames: r.services.map((k) => idx.serviceName.get(k) || k),
+    nextJob: r.next ? String(r.next.Title || "") : "", nextDeadline: r.next?.Deadline ? fmtDate(r.next.Deadline) : "",
+  }));
+  const allPicked = shown.length > 0 && shown.every((r) => picked.has(r.client.Key));
+  const togglePage = () => setPicked((p) => { const n = new Set(p); if (allPicked) shown.forEach((r) => n.delete(r.client.Key)); else shown.forEach((r) => n.add(r.client.Key)); return n; });
+  const toggleOne = (key: string) => setPicked((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
   const selected = selectedKey ? idx.clientByKey.get(selectedKey) : undefined;
   const select = (key?: string) => go(key ? `/clients/all?c=${encodeURIComponent(key)}` : "/clients/all");
@@ -68,13 +75,13 @@ export function ClientsPage() {
             <input
               type="search"
               placeholder="Name, company number or contact"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={f.search}
+              onChange={(e) => set({ search: e.target.value })}
             />
           </label>
           <div className="seg" role="group" aria-label="Client type">
-            {(["all", "companies", "individuals"] as KindFilter[]).map((k) => (
-              <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
+            {(["all", "companies", "individuals"] as Criteria["kind"][]).map((k) => (
+              <button key={k} type="button" aria-pressed={f.kind === k} onClick={() => set({ kind: k })}>
                 {k === "all" ? "All" : k === "companies" ? "Companies" : "Individuals"}
               </button>
             ))}
@@ -82,39 +89,46 @@ export function ClientsPage() {
           <button
             type="button"
             className="btn"
-            aria-pressed={attentionOnly}
-            onClick={() => setAttentionOnly(!attentionOnly)}
-            style={attentionOnly ? { background: "var(--amber-soft)", borderColor: "var(--amber-line)", color: "var(--amber-ink)" } : undefined}
+            aria-pressed={f.attention}
+            onClick={() => set({ attention: !f.attention })}
+            style={f.attention ? { background: "var(--amber-soft)", borderColor: "var(--amber-line)", color: "var(--amber-ink)" } : undefined}
           >
             Needs attention ({attentionCount})
           </button>
-          <label>
-            <span className="sr-only">Group</span>
-            <select className="input" value={group} onChange={(e) => setGroup(e.target.value)} style={{ width: "auto" }}>
-              <option value="">Any group</option>
-              {data.groups.map((g) => (
-                <option key={g.Key} value={g.Key}>{g.Title}</option>
-              ))}
-            </select>
-          </label>
+          <button type="button" className="btn" aria-expanded={moreOpen} onClick={() => setMoreOpen(!moreOpen)}>
+            More filters{nFilters - (f.attention ? 1 : 0) > 0 ? ` (${nFilters - (f.attention ? 1 : 0)})` : ""}
+          </button>
+          {(nFilters > 0 || f.search || f.kind !== "all") && <button type="button" className="linkbtn" onClick={() => setF(NO_FILTERS)}>Clear filters</button>}
         </div>
+        {moreOpen && <FilterPanel f={f} set={set} groups={groupOptions} services={serviceOptions} />}
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+          <ViewsBar f={f} apply={setF} />
+          <span className="muted" aria-live="polite">{shown.length} of {data.clients.length} clients</span>
+        </div>
+        {shown.length > 0 && (
+          <ActionBar targets={exportRows} ticked={chosen.length > 0} label={chosen.length ? `${chosen.length} ticked` : `All ${shown.length} shown`} />
+        )}
 
         <div className="card table-wrap">
-          <table className="grid" style={{ minWidth: 820 }}>
+          <table className="grid" style={{ minWidth: 1040 }}>
             <thead>
               <tr>
+                <th scope="col" style={{ width: 36 }}><input type="checkbox" aria-label="Tick every client shown" checked={allPicked} onChange={togglePage} /></th>
                 <th scope="col">Client</th>
                 <th scope="col">Group</th>
+                <th scope="col">Services</th>
+                <th scope="col" className="num">Annual fees</th>
                 <th scope="col">Next job</th>
                 <th scope="col">Next deadline</th>
                 <th scope="col">AML</th>
               </tr>
             </thead>
             <tbody>
-              {shown.map(({ client: c, next, groups }) => {
+              {shown.map(({ client: c, next, groupRows, services }) => {
                 const aml = amlLabel(c.XamaStatus);
                 return (
                   <tr key={c.Key} className={`clickable${c.Key === selectedKey ? " selected" : ""}`} onClick={() => select(c.Key)}>
+                    <td onClick={(e) => e.stopPropagation()}><input type="checkbox" aria-label={`Tick ${c.Title}`} checked={picked.has(c.Key)} onChange={() => toggleOne(c.Key)} /></td>
                     <td>
                       <div className="ident">
                         <ClientBadge client={c} />
@@ -131,7 +145,9 @@ export function ClientsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="muted">{groups.map((g) => g.Title).join(", ") || "—"}</td>
+                    <td className="muted">{groupRows.map((g) => g.Title).join(", ") || "—"}</td>
+                    <td className="muted">{services.length ? <>{services.slice(0, 3).map((k) => idx.serviceName.get(k) || k).join(", ")}{services.length > 3 ? ` +${services.length - 3}` : ""}</> : "—"}</td>
+                    <td className="num mono">{Number(c.AnnualFees) ? fmtMoney(Number(c.AnnualFees)) : <span className="muted">—</span>}</td>
                     <td>
                       {next ? (
                         <>
@@ -164,7 +180,7 @@ export function ClientsPage() {
               })}
               {!shown.length && (
                 <tr>
-                  <td colSpan={5} className="empty">No clients match these filters.</td>
+                  <td colSpan={8} className="empty">No clients match these filters.</td>
                 </tr>
               )}
             </tbody>
