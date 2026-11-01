@@ -220,7 +220,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
     const doc = proposalDocument(c, s.template, { client: partyName || c.recipientName, practice: brand.tradingName || brand.practiceName || "Our practice", contact: c.recipientName, reference: String(proposal.Ref), date: today, version: Number(v.Version) });
     const layout: DocLayout = { ...DEFAULT_LAYOUT, header: brand.header || "", footer: brand.footer || "" };
     const title = `${c.title || "Proposal"} – ${partyName}`;
-    return { doc, layout, title, ...(await makePdf({ content: doc, layout, branding: brand, title, reference: String(proposal.Ref), author: s.me })) };
+    return { doc, layout, title, ...(await makePdf({ content: doc, layout, branding: brand, title, reference: String(proposal.Ref), author: s.me, docType: "proposal", client: partyName })) };
   };
   const view = () => run(async () => {
     const out = await buildPdf(content, version);

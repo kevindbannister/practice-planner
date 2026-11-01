@@ -165,7 +165,7 @@ function Drafts() {
         const layout: DocLayout = { ...DEFAULT_LAYOUT, header: brand.header || "", footer: brand.footer || "" };
         const body = readBody(e.Body);
         const title = String(e.Title);
-        const pdf = await makePdf({ content: body, layout, branding: brand, title, reference: String(e.Ref), author: s.me });
+        const pdf = await makePdf({ content: body, layout, branding: brand, title, reference: String(e.Ref), author: s.me, docType: "engagement" });
         const hash = await sealHash(String(e.Body));
         const name = documentFileName(label, today, "");
         const { row } = await file(pdf.bytes, name, title, client?.Title || "", String(e.ClientKey), String(e.Ref), { BrandingId: brand.id, Pages: pdf.pages, Snapshot: snapshotOf(body, layout, { engagement: e.Ref }) });

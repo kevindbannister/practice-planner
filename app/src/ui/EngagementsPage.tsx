@@ -206,7 +206,7 @@ export function EngagementDetail({ engKey }: { engKey: string }) {
   const buildPdf = async () => {
     const layout: DocLayout = { ...DEFAULT_LAYOUT, header: brand.header || "", footer: brand.footer || "" };
     const title = `${e.Title}`;
-    return { title, ...(await makePdf({ content: body, layout, branding: brand, title, reference: String(e.Ref), author: s.me })), doc: body, layout };
+    return { title, ...(await makePdf({ content: body, layout, branding: brand, title, reference: String(e.Ref), author: s.me, docType: /disengage|termination/i.test(String(e.Title)) ? "disengagement" : "engagement" })), doc: body, layout };
   };
   const preview = () => run(async () => { const out = await buildPdf(); const url = URL.createObjectURL(new Blob([out.bytes as BlobPart], { type: PDF_TYPE })); window.open(url, "_blank", "noopener"); window.setTimeout(() => URL.revokeObjectURL(url), 60000); });
 

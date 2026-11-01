@@ -10,6 +10,7 @@ import { LETTERS_FOLDER, clientFolder } from "../lib/comms";
 import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { loadPdfLib, renderPdf } from "../lib/docPdf";
+import { Design, DocType, Designs } from "../lib/docDesign";
 import { FieldContext, fillContent, resolveValues } from "../lib/docFields";
 import { todayIso } from "../lib/domain";
 import { useData, useIndex } from "./data";
@@ -107,9 +108,15 @@ export function documentFileName(title: string, date: string, ref: string) {
 }
 
 /** Lays out the finished document (merge fields already filled in) as a PDF. */
-export async function makePdf(input: { content: DocContent; layout: DocLayout; branding: Branding; title: string; reference: string; author?: string }): Promise<{ bytes: Uint8Array; pages: number }> {
+// The practice's document designs, kept here by DesignSync (App.tsx) so every place that makes a PDF uses them.
+let designs: Designs = {};
+export const setDesigns = (d: Designs) => { designs = d; };
+
+export async function makePdf(input: { content: DocContent; layout: DocLayout; branding: Branding; title: string; reference: string; author?: string; docType?: DocType; client?: string; date?: string; design?: Design }): Promise<{ bytes: Uint8Array; pages: number }> {
   const lib = await loadPdfLib();
-  const bytes = await renderPdf(lib, input);
+  const { docType, client, date, design, ...rest } = input;
+  const chosen = design || (docType && designs[docType]);
+  const bytes = await renderPdf(lib, { ...rest, design: chosen || undefined, vars: { client, date: date || todayIso() } });
   const pages = (await lib.PDFDocument.load(bytes)).getPageCount();
   return { bytes, pages };
 }

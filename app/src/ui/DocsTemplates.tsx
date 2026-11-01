@@ -1,6 +1,7 @@
 // Documents › Templates: the library (starter templates and the practice's own, by category, with
 // default, duplicate and archive) and the template editor (name, category, branding profile, the
 // editor itself, earlier versions to look at or restore, and a preview as a PDF).
+import { typeForCategory } from "../lib/docDesign";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES, Category, DocTemplate, TemplateVersion, blankTemplate, copyTemplate, restoreVersion, STARTERS } from "../lib/docTemplates";
 import { DocContent, DocLayout, plainText } from "../lib/docModel";
@@ -141,7 +142,7 @@ export function TemplateEditor({ id }: { id: string }) {
       const ctx = ctxFor(sampleClient, "", branding, "SAMPLE");
       const values = resolveValues(ctx);
       const filled = sampleClient ? fillContent(content.current, values) : content.current;
-      const out = await makePdf({ content: filled, layout: t.layout, branding, title: t.name, reference: "SAMPLE" });
+      const out = await makePdf({ content: filled, layout: t.layout, branding, title: t.name, reference: "SAMPLE", docType: typeForCategory(t.category) });
       setPreview(out.bytes);
     } catch {
       setError("The preview couldn't be made.");

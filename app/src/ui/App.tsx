@@ -31,6 +31,7 @@ import { AdvisoryPage } from "./AdvisoryPage";
 import { CoSecSync, setCoSecDemo } from "./cosecKit";
 import { TimerChip } from "./JobTime";
 import { AdfinKeepAlive } from "./Billing";
+import { DesignSync } from "./DocDesign";
 import { useSales } from "./salesKit";
 import { salesAlerts } from "../lib/sales";
 import { onboardingAlerts } from "../lib/onboarding";
@@ -127,6 +128,7 @@ export function App({ demo }: { demo: boolean }) {
                 {status === "ready" && <CoSecSync />}
                 {status === "ready" && <TimerChip />}
                 {status === "ready" && <AdfinKeepAlive />}
+                {status === "ready" && <DesignSync />}
                 <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
                   {body}
                 </PageBoundary>

@@ -3,6 +3,7 @@
 // client's record (OneDrive and the Documents list). Fields with no value are flagged and left visible
 // as {{field}} so a letter can't go out with a gap nobody noticed; unknown fields stop the document.
 // Documents › History: everything made so far.
+import { typeForCategory } from "../lib/docDesign";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addScope } from "../lib/auth";
 import { LETTERS_FOLDER, clientFolder, emailGreeting, oneLine, toBase64 } from "../lib/comms";
@@ -103,7 +104,7 @@ export function CreateDocument() {
     if (!draft || !layout) throw new Error("Choose a template first.");
     const filled = fillContent(draft, values);
     const lay: DocLayout = { ...layout, header: fillText(headerText, values), footer: fillText(footerText, values) };
-    return { filled, lay, ...(await makePdf({ content: filled, layout: lay, branding, title: docTitle, reference: reference.current, author: docs.user })) };
+    return { filled, lay, ...(await makePdf({ content: filled, layout: lay, branding, title: docTitle, reference: reference.current, author: docs.user, docType: typeForCategory(String(template?.category || "")) })) };
   };
   // the preview follows the document while it is showing
   useEffect(() => {
