@@ -2,6 +2,8 @@
 // of schedule (list, asset register, account, VAT, payroll, expense, trial balance, journals...),
 // the settings each kind needs (depreciation method and rate, balance brought forward, accruals,
 // fee), and the summaries (lead schedule, fixed asset summary, final trial balance).
+import { irisTrialBalance } from "../lib/irisExport";
+import { downloadFile } from "./commsKit";
 import { AccountsWorkingPapers } from "./AccountsWorkingPapers";
 import { OpeningBalances } from "./OpeningBalances";
 import { Fragment, ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
@@ -751,8 +753,15 @@ function FinalTb() {
   const sum = (k: "tbDr" | "tbCr" | "jDr" | "jCr" | "dr" | "cr") => money(rows.reduce((a, r) => a + r[k], 0)) || "0.00";
   const diff = Math.round(rows.reduce((a, r) => a + r.dr - r.cr, 0) * 100) / 100;
   const added = rows.filter((r) => !r.inTb).length;
+  const iris = irisTrialBalance(maps, w.period);
+  const exportIris = () => downloadFile(new TextEncoder().encode("\ufeff" + iris.csv), `IRIS trial balance ${String(w.client.Title)} ${w.period}.csv`, "text/csv");
   return (
     <div className="stack" style={{ gap: 8 }}>
+      <div className="row-wrap" style={{ gap: 10 }}>
+        <button type="button" className="btn small" onClick={exportIris} disabled={!iris.lines.length}>Export for IRIS Elements</button>
+        <span className="muted" style={{ fontSize: 13 }}>{iris.lines.length} IRIS accounts, from the final trial balance (journals included), credits negative. Import it in Accounts Production under Import trial balance data.</span>
+      </div>
+      {iris.unmapped.length > 0 && <p className="import-list warn" role="status" style={{ margin: 0 }}>{iris.unmapped.length} account{iris.unmapped.length === 1 ? " has" : "s have"} no IRIS code and will be left out: {iris.unmapped.slice(0, 5).map((u) => u.account).join(", ")}{iris.unmapped.length > 5 ? ` and ${iris.unmapped.length - 5} more` : ""}. Give {iris.unmapped.length === 1 ? "it" : "them"} an IRIS code in the mapping first, or the file will be out of balance by {money(Math.abs(iris.difference)) || "0.00"}.</p>}
       <div className="table-wrap">
         <table className="grid lines final-tb">
           <thead>
