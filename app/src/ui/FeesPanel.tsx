@@ -11,6 +11,7 @@ import { Row } from "../lib/schema";
 import { href } from "./bits";
 import { useData } from "./data";
 import { useSales } from "./salesKit";
+import { CatchUp, ClientPricingCheck, PricingCheckList } from "./Pricing";
 
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const msgOf = (e: unknown) => (e instanceof Error && e.message ? e.message : "That didn't work. Try again.");
@@ -93,12 +94,15 @@ export function ClientFees({ client }: { client: Row }) {
       )}
       {lines.filter((x) => x.line.key === editing).map(({ row, line }) => <AdjustForm key={line.key} row={row} line={line} client={client} busy={busy} doW={doW} fees={f} />)}
 
+      <ClientPricingCheck clientKey={ck} lines={lines.map((x) => x.line)} />
+
       <div className="stack" style={{ gap: 6 }}>
         <strong>One-off charges</strong>
         {charges.length ? <table className="tbl"><tbody>{charges.map(({ row, c }) => (
-          <tr key={c.key}><td>{c.label}</td><td>{gbp(c.amount)}</td><td>{c.agreedOn ? fmtDate(c.agreedOn) : ""}</td><td>{c.vat ? vatLabel(c.vat) : ""}</td><td><span className={`chip ${c.status === "agreed" ? "green" : ""}`}>{c.status === "agreed" ? "Agreed" : "Cancelled"}</span></td>
-            <td>{f.can && c.status === "agreed" && <CancelCharge disabled={busy} onCancel={(why) => doW(cancelCharge(row, client, why, s.pcan, s.ctx()))} />}</td></tr>
+          <tr key={c.key}><td>{c.label}</td><td>{gbp(c.amount)}</td><td>{c.agreedOn ? fmtDate(c.agreedOn) : ""}</td><td>{c.vat ? vatLabel(c.vat) : ""}</td><td><span className={`chip ${c.status === "agreed" ? "green" : c.status === "proposed" ? "amber" : ""}`}>{c.status === "agreed" ? "Agreed" : c.status === "proposed" ? "Proposed" : "Cancelled"}</span></td>
+            <td>{f.can && c.status !== "cancelled" && <CancelCharge disabled={busy} onCancel={(why) => doW(cancelCharge(row, client, why, s.pcan, s.ctx()))} />}</td></tr>
         ))}</tbody></table> : <span className="muted">None.</span>}
+        <CatchUp client={client} lines={lines} charges={data.feeCharges.filter((x) => str(x.ClientKey) === ck)} can={f.can} busy={busy} doW={doW} />
         {f.can && <AddCharge disabled={busy} onAdd={(c) => doW(addCharge(client, c, s.pcan, s.ctx()), "Charge added.")} />}
       </div>
 
@@ -227,7 +231,7 @@ function AddCost({ onAdd, disabled }: { onAdd: (c: { kind: CostKind; label: stri
 export function RevenuePage() {
   const f = useFees();
   const { data } = f;
-  const [view, setView] = useState<"service" | "client">("service");
+  const [view, setView] = useState<"service" | "client" | "pricing">("service");
   const r = useMemo(() => revenue(data.clientServices, data.feeCharges, data.clientCosts), [data.clientServices, data.feeCharges, data.clientCosts]);
   const clientName = (k: string) => str(data.clients.find((c) => c.Key === k)?.Title) || k;
   const noHistory = data.clientServices.filter((x) => !str(x.EffectiveFrom)).length;
@@ -243,8 +247,9 @@ export function RevenuePage() {
       <div className="row-wrap">
         <button type="button" className="btn" aria-pressed={view === "service"} onClick={() => setView("service")}>By service</button>
         <button type="button" className="btn" aria-pressed={view === "client"} onClick={() => setView("client")}>By client</button>
+        <button type="button" className="btn" aria-pressed={view === "pricing"} onClick={() => setView("pricing")}>Pricing check</button>
       </div>
-      {view === "service" ? (
+      {view === "pricing" ? <PricingCheckList /> : view === "service" ? (
         <div className="card" style={{ overflowX: "auto" }}><table className="tbl">
           <thead><tr><th>Service</th><th>Clients</th><th>Annual recurring</th><th>One-off</th></tr></thead>
           <tbody>{r.byService.map((x) => <tr key={x.serviceKey}><td>{f.svcName(x.serviceKey)}</td><td>{x.clients}</td><td>{gbp(x.arr)}</td><td>{x.oneOff ? gbp(x.oneOff) : "—"}</td></tr>)}</tbody>

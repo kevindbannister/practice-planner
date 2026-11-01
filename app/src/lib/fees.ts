@@ -77,8 +77,8 @@ export function readFeeLine(cs: Row): FeeLine {
 /** A service that is switched off but whose fee still counts is "held"; one with no fee is "included" in another fee (a package). */
 export const FEE_STATUS_LABEL: Record<FeeLine["status"], string> = { active: "Active", held: "Held", ended: "Ended", included: "Included in package" };
 
-export type Charge = { key: string; clientKey: string; serviceKey: string; label: string; amount: number; vat: string; agreedOn: string; status: "agreed" | "cancelled"; proposalKey: string; notes: string };
-export const readCharge = (r: Row): Charge => ({ key: str(r.Key), clientKey: str(r.ClientKey), serviceKey: str(r.ServiceKey), label: str(r.Label), amount: num(r.Amount), vat: str(r.Vat), agreedOn: str(r.AgreedOn), status: str(r.Status) === "cancelled" ? "cancelled" : "agreed", proposalKey: str(r.ProposalKey), notes: str(r.Notes) });
+export type Charge = { key: string; clientKey: string; serviceKey: string; label: string; amount: number; vat: string; agreedOn: string; status: "agreed" | "cancelled" | "proposed"; proposalKey: string; notes: string };
+export const readCharge = (r: Row): Charge => ({ key: str(r.Key), clientKey: str(r.ClientKey), serviceKey: str(r.ServiceKey), label: str(r.Label), amount: num(r.Amount), vat: str(r.Vat), agreedOn: str(r.AgreedOn), status: str(r.Status) === "cancelled" ? "cancelled" : str(r.Status) === "proposed" ? "proposed" : "agreed", proposalKey: str(r.ProposalKey), notes: str(r.Notes) });
 
 export type FeeSnapshot = { fee: number; period: string; listFee?: number; discount?: Discount | null; vat?: string; effectiveFrom?: string; nextReview?: string; ended?: string; held?: boolean };
 const snap = (cs: Row): FeeSnapshot => { const l = readFeeLine(cs); return { fee: l.fee, period: l.period, listFee: l.listFee, discount: l.discount || null, vat: l.vat, effectiveFrom: l.effectiveFrom, nextReview: l.nextReview, ended: l.ended, held: l.held }; };
