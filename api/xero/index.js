@@ -29,7 +29,7 @@ const CONNECTIONS = "https://api.xero.com/connections";
 const APIS = {
   accounting: {
     base: "https://api.xero.com/api.xro/2.0",
-    paths: /^(Organisation|Accounts|TaxRates|TrackingCategories|Contacts|Invoices|CreditNotes|Payments|BankTransactions|BankTransfers|ManualJournals|Journals|Overpayments|Prepayments|Reports\/(TrialBalance|BalanceSheet|ProfitAndLoss|BankSummary|AgedReceivablesByContact|AgedPayablesByContact|ExecutiveSummary))$/,
+    paths: /^(Organisation|Accounts|TaxRates|TrackingCategories|Contacts|Invoices|RepeatingInvoices|CreditNotes|Payments|BankTransactions|BankTransfers|ManualJournals|Journals|Overpayments|Prepayments|Reports\/(TrialBalance|BalanceSheet|ProfitAndLoss|BankSummary|AgedReceivablesByContact|AgedPayablesByContact|ExecutiveSummary))$/,
   },
   accountdata: { base: "https://api.xero.com/accountdata.xro/1.0", paths: /^(account-balances|account-movements|account-transactions)$/ },
   payroll: { base: "https://api.xero.com/payroll.xro/2.0", paths: /^(PayRuns|PayRuns\/[0-9a-f-]{36}|Payslips|Payslips\/[0-9a-f-]{36}|Employees|Settings|PayRunCalendars)$/i },

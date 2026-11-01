@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -431,6 +431,14 @@ export const LISTS: ListDef[] = [
     // Values of the practice's own custom fields, one row per client or job. Json maps field key to value. The fields themselves are the Settings key custom-fields.
     key: "CustomValues", displayName: "PP Custom Values", description: "Practice Planner: values of the practice's own fields on clients and jobs",
     columns: [t("Key", true), t("PracticeId", true), t("Kind", true), t("EntityKey", true), t("ClientKey", true), note("Json"), t("Updated")],
+  },
+  {
+    // Which fee line is billed through Adfin and by which recurring invoice (schedule). Adfin holds the schedule; this is the planner's record of it. See lib/billing.ts.
+    key: "BillingLinks", displayName: "PP Billing Links", description: "Practice Planner: fee lines billed through Adfin",
+    columns: [
+      t("Key", true), t("PracticeId", true), t("ClientKey", true), t("ServiceKey"), t("FeeKey", true), t("CustomerId"), t("CustomerName"), t("ScheduleId"), t("ScheduleNo"), t("Status", true), t("Method"),
+      n("Amount"), n("VatRate"), t("Period"), t("StartDate"), t("Description"), t("NextDate"), t("Created"), t("CreatedBy"), t("Updated"), t("SyncedAt"), note("Notes"),
+    ],
   },
   ...portalLists(),
 ];

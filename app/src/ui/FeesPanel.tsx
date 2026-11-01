@@ -12,6 +12,7 @@ import { href } from "./bits";
 import { useData } from "./data";
 import { useSales } from "./salesKit";
 import { CatchUp, ClientPricingCheck, PricingCheckList } from "./Pricing";
+import { ClientBilling } from "./Billing";
 
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const msgOf = (e: unknown) => (e instanceof Error && e.message ? e.message : "That didn't work. Try again.");
@@ -95,6 +96,7 @@ export function ClientFees({ client }: { client: Row }) {
       {lines.filter((x) => x.line.key === editing).map(({ row, line }) => <AdjustForm key={line.key} row={row} line={line} client={client} busy={busy} doW={doW} fees={f} />)}
 
       <ClientPricingCheck clientKey={ck} lines={lines.map((x) => x.line)} />
+      <ClientBilling client={client} lines={lines} doW={doW} busy={busy} />
 
       <div className="stack" style={{ gap: 6 }}>
         <strong>One-off charges</strong>
