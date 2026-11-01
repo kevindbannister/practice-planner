@@ -11,7 +11,8 @@ export const STATUS_LABEL: Record<ClearanceStatus, string> = { draft: "Not sent 
 export const STATUS_CHIP: Record<ClearanceStatus, string> = { draft: "", requested: "amber", received: "green", refused: "red", notneeded: "" };
 export const asStatus = (v: unknown): ClearanceStatus => (v === "requested" || v === "received" || v === "refused" || v === "notneeded" ? v : "draft");
 
-export type ItemDef = { key: string; label: string; for: "all" | "company" | "individual" };
+/** One point in the clearance request. `services` is where it applies: empty means every client, otherwise only clients with one of those services. */
+export type ItemDef = { key: string; label: string; for: "all" | "company" | "individual"; services?: string[] };
 export const STANDARD_ITEMS: ItemDef[] = [
   { key: "accounts", label: "Last filed accounts and the working papers behind them", for: "company" },
   { key: "ct600", label: "Last Corporation Tax return (CT600) and computations", for: "company" },
@@ -25,8 +26,24 @@ export const STANDARD_ITEMS: ItemDef[] = [
 ];
 export type Item = { key: string; label: string; asked: boolean; got: boolean };
 
-export const itemsFor = (c: Pick<Client, "Kind">): ItemDef[] => STANDARD_ITEMS.filter((i) => i.for === "all" || (i.for === "company") === (c.Kind === "Ltd" || c.Kind === "LLP"));
-export const defaultItems = (c: Pick<Client, "Kind">): Item[] => itemsFor(c).map((i) => ({ key: i.key, label: i.label, asked: true, got: false }));
+export const POINTS_KEY = "clearance.points";
+/** The practice's own clearance points from Settings, or the standard list until it has made some. */
+export function readPoints(settings: { Key?: unknown; Value?: unknown }[]): ItemDef[] {
+  const row = settings.find((x) => String(x.Key) === POINTS_KEY);
+  if (!row) return STANDARD_ITEMS;
+  try {
+    const a = JSON.parse(String(row.Value || "[]"));
+    if (!Array.isArray(a)) return STANDARD_ITEMS;
+    return a.filter((x) => x && typeof x.label === "string" && x.label.trim()).slice(0, 100).map((x, i) => ({
+      key: String(x.key || `p${i + 1}`).slice(0, 40), label: String(x.label).trim().slice(0, 300), for: x.for === "company" || x.for === "individual" ? x.for : "all",
+      services: Array.isArray(x.services) ? x.services.filter((k: unknown) => typeof k === "string").slice(0, 60) : [],
+    }));
+  } catch { return STANDARD_ITEMS; }
+}
+/** The points that apply to this client: by company or individual, and by the services they have (a point with no services applies to everyone). */
+export const itemsFor = (c: Pick<Client, "Kind">, points: ItemDef[] = STANDARD_ITEMS, serviceKeys?: string[]): ItemDef[] =>
+  points.filter((i) => (i.for === "all" || (i.for === "company") === (c.Kind === "Ltd" || c.Kind === "LLP")) && (!i.services?.length || !serviceKeys || i.services.some((k) => serviceKeys.includes(k))));
+export const defaultItems = (c: Pick<Client, "Kind">, points: ItemDef[] = STANDARD_ITEMS, serviceKeys?: string[]): Item[] => itemsFor(c, points, serviceKeys).map((i) => ({ key: i.key, label: i.label, asked: true, got: false }));
 export function readItems(v: unknown, c: Pick<Client, "Kind">): Item[] {
   try { const a = JSON.parse(String(v || "[]")); if (Array.isArray(a) && a.length) return a.filter((x) => x && typeof x.label === "string").map((x) => ({ key: String(x.key || x.label), label: String(x.label), asked: x.asked !== false, got: !!x.got })); } catch { /* fall through */ }
   return defaultItems(c);

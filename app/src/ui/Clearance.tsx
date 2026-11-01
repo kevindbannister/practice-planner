@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { Client, fmtDate, todayIso } from "../lib/domain";
 import { DOCX_TYPE, NotWordFile, letterDocx } from "../lib/docx";
-import { Item, STATUS_CHIP, STATUS_LABEL, STANDARD_ITEMS, asStatus, clearanceLetter, defaultItems, greeting, latest, previousOf, problems, readItems } from "../lib/clearance";
+import { Item, STATUS_CHIP, STATUS_LABEL, asStatus, clearanceLetter, defaultItems, greeting, latest, previousOf, problems, readItems, readPoints } from "../lib/clearance";
 import { letterFileName, longDate } from "../lib/comms";
 import { newKey } from "../lib/planning";
 import { readOnboardingSettings, readStates, setStage, isLiveOnboarding } from "../lib/onboarding";
@@ -26,9 +26,11 @@ export function ClearanceTab({ client }: { client: Client }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
+  const points = useMemo(() => readPoints(data.settings), [data.settings]);
+  const mine = useMemo(() => data.clientServices.filter((r) => r.ClientKey === client.Key && !r.Off && !r.EndedOn).map((r) => String(r.ServiceKey)), [data.clientServices, client.Key]);
   const start = async () => {
     setBusy("start"); setError("");
-    try { await create("Clearances", { Key: newKey("CL"), PracticeId: s.ctx().pid, ClientKey: client.Key, Status: "draft", Items: JSON.stringify(defaultItems(client)), Created: nowIso(), CreatedBy: user || "", Updated: nowIso() }); }
+    try { await create("Clearances", { Key: newKey("CL"), PracticeId: s.ctx().pid, ClientKey: client.Key, Status: "draft", Items: JSON.stringify(defaultItems(client, points, mine)), Created: nowIso(), CreatedBy: user || "", Updated: nowIso() }); }
     catch { setError("Couldn't start that. Try again."); } finally { setBusy(""); }
   };
   return (
@@ -141,7 +143,6 @@ function Request({ client, row, update, remove, create, prefs, today, user, s }:
             {i.asked && status !== "draft" && <label className="row-wrap muted"><input type="checkbox" checked={i.got} disabled={busy === "items"} onChange={(e) => void toggle(i.key, "got", e.target.checked)} /> Received</label>}
           </div>
         ))}
-        {STANDARD_ITEMS.length === 0 && null}
       </fieldset>
 
       <div className="stack" style={{ gap: 6 }}>

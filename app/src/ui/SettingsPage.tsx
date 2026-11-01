@@ -1,6 +1,7 @@
 // Settings, in three tabs: your working week; types of work (how each repeats, when it's
 import { PricingSettings } from "./Pricing";
 import { DocDesignSettings } from "./DocDesign";
+import { ClearancePointsSettings } from "./ClearancePoints";
 import { AdfinSettings } from "./Billing";
 import { CustomFieldSettings } from "./CustomFields";
 import { usePortal } from "./portalKit";
@@ -46,7 +47,7 @@ declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
 const TABS: [string, string][] = [
-  ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["services", "Services & pricing"], ["fields", "Your own fields"], ["pricing", "Pricing rules"], ["design", "Document design"], ["adfin", "Adfin"], ["engagement", "Engagement letters"], ["onboarding", "Onboarding"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["forms", "Forms"], ["xero", "Xero"], ["hmrc", "HMRC"], ["cosec", "Co Sec"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
+  ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["services", "Services & pricing"], ["fields", "Your own fields"], ["pricing", "Pricing rules"], ["design", "Document design"], ["clearance", "Clearance points"], ["adfin", "Adfin"], ["engagement", "Engagement letters"], ["onboarding", "Onboarding"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["forms", "Forms"], ["xero", "Xero"], ["hmrc", "HMRC"], ["cosec", "Co Sec"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
 ];
 // These two have their own pages; they sit with Settings rather than in the main bar.
 const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["portal", "Client portal", "#/portal"]];
@@ -93,6 +94,7 @@ export function SettingsPage() {
       {tab === "fields" && <CustomFieldSettings />}
       {tab === "pricing" && <PricingSettings />}
       {tab === "design" && <DocDesignSettings />}
+      {tab === "clearance" && <ClearancePointsSettings />}
       {tab === "adfin" && <AdfinSettings />}
       {tab === "hmrc" && <HmrcSettings />}
       {tab === "cosec" && <CoSecSettings />}

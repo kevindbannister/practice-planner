@@ -41,3 +41,15 @@ test("problems and the latest status", () => {
   assert.equal(l.waitingDays, 17);
   assert.equal(latest(rows as any, "C2", "2026-10-27").status, "none");
 });
+
+test("clearance points come from settings and can be limited to services", async () => {
+  const { readPoints, POINTS_KEY, STANDARD_ITEMS } = await import("../src/lib/clearance.ts");
+  assert.equal(readPoints([]), STANDARD_ITEMS);
+  assert.equal(readPoints([{ Key: POINTS_KEY, Value: "garbage" }]), STANDARD_ITEMS);
+  const pts = readPoints([{ Key: POINTS_KEY, Value: JSON.stringify([{ key: "a", label: "Payroll records", for: "all", services: ["PAYROLL"] }, { key: "b", label: "Last accounts", for: "company" }, { label: "  " }]) }]);
+  assert.equal(pts.length, 2);
+  assert.deepEqual(itemsFor(company, pts, ["VAT"]).map((i) => i.key), ["b"]);
+  assert.deepEqual(itemsFor(company, pts, ["PAYROLL"]).map((i) => i.key), ["a", "b"]);
+  assert.deepEqual(itemsFor(person, pts, ["PAYROLL"]).map((i) => i.key), ["a"]);
+  assert.equal(itemsFor(company, pts).length, 2);
+});
