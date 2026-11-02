@@ -13,14 +13,16 @@ import { downloadFile } from "./commsKit";
 import { makePdf } from "./docsKit";
 import { AccountsStatusSelect } from "./AccountsProduction";
 import { useAccountsData, useWriterState } from "./PaperSchedules";
-import { Icon, IconName, href } from "./bits";
+import { Icon, IconName, href, useRoute } from "./bits";
+import { AccountsReview } from "./AccountsReview";
 import { useData } from "./data";
 
-type Tab = "details" | "contents" | "notes" | "policies" | "view" | "check";
+type Tab = "details" | "contents" | "notes" | "policies" | "review" | "view" | "check";
+const TAB_KEYS: Tab[] = ["details", "contents", "notes", "policies", "review", "view", "check"];
 const MENU: { group: string; items: { key: Tab; label: string; icon: IconName }[] }[] = [
   { group: "Set up", items: [{ key: "details", label: "Details", icon: "building" }, { key: "contents", label: "Contents", icon: "list" }] },
   { group: "Wording", items: [{ key: "notes", label: "Notes", icon: "book" }, { key: "policies", label: "Policies", icon: "scale" }] },
-  { group: "Output", items: [{ key: "view", label: "View", icon: "print" }, { key: "check", label: "Check & File", icon: "check" }] },
+  { group: "Output", items: [{ key: "review", label: "Review", icon: "layout" }, { key: "view", label: "View", icon: "print" }, { key: "check", label: "Check & File", icon: "check" }] },
 ];
 
 const nextDay = (d: string) => { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10); };
@@ -45,7 +47,10 @@ function useAccSetup(client: Client) {
 export function AccountsScreen({ client, period, onPapers }: { client: Client; period: string; onPapers: () => void }) {
   const w = useWriterState();
   const { effective, officers } = useAccSetup(client);
-  const [tab, setTab] = useState<Tab>("details");
+  const { query } = useRoute();
+  const wantedTab = query.get("tab");
+  const [tab, setTab] = useState<Tab>(TAB_KEYS.includes(wantedTab as Tab) ? (wantedTab as Tab) : "details");
+  useEffect(() => { if (TAB_KEYS.includes(wantedTab as Tab)) setTab(wantedTab as Tab); }, [wantedTab]);
   const [a, setA] = useState<AccSetup>(effective);
   const last = useRef(JSON.stringify(effective));
   // pick up changes from elsewhere, but not our own typing
@@ -65,6 +70,9 @@ export function AccountsScreen({ client, period, onPapers }: { client: Client; p
   }), [client, period, branding]);
   const link = (section: string) => (SECTIONS.some((x) => x.key === section) ? `${location.origin}${location.pathname}${href("papers", String(client.Key), period)}?section=${encodeURIComponent(section)}` : undefined);
   const input: AccountsInput = { facts, setup: a, figures, prior, maps: acc.maps, priorMaps: acc.priorMaps, assets: acc.assets, priorAssets: acc.priorAssets, link };
+  // the same pages for the on-screen review, with links that stay in the app and bring the person back here
+  const reviewLink = (section: string) => (SECTIONS.some((x) => x.key === section) ? `${href("papers", String(client.Key), period)}?section=${encodeURIComponent(section)}&from=accounts` : undefined);
+  const sections = useMemo(() => (tab === "review" ? buildSections({ ...input, link: reviewLink }) : []), [tab, a, figures, prior, acc.maps, acc.assets, facts]); // eslint-disable-line react-hooks/exhaustive-deps
   const checks = useMemo(() => checkAccounts(input), [a, figures, prior, acc.maps, facts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -100,6 +108,7 @@ export function AccountsScreen({ client, period, onPapers }: { client: Client; p
       {tab === "contents" && <ContentsTab a={a} set={set} setType={(t) => void save(withType(a, t))} />}
       {tab === "notes" && <NotesTab a={a} set={set} commit={commit} />}
       {tab === "policies" && <PoliciesTab a={a} set={set} commit={commit} />}
+      {tab === "review" && <AccountsReview sections={sections} draft={a.draft} />}
       {tab === "view" && <ViewTab input={input} branding={branding} />}
       {tab === "check" && <CheckTab a={a} set={set} commit={commit} checks={checks} client={client} period={period} />}
       {w.error && <p className="error-text" role="alert">{w.error}</p>}

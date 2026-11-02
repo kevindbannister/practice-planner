@@ -231,8 +231,12 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
   const [xr, setXr] = useState(false);
   const { query } = useRoute();
   const [view, setView] = useState<"papers" | "accounts">(query.get("view") === "accounts" ? "accounts" : "papers");
+  // each side remembers how far down the page it was
+  const spots = useRef<Record<string, number>>({});
+  const flip = (to: "papers" | "accounts") => { spots.current[view] = window.scrollY; setView(to); };
+  useEffect(() => { const y = spots.current[view] ?? 0; requestAnimationFrame(() => window.scrollTo(0, y)); }, [view]);
   const wantedView = query.get("view");
-  useEffect(() => { if (wantedView === "accounts" || wantedView === "papers") setView(wantedView); else if (query.get("section")) setView("papers"); }, [wantedView, query.get("section")]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const to = wantedView === "accounts" || wantedView === "papers" ? wantedView : query.get("section") ? "papers" : undefined; if (to && to !== view) { spots.current[view] = window.scrollY; setView(to); } }, [wantedView, query.get("section")]); // eslint-disable-line react-hooks/exhaustive-deps
   const xeroTip = !tenant
     ? `${connected ? "Not linked to a Xero organisation" : "Xero isn't connected"}. Open Xero settings`
     : `Refresh from Xero (${tenant.tenantName})${saved.at ? `. Last ledger read ${new Date(saved.at).toLocaleDateString("en-GB")}` : ""}`;
@@ -241,8 +245,8 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
       {top(
         <>
           <span className="row-wrap paper-views" role="group" aria-label="Working papers or statutory accounts" style={{ gap: 4 }}>
-            <button type="button" className={`btn small paper-tool${view === "papers" ? " primary" : ""}`} aria-pressed={view === "papers"} onClick={() => setView("papers")}>Working papers</button>
-            <button type="button" className={`btn small paper-tool${view === "accounts" ? " primary" : ""}`} aria-pressed={view === "accounts"} onClick={() => setView("accounts")}>Accounts</button>
+            <button type="button" className={`btn small paper-tool${view === "papers" ? " primary" : ""}`} aria-pressed={view === "papers"} onClick={() => flip("papers")}>Working papers</button>
+            <button type="button" className={`btn small paper-tool${view === "accounts" ? " primary" : ""}`} aria-pressed={view === "accounts"} onClick={() => flip("accounts")}>Accounts</button>
           </span>
           <AccountsStatusSelect clientKey={String(c.Key)} period={period} />
           <button type="button" className="btn small paper-tool" aria-expanded={wb} title="Import a working paper workbook (Excel)" onClick={() => { setWb(!wb); setXr(false); }}>
@@ -259,7 +263,9 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
       )}
       <WorkbookImport client={c} period={period} open={wb} onClose={() => setWb(false)} />
       <XeroImport client={c} period={period} open={xr} onClose={() => setXr(false)} />
-      {view === "accounts" ? <AccountsScreen client={c} period={period} onPapers={() => setView("papers")} /> : <PaperBody client={c} period={period} today={today} />}
+      {/* both stay open so each keeps its place (the section, the tab) when the person flips between them */}
+      <div hidden={view !== "accounts"}><AccountsScreen client={c} period={period} onPapers={() => flip("papers")} /></div>
+      <div hidden={view !== "papers"}><PaperBody client={c} period={period} today={today} /></div>
     </>
   );
 }
@@ -334,6 +340,9 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
         })}
       </nav>
       <section className="paper-main stack" aria-labelledby="paper-h">
+        {query.get("from") === "accounts" && (
+          <a className="btn small" style={{ alignSelf: "flex-start" }} href={`${href("papers", String(c.Key), period)}?view=accounts&tab=review`}><Icon name="left" size={14} /> Back to the accounts</a>
+        )}
         <SectionPage key={`${period}-${sec.key}`} client={c} period={period} sec={sec} user={user || ""} today={today}
           onWrite={(patch) => w.writeSetup(sec.key, {}, patch)} onNext={next} hasNext={i < used.length - 1} />
         {w.error && <p className="error-text" role="alert">{w.error}</p>}
