@@ -2927,3 +2927,65 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .deck-fig { min-width: 0; width: 100%; font-size: 12px; }
 .deck-tile-edit { display: flex; flex-direction: column; gap: 5px; padding-bottom: 8px; border-bottom: 1px dashed rgba(20,117,173,.2); } .deck-tile-edit:last-of-type { border-bottom: 0; }
 .deck-live { font-size: 12px; } .deck-live span { font-weight: 700; }
+
+/* ---------------------------------------------------------------------------------------------------------------------
+   One design across the app: the working papers' sections, headings and tables, used on every other page.
+   (The top menu bar and the working papers themselves are not touched: this applies inside .page, outside .paper-page.)
+   --------------------------------------------------------------------------------------------------------------------- */
+:is(.page:not(.paper-page), .split-main) {
+  --sec-pad: 14px 16px;
+}
+/* the page's first card is its header: blue top edge, blue title, compact */
+:is(.page:not(.paper-page), .split-main):not(:has(> .page-head)) > .card:first-of-type:not(.empty) { border-top: 4px solid var(--blue); }
+:is(.page:not(.paper-page), .split-main):not(:has(> .page-head)) > .card:first-of-type h2 { color: var(--blue-ink); }
+
+/* sections: tighter cards, same heading weight as the working papers */
+@media (min-width: 721px) {
+  :is(.page:not(.paper-page), .split-main) .card.pad { padding: var(--sec-pad); }
+  :is(.page:not(.paper-page), .split-main) .card-head { padding: 10px 16px; }
+  :is(.page:not(.paper-page), .split-main) .card.pad.stack, :is(.page:not(.paper-page), .split-main) .card.stack { gap: 10px; }
+}
+:is(.page:not(.paper-page), .split-main) .card > h2:first-child, :is(.page:not(.paper-page), .split-main) .card-head h2, :is(.page:not(.paper-page), .split-main) .card-title-row h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+/* sub-headings inside a section read like the working papers' group names: small blue capitals over a blue rule */
+:is(.page:not(.paper-page), .split-main) .card h3:not(.plain) { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); border-bottom: 1px solid var(--blue-line); padding-bottom: 3px; margin: 4px 0 2px; }
+:is(.page:not(.paper-page), .split-main) .eyebrow { color: var(--blue); }
+
+/* tables: blue header band with small capitals, compact rows, blue totals */
+:is(.page:not(.paper-page), .split-main) table.grid:not(.ledger-table), :is(.page:not(.paper-page), .split-main) table.tbl, :is(.page:not(.paper-page), .split-main) table.table, :is(.page:not(.paper-page), .split-main) table.bank-table { font-size: 13px; line-height: 1.3; }
+:is(.page:not(.paper-page), .split-main) table.grid:not(.ledger-table) thead th, :is(.page:not(.paper-page), .split-main) table.tbl thead th, :is(.page:not(.paper-page), .split-main) table.table thead th, :is(.page:not(.paper-page), .split-main) table.bank-table thead th {
+  background: var(--blue-soft); color: var(--blue-ink); border-bottom: 2px solid var(--blue-line); padding: 7px 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+}
+:is(.page:not(.paper-page), .split-main) table.grid:not(.ledger-table) td, :is(.page:not(.paper-page), .split-main) table.tbl td, :is(.page:not(.paper-page), .split-main) table.table td, :is(.page:not(.paper-page), .split-main) table.bank-table td { padding: 7px 10px; }
+:is(.page:not(.paper-page), .split-main) table.grid:not(.ledger-table) th:first-child, :is(.page:not(.paper-page), .split-main) table.grid:not(.ledger-table) td:first-child { padding-left: 14px; }
+:is(.page:not(.paper-page), .split-main) table.tbl tbody tr:hover td, :is(.page:not(.paper-page), .split-main) table.table tbody tr:hover td, :is(.page:not(.paper-page), .split-main) table.bank-table tbody tr:hover td { background: var(--surface-2); }
+:is(.page:not(.paper-page), .split-main) table.grid tfoot td, :is(.page:not(.paper-page), .split-main) table.tbl tfoot td, :is(.page:not(.paper-page), .split-main) table.table tfoot td { background: var(--blue-soft); color: var(--blue-ink); border-top: 2px solid var(--blue); font-weight: 600; }
+
+/* figures: a blue edge and blue value, as the working papers' totals */
+:is(.page:not(.paper-page), .split-main) .tile:not(.amber):not(.red):not(.green) { border-left: 4px solid var(--blue); }
+:is(.page:not(.paper-page), .split-main) .tile:not(.amber):not(.red):not(.green) .value { color: var(--blue-ink); }
+:is(.page:not(.paper-page), .split-main) .tile.amber { border-left: 4px solid var(--amber-solid); } :is(.page:not(.paper-page), .split-main) .tile.red { border-left: 4px solid var(--red-solid); } :is(.page:not(.paper-page), .split-main) .tile.green { border-left: 4px solid var(--green); }
+
+/* segmented controls and tabs: the working papers' compact size */
+@media (min-width: 721px) {
+  :is(.page:not(.paper-page), .split-main) .seg button { min-height: 30px; padding: 0 12px; font-size: 13px; }
+  :is(.page:not(.paper-page), .split-main) .seg { border-radius: 8px; }
+}
+
+/* the page header: a card with the blue top edge, small capitals above, a solid blue title: as the working papers' header */
+:is(.page:not(.paper-page):not(.client-page):not(.home), .split-main) > .page-head {
+  background: var(--surface); border-radius: var(--radius); box-shadow: var(--elev-1); border-top: 4px solid var(--blue); padding: 12px 16px; align-items: center;
+}
+:is(.page:not(.paper-page):not(.client-page):not(.home), .split-main) > .page-head h1 { font-size: 24px; background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--blue-ink); line-height: 1.2; }
+:is(.page:not(.paper-page):not(.client-page):not(.home), .split-main) > .page-head .muted { font-size: 13px; }
+/* figures set out inline (a plain card with a label over a number) take the same blue edge */
+:is(.page:not(.paper-page), .split-main) .grid-stats > .card { border-left: 4px solid var(--blue); } :is(.page:not(.paper-page), .split-main) .grid-stats > .card > div:last-child { color: var(--blue-ink); }
+/* a table with no heading row (a list of figures): the same rows, ruled and compact */
+:is(.page:not(.paper-page), .split-main) table.table:not(:has(thead)) td { border-bottom: 1px solid var(--line-2); } :is(.page:not(.paper-page), .split-main) table.table:not(:has(thead)) tr:last-child td { border-bottom: 0; }
+:is(.page:not(.paper-page), .split-main) table.table:not(:has(thead)) td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+/* pages whose header carries its own tabs (Plan, Sales, Co Sec, Action Centre) get the same header card */
+.page:not(.paper-page):not(.home) > .plan-title { background: var(--surface); border-radius: var(--radius); box-shadow: var(--elev-1); border-top: 4px solid var(--blue); padding: 10px 16px 0; }
+.page:not(.paper-page):not(.home) > .plan-title h1 { font-size: 24px; background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--blue-ink); line-height: 1.2; margin-bottom: 6px; }
+.page:not(.paper-page):not(.home) > .plan-title .subtabs { border-bottom: 0; margin-bottom: 0; }
+.page:not(.paper-page):not(.home) > .plan-title { overflow: hidden; min-width: 0; }
+.page:not(.paper-page):not(.home) > .plan-title .subtabs { overflow-x: auto; scrollbar-width: thin; }
+:is(.page:not(.paper-page), .split-main) table.table:not(:has(thead)) { width: 100%; max-width: 520px; }
