@@ -45,6 +45,13 @@ import { readCommsPrefs } from "../lib/comms";
 import { adoptWaitingJobs, initialWaitStages } from "../lib/waiting";
 
 export function App({ demo }: { demo: boolean }) {
+  // the soft fade under the menu shows only once the page has scrolled (see body.scrolled in styles.css)
+  useEffect(() => {
+    const on = () => document.body.classList.toggle("scrolled", window.scrollY > 6);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
   setCoSecDemo(demo);
   const { status, error, reload, saveSetting, data } = useData();
   const { parts } = useRoute();

@@ -2085,11 +2085,13 @@ body { display: flow-root; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fade: 6, 16, 29; } }
 :root[data-theme="dark"] { --fade: 6, 16, 29; }
 @media (min-width: 721px) {
-  body::before { content: ""; position: fixed; left: 0; right: 0; top: 0; height: 120px; z-index: 9; pointer-events: none;
+  body::before { content: ""; position: fixed; left: 0; right: 0; top: 0; height: 84px; z-index: 9; pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
     background: linear-gradient(to bottom, rgba(var(--fade), 0.97) 0, rgba(var(--fade), 0.9) 45%, rgba(var(--fade), 0) 100%);
     -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
     -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
 }
+/* the fade only shows once the page has scrolled, so it never sits over a title at the top */
+@media (min-width: 721px) { body.scrolled::before { opacity: 1; } }
 @media print { body::before { display: none; } }
 
 /* Companies House review: grouped into tabs */
