@@ -13,11 +13,15 @@ import { downloadFile } from "./commsKit";
 import { makePdf } from "./docsKit";
 import { AccountsStatusSelect } from "./AccountsProduction";
 import { useAccountsData, useWriterState } from "./PaperSchedules";
-import { href } from "./bits";
+import { Icon, IconName, href } from "./bits";
 import { useData } from "./data";
 
-const TABS = [["details", "Details"], ["contents", "Contents"], ["notes", "Notes"], ["policies", "Policies"], ["view", "View"], ["check", "Check & File"]] as const;
-type Tab = (typeof TABS)[number][0];
+type Tab = "details" | "contents" | "notes" | "policies" | "view" | "check";
+const MENU: { group: string; items: { key: Tab; label: string; icon: IconName }[] }[] = [
+  { group: "Set up", items: [{ key: "details", label: "Details", icon: "building" }, { key: "contents", label: "Contents", icon: "list" }] },
+  { group: "Wording", items: [{ key: "notes", label: "Notes", icon: "book" }, { key: "policies", label: "Policies", icon: "scale" }] },
+  { group: "Output", items: [{ key: "view", label: "View", icon: "print" }, { key: "check", label: "Check & File", icon: "check" }] },
+];
 
 const nextDay = (d: string) => { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10); };
 
@@ -64,11 +68,33 @@ export function AccountsScreen({ client, period, onPapers }: { client: Client; p
   const checks = useMemo(() => checkAccounts(input), [a, figures, prior, acc.maps, facts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="stack acc-screen">
-      <nav className="seg" style={{ alignSelf: "flex-start", flexWrap: "wrap" }} aria-label="Accounts sections">
-        {TABS.map(([k, l]) => <button key={k} type="button" aria-pressed={k === tab} onClick={() => { commit(); setTab(k); }}>{l}{k === "check" && hasErrors(checks) ? " ●" : ""}</button>)}
-        <button type="button" onClick={onPapers} title="The trial balance is in the working papers">Trial balance →</button>
+    <div className="paper acc-screen">
+      <nav className="paper-side" aria-label="Sections of the accounts">
+        {MENU.map((g) => (
+          <div key={g.group} className="paper-group">
+            <div className="paper-group-name" style={{ cursor: "default" }}>{g.group}</div>
+            <ul>
+              {g.items.map((it) => {
+                const bad = it.key === "check" && hasErrors(checks);
+                return (
+                  <li key={it.key}>
+                    <button type="button" className={`paper-item${it.key === tab ? " on" : ""}`} aria-current={it.key === tab ? "true" : undefined} onClick={() => { commit(); setTab(it.key); }}>
+                      <span className="paper-ico" aria-hidden="true"><Icon name={it.icon} size={15} /></span>
+                      <span className="paper-name">{it.label}</span>
+                      {bad && <span className="paper-note-flag" title="Has errors to fix" aria-label="Has errors to fix" />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+        <div className="paper-group">
+          <div className="paper-group-name" style={{ cursor: "default" }}>Figures</div>
+          <ul><li><button type="button" className="paper-item" onClick={onPapers} title="The trial balance is in the working papers"><span className="paper-ico" aria-hidden="true"><Icon name="calc" size={15} /></span><span className="paper-name">Trial balance →</span></button></li></ul>
+        </div>
       </nav>
+      <section className="paper-main stack" aria-label="Accounts">
       {!acc.maps && <p className="notice" role="status">There is no trial balance for this year yet. Import or paste it in the working papers (Trial balance) and the figures appear here.</p>}
       {tab === "details" && <Details a={a} set={set} commit={commit} facts={facts} officers={officers} />}
       {tab === "contents" && <ContentsTab a={a} set={set} setType={(t) => void save(withType(a, t))} />}
@@ -77,6 +103,7 @@ export function AccountsScreen({ client, period, onPapers }: { client: Client; p
       {tab === "view" && <ViewTab input={input} branding={branding} />}
       {tab === "check" && <CheckTab a={a} set={set} commit={commit} checks={checks} client={client} period={period} />}
       {w.error && <p className="error-text" role="alert">{w.error}</p>}
+      </section>
     </div>
   );
 }
