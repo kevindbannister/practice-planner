@@ -231,6 +231,8 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
   const [xr, setXr] = useState(false);
   const { query } = useRoute();
   const [view, setView] = useState<"papers" | "accounts">(query.get("view") === "accounts" ? "accounts" : "papers");
+  const wantedView = query.get("view");
+  useEffect(() => { if (wantedView === "accounts" || wantedView === "papers") setView(wantedView); else if (query.get("section")) setView("papers"); }, [wantedView, query.get("section")]); // eslint-disable-line react-hooks/exhaustive-deps
   const xeroTip = !tenant
     ? `${connected ? "Not linked to a Xero organisation" : "Xero isn't connected"}. Open Xero settings`
     : `Refresh from Xero (${tenant.tenantName})${saved.at ? `. Last ledger read ${new Date(saved.at).toLocaleDateString("en-GB")}` : ""}`;
@@ -268,6 +270,9 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
   const { query } = useRoute();
   const [pick, setPick] = useState<string | undefined>(query.get("section") || undefined);
   const [choosing, setChoosing] = useState(false);
+  // a link to a section (from the accounts PDF, say) while these papers are already open: follow it
+  const wanted = query.get("section");
+  useEffect(() => { if (wanted) setPick(wanted); }, [wanted]);
   const [shut, setShut] = useState<string[]>(() => {
     try { const v = localStorage.getItem("papers.shut"); if (v) return JSON.parse(v) as string[]; } catch { /* no storage */ }
     return ["Job", "Accounts and tax"];
