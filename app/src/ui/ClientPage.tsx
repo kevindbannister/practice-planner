@@ -722,7 +722,7 @@ function JobCard({ job: j }: { job: Job }) {
 }
 
 /** The client's logo, with Add / Change / Remove. Drop an image on it, or pick a file. */
-function LogoPicker({ client: c, showOnly = false }: { client: Client; showOnly?: boolean }) {
+export function LogoPicker({ client: c, showOnly = false, compact = false }: { client: Client; showOnly?: boolean; compact?: boolean }) {
   const { update } = useData();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -768,7 +768,12 @@ function LogoPicker({ client: c, showOnly = false }: { client: Client; showOnly?
       ) : (
         <ClientBadge client={c} size="lg" />
       )}
-      {!showOnly && <span className="logo-actions">
+      {compact && !showOnly && (
+        <button type="button" className={logo ? "logo-change" : "linkbtn"} disabled={busy} title={logo ? "Change logo" : "Add this client's logo"} aria-label={logo ? `Change ${c.Title} logo` : `Add ${c.Title} logo`} onClick={() => input.current?.click()}>
+          {busy ? "Saving…" : logo ? <Icon name="plus" size={12} /> : "Add logo"}
+        </button>
+      )}
+      {!showOnly && !compact && <span className="logo-actions">
         <button type="button" className="linkbtn" disabled={busy} onClick={() => input.current?.click()}>
           {busy ? "Saving…" : logo ? "Change logo" : "Add logo"}
         </button>

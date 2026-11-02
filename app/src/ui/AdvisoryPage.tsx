@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { emptyPlan, gap, readPlan, writePlan } from "../lib/advisory";
 import { Client, fmtDate } from "../lib/domain";
 import { newKey } from "../lib/planning";
+import { LogoPicker } from "./ClientPage";
 import { ClientBadge, Icon, go, href, useRoute } from "./bits";
 import { useData } from "./data";
 import { SaveNote, gbp, gbpBr, pct, usePlan } from "./advisoryKit";
@@ -138,9 +139,13 @@ function AdvisoryClient({ clientKey, tab }: { clientKey: string; tab: TabKey }) 
   return (
     <div className="page adv">
       <header className="adv-bar">
-        <div className="adv-bar-title">
-          <span className="adv-kicker">Freedom Plan</span>
-          <h1>{String(client.Title)}</h1>
+        <div className="adv-bar-id">
+          {/* the same logo as on the client's page: it is saved on the client's record, so adding it here adds it there */}
+          <LogoPicker client={client as unknown as Client} compact />
+          <div className="adv-bar-title">
+            <span className="adv-kicker">Freedom Plan</span>
+            <h1>{String(client.Title)}</h1>
+          </div>
         </div>
         <div className="adv-bar-actions">
           <SaveNote s={s} />

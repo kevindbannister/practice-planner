@@ -2600,3 +2600,10 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 .adv-bar-actions { display: flex; align-items: center; gap: 8px; }
 .adv-bar-icon { width: 44px; height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; }
 @media (max-width: 700px) { .adv-bar { border-radius: 28px; padding: 8px 10px 8px 16px; } }
+.adv-bar-id { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.adv-bar .logo-picker { flex-wrap: nowrap; gap: 6px; }
+.adv-bar .logo-box { height: 44px; max-width: 120px; }
+.adv-bar .logo-box img { max-height: 40px; max-width: 110px; object-fit: contain; }
+.logo-change { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.logo-change:hover { color: var(--ink); }
+.adv-bar .logo-picker .linkbtn { white-space: nowrap; } .adv-bar .logo-picker .error-text { font-size: 12px; max-width: 160px; }
