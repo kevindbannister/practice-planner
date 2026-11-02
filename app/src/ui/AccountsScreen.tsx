@@ -14,7 +14,7 @@ import { makePdf } from "./docsKit";
 import { AccountsStatusSelect } from "./AccountsProduction";
 import { useAccountsData, useWriterState } from "./PaperSchedules";
 import { Icon, IconName, href, useRoute } from "./bits";
-import { AccountsReview } from "./AccountsReview";
+import { AccountsFlow, AccountsReview } from "./AccountsReview";
 import { useData } from "./data";
 
 type Tab = "details" | "contents" | "notes" | "policies" | "review" | "view" | "check";
@@ -297,3 +297,29 @@ function CheckTab({ a, set, checks, client, period }: Common & { checks: ReturnT
   );
 }
 
+
+/** The accounts figures as one scrollable page: the income statement, balance sheet and detailed profit and loss with a divider where each page would break. */
+export function AccountsFigures({ client, period }: { client: Client; period: string }) {
+  const { effective } = useAccSetup(client);
+  const { data } = useData();
+  const branding = useMemo(() => brandOf(readBranding(data.settings)), [data.settings]);
+  const acc = useAccountsData();
+  const figures = useMemo(() => (acc.maps ? accountsFigures(acc.maps) : accountsFigures([])), [acc.maps]);
+  const prior = useMemo(() => (acc.priorMaps ? accountsFigures(acc.priorMaps) : undefined), [acc.priorMaps]);
+  const facts = useMemo(() => ({
+    name: client.Title, number: String(client.CompanyNumber || ""), start: nextDay(priorPeriod(period)), end: period, priorEnd: priorPeriod(period),
+    firm: displayName(branding), firmAddress: (branding.correspondenceAddress || branding.registeredAddress || "").trim(), kind: String(client.Kind || "Ltd"),
+  }), [client, period, branding]);
+  const link = (section: string) => (SECTIONS.some((x) => x.key === section) ? `${href("papers", String(client.Key), period)}?section=${encodeURIComponent(section)}&from=figures` : undefined);
+  const sections = useMemo(() => {
+    const setup: AccSetup = { ...effective, include: { ...effective.include, income: effective.type !== "dormant", balance: true, detailed: effective.type !== "dormant" } };
+    const keep = ["income", "balance", "detailed"];
+    return buildSections({ facts, setup, figures, prior, maps: acc.maps, priorMaps: acc.priorMaps, assets: acc.assets, priorAssets: acc.priorAssets, link }).filter((x) => keep.includes(x.key));
+  }, [effective, figures, prior, acc.maps, acc.priorMaps, acc.assets, facts]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="stack">
+      {!acc.maps && <p className="notice" role="status">There is no trial balance for this year yet. Import or paste it in the working papers (Trial balance) and the figures appear here.</p>}
+      <AccountsFlow sections={sections} draft={effective.draft} />
+    </div>
+  );
+}

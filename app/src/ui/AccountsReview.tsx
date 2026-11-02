@@ -51,6 +51,23 @@ export function BlockView({ b }: { b: Block }) {
   }
 }
 
+/** The same pages as one continuous page, a divider where each page break would be. */
+export function AccountsFlow({ sections, draft }: { sections: Section[]; draft: boolean }) {
+  if (!sections.length) return <p className="muted">There are no statements to show yet.</p>;
+  return (
+    <article className={`acc-flow${draft ? " draft" : ""}`} aria-label="Accounts figures">
+      {sections.map((s, k) => (
+        <section key={s.key} aria-label={s.title}>
+          <div className="acc-divider" role="separator"><span>{k ? "Page break" : "Start"} · {s.title}</span></div>
+          {s.blocks.map((b, i) => <Fragment key={i}><BlockView b={b} /></Fragment>)}
+        </section>
+      ))}
+      <div className="acc-divider" role="separator"><span>End</span></div>
+      <p className="muted" style={{ margin: 0 }}>Figures in blue open the working paper they come from; use the back button there to return here.</p>
+    </article>
+  );
+}
+
 /** Every section as a sheet, with a row of jump links above. */
 export function AccountsReview({ sections, draft }: { sections: Section[]; draft: boolean }) {
   const jump = (key: string) => document.getElementById(`acc-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
