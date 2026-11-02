@@ -915,7 +915,7 @@ function AccountsSummary() {
 // ------------------------------------------------------------------ summaries
 
 /** The lead schedule: each schedule's figure this year and last (typed in the first year). */
-export function LeadTable({ section }: { section: Section }) {
+export function LeadTable({ section, onOpen }: { section: Section; /** when given, a line opens its schedule on its own page (the caller shows it) */ onOpen?: (subKey: string) => void }) {
   const { data } = useData();
   const w = useWriter();
   const checks = useTbChecks();
@@ -956,7 +956,7 @@ export function LeadTable({ section }: { section: Section }) {
     setOpen((o) => (m === "panel" ? o.slice(0, 1) : o));
     try { localStorage.setItem(modeKey, m); } catch { /* no storage */ }
   };
-  const toggle = (k: string) => setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : mode === "panel" ? [k] : [...o, k]));
+  const toggle = (k: string) => onOpen ? onOpen(k) : setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : mode === "panel" ? [k] : [...o, k]));
   const shown = new Set<string>(); // a split account has two rows; its schedule sits under the first
   const line = (r: (typeof rows)[number]) => {
     const k = r.sub.key, isOpen = open.includes(k), first = !shown.has(k);
@@ -967,7 +967,7 @@ export function LeadTable({ section }: { section: Section }) {
           <td>
             <button type="button" className="lead-toggle" aria-expanded={isOpen} aria-controls={`lead-${section.key}-${k}`}
               onClick={(e) => { e.stopPropagation(); toggle(k); }}>
-              <span className="lead-chev" aria-hidden="true">{isOpen ? "▾" : "▸"}</span>{r.label}{r.fromTb && <span className="muted lead-fromtb" title="No schedule filled in yet, so this is the trial balance figure"> · per TB</span>}
+              <span className="lead-chev" aria-hidden="true">{onOpen ? "›" : isOpen ? "▾" : "▸"}</span>{r.label}{r.fromTb && <span className="muted lead-fromtb" title="No schedule filled in yet, so this is the trial balance figure"> · per TB</span>}
             </button>
           </td>
           <td className="num mono">{money(r.now) || "–"}</td><td className="num prior">{priorCell(r)}</td>{tbCells(r.now, tbFor(r))}
@@ -987,13 +987,13 @@ export function LeadTable({ section }: { section: Section }) {
   const panelRow = rows.find((r) => open.includes(r.sub.key));
   return (
     <section className="card pad stack" aria-label={`${section.title} lead schedule`}>
-      <div className="row-wrap lead-mode">
+      {!onOpen && <div className="row-wrap lead-mode">
         <span className="muted" style={{ fontSize: 12 }}>A line opens:</span>
         <div className="seg" role="group" aria-label="How a line opens its schedule">
           <button type="button" aria-pressed={mode === "line"} onClick={() => setMode("line")}>Under the line</button>
           <button type="button" aria-pressed={mode === "panel"} onClick={() => setMode("panel")}>Side panel</button>
         </div>
-      </div>
+      </div>}
       <div className={mode === "panel" && panelRow ? "lead-split" : undefined}>
       <div className="table-wrap lead-main">
       <table className="grid lead">
@@ -1014,7 +1014,7 @@ export function LeadTable({ section }: { section: Section }) {
         </aside>
       )}
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>{mode === "panel" ? "Click a line to open its schedule beside the lead." : "Click a line to open its schedule."}</p>
+      <p className="muted" style={{ margin: 0, fontSize: 12 }}>{onOpen ? "Click a line to open its schedule. It has a link back here." : mode === "panel" ? "Click a line to open its schedule beside the lead." : "Click a line to open its schedule."}</p>
       {typed && <p className="muted" style={{ margin: 0, fontSize: 12 }}>No paper for last year in the planner yet, so type last year's figures from the accounts.</p>}
     </section>
   );

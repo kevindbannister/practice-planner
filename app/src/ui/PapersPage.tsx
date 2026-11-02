@@ -416,6 +416,10 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
     return onWrite(on ? { [`${kind}By`]: "", [`${kind}On`]: "" } : { [`${kind}By`]: who(user), [`${kind}On`]: today });
   };
   const subs = subsFor(sec, data.papers, client.Key, period);
+  // a lead schedule is a page of its own: a line opens that schedule on its own page, with a link back
+  const [subKey, setSubKey] = useState<string | undefined>();
+  const isLead = sec.summary === "lead";
+  const picked = isLead ? subs.find((sb) => sb.key === subKey && LEAD_KINDS.includes(sb.kind)) : undefined;
   const isDoc = !sec.subs.length && !sec.canAdd;
   const [link, setLink] = useState(st.link);
   useEffect(() => setLink(st.link), [st.link]);
@@ -457,10 +461,18 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
         )}
       </div>
 
-      {sec.summary === "lead" && <LeadTable section={sec} />}
+      {isLead && !picked && <LeadTable section={sec} onOpen={(k) => { setSubKey(k); window.scrollTo({ top: 0 }); }} />}
+      {picked && (
+        <>
+          <button type="button" className="btn small" style={{ alignSelf: "flex-start" }} onClick={() => { setSubKey(undefined); window.scrollTo({ top: 0 }); }}>
+            <Icon name="left" size={14} /> Back to the {sec.title.toLowerCase()} lead schedule
+          </button>
+          <Schedule key={picked.key} section={sec} sb={picked} />
+        </>
+      )}
       {sec.summary === "assets" && <AssetSummary section={sec} />}
-      {subs.filter((sb) => sec.summary !== "lead" || !LEAD_KINDS.includes(sb.kind)).map((sb) => <Schedule key={sb.key} section={sec} sb={sb} />)}
-      {sec.canAdd && <AddSchedule section={sec} />}
+      {!picked && subs.filter((sb) => sec.summary !== "lead" || !LEAD_KINDS.includes(sb.kind)).map((sb) => <Schedule key={sb.key} section={sec} sb={sb} />)}
+      {sec.canAdd && !picked && <AddSchedule section={sec} />}
 
       <div className="card pad stack">
         <label>
