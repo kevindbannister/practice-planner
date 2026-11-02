@@ -2,7 +2,9 @@
 // end. Open one and the sections of its working papers (as in the Excel working paper) are listed
 // down the side; sections not used for a company can be turned off. Each section has a status,
 // a Prepared / Reviewed sign-off, notes, and its schedules (see PaperSchedules).
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useXeroLinks } from "./XeroSettings";
+import { sectionIcon } from "./paperIcons";
 import { WorkbookImport } from "./PaperImport";
 import { XeroImport } from "./XeroImport";
 import { AddSchedule, AssetSummary, LeadTable, PaperWriter, Schedule, useSectionsInUse, useWriterState } from "./PaperSchedules";
@@ -138,14 +140,18 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
   const period = periodParam || current;
   const linked = period ? (idx.jobsByClient.get(c.Key) || []).filter((j) => PAPER_JOBS.has(j.ServiceKey || "") && j.PeriodEnd === period) : [];
 
-  return (
-    <div className="page">
-      <div className="paper-top">
-        <a className="crumb" href="#/papers">Working papers</a>
-        <h1>{c.Title}</h1>
-        {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}</span>}
-        {c.YearEnd && <span className="chip">Year end {fmtDate(`2000-${c.YearEnd}`, { year: false })}</span>}
-        <a className="chip blue" href={href("clients", c.Key)}>Client page</a>
+  const top = (tools: ReactNode) => (
+    <div className="paper-top">
+      <a className="crumb" href="#/papers" title="All working papers">‹ Papers</a>
+      <h1>{c.Title}</h1>
+      {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}</span>}
+      <a className="chip blue" href={href("clients", c.Key)}>Client page</a>
+      {linked.map((j) => (
+        <button key={j.Key} type="button" className="chip blue" style={{ cursor: "pointer" }} title="Open this job" onClick={() => editor.open({ kind: "job", key: j.Key as string })}>
+          {j.Title}{j.Status === "done" || j.CompletedDate ? " · complete" : j.Deadline ? ` · due ${fmtDate(j.Deadline as string, { year: false })}` : ""}
+        </button>
+      ))}
+      <div className="paper-tools">
         <label className="row-wrap paper-year" style={{ gap: 6, fontSize: 13 }}>
           <span>Year to</span>
           <select className="input" value={period} style={{ width: "auto", minHeight: 32, padding: "2px 8px" }} disabled={!all.length}
@@ -154,31 +160,70 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
             {all.map((d) => <option key={d} value={d}>{fmtDate(d)}</option>)}
           </select>
         </label>
+        {tools}
       </div>
+    </div>
+  );
 
-      {linked.length > 0 && (
-        <div className="row-wrap" style={{ gap: 6 }}>
-          <span className="muted" style={{ fontSize: 12 }}>Jobs:</span>
-          {linked.map((j) => (
-            <button key={j.Key} type="button" className="chip blue" style={{ cursor: "pointer" }} onClick={() => editor.open({ kind: "job", key: j.Key as string })}>
-              {j.Title}{j.Status === "done" || j.CompletedDate ? " · complete" : j.Deadline ? ` · due ${fmtDate(j.Deadline as string, { year: false })}` : ""}
-            </button>
-          ))}
-        </div>
-      )}
-
+  return (
+    <div className="page">
       {!period ? (
-        <div className="alert amber"><strong>No year end on this company</strong><span>Add it on the <a href={href("clients", c.Key)}>client page</a> (or Companies House will fill it in) and the papers will appear.</span></div>
+        <>
+          {top(null)}
+          <div className="alert amber"><strong>No year end on this company</strong><span>Add it on the <a href={href("clients", c.Key)}>client page</a> (or Companies House will fill it in) and the papers will appear.</span></div>
+        </>
       ) : (
         <PaperWriter key={period} client={c} period={period}>
-          <div className="row-wrap paper-imports" style={{ gap: 8, alignItems: "flex-start" }}>
-            <WorkbookImport client={c} period={period} />
-            <XeroImport client={c} period={period} />
-          </div>
-          <PaperBody client={c} period={period} today={today} />
+          <PaperScreen client={c} period={period} today={today} top={top} />
         </PaperWriter>
       )}
     </div>
+  );
+}
+
+/** The Xero logo mark with refresh arrows around it. */
+function XeroRefreshIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20.5 12a8.5 8.5 0 0 1-14.6 5.9M3.5 12a8.5 8.5 0 0 1 14.6-5.9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M18.6 3.2v3.3h-3.3M5.4 20.8v-3.3h3.3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="4.6" fill="#13b5ea" />
+      <path d="M9.9 9.9l4.2 4.2M14.1 9.9l-4.2 4.2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** The working papers screen for one company and year: the top bar with the import buttons, then the papers. */
+function PaperScreen({ client: c, period, today, top }: { client: Client; period: string; today: string; top: (tools: ReactNode) => ReactNode }) {
+  const w = useWriterState();
+  const { tenantFor, connected } = useXeroLinks();
+  const tenant = tenantFor(c.Key);
+  const saved = w.setup("xero/main") as { at?: string };
+  const [wb, setWb] = useState(false);
+  const [xr, setXr] = useState(false);
+  const xeroTip = !tenant
+    ? `${connected ? "Not linked to a Xero organisation" : "Xero isn't connected"}. Open Xero settings`
+    : `Refresh from Xero (${tenant.tenantName})${saved.at ? `. Last ledger read ${new Date(saved.at).toLocaleDateString("en-GB")}` : ""}`;
+  return (
+    <>
+      {top(
+        <>
+          <button type="button" className="btn small paper-tool" aria-expanded={wb} title="Import a working paper workbook (Excel)" onClick={() => { setWb(!wb); setXr(false); }}>
+            <Icon name="download" size={15} /> Workbook
+          </button>
+          {tenant ? (
+            <button type="button" className="btn small paper-tool paper-xero" aria-expanded={xr} aria-label="Refresh from Xero" title={xeroTip} onClick={() => { setXr(!xr); setWb(false); }}>
+              <XeroRefreshIcon />
+            </button>
+          ) : (
+            <a className="btn small paper-tool paper-xero" href={href("settings", "xero")} aria-label="Xero isn't linked: open Xero settings" title={xeroTip}><XeroRefreshIcon /></a>
+          )}
+        </>,
+      )}
+      <WorkbookImport client={c} period={period} open={wb} onClose={() => setWb(false)} />
+      <XeroImport client={c} period={period} open={xr} onClose={() => setXr(false)} />
+      <PaperBody client={c} period={period} today={today} />
+    </>
   );
 }
 
@@ -211,10 +256,10 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
       <nav className="paper-side" aria-label="Sections of the working papers">
         <div className="paper-side-head">
           <strong>{prog.done} of {prog.total} done</strong>
-          <span className="paper-bar" aria-hidden="true"><span style={{ width: `${prog.total ? (prog.done / prog.total) * 100 : 0}%` }} /></span>
-          <button type="button" className="linkbtn" style={{ fontSize: 12, alignSelf: "flex-start" }} aria-expanded={choosing} onClick={() => setChoosing(!choosing)}>
+          <button type="button" className="linkbtn" style={{ fontSize: 12, marginLeft: "auto" }} aria-expanded={choosing} onClick={() => setChoosing(!choosing)}>
             {choosing ? "Done choosing" : "Choose sections"}
           </button>
+          <span className="paper-bar" aria-hidden="true"><span style={{ width: `${prog.total ? (prog.done / prog.total) * 100 : 0}%` }} /></span>
         </div>
         {choosing ? (
           <SectionPicker off={off} onSave={(nextOff) => w.writeSetup("_sections", { off: [...nextOff] })} />
@@ -235,6 +280,7 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
                     <li key={it.key}>
                       <button type="button" className={`paper-item ${st.status}${it.key === sec.key ? " on" : ""}`} aria-current={it.key === sec.key ? "true" : undefined} onClick={() => setPick(it.key)}>
                         <span className="paper-dot" aria-hidden="true">{st.status === "done" ? <Icon name="check" size={11} /> : st.status === "na" ? "–" : ""}</span>
+                        <span className="paper-ico" aria-hidden="true"><Icon name={sectionIcon(it.key)} size={15} /></span>
                         <span className="paper-name">{it.title}</span>
                         {st.reviewedBy && <span className="paper-rev" title={`Reviewed by ${st.reviewedBy}`} aria-label="Reviewed">R</span>}
                         {st.note && <span className="paper-note-flag" title="Has a note" aria-label="Has a note" />}

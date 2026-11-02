@@ -2607,3 +2607,28 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 .logo-change { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .logo-change:hover { color: var(--ink); }
 .adv-bar .logo-picker .linkbtn { white-space: nowrap; } .adv-bar .logo-picker .error-text { font-size: 12px; max-width: 160px; }
+
+/* ---------- working papers: one-line top bar, tighter menu with icons ---------- */
+.paper-top { flex-wrap: wrap; gap: 6px 10px; }
+.paper-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.paper-top .paper-year { margin-left: 0; }
+.paper-tool { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+.paper-xero { padding: 2px 8px; }
+.paper-ico { flex: none; display: inline-flex; color: var(--muted); }
+.paper-item.on .paper-ico { color: var(--blue-ink); }
+@media (pointer: fine) {
+  .paper-item { min-height: 30px; padding: 4px 10px; font-size: 13.5px; }
+  button.paper-group-name { min-height: 30px; padding-top: 4px; padding-bottom: 2px; }
+  .paper-side { gap: 4px; padding: 10px 8px 6px; }
+  .paper-group { gap: 0; }
+  .paper-side ul { gap: 0; }
+}
+.paper-top h1 { font-size: 18px; }
+.paper-top .btn, .paper-top .chip { min-height: 32px; }
+.paper-top .chip { display: inline-flex; align-items: center; }
+.paper-top .paper-tool.paper-xero { width: 40px; justify-content: center; }
+.paper-side-head { padding: 0 8px 2px; }
+@media (pointer: fine) {
+  .paper-item { min-height: 27px; padding: 3px 10px; }
+  button.paper-group-name { min-height: 26px; }
+}

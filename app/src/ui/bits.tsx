@@ -50,7 +50,7 @@ export function DeadlineChip({ job, today = todayIso() }: { job: Job; today?: st
 
 export type IconName =
   | "check" | "close" | "search" | "left" | "right" | "alert" | "plan" | "clients" | "groups" | "settings" | "sun" | "moon"
-  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag" | "up" | "down" | "letter" | "refresh" | "copy" | "cog" | "layout";
+  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag" | "up" | "down" | "letter" | "refresh" | "copy" | "cog" | "layout" | "user" | "box" | "bank" | "coins" | "calc" | "book" | "scale";
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", "aria-hidden": true } as const;
@@ -65,6 +65,20 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       );
     case "layout":
       return <svg {...common}><rect x="2" y="2.5" width="5" height="11" rx="1.2" {...stroke} /><rect x="9" y="2.5" width="5" height="4.5" rx="1.2" {...stroke} /><rect x="9" y="9" width="5" height="4.5" rx="1.2" {...stroke} /></svg>;
+    case "user":
+      return <svg {...common}><circle cx="8" cy="5" r="2.7" {...stroke} /><path d="M2.5 14c.5-3 2.7-4.5 5.5-4.5s5 1.5 5.5 4.5" {...stroke} /></svg>;
+    case "box":
+      return <svg {...common}><path d="M2 5l6-3 6 3v6l-6 3-6-3V5zM2 5l6 3 6-3M8 8v6" {...stroke} /></svg>;
+    case "bank":
+      return <svg {...common}><path d="M1.5 6L8 2l6.5 4M3 6.5V12M6 6.5V12M10 6.5V12M13 6.5V12M1.5 14h13" {...stroke} /></svg>;
+    case "coins":
+      return <svg {...common}><ellipse cx="6" cy="5" rx="4" ry="2" {...stroke} /><path d="M2 5v3c0 1.1 1.8 2 4 2M2 8v3c0 1.1 1.8 2 4 2s4-.9 4-2M10 7.2c2.2 0 4 .9 4 2v3c0 1.1-1.8 2-4 2" {...stroke} /></svg>;
+    case "calc":
+      return <svg {...common}><rect x="3" y="1.5" width="10" height="13" rx="1.8" {...stroke} /><path d="M5.5 4.5h5M5.5 8h.01M8 8h.01M10.5 8h.01M5.5 11h.01M8 11h.01M10.5 11h.01" {...stroke} /></svg>;
+    case "book":
+      return <svg {...common}><path d="M2.5 2.5h4.2c.8 0 1.3.5 1.3 1.3V14c0-.7-.5-1.2-1.3-1.2H2.5V2.5zM13.5 2.5H9.3c-.8 0-1.3.5-1.3 1.3V14c0-.7.5-1.2 1.3-1.2h4.2V2.5z" {...stroke} /></svg>;
+    case "scale":
+      return <svg {...common}><path d="M8 2v12M4 14h8M2.5 4.5h11M4.5 4.5L2 9.5a2.5 2 0 005 0l-2.5-5zM11.5 4.5L9 9.5a2.5 2 0 005 0l-2.5-5z" {...stroke} /></svg>;
     case "check":
       return <svg {...common}><path d="M3 8.5l3 3 7-7" {...stroke} /></svg>;
     case "close":

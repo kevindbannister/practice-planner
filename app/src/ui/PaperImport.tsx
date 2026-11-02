@@ -18,10 +18,10 @@ const PART_LABEL: Record<Part, string> = {
 
 const normCo = (s: string) => s.toLowerCase().replace(/\b(limited|ltd|the|plc|llp)\b/g, "").replace(/[^a-z0-9]+/g, "");
 
-export function WorkbookImport({ client, period }: { client: Client; period: string }) {
+/** The workbook import panel. The button that opens it sits in the page's top bar; this shows the panel while `open`. */
+export function WorkbookImport({ client, period, open, onClose }: { client: Client; period: string; open: boolean; onClose: () => void }) {
   const { data, createMany, removeMany } = useData();
   const w = useWriterState();
-  const [open, setOpen] = useState(false);
   const [plan, setPlan] = useState<ImportPlan>();
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState<string>();
@@ -105,20 +105,13 @@ export function WorkbookImport({ client, period }: { client: Client; period: str
     }
   };
 
-  if (!open) {
-    return (
-      <div className="row-wrap" style={{ gap: 8 }}>
-        <button type="button" className="btn small" onClick={() => setOpen(true)}>Import a working paper workbook</button>
-        {done && <span className="muted" role="status" style={{ fontSize: 13 }}>{done}</span>}
-      </div>
-    );
-  }
+  if (!open) return null;
   const wrongCompany = plan?.company && normCo(plan.company) !== normCo(client.Title);
   return (
     <section className="card pad stack import-panel" aria-label="Import a working paper workbook">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <h3 style={{ margin: 0 }}>Import a working paper workbook</h3>
-        <button type="button" className="linkbtn" onClick={() => { setOpen(false); setPlan(undefined); }}>Close</button>
+        <button type="button" className="linkbtn" onClick={() => { onClose(); setPlan(undefined); }}>Close</button>
       </div>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>
         An Excel working paper with a Control Sheet, Notes, "TB {period.slice(0, 4)}" (and last year's), Journals and Fixed Assets sheets. Each part you tick replaces what's in the papers for it.

@@ -6,7 +6,6 @@ import { money, priorPeriod } from "../lib/papers";
 import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { ImportPart, XeroError, XeroImport as Imported, ledgerItem, r2, readFromXero } from "../lib/xero";
-import { href } from "./bits";
 import { useData } from "./data";
 import { useWriterState } from "./PaperSchedules";
 import { BookMeta, primeBook } from "./XeroLedger";
@@ -23,14 +22,14 @@ const PARTS: [ImportPart, string, string][] = [
 ];
 const STAGGERS: [string, number[]][] = [["Quarters to Mar, Jun, Sep, Dec", [3, 6, 9, 12]], ["Quarters to Apr, Jul, Oct, Jan", [1, 4, 7, 10]], ["Quarters to May, Aug, Nov, Feb", [2, 5, 8, 11]], ["Monthly returns", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]]];
 
-export function XeroImport({ client, period }: { client: Client; period: string }) {
+/** The Xero import panel. The refresh button that opens it sits in the page's top bar; this shows the panel while `open`. */
+export function XeroImport({ client, period, open, onClose }: { client: Client; period: string; open: boolean; onClose: () => void }) {
   const { data, createMany, removeMany, store } = useData();
   const w = useWriterState();
   const xero = useXero();
-  const { tenantFor, connected } = useXeroLinks();
+  const { tenantFor } = useXeroLinks();
   const tenant = tenantFor(client.Key);
   const saved = w.setup("xero/main") as BookMeta & { stagger?: number[] };
-  const [open, setOpen] = useState(false);
   const [parts, setParts] = useState<Set<ImportPart>>(new Set(PARTS.map(([k]) => k)));
   const [stagger, setStagger] = useState<number[]>(saved.stagger || [3, 6, 9, 12]);
   const [progress, setProgress] = useState("");
@@ -41,14 +40,6 @@ export function XeroImport({ client, period }: { client: Client; period: string 
   const prior = priorPeriod(period);
 
   const mine = (p: string, sec: string, sub: string) => data.paperLines.filter((r) => r.ClientKey === client.Key && r.PeriodEnd === p && r.SectionKey === sec && (r.SubKey || "main") === sub);
-
-  if (!tenant) {
-    return (
-      <span className="muted" style={{ fontSize: 13 }}>
-        {connected ? "Not linked to a Xero organisation." : "Xero isn't connected."} <a href={href("settings", "xero")}>Set up Xero</a>
-      </span>
-    );
-  }
 
   const read = async () => {
     setBusy(true);
@@ -128,16 +119,6 @@ export function XeroImport({ client, period }: { client: Client; period: string 
     }
   };
 
-  if (!open) {
-    return (
-      <div className="row-wrap" style={{ gap: 8 }}>
-        <button type="button" className="btn small" onClick={() => setOpen(true)}>Import from Xero</button>
-        {saved.at && <span className="muted" style={{ fontSize: 12 }}>Ledger from Xero {new Date(saved.at).toLocaleDateString("en-GB")}{saved.source === "rebuilt" ? " (rebuilt)" : ""}</span>}
-        {done && <span className="muted" role="status" style={{ fontSize: 13 }}>{done}</span>}
-      </div>
-    );
-  }
-
   const replaces: Partial<Record<ImportPart, number>> = {
     tb: mine(period, "tb", "main").length,
     lists: mine(period, "debtors", "trade").length + mine(period, "creditors", "trade").length,
@@ -145,11 +126,12 @@ export function XeroImport({ client, period }: { client: Client; period: string 
     payroll: mine(period, "wages", "records").length,
     assets: ["freehold", "motor", "fixtures", "plant", "computer"].reduce((a, k) => a + mine(period, "fixed", k).length, 0),
   };
+  if (!open || !tenant) return null;
   return (
     <section className="card pad stack import-panel" aria-label="Import from Xero">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <h3 style={{ margin: 0 }}>Import from Xero: {tenant.tenantName}</h3>
-        <button type="button" className="linkbtn" onClick={() => { setOpen(false); setResult(undefined); }}>Close</button>
+        <button type="button" className="linkbtn" onClick={() => { onClose(); setResult(undefined); }}>Close</button>
       </div>
       {!result && (
         <>
