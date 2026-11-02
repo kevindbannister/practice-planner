@@ -11,7 +11,7 @@ import { Client, fmtDate } from "../lib/domain";
 import {
   AssetTotals, Col, DEFAULT_LINES, INFO_FIELDS, KIND_COLS, KIND_NAMES, Kind, Line, Section, Setup, Sub, accountCf, carryLines, carrySetup,
   colTotal, colValue, expenseCharge, journalTotals, leadRows, linesFor, money, parseAmount, parseGrid, pasteColumns, priorFor, priorPeriod,
-  registerTotals, setupKey, setupOf, setupRow, readSetup, subsFor, vatOwed, journalMatches, SECTIONS,
+  registerTotals, setupKey, setupOf, setupRow, readSetup, subsFor, vatOwed, journalMatches, SECTIONS, acctKey,
 } from "../lib/papers";
 import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
@@ -559,6 +559,14 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
   const priorLines = linesFor(data.paperLines, w.client.Key, prior, section.key, sb.key);
   const priorSetup = { ...setupOf(data.papers, w.client.Key, prior, setupKey(section.key, sb.key)), _period: prior };
   const showPrior = sb.kind === "list";
+  // the year end trial balance also shows last year's (after its journals), account by account
+  const tbPrior = sb.kind === "tb" && section.key === "tb";
+  const priorAccts = useMemo(() => (tbPrior ? paperAccounts(data.paperLines, w.client.Key, prior).filter((r) => r.dr || r.cr) : []), [tbPrior, data.paperLines, w.client.Key, prior]);
+  const nm = (x: string) => x.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
+  const priorOf = (l: Line) => priorAccts.find((r) => r.key === acctKey(l.Code, l.Detail)) || (l.Detail.trim() ? priorAccts.find((r) => nm(r.account) === nm(l.Detail)) : undefined);
+  const matched = new Set(tbPrior ? lines.map((l) => priorOf(l)?.key).filter(Boolean) as string[] : []);
+  const priorOnly = priorAccts.filter((r) => !matched.has(r.key));
+  const sumPrior = (k: "dr" | "cr") => Math.round(priorAccts.reduce((a, r) => a + r[k], 0) * 100) / 100;
   const inputCols = cols.filter((c) => !c.calc);
   const hasTotals = cols.some((c) => c.total) && lines.length > 0;
 
@@ -607,7 +615,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
     if (c.type === "money") return x === undefined || x === "" ? "" : String(x);
     return asText(x);
   };
-  const colCount = cols.length + (showPrior ? 1 : 0) + (done ? 1 : 0) + 1;
+  const colCount = cols.length + (showPrior ? 1 : 0) + (tbPrior ? 2 : 0) + (done ? 1 : 0) + 1;
 
   return (
     <div className="stack" style={{ gap: 10 }}>
@@ -617,6 +625,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
             <tr>
               {cols.map((c) => <th key={c.key} scope="col" className={c.type === "money" ? "num" : c.wide ? "wide" : undefined}>{c.label}</th>)}
               {showPrior && <th scope="col" className="num prior">{prior.slice(0, 4)}</th>}
+              {tbPrior && <><th scope="col" className="num prior">{prior.slice(0, 4)} debit</th><th scope="col" className="num prior">{prior.slice(0, 4)} credit</th></>}
               {done && <th scope="col" style={{ width: 80 }}>Completed</th>}
               <th scope="col"><span className="sr-only">Remove</span></th>
             </tr>
@@ -635,6 +644,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
                   </td>
                 ))}
                 {showPrior && <td className="num mono prior">{money(priorFor(data.paperLines, w.client.Key, w.period, section.key, sb.key, l.Detail)) || "–"}</td>}
+                {tbPrior && (() => { const pr = priorOf(l); return <><td className="num mono prior">{money(pr?.dr)}</td><td className="num mono prior">{money(pr?.cr)}</td></>; })()}
                 {done && <td style={{ textAlign: "center" }}><input type="checkbox" checked={l.Done} aria-label={`Completed: ${l.Detail || "this note"}`} style={{ width: 18, height: 18 }} onChange={(e) => void w.patchLine(l, { Done: e.target.checked })} /></td>}
                 <td><button type="button" className="iconbtn" aria-label={`Remove ${l.Detail || "this line"}`} disabled={w.busy} onClick={() => void w.removeLine(l)}><Icon name="close" size={14} /></button></td>
               </tr>
@@ -659,6 +669,12 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
               })()}
               </Fragment>
             ))}
+            {tbPrior && priorOnly.map((r) => (
+              <tr key={`po-${r.key}`} className="prior-only" title="On last year's trial balance but not this year's">
+                {cols.map((c) => <td key={c.key} className={c.key === "Detail" ? "muted" : undefined}>{c.key === "Code" ? r.code : c.key === "Detail" ? <>{r.account} <span style={{ fontSize: 11 }}>(last year only)</span></> : null}</td>)}
+                <td className="num mono prior">{money(r.dr)}</td><td className="num mono prior">{money(r.cr)}</td><td />
+              </tr>
+            ))}
             {!lines.length && <tr><td colSpan={colCount} className="muted" style={{ padding: 12 }}>{done ? "Nothing here yet." : "No lines yet."}</td></tr>}
           </tbody>
           {hasTotals && (
@@ -670,6 +686,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
                   </td>
                 ))}
                 {showPrior && <td className="num mono prior">{money(priorLines.reduce((a, l) => a + (l.Amount || 0), 0)) || "–"}</td>}
+                {tbPrior && <><td className="num mono prior"><strong>{money(sumPrior("dr"))}</strong></td><td className="num mono prior"><strong>{money(sumPrior("cr"))}</strong></td></>}
                 {done && <td />}
                 <td />
               </tr>
