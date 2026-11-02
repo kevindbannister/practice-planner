@@ -78,3 +78,14 @@ test("figures carry the working paper link they come from", () => {
   const none = buildSections(input()).find((x) => x.key === "balance")!.blocks.find((b) => b.type === "table") as { rows: { link?: string }[][] };
   assert.ok(none.rows.flat().every((c) => !c.link));
 });
+
+test("IRIS profit and loss groups: fees and reimbursed expenses are turnover; every expense group is in the expenses", () => {
+  const g = [...maps, m("income/fees", -10000, "Fees"), m("income/reimbursed", -500, "Reimbursed"), m("income/investment", -200, "Dividends received"),
+    m("expenditure/premises", 3000, "Rent"), m("expenditure/employee", 6000, "Salaries"), m("expenditure/legal", 700, "Solicitors"), m("expenditure/interestpayable", 300, "Loan interest")];
+  const f = accountsFigures(g);
+  assert.equal(f.turnover, 110500); assert.equal(f.otherIncome, 200);
+  assert.equal(f.expenses, 40000 + 2000 + 3000 + 6000 + 700 + 300);
+  const d = detailGroups(g);
+  assert.equal(d.income.reduce((n, x) => n + x.total, 0), 110500);
+  assert.ok(d.expenses.some((x) => x.title === "Premises costs") && d.other.some((x) => x.title === "Income from investments"));
+});

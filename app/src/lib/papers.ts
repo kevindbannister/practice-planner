@@ -22,6 +22,7 @@ export type Sub = {
   normal?: "dr" | "cr"; // which side an account's balance normally sits (liabilities: cr)
   split?: boolean; // an account whose balance is split between within and after one year (HP, loans)
   custom?: boolean; // added for this company
+  group?: string; // heading it sits under on the lead schedule (the IRIS profit and loss groupings)
 };
 /** lead: a lead schedule adding up its schedules. assets: the fixed asset summary (cost, depreciation, NBV by class). */
 export type Section = { key: string; title: string; group: string; summary?: "lead" | "assets"; subs: Sub[]; offByDefault?: boolean; canAdd?: boolean };
@@ -70,8 +71,20 @@ export const SECTIONS: Section[] = [
     sub("shares", "Share capital"), sub("reserves", "Reserves brought forward"), sub("dividends", "Dividends"), sub("accounts", "Capital accounts", "account", { normal: "cr" }),
   ]),
   sec("statutory", "Statutory lead schedule", "Balance sheet", [sub("main", "Companies House details and filing history", "report")]),
-  lead("income", "Income", "Profit and loss", [sub("sales", "Sales"), sub("interest", "Interest received"), sub("other", "Other income")]),
-  lead("expenditure", "Expenditure", "Profit and loss", [sub("cos", "Cost of sales"), sub("tb", "Expenses per trial balance"), sub("accountancy", "Accountancy", "expense")]),
+  lead("income", "Income", "Profit and loss", [
+    sub("sales", "Sales", "list", { group: "Turnover" }), sub("fees", "Fees", "list", { group: "Turnover" }), sub("reimbursed", "Reimbursed expenses", "list", { group: "Turnover" }),
+    sub("other", "Other operating income", "list", { group: "Other operating income" }),
+    sub("investment", "Income from investments", "list", { group: "Investment income" }),
+    sub("interest", "Interest receivable", "list", { group: "Interest receivable" }),
+  ]),
+  lead("expenditure", "Expenditure", "Profit and loss", [
+    sub("cos", "Cost of sales", "list", { group: "Cost of sales" }),
+    sub("distribution", "Distribution costs", "list", { group: "Distribution costs" }),
+    sub("employee", "Employee costs", "list", { group: "Administrative expenses" }), sub("premises", "Premises costs", "list", { group: "Administrative expenses" }),
+    sub("tb", "General expenses per trial balance", "list", { group: "Administrative expenses" }),
+    sub("accountancy", "Accountancy", "expense", { group: "Administrative expenses" }), sub("legal", "Legal and professional", "list", { group: "Administrative expenses" }),
+    sub("interestpayable", "Interest payable", "list", { group: "Interest payable" }),
+  ]),
   lead("taxation", "Tax on profit", "Profit and loss", [sub("current", "Corporation tax"), sub("deferred", "Deferred tax")], { offByDefault: true, canAdd: false }),
   sec("vat", "VAT", "Other schedules", [sub("control", "VAT control account", "account", { normal: "cr" }), sub("returns", "VAT return summary", "vat")]),
   sec("workings", "Accounts working papers", "Other schedules", [sub("receipts", "Receipts"), sub("payments", "Payments"), sub("sundry", "Sundry")], { offByDefault: true, canAdd: true }),

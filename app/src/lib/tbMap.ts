@@ -43,10 +43,21 @@ export const onSide = (balance: number, side: "dr" | "cr") => round2(side === "d
 
 const norm = (s: string) => s.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 
+/** Which IRIS profit and loss group an expense account belongs to, from its name (general expenses when nothing fits). */
+export function expenseDest(n: string): string {
+  if (/interest (paid|payable|charged|on (loans?|overdraft|hp|hire))|bank (interest|charges? interest)|loan interest|hp interest|finance charges?|overdraft interest/.test(n)) return "expenditure/interestpayable";
+  if (/^(wages|salar|directors? (remuneration|salar|pension|fees)|employer|staff|pension|national insurance|ni\b|paye|subsistence|training|recruitment|casual labour|staff welfare|staff costs?|employee)/.test(n) || /wages|salaries|employers? ni|pension contrib/.test(n)) return "expenditure/employee";
+  if (/^(rent|rates|business rates|light|heat|power|electric|gas\b|water|insurance - (building|premises)|cleaning|premises|repairs and renewals|repairs and maintenance|property|building)|rent and rates|light and heat|heat and light|premises insurance/.test(n)) return "expenditure/premises";
+  if (/^(accountancy|accounting|audit)/.test(n)) return "expenditure/accountancy";
+  if (/solicitor|legal|consultan|professional (fees|charges)|^professional/.test(n)) return "expenditure/legal";
+  if (/^(carriage|postage and carriage|packaging|delivery|distribution|freight|haulage|vehicle running)|carriage outwards|delivery costs?/.test(n)) return "expenditure/distribution";
+  return "expenditure/tb";
+}
+
 /** Rules that hold whatever the account type says (IRIS account names read well through these). */
 function nameRule(n: string, credit: boolean): string | undefined {
   if (/(profit|loss|gain) (and |or )?(loss )?on (the )?(sale|disposal)|profit loss on sale|loss on disposal|profit on disposal/.test(n)) return credit ? "income/other" : "expenditure/tb";
-  if (/^interest on (paye|vat|corporation tax|late)|^(late payment|hmrc) interest|interest (paid|payable|charged)\b/.test(n) && !credit) return "expenditure/tb";
+  if (/^interest on (paye|vat|corporation tax|late)|^(late payment|hmrc) interest|interest (paid|payable|charged)\b/.test(n) && !credit) return "expenditure/interestpayable";
   if (/accrued expense|^accruals?\b/.test(n)) return "creditors/accruals";
   if (/dividend/.test(n)) return "capital/dividends";
   if (/amts owed by to group|amounts owed (by|to) group|group undertak|intercompany|inter company/.test(n)) return credit ? "creditors/other" : "debtors/group";
@@ -114,11 +125,11 @@ export function guessDest(name: string, type: string, balance: number): string {
     if (/asset/.test(ty)) return credit ? "creditors/other" : "debtors/other";
   }
   if (/cost of sales|cost of goods|purchases|direct cost|materials|subcontract/.test(n) || /direct cost|cost of sales/.test(ty)) return credit && /discount/.test(n) ? "income/other" : "expenditure/cos";
+  if (/dividends? (received|income)|investment income|income from (investments|shares)/.test(n) && credit) return "income/investment";
   if (/interest/.test(n) && (credit || /income|revenue/.test(ty)) && !/paye|corporation|paid|payable|loan|hp|hire/.test(n)) return "income/interest";
-  if (/revenue|income|sales/.test(ty) || /sales|turnover|fees? (income|received)|revenue|commissions? received/.test(n)) return /other|grant|sundry|rent received|commission/.test(n) ? "income/other" : "income/sales";
-  if (/accountancy|accounting fees/.test(n)) return "expenditure/accountancy";
+  if (/revenue|income|sales/.test(ty) || /sales|turnover|fees? (income|received)|revenue|commissions? received/.test(n)) return /other|grant|sundry|rent received|commission/.test(n) ? "income/other" : /reimburs|recharged? expenses|expenses recharged/.test(n) ? "income/reimbursed" : /^fees?\b|fees? (income|received)/.test(n) ? "income/fees" : "income/sales";
   // with no type, anything else is most likely a profit and loss account: an expense if a debit
-  if (isPl || !type) return credit ? "income/other" : "expenditure/tb";
+  if (isPl || !type) return credit ? "income/other" : expenseDest(n);
   return credit ? "creditors/other" : "debtors/other";
 }
 
@@ -133,12 +144,12 @@ export function irisRangeDest(code: string, acctName: string, balance: number): 
   const c = Number(m[1]), subCode = m[2] === undefined ? undefined : Number(m[2]);
   const n = norm(acctName), credit = balance < 0;
   const part = subCode !== undefined && subCode >= 20 ? "dep" : "cost";
-  if (c < 18) return "income/sales";
+  if (c < 18) return /reimburs|recharged? expenses/.test(n) ? "income/reimbursed" : /^fees?\b|fees? (income|received)/.test(n) ? "income/fees" : "income/sales";
   if (c < 100) return "expenditure/cos";
   if (c >= 120 && c < 140) return "income/interest";
   if (c < 200) return "income/other";
   if (c === 285 || c === 286) return "expenditure/accountancy";
-  if (c < 440) return "expenditure/tb";
+  if (c < 440) return expenseDest(n);
   if (c < 450) return "taxation/current";
   if (c < 460) return "taxation/deferred";
   if (c < 500) return "capital/dividends";
@@ -437,7 +448,8 @@ export function accountsFigures(maps: Mapping[]): AccountsFigures {
   }
   const sumWhere = (f: (k: string) => boolean) => round2([...by.entries()].filter(([k]) => f(k)).reduce((a, [, n]) => a + n, 0));
   const sec = (s: string) => sumWhere((k) => k.startsWith(`${s}/`));
-  const turnover = -(by.get("income/sales") || 0), otherIncome = -round2((by.get("income/interest") || 0) + (by.get("income/other") || 0) + sumWhere((k) => k.startsWith("income/") && !["income/sales", "income/interest", "income/other"].includes(k)));
+  const TURNOVER = ["income/sales", "income/fees", "income/reimbursed"];
+  const turnover = -sumWhere((k) => TURNOVER.includes(k)), otherIncome = -sumWhere((k) => k.startsWith("income/") && !TURNOVER.includes(k));
   const costOfSales = by.get("expenditure/cos") || 0, expenses = round2(sec("expenditure") - costOfSales);
   const grossProfit = round2(turnover - costOfSales), pbt = round2(grossProfit + otherIncome - expenses);
   const tax = sec("taxation"), pat = round2(pbt - tax), dividends = by.get("capital/dividends") || 0, retained = round2(pat - dividends);

@@ -212,7 +212,7 @@ export function detailGroups(maps: Mapping[]): { income: DetailGroup[]; costs: D
     if (!d || !m.balance || !["income", "expenditure", "taxation"].includes(d.section)) continue;
     const credit = d.section === "income";
     const amount = Math.round((credit ? -m.balance : m.balance) * 100) / 100;
-    const bucket = d.section === "income" ? (d.key === "income/sales" ? "income" : "other") : d.section === "taxation" ? "tax" : d.key === "expenditure/cos" ? "costs" : "expenses";
+    const bucket = d.section === "income" ? (["income/sales", "income/fees", "income/reimbursed"].includes(d.key) ? "income" : "other") : d.section === "taxation" ? "tax" : d.key === "expenditure/cos" ? "costs" : "expenses";
     const id = `${bucket}|${d.key}`;
     let g = by.get(id);
     if (!g) { g = { title: d.label.split("›").pop()?.trim() || d.label, section: d.section, items: [], total: 0 }; by.set(id, g); out[bucket].push(g); }

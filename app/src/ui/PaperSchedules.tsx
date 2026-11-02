@@ -983,6 +983,13 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
       {list.length > 1 && <tr className="lead-sub"><td>{label ? `Total ${label.toLowerCase()}` : "Total"}</td><td className="num mono">{money(sum(list, "now")) || "–"}</td><td className="num mono prior">{money(sum(list, "before")) || "–"}</td>{tbCells(sum(list, "now"), Math.round(tbSum(list) * 100) / 100)}</tr>}
     </>
   );
+  // profit and loss leads sit under the IRIS headings (Turnover, Administrative expenses...); lines added for the company go last
+  const groups = ((): [string, typeof rows][] | undefined => {
+    if (!rows.some((r) => r.sub.group)) return undefined;
+    const m = new Map<string, typeof rows>();
+    for (const r of rows) m.set(r.sub.group || "Other", [...(m.get(r.sub.group || "Other") || []), r]);
+    return [...m.entries()];
+  })();
   const typed = rows.some((r) => r.priorTyped);
   const panelRow = rows.find((r) => open.includes(r.sub.key));
   return (
@@ -1000,8 +1007,8 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
       <table className="grid lead">
         <thead><tr><th scope="col">Lead schedule</th><th scope="col" className="num">{w.period.slice(0, 4)}</th><th scope="col" className="num prior">{priorPeriod(w.period).slice(0, 4)}</th>{checks && <><th scope="col" className="num">Per trial balance</th><th scope="col" className="num">Difference</th></>}</tr></thead>
         <tbody>
-          {after.length && within.length ? <>{block(within, "Due within one year")}{block(after, "Due after one year")}</> : block(rows)}
-          {after.length > 0 && within.length > 0 && <tr className="lead-total"><td>Total</td><td className="num mono">{money(sum(rows, "now")) || "–"}</td><td className="num mono prior">{money(sum(rows, "before")) || "–"}</td>{tbCells(sum(rows, "now"), Math.round(tbSum(rows) * 100) / 100)}</tr>}
+          {after.length && within.length ? <>{block(within, "Due within one year")}{block(after, "Due after one year")}</> : groups ? groups.map(([g, list]) => <Fragment key={g}>{block(list, g)}</Fragment>) : block(rows)}
+          {(after.length > 0 && within.length > 0) || (groups && groups.length > 1) && <tr className="lead-total"><td>Total</td><td className="num mono">{money(sum(rows, "now")) || "–"}</td><td className="num mono prior">{money(sum(rows, "before")) || "–"}</td>{tbCells(sum(rows, "now"), Math.round(tbSum(rows) * 100) / 100)}</tr>}
         </tbody>
       </table>
       </div>
