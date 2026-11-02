@@ -131,7 +131,10 @@ export function XeroImport({ client, period, open, onClose }: { client: Client; 
     <section className="card pad stack import-panel" aria-label="Import from Xero">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <h3 style={{ margin: 0 }}>Import from Xero: {tenant.tenantName}</h3>
-        <button type="button" className="linkbtn" onClick={() => { onClose(); setResult(undefined); }}>Close</button>
+        <span className="row-wrap" style={{ gap: 12 }}>
+          <a className="btn small" href="#/settings/xero" title="Change what Practice Planner may read from Xero, reconnect, or link companies to organisations">Xero settings</a>
+          <button type="button" className="linkbtn" onClick={() => { onClose(); setResult(undefined); }}>Close</button>
+        </span>
       </div>
       {!result && (
         <>
