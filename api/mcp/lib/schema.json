@@ -1,0 +1,5191 @@
+{
+ "lists": [
+  {
+   "key": "Clients",
+   "displayName": "PP Clients",
+   "description": "clients",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "CompanyNumber",
+     "type": "text"
+    },
+    {
+     "name": "CHAuthCode",
+     "type": "text"
+    },
+    {
+     "name": "SIC",
+     "type": "text"
+    },
+    {
+     "name": "Incorporated",
+     "type": "text"
+    },
+    {
+     "name": "Engaged",
+     "type": "text"
+    },
+    {
+     "name": "DateOfBirth",
+     "type": "text"
+    },
+    {
+     "name": "YearEnd",
+     "type": "text"
+    },
+    {
+     "name": "ContactTitle",
+     "type": "text"
+    },
+    {
+     "name": "ContactFirst",
+     "type": "text"
+    },
+    {
+     "name": "ContactPreferred",
+     "type": "text"
+    },
+    {
+     "name": "ContactLast",
+     "type": "text"
+    },
+    {
+     "name": "Email",
+     "type": "text"
+    },
+    {
+     "name": "Mobile",
+     "type": "text"
+    },
+    {
+     "name": "Phone",
+     "type": "text"
+    },
+    {
+     "name": "ContactPreference",
+     "type": "text"
+    },
+    {
+     "name": "HomeAddress",
+     "type": "note"
+    },
+    {
+     "name": "TradingAddress",
+     "type": "note"
+    },
+    {
+     "name": "RegisteredOffice",
+     "type": "note"
+    },
+    {
+     "name": "Partner",
+     "type": "text"
+    },
+    {
+     "name": "Manager",
+     "type": "text"
+    },
+    {
+     "name": "UTR",
+     "type": "text"
+    },
+    {
+     "name": "CTUTR",
+     "type": "text"
+    },
+    {
+     "name": "NINumber",
+     "type": "text"
+    },
+    {
+     "name": "VATNumber",
+     "type": "text"
+    },
+    {
+     "name": "VATRegistered",
+     "type": "text"
+    },
+    {
+     "name": "MTDServices",
+     "type": "text"
+    },
+    {
+     "name": "PAYERef",
+     "type": "text"
+    },
+    {
+     "name": "AccountsOfficeRef",
+     "type": "text"
+    },
+    {
+     "name": "XeroId",
+     "type": "text"
+    },
+    {
+     "name": "XamaId",
+     "type": "text"
+    },
+    {
+     "name": "XamaStatus",
+     "type": "text"
+    },
+    {
+     "name": "AMLReview",
+     "type": "text"
+    },
+    {
+     "name": "LoEStatus",
+     "type": "text"
+    },
+    {
+     "name": "LoESent",
+     "type": "text"
+    },
+    {
+     "name": "LoEDecided",
+     "type": "text"
+    },
+    {
+     "name": "Importance",
+     "type": "text"
+    },
+    {
+     "name": "AnnualFees",
+     "type": "number"
+    },
+    {
+     "name": "PaymentDays",
+     "type": "number"
+    },
+    {
+     "name": "LatePaymentPct",
+     "type": "number"
+    },
+    {
+     "name": "RetentionYears",
+     "type": "number"
+    },
+    {
+     "name": "EngagerId",
+     "type": "text"
+    },
+    {
+     "name": "LogoUrl",
+     "type": "text"
+    },
+    {
+     "name": "Website",
+     "type": "text"
+    },
+    {
+     "name": "ElementsLink",
+     "type": "text"
+    },
+    {
+     "name": "CHChecked",
+     "type": "bool"
+    },
+    {
+     "name": "CHStatus",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "LogoData",
+     "type": "note"
+    },
+    {
+     "name": "TradingName",
+     "type": "text"
+    },
+    {
+     "name": "BusinessActivity",
+     "type": "note"
+    },
+    {
+     "name": "CISStatus",
+     "type": "text"
+    },
+    {
+     "name": "CISRegistered",
+     "type": "text"
+    },
+    {
+     "name": "CISFirstPayment",
+     "type": "text"
+    },
+    {
+     "name": "CorrespondenceAddress",
+     "type": "note"
+    },
+    {
+     "name": "CHVerified",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "Contacts",
+   "displayName": "PP Contacts",
+   "description": "people linked to clients",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ContactTitle",
+     "type": "text"
+    },
+    {
+     "name": "Email",
+     "type": "text"
+    },
+    {
+     "name": "Mobile",
+     "type": "text"
+    },
+    {
+     "name": "Phone",
+     "type": "text"
+    },
+    {
+     "name": "Relationships",
+     "type": "note"
+    },
+    {
+     "name": "EngagerId",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Groups",
+   "displayName": "PP Groups",
+   "description": "client groups",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "GroupMembers",
+   "displayName": "PP Group Members",
+   "description": "who is in each group",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "GroupKey",
+     "type": "text"
+    },
+    {
+     "name": "MemberKey",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Role",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Services",
+   "displayName": "PP Services",
+   "description": "types of work",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "Recurrence",
+     "type": "text"
+    },
+    {
+     "name": "DeadlineRule",
+     "type": "text"
+    },
+    {
+     "name": "DefaultHours",
+     "type": "number"
+    },
+    {
+     "name": "RepeatMonths",
+     "type": "number"
+    },
+    {
+     "name": "DeadlineMode",
+     "type": "text"
+    },
+    {
+     "name": "DeadlineMonths",
+     "type": "number"
+    },
+    {
+     "name": "DeadlineDays",
+     "type": "number"
+    },
+    {
+     "name": "DeadlineFixed",
+     "type": "text"
+    },
+    {
+     "name": "KeepMonthEnd",
+     "type": "bool"
+    },
+    {
+     "name": "RecordsNeeded",
+     "type": "text"
+    },
+    {
+     "name": "RecordsLeadDays",
+     "type": "number"
+    },
+    {
+     "name": "FinaliseHours",
+     "type": "number"
+    },
+    {
+     "name": "Code",
+     "type": "text"
+    },
+    {
+     "name": "Category",
+     "type": "text"
+    },
+    {
+     "name": "Description",
+     "type": "note"
+    },
+    {
+     "name": "ClientDescription",
+     "type": "note"
+    },
+    {
+     "name": "ClientTypes",
+     "type": "text"
+    },
+    {
+     "name": "Price",
+     "type": "number"
+    },
+    {
+     "name": "PriceFrequency",
+     "type": "text"
+    },
+    {
+     "name": "VatTreatment",
+     "type": "text"
+    },
+    {
+     "name": "SetupFee",
+     "type": "number"
+    },
+    {
+     "name": "Scope",
+     "type": "note"
+    },
+    {
+     "name": "Exclusions",
+     "type": "note"
+    },
+    {
+     "name": "ClientResp",
+     "type": "note"
+    },
+    {
+     "name": "PracticeResp",
+     "type": "note"
+    },
+    {
+     "name": "Clauses",
+     "type": "note"
+    },
+    {
+     "name": "Schedule",
+     "type": "note"
+    },
+    {
+     "name": "Pricing",
+     "type": "note"
+    },
+    {
+     "name": "Offered",
+     "type": "bool"
+    },
+    {
+     "name": "Active",
+     "type": "bool"
+    },
+    {
+     "name": "RequiresAuth",
+     "type": "bool"
+    },
+    {
+     "name": "Statutory",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "StageTemplates",
+   "displayName": "PP Stage Templates",
+   "description": "default stages per type of work",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ServiceKey",
+     "type": "text"
+    },
+    {
+     "name": "StageNo",
+     "type": "number"
+    },
+    {
+     "name": "DefaultWho",
+     "type": "text"
+    },
+    {
+     "name": "DefaultBudget",
+     "type": "number"
+    },
+    {
+     "name": "BillingPoint",
+     "type": "bool"
+    },
+    {
+     "name": "WaitClient",
+     "type": "bool"
+    }
+   ]
+  },
+  {
+   "key": "ClientServices",
+   "displayName": "PP Client Services",
+   "description": "which work each client has",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ServiceKey",
+     "type": "text"
+    },
+    {
+     "name": "Fee",
+     "type": "number"
+    },
+    {
+     "name": "FeePeriod",
+     "type": "text"
+    },
+    {
+     "name": "OneOff",
+     "type": "bool"
+    },
+    {
+     "name": "AnnualFee",
+     "type": "number"
+    },
+    {
+     "name": "NextDeadline",
+     "type": "text"
+    },
+    {
+     "name": "Off",
+     "type": "bool"
+    },
+    {
+     "name": "OffSince",
+     "type": "text"
+    },
+    {
+     "name": "ListFee",
+     "type": "number"
+    },
+    {
+     "name": "DiscountNote",
+     "type": "note"
+    },
+    {
+     "name": "VatTreatment",
+     "type": "text"
+    },
+    {
+     "name": "EffectiveFrom",
+     "type": "text"
+    },
+    {
+     "name": "NextReview",
+     "type": "text"
+    },
+    {
+     "name": "EndedOn",
+     "type": "text"
+    },
+    {
+     "name": "ProposalKey",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "ClientServiceStages",
+   "displayName": "PP Client Service Stages",
+   "description": "who does each stage, per client",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ServiceKey",
+     "type": "text"
+    },
+    {
+     "name": "StageNo",
+     "type": "number"
+    },
+    {
+     "name": "Who",
+     "type": "text"
+    },
+    {
+     "name": "BudgetHours",
+     "type": "number"
+    },
+    {
+     "name": "BillingPoint",
+     "type": "bool"
+    }
+   ]
+  },
+  {
+   "key": "Jobs",
+   "displayName": "PP Jobs",
+   "description": "open jobs",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientName",
+     "type": "text"
+    },
+    {
+     "name": "ServiceKey",
+     "type": "text"
+    },
+    {
+     "name": "PeriodEnd",
+     "type": "text"
+    },
+    {
+     "name": "StageNo",
+     "type": "number"
+    },
+    {
+     "name": "StageName",
+     "type": "text"
+    },
+    {
+     "name": "RecordsExpected",
+     "type": "text"
+    },
+    {
+     "name": "RecordsReceived",
+     "type": "text"
+    },
+    {
+     "name": "PlannedDate",
+     "type": "text"
+    },
+    {
+     "name": "EstimateHours",
+     "type": "number"
+    },
+    {
+     "name": "InternalDeadline",
+     "type": "text"
+    },
+    {
+     "name": "Deadline",
+     "type": "text"
+    },
+    {
+     "name": "DeadlineSource",
+     "type": "text"
+    },
+    {
+     "name": "CHDeadline",
+     "type": "text"
+    },
+    {
+     "name": "SuggestedSlot",
+     "type": "text"
+    },
+    {
+     "name": "LastCompleted",
+     "type": "text"
+    },
+    {
+     "name": "Priority",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "CompletedDate",
+     "type": "text"
+    },
+    {
+     "name": "ActualHours",
+     "type": "number"
+    },
+    {
+     "name": "Fee",
+     "type": "number"
+    },
+    {
+     "name": "FeePeriod",
+     "type": "text"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "EngagerClient",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "HoldReason",
+     "type": "text"
+    },
+    {
+     "name": "HoldUntil",
+     "type": "text"
+    },
+    {
+     "name": "HeldOn",
+     "type": "text"
+    },
+    {
+     "name": "HoldKind",
+     "type": "text"
+    },
+    {
+     "name": "LastChased",
+     "type": "text"
+    },
+    {
+     "name": "ChaseCount",
+     "type": "number"
+    },
+    {
+     "name": "ChaseLog",
+     "type": "note"
+    },
+    {
+     "name": "CardNote",
+     "type": "note"
+    },
+    {
+     "name": "WaitingSince",
+     "type": "text"
+    },
+    {
+     "name": "SpeakOn",
+     "type": "text"
+    },
+    {
+     "name": "FinaliseHours",
+     "type": "number"
+    },
+    {
+     "name": "PreparedOn",
+     "type": "text"
+    },
+    {
+     "name": "PreparedHours",
+     "type": "number"
+    },
+    {
+     "name": "DayOrder",
+     "type": "number"
+    },
+    {
+     "name": "StartTime",
+     "type": "text"
+    },
+    {
+     "name": "TimeSkipped",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "JobHistory",
+   "displayName": "PP Job History",
+   "description": "completed and closed jobs",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "EngagerClient",
+     "type": "text"
+    },
+    {
+     "name": "ServiceKey",
+     "type": "text"
+    },
+    {
+     "name": "StatutoryDeadline",
+     "type": "text"
+    },
+    {
+     "name": "InternalDeadline",
+     "type": "text"
+    },
+    {
+     "name": "Completed",
+     "type": "text"
+    },
+    {
+     "name": "OnTime",
+     "type": "text"
+    },
+    {
+     "name": "BudgetHours",
+     "type": "number"
+    },
+    {
+     "name": "ActualHours",
+     "type": "number"
+    },
+    {
+     "name": "ClosedNote",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "Tasks",
+   "displayName": "PP Tasks",
+   "description": "advisory and practice tasks",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "GroupKey",
+     "type": "text"
+    },
+    {
+     "name": "Type",
+     "type": "text"
+    },
+    {
+     "name": "PlannedDate",
+     "type": "text"
+    },
+    {
+     "name": "EstimateHours",
+     "type": "number"
+    },
+    {
+     "name": "DueDate",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "CompletedDate",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "HoldReason",
+     "type": "text"
+    },
+    {
+     "name": "HoldUntil",
+     "type": "text"
+    },
+    {
+     "name": "HeldOn",
+     "type": "text"
+    },
+    {
+     "name": "HoldKind",
+     "type": "text"
+    },
+    {
+     "name": "CardNote",
+     "type": "note"
+    },
+    {
+     "name": "DayOrder",
+     "type": "number"
+    },
+    {
+     "name": "Subtasks",
+     "type": "note"
+    },
+    {
+     "name": "StartTime",
+     "type": "text"
+    },
+    {
+     "name": "ActualHours",
+     "type": "number"
+    },
+    {
+     "name": "TimeSkipped",
+     "type": "text"
+    },
+    {
+     "name": "ProjectKey",
+     "type": "text"
+    },
+    {
+     "name": "RoutineKey",
+     "type": "text"
+    },
+    {
+     "name": "RoutineDate",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Projects",
+   "displayName": "PP Projects",
+   "description": "business projects",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "Category",
+     "type": "text"
+    },
+    {
+     "name": "Outcome",
+     "type": "note"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "TargetDate",
+     "type": "text"
+    },
+    {
+     "name": "Touched",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "Authorisations",
+   "displayName": "PP HMRC Authorisations",
+   "description": "HMRC agent authorisations",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Service",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "LinkSent",
+     "type": "text"
+    },
+    {
+     "name": "Expiry",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "HmrcAuthorisations",
+   "displayName": "PP HMRC Authorisation Requests",
+   "description": "one record per client and tax service (VAT, Corporation Tax, PAYE). Holds no tokens, passwords or codes.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Service",
+     "type": "text"
+    },
+    {
+     "name": "TaxRef",
+     "type": "text"
+    },
+    {
+     "name": "Method",
+     "type": "text"
+    },
+    {
+     "name": "HmrcId",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "StatusSource",
+     "type": "text"
+    },
+    {
+     "name": "Requested",
+     "type": "text"
+    },
+    {
+     "name": "Expires",
+     "type": "text"
+    },
+    {
+     "name": "AuthorisedOn",
+     "type": "text"
+    },
+    {
+     "name": "LastChecked",
+     "type": "text"
+    },
+    {
+     "name": "Owner",
+     "type": "text"
+    },
+    {
+     "name": "OnboardingKey",
+     "type": "text"
+    },
+    {
+     "name": "Env",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "HmrcAuthEvents",
+   "displayName": "PP HMRC Authorisation History",
+   "description": "append-only history of HMRC authorisation events. Facts only.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Service",
+     "type": "text"
+    },
+    {
+     "name": "Type",
+     "type": "text"
+    },
+    {
+     "name": "Summary",
+     "type": "note"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "StatusSource",
+     "type": "text"
+    },
+    {
+     "name": "HmrcId",
+     "type": "text"
+    },
+    {
+     "name": "Actor",
+     "type": "text"
+    },
+    {
+     "name": "At",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Settings",
+   "displayName": "PP Settings",
+   "description": "settings",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "Value",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "CHFlags",
+   "displayName": "PP Companies House Changes",
+   "description": "changes found at Companies House",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "Type",
+     "type": "text"
+    },
+    {
+     "name": "Severity",
+     "type": "text"
+    },
+    {
+     "name": "Detail",
+     "type": "note"
+    },
+    {
+     "name": "Current",
+     "type": "note"
+    },
+    {
+     "name": "Proposed",
+     "type": "note"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Found",
+     "type": "text"
+    },
+    {
+     "name": "Resolved",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Communications",
+   "displayName": "PP Communications",
+   "description": "letters and emails to clients",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Subject",
+     "type": "text"
+    },
+    {
+     "name": "Body",
+     "type": "note"
+    },
+    {
+     "name": "Brief",
+     "type": "note"
+    },
+    {
+     "name": "ToEmail",
+     "type": "text"
+    },
+    {
+     "name": "Address",
+     "type": "note"
+    },
+    {
+     "name": "Salutation",
+     "type": "text"
+    },
+    {
+     "name": "SignOff",
+     "type": "text"
+    },
+    {
+     "name": "LetterDate",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "FileUrl",
+     "type": "text"
+    },
+    {
+     "name": "FileName",
+     "type": "text"
+    },
+    {
+     "name": "OutlookUrl",
+     "type": "text"
+    },
+    {
+     "name": "SentOn",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "TaxPayments",
+   "displayName": "PP Tax Payments",
+   "description": "Self Assessment and corporation tax payments per client",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Tax",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "EntryYear",
+     "type": "text"
+    },
+    {
+     "name": "TaxYear",
+     "type": "text"
+    },
+    {
+     "name": "Label",
+     "type": "text"
+    },
+    {
+     "name": "Amount",
+     "type": "number"
+    },
+    {
+     "name": "DueDate",
+     "type": "text"
+    },
+    {
+     "name": "PaidOn",
+     "type": "text"
+    },
+    {
+     "name": "RemindedOn",
+     "type": "text"
+    },
+    {
+     "name": "Bill",
+     "type": "number"
+    },
+    {
+     "name": "OtherTax",
+     "type": "number"
+    },
+    {
+     "name": "PoaPaid",
+     "type": "number"
+    },
+    {
+     "name": "MostlyAtSource",
+     "type": "bool"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "Meetings",
+   "displayName": "PP Meetings",
+   "description": "meetings and calls with clients",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Template",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "When",
+     "type": "text"
+    },
+    {
+     "name": "Minutes",
+     "type": "number"
+    },
+    {
+     "name": "Location",
+     "type": "text"
+    },
+    {
+     "name": "Attendees",
+     "type": "text"
+    },
+    {
+     "name": "Agenda",
+     "type": "note"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Summary",
+     "type": "note"
+    },
+    {
+     "name": "Decisions",
+     "type": "note"
+    },
+    {
+     "name": "Actions",
+     "type": "note"
+    },
+    {
+     "name": "FollowUp",
+     "type": "text"
+    },
+    {
+     "name": "SummaryCommKey",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "DocTemplates",
+   "displayName": "PP Document Templates",
+   "description": "letter and document templates",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "Category",
+     "type": "text"
+    },
+    {
+     "name": "Description",
+     "type": "note"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    },
+    {
+     "name": "Archived",
+     "type": "bool"
+    },
+    {
+     "name": "IsDefault",
+     "type": "bool"
+    },
+    {
+     "name": "BrandingId",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "Body",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "DocVersions",
+   "displayName": "PP Document Template Versions",
+   "description": "earlier versions of document templates",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "TemplateKey",
+     "type": "text"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    },
+    {
+     "name": "Saved",
+     "type": "text"
+    },
+    {
+     "name": "Body",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "Documents",
+   "displayName": "PP Documents",
+   "description": "documents and letters generated for clients",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "TemplateKey",
+     "type": "text"
+    },
+    {
+     "name": "TemplateVersion",
+     "type": "number"
+    },
+    {
+     "name": "TemplateName",
+     "type": "text"
+    },
+    {
+     "name": "Category",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "Reference",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "BrandingId",
+     "type": "text"
+    },
+    {
+     "name": "FileUrl",
+     "type": "text"
+    },
+    {
+     "name": "FileName",
+     "type": "text"
+    },
+    {
+     "name": "Pages",
+     "type": "number"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "SentOn",
+     "type": "text"
+    },
+    {
+     "name": "SentTo",
+     "type": "text"
+    },
+    {
+     "name": "OutlookUrl",
+     "type": "text"
+    },
+    {
+     "name": "Snapshot",
+     "type": "note"
+    },
+    {
+     "name": "ProposalKey",
+     "type": "text"
+    },
+    {
+     "name": "OppKey",
+     "type": "text"
+    },
+    {
+     "name": "LeadKey",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Activities",
+   "displayName": "PP Activities",
+   "description": "client timeline entries",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "Type",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "Summary",
+     "type": "note"
+    },
+    {
+     "name": "At",
+     "type": "text"
+    },
+    {
+     "name": "Actor",
+     "type": "text"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "SourceKey",
+     "type": "text"
+    },
+    {
+     "name": "EventKey",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Visibility",
+     "type": "text"
+    },
+    {
+     "name": "FollowUp",
+     "type": "text"
+    },
+    {
+     "name": "Meta",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "OppKey",
+     "type": "text"
+    },
+    {
+     "name": "LeadKey",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "WorkingPapers",
+   "displayName": "PP Working Papers",
+   "description": "status and notes for each section of a company's working papers",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "PeriodEnd",
+     "type": "text"
+    },
+    {
+     "name": "ItemKey",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Note",
+     "type": "note"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "PreparedBy",
+     "type": "text"
+    },
+    {
+     "name": "PreparedOn",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedBy",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedOn",
+     "type": "text"
+    },
+    {
+     "name": "Setup",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PaperLines",
+   "displayName": "PP Paper Lines",
+   "description": "the lines of each schedule in a company's working papers",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "PeriodEnd",
+     "type": "text"
+    },
+    {
+     "name": "SectionKey",
+     "type": "text"
+    },
+    {
+     "name": "SubKey",
+     "type": "text"
+    },
+    {
+     "name": "Code",
+     "type": "text"
+    },
+    {
+     "name": "Detail",
+     "type": "text"
+    },
+    {
+     "name": "Amount",
+     "type": "number"
+    },
+    {
+     "name": "Remark",
+     "type": "note"
+    },
+    {
+     "name": "Done",
+     "type": "bool"
+    },
+    {
+     "name": "Seq",
+     "type": "number"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "Figures",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "ChecklistTemplates",
+   "displayName": "PP Checklist Templates",
+   "description": "job checklist templates",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "JobType",
+     "type": "text"
+    },
+    {
+     "name": "Description",
+     "type": "note"
+    },
+    {
+     "name": "ClientKinds",
+     "type": "text"
+    },
+    {
+     "name": "Rules",
+     "type": "note"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    },
+    {
+     "name": "Active",
+     "type": "bool"
+    },
+    {
+     "name": "IsDefault",
+     "type": "bool"
+    },
+    {
+     "name": "Hours",
+     "type": "number"
+    },
+    {
+     "name": "Body",
+     "type": "note"
+    },
+    {
+     "name": "Starter",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "ChecklistVersions",
+   "displayName": "PP Checklist Template Versions",
+   "description": "earlier versions of checklist templates",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "TemplateKey",
+     "type": "text"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    },
+    {
+     "name": "Saved",
+     "type": "text"
+    },
+    {
+     "name": "Body",
+     "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Checklists",
+   "displayName": "PP Checklists",
+   "description": "the checklist on each job",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "PeriodEnd",
+     "type": "text"
+    },
+    {
+     "name": "JobType",
+     "type": "text"
+    },
+    {
+     "name": "TemplateKey",
+     "type": "text"
+    },
+    {
+     "name": "TemplateVersion",
+     "type": "number"
+    },
+    {
+     "name": "TemplateName",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Answers",
+     "type": "note"
+    },
+    {
+     "name": "PreparedBy",
+     "type": "text"
+    },
+    {
+     "name": "PreparedOn",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedBy",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedOn",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedOn",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "number"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "ChecklistItems",
+   "displayName": "PP Checklist Items",
+   "description": "the steps of each job's checklist",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ChecklistKey",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "ItemId",
+     "type": "text"
+    },
+    {
+     "name": "Section",
+     "type": "text"
+    },
+    {
+     "name": "Seq",
+     "type": "number"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Mandatory",
+     "type": "bool"
+    },
+    {
+     "name": "Assignee",
+     "type": "text"
+    },
+    {
+     "name": "Role",
+     "type": "text"
+    },
+    {
+     "name": "Hours",
+     "type": "number"
+    },
+    {
+     "name": "Due",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "CompletedBy",
+     "type": "text"
+    },
+    {
+     "name": "CompletedOn",
+     "type": "text"
+    },
+    {
+     "name": "NaReason",
+     "type": "note"
+    },
+    {
+     "name": "Override",
+     "type": "note"
+    },
+    {
+     "name": "After",
+     "type": "note"
+    },
+    {
+     "name": "Detail",
+     "type": "note"
+    },
+    {
+     "name": "Gone",
+     "type": "bool"
+    },
+    {
+     "name": "History",
+     "type": "note"
+    },
+    {
+     "name": "Rev",
+     "type": "number"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "ChecklistNotes",
+   "displayName": "PP Checklist Review Notes",
+   "description": "review points raised on a checklist",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ChecklistKey",
+     "type": "text"
+    },
+    {
+     "name": "ItemKey",
+     "type": "text"
+    },
+    {
+     "name": "Text",
+     "type": "note"
+    },
+    {
+     "name": "RaisedBy",
+     "type": "text"
+    },
+    {
+     "name": "RaisedOn",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Response",
+     "type": "note"
+    },
+    {
+     "name": "RespondedBy",
+     "type": "text"
+    },
+    {
+     "name": "ResolvedBy",
+     "type": "text"
+    },
+    {
+     "name": "ResolvedOn",
+     "type": "text"
+    },
+    {
+     "name": "History",
+     "type": "note"
+    },
+    {
+     "name": "Rev",
+     "type": "number"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "ChecklistLog",
+   "displayName": "PP Checklist Audit Trail",
+   "description": "what happened on each checklist",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "ChecklistKey",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ItemKey",
+     "type": "text"
+    },
+    {
+     "name": "At",
+     "type": "text"
+    },
+    {
+     "name": "Actor",
+     "type": "text"
+    },
+    {
+     "name": "Action",
+     "type": "text"
+    },
+    {
+     "name": "Detail",
+     "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Leads",
+   "displayName": "PP Leads",
+   "description": "sales leads (prospects who are not clients yet)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "ContactName",
+     "type": "text"
+    },
+    {
+     "name": "Email",
+     "type": "text"
+    },
+    {
+     "name": "Phone",
+     "type": "text"
+    },
+    {
+     "name": "Website",
+     "type": "text"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "Owner",
+     "type": "text"
+    },
+    {
+     "name": "Received",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Opportunities",
+   "displayName": "PP Opportunities",
+   "description": "sales opportunities and their pipeline stage",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "LeadKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Stage",
+     "type": "text"
+    },
+    {
+     "name": "StageSince",
+     "type": "text"
+    },
+    {
+     "name": "Services",
+     "type": "note"
+    },
+    {
+     "name": "Value",
+     "type": "number"
+    },
+    {
+     "name": "Owner",
+     "type": "text"
+    },
+    {
+     "name": "NextAction",
+     "type": "note"
+    },
+    {
+     "name": "FollowUp",
+     "type": "text"
+    },
+    {
+     "name": "LastContact",
+     "type": "text"
+    },
+    {
+     "name": "Outcome",
+     "type": "text"
+    },
+    {
+     "name": "LostReason",
+     "type": "text"
+    },
+    {
+     "name": "DeferUntil",
+     "type": "text"
+    },
+    {
+     "name": "Order",
+     "type": "number"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "SalesLog",
+   "displayName": "PP Sales Audit Trail",
+   "description": "what happened to each lead and opportunity",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "At",
+     "type": "text"
+    },
+    {
+     "name": "Actor",
+     "type": "text"
+    },
+    {
+     "name": "Action",
+     "type": "text"
+    },
+    {
+     "name": "EntityType",
+     "type": "text"
+    },
+    {
+     "name": "EntityKey",
+     "type": "text"
+    },
+    {
+     "name": "LeadKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Detail",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "Proposals",
+   "displayName": "PP Proposals",
+   "description": "proposals (one per offer; see versions)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "OppKey",
+     "type": "text"
+    },
+    {
+     "name": "LeadKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "CurrentVersion",
+     "type": "number"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "AcceptedVersion",
+     "type": "number"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "ProposalVersions",
+   "displayName": "PP Proposal Versions",
+   "description": "the versions of each proposal, as sent and as accepted",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ProposalKey",
+     "type": "text"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Body",
+     "type": "note"
+    },
+    {
+     "name": "Hash",
+     "type": "text"
+    },
+    {
+     "name": "ValidUntil",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedBy",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedOn",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedOn",
+     "type": "text"
+    },
+    {
+     "name": "ReturnNote",
+     "type": "note"
+    },
+    {
+     "name": "SentOn",
+     "type": "text"
+    },
+    {
+     "name": "SentBy",
+     "type": "text"
+    },
+    {
+     "name": "SentTo",
+     "type": "text"
+    },
+    {
+     "name": "DocKey",
+     "type": "text"
+    },
+    {
+     "name": "AcceptedBy",
+     "type": "text"
+    },
+    {
+     "name": "AcceptedEmail",
+     "type": "text"
+    },
+    {
+     "name": "AcceptedAt",
+     "type": "text"
+    },
+    {
+     "name": "AcceptMethod",
+     "type": "text"
+    },
+    {
+     "name": "AcceptEvidence",
+     "type": "note"
+    },
+    {
+     "name": "AcceptIp",
+     "type": "text"
+    },
+    {
+     "name": "Agreed",
+     "type": "note"
+    },
+    {
+     "name": "RejectedReason",
+     "type": "note"
+    },
+    {
+     "name": "RejectedAt",
+     "type": "text"
+    },
+    {
+     "name": "FirstYearNet",
+     "type": "number"
+    },
+    {
+     "name": "FirstYearGross",
+     "type": "number"
+    },
+    {
+     "name": "OngoingNet",
+     "type": "number"
+    },
+    {
+     "name": "OngoingGross",
+     "type": "number"
+    }
+   ]
+  },
+  {
+   "key": "Engagements",
+   "displayName": "PP Engagements",
+   "description": "engagement letters and their review dates",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ProposalKey",
+     "type": "text"
+    },
+    {
+     "name": "ProposalVersion",
+     "type": "number"
+    },
+    {
+     "name": "OppKey",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "ClientType",
+     "type": "text"
+    },
+    {
+     "name": "ServiceKeys",
+     "type": "note"
+    },
+    {
+     "name": "ServiceNames",
+     "type": "note"
+    },
+    {
+     "name": "DocumentDate",
+     "type": "text"
+    },
+    {
+     "name": "EffectiveDate",
+     "type": "text"
+    },
+    {
+     "name": "ReviewYears",
+     "type": "text"
+    },
+    {
+     "name": "ReviewDate",
+     "type": "text"
+    },
+    {
+     "name": "Body",
+     "type": "note"
+    },
+    {
+     "name": "Hash",
+     "type": "text"
+    },
+    {
+     "name": "DocKey",
+     "type": "text"
+    },
+    {
+     "name": "FileUrl",
+     "type": "text"
+    },
+    {
+     "name": "PortalDocId",
+     "type": "text"
+    },
+    {
+     "name": "SigningId",
+     "type": "text"
+    },
+    {
+     "name": "SealedDocId",
+     "type": "text"
+    },
+    {
+     "name": "Signatories",
+     "type": "note"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedOn",
+     "type": "text"
+    },
+    {
+     "name": "SentOn",
+     "type": "text"
+    },
+    {
+     "name": "SentBy",
+     "type": "text"
+    },
+    {
+     "name": "SignedAt",
+     "type": "text"
+    },
+    {
+     "name": "SignedBy",
+     "type": "text"
+    },
+    {
+     "name": "SignMethod",
+     "type": "text"
+    },
+    {
+     "name": "SignEvidence",
+     "type": "note"
+    },
+    {
+     "name": "PreviousKey",
+     "type": "text"
+    },
+    {
+     "name": "SupersededBy",
+     "type": "text"
+    },
+    {
+     "name": "EndedOn",
+     "type": "text"
+    },
+    {
+     "name": "ReviewRequest",
+     "type": "note"
+    },
+    {
+     "name": "Decisions",
+     "type": "note"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "SignProgress",
+     "type": "text"
+    },
+    {
+     "name": "Basis",
+     "type": "text"
+    },
+    {
+     "name": "Agreed",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "Onboardings",
+   "displayName": "PP Onboardings",
+   "description": "clients being onboarded",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "LeadKey",
+     "type": "text"
+    },
+    {
+     "name": "OppKey",
+     "type": "text"
+    },
+    {
+     "name": "ProposalKey",
+     "type": "text"
+    },
+    {
+     "name": "ProposalVersion",
+     "type": "number"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Takeover",
+     "type": "text"
+    },
+    {
+     "name": "Stages",
+     "type": "note"
+    },
+    {
+     "name": "Aml",
+     "type": "note"
+    },
+    {
+     "name": "StartDate",
+     "type": "text"
+    },
+    {
+     "name": "Owner",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedOn",
+     "type": "text"
+    },
+    {
+     "name": "ActivatedBy",
+     "type": "text"
+    },
+    {
+     "name": "ActivatedOn",
+     "type": "text"
+    },
+    {
+     "name": "ActivationSummary",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "FeeHistory",
+   "displayName": "PP Fee History",
+   "description": "changes to client fees",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ServiceKey",
+     "type": "text"
+    },
+    {
+     "name": "At",
+     "type": "text"
+    },
+    {
+     "name": "Actor",
+     "type": "text"
+    },
+    {
+     "name": "Action",
+     "type": "text"
+    },
+    {
+     "name": "Old",
+     "type": "note"
+    },
+    {
+     "name": "New",
+     "type": "note"
+    },
+    {
+     "name": "Reason",
+     "type": "note"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "FeeCharges",
+   "displayName": "PP Fee Charges",
+   "description": "one-off agreed charges",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ServiceKey",
+     "type": "text"
+    },
+    {
+     "name": "Label",
+     "type": "text"
+    },
+    {
+     "name": "Amount",
+     "type": "number"
+    },
+    {
+     "name": "Vat",
+     "type": "text"
+    },
+    {
+     "name": "AgreedOn",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "ProposalKey",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "ClientCosts",
+   "displayName": "PP Client Costs",
+   "description": "direct costs for each client",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Label",
+     "type": "text"
+    },
+    {
+     "name": "Amount",
+     "type": "number"
+    },
+    {
+     "name": "Period",
+     "type": "text"
+    },
+    {
+     "name": "Estimate",
+     "type": "bool"
+    },
+    {
+     "name": "Active",
+     "type": "bool"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Actions",
+   "displayName": "PP Actions",
+   "description": "Action Centre items and their history",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Category",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientName",
+     "type": "text"
+    },
+    {
+     "name": "Detail",
+     "type": "note"
+    },
+    {
+     "name": "Assignee",
+     "type": "text"
+    },
+    {
+     "name": "Due",
+     "type": "text"
+    },
+    {
+     "name": "Priority",
+     "type": "text"
+    },
+    {
+     "name": "Dismissible",
+     "type": "bool"
+    },
+    {
+     "name": "Href",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "FirstSeen",
+     "type": "text"
+    },
+    {
+     "name": "ResolvedAt",
+     "type": "text"
+    },
+    {
+     "name": "ResolvedBy",
+     "type": "text"
+    },
+    {
+     "name": "DismissedBy",
+     "type": "text"
+    },
+    {
+     "name": "History",
+     "type": "note"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecEvents",
+   "displayName": "PP CoSec Events",
+   "description": "changes that may affect statutory records",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "EventKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Entity",
+     "type": "text"
+    },
+    {
+     "name": "EntityKey",
+     "type": "text"
+    },
+    {
+     "name": "Field",
+     "type": "text"
+    },
+    {
+     "name": "Before",
+     "type": "note"
+    },
+    {
+     "name": "After",
+     "type": "note"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "SourceKey",
+     "type": "text"
+    },
+    {
+     "name": "Actor",
+     "type": "text"
+    },
+    {
+     "name": "At",
+     "type": "text"
+    },
+    {
+     "name": "Outcome",
+     "type": "text"
+    },
+    {
+     "name": "TxKey",
+     "type": "text"
+    },
+    {
+     "name": "Note",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "CoSecTransactions",
+   "displayName": "PP CoSec Transactions",
+   "description": "statutory filings prepared, reviewed and submitted",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Form",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Target",
+     "type": "text"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "SourceKey",
+     "type": "text"
+    },
+    {
+     "name": "Before",
+     "type": "note"
+    },
+    {
+     "name": "After",
+     "type": "note"
+    },
+    {
+     "name": "Payload",
+     "type": "note"
+    },
+    {
+     "name": "Assignee",
+     "type": "text"
+    },
+    {
+     "name": "EventKeys",
+     "type": "note"
+    },
+    {
+     "name": "Clarification",
+     "type": "note"
+    },
+    {
+     "name": "Due",
+     "type": "text"
+    },
+    {
+     "name": "EditedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedAt",
+     "type": "text"
+    },
+    {
+     "name": "SubmittedBy",
+     "type": "text"
+    },
+    {
+     "name": "SubmittedAt",
+     "type": "text"
+    },
+    {
+     "name": "GatewayRef",
+     "type": "text"
+    },
+    {
+     "name": "GatewayStatus",
+     "type": "text"
+    },
+    {
+     "name": "GatewayNote",
+     "type": "note"
+    },
+    {
+     "name": "ChRef",
+     "type": "text"
+    },
+    {
+     "name": "AcceptedAt",
+     "type": "text"
+    },
+    {
+     "name": "RejectReason",
+     "type": "note"
+    },
+    {
+     "name": "ApprovalState",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalNote",
+     "type": "note"
+    },
+    {
+     "name": "ApprovalDecidedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalDecidedAt",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalMethod",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalSigningId",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalPortalDocId",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalDocKey",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalSignedDocKey",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalSealedDocId",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalSignatories",
+     "type": "note"
+    },
+    {
+     "name": "ApprovalSentAt",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalAt",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalEvidence",
+     "type": "note"
+    },
+    {
+     "name": "History",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecOfficers",
+   "displayName": "PP CoSec Officers",
+   "description": "directors, secretaries and LLP members (internal register)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Role",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "First",
+     "type": "text"
+    },
+    {
+     "name": "Last",
+     "type": "text"
+    },
+    {
+     "name": "CorporateName",
+     "type": "text"
+    },
+    {
+     "name": "DOB",
+     "type": "text"
+    },
+    {
+     "name": "Nationality",
+     "type": "text"
+    },
+    {
+     "name": "Occupation",
+     "type": "text"
+    },
+    {
+     "name": "CountryOfResidence",
+     "type": "text"
+    },
+    {
+     "name": "ServiceAddress",
+     "type": "note"
+    },
+    {
+     "name": "ResidentialAddress",
+     "type": "note"
+    },
+    {
+     "name": "AppointedOn",
+     "type": "text"
+    },
+    {
+     "name": "ResignedOn",
+     "type": "text"
+    },
+    {
+     "name": "PersonClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ChId",
+     "type": "text"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "IdStatus",
+     "type": "text"
+    },
+    {
+     "name": "IdCheckedOn",
+     "type": "text"
+    },
+    {
+     "name": "IdNote",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecPscs",
+   "displayName": "PP CoSec PSCs",
+   "description": "persons with significant control (internal register)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "First",
+     "type": "text"
+    },
+    {
+     "name": "Last",
+     "type": "text"
+    },
+    {
+     "name": "CorporateName",
+     "type": "text"
+    },
+    {
+     "name": "DOB",
+     "type": "text"
+    },
+    {
+     "name": "Nationality",
+     "type": "text"
+    },
+    {
+     "name": "CountryOfResidence",
+     "type": "text"
+    },
+    {
+     "name": "ServiceAddress",
+     "type": "note"
+    },
+    {
+     "name": "ResidentialAddress",
+     "type": "note"
+    },
+    {
+     "name": "Natures",
+     "type": "note"
+    },
+    {
+     "name": "NotifiedOn",
+     "type": "text"
+    },
+    {
+     "name": "CeasedOn",
+     "type": "text"
+    },
+    {
+     "name": "PersonClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ChId",
+     "type": "text"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "IdStatus",
+     "type": "text"
+    },
+    {
+     "name": "IdCheckedOn",
+     "type": "text"
+    },
+    {
+     "name": "IdNote",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecShares",
+   "displayName": "PP CoSec Shares",
+   "description": "share holdings and share transactions (internal register)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Holder",
+     "type": "text"
+    },
+    {
+     "name": "HolderKey",
+     "type": "text"
+    },
+    {
+     "name": "Class",
+     "type": "text"
+    },
+    {
+     "name": "Number",
+     "type": "number"
+    },
+    {
+     "name": "Currency",
+     "type": "text"
+    },
+    {
+     "name": "NominalValue",
+     "type": "number"
+    },
+    {
+     "name": "PaidPerShare",
+     "type": "number"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "From",
+     "type": "text"
+    },
+    {
+     "name": "To",
+     "type": "text"
+    },
+    {
+     "name": "Event",
+     "type": "text"
+    },
+    {
+     "name": "CertificateNo",
+     "type": "text"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecShareClasses",
+   "displayName": "PP CoSec Share Classes",
+   "description": "classes of share each company has set up",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Name",
+     "type": "text"
+    },
+    {
+     "name": "Currency",
+     "type": "text"
+    },
+    {
+     "name": "NominalValue",
+     "type": "number"
+    },
+    {
+     "name": "Rights",
+     "type": "note"
+    },
+    {
+     "name": "Votes",
+     "type": "text"
+    },
+    {
+     "name": "Dividends",
+     "type": "text"
+    },
+    {
+     "name": "Redeemable",
+     "type": "text"
+    },
+    {
+     "name": "Restrictions",
+     "type": "note"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecProfiles",
+   "displayName": "PP CoSec Profiles",
+   "description": "how the practice relates to each company (service level and overrides)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Level",
+     "type": "text"
+    },
+    {
+     "name": "Responsible",
+     "type": "text"
+    },
+    {
+     "name": "FilesCS01",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecLedger",
+   "displayName": "PP CoSec Share Ledger",
+   "description": "share transaction ledger (immutable entries; corrections supersede)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Type",
+     "type": "text"
+    },
+    {
+     "name": "EffectiveDate",
+     "type": "text"
+    },
+    {
+     "name": "Class",
+     "type": "text"
+    },
+    {
+     "name": "Number",
+     "type": "number"
+    },
+    {
+     "name": "FromHolder",
+     "type": "text"
+    },
+    {
+     "name": "FromKey",
+     "type": "text"
+    },
+    {
+     "name": "ToHolder",
+     "type": "text"
+    },
+    {
+     "name": "ToKey",
+     "type": "text"
+    },
+    {
+     "name": "Currency",
+     "type": "text"
+    },
+    {
+     "name": "Nominal",
+     "type": "number"
+    },
+    {
+     "name": "PaidPerShare",
+     "type": "number"
+    },
+    {
+     "name": "Premium",
+     "type": "number"
+    },
+    {
+     "name": "Consideration",
+     "type": "note"
+    },
+    {
+     "name": "TxKey",
+     "type": "text"
+    },
+    {
+     "name": "IdemKey",
+     "type": "text"
+    },
+    {
+     "name": "Supersedes",
+     "type": "text"
+    },
+    {
+     "name": "Reason",
+     "type": "note"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecImports",
+   "displayName": "PP CoSec Imports",
+   "description": "historical corporate-record imports (audit of what was proposed and approved)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Method",
+     "type": "text"
+    },
+    {
+     "name": "SourceName",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Summary",
+     "type": "note"
+    },
+    {
+     "name": "Items",
+     "type": "note"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedAt",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecCertificates",
+   "displayName": "PP CoSec Certificates",
+   "description": "share certificates issued, cancelled and replaced",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Number",
+     "type": "text"
+    },
+    {
+     "name": "Holder",
+     "type": "text"
+    },
+    {
+     "name": "HolderKey",
+     "type": "text"
+    },
+    {
+     "name": "Class",
+     "type": "text"
+    },
+    {
+     "name": "NumberOfShares",
+     "type": "number"
+    },
+    {
+     "name": "IssuedOn",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Replaces",
+     "type": "text"
+    },
+    {
+     "name": "TxKey",
+     "type": "text"
+    },
+    {
+     "name": "Reason",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecDividends",
+   "displayName": "PP CoSec Dividends",
+   "description": "dividends proposed, declared and paid",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Ref",
+     "type": "text"
+    },
+    {
+     "name": "Type",
+     "type": "text"
+    },
+    {
+     "name": "RecordDate",
+     "type": "text"
+    },
+    {
+     "name": "DeclaredOn",
+     "type": "text"
+    },
+    {
+     "name": "PaidOn",
+     "type": "text"
+    },
+    {
+     "name": "Currency",
+     "type": "text"
+    },
+    {
+     "name": "Rates",
+     "type": "note"
+    },
+    {
+     "name": "Lines",
+     "type": "note"
+    },
+    {
+     "name": "TotalPence",
+     "type": "number"
+    },
+    {
+     "name": "Waivers",
+     "type": "note"
+    },
+    {
+     "name": "ReviewedBy",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedAt",
+     "type": "text"
+    },
+    {
+     "name": "ReviewNote",
+     "type": "note"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CoSecAccounts",
+   "displayName": "PP CoSec Accounts",
+   "description": "dormant company accounts jobs and their progress to acceptance",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "PeriodStart",
+     "type": "text"
+    },
+    {
+     "name": "PeriodEnd",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Confirmations",
+     "type": "note"
+    },
+    {
+     "name": "Figures",
+     "type": "note"
+    },
+    {
+     "name": "Deadline",
+     "type": "text"
+    },
+    {
+     "name": "PreparedOn",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedOn",
+     "type": "text"
+    },
+    {
+     "name": "SignedRef",
+     "type": "text"
+    },
+    {
+     "name": "FiledOn",
+     "type": "text"
+    },
+    {
+     "name": "FiledVia",
+     "type": "text"
+    },
+    {
+     "name": "FiledRef",
+     "type": "text"
+    },
+    {
+     "name": "AcceptedOn",
+     "type": "text"
+    },
+    {
+     "name": "Evidence",
+     "type": "note"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "LateLastYear",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Clearances",
+   "displayName": "PP Clearances",
+   "description": "professional clearance requests to previous accountants",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "PrevFirm",
+     "type": "text"
+    },
+    {
+     "name": "PrevContact",
+     "type": "text"
+    },
+    {
+     "name": "PrevEmail",
+     "type": "text"
+    },
+    {
+     "name": "PrevAddress",
+     "type": "note"
+    },
+    {
+     "name": "Items",
+     "type": "note"
+    },
+    {
+     "name": "Letter",
+     "type": "note"
+    },
+    {
+     "name": "GeneratedOn",
+     "type": "text"
+    },
+    {
+     "name": "SentOn",
+     "type": "text"
+    },
+    {
+     "name": "SentBy",
+     "type": "text"
+    },
+    {
+     "name": "ReceivedOn",
+     "type": "text"
+    },
+    {
+     "name": "Reply",
+     "type": "note"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "AmlAssessments",
+   "displayName": "PP AML Assessments",
+   "description": "AML risk assessments and their reviews",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Risk",
+     "type": "text"
+    },
+    {
+     "name": "RiskBasis",
+     "type": "note"
+    },
+    {
+     "name": "Owners",
+     "type": "note"
+    },
+    {
+     "name": "NoOwnerNote",
+     "type": "note"
+    },
+    {
+     "name": "Checks",
+     "type": "note"
+    },
+    {
+     "name": "Evidence",
+     "type": "note"
+    },
+    {
+     "name": "PreparedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedAt",
+     "type": "text"
+    },
+    {
+     "name": "DoneOn",
+     "type": "text"
+    },
+    {
+     "name": "ReviewDate",
+     "type": "text"
+    },
+    {
+     "name": "DeclinedReason",
+     "type": "note"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "OnboardingKey",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "FormTemplates",
+   "displayName": "PP Form Templates",
+   "description": "reusable forms and questionnaires",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Category",
+     "type": "text"
+    },
+    {
+     "name": "Description",
+     "type": "note"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    },
+    {
+     "name": "Archived",
+     "type": "bool"
+    },
+    {
+     "name": "Fields",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "FormRequests",
+   "displayName": "PP Form Requests",
+   "description": "forms put to clients, with their answers",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "TemplateKey",
+     "type": "text"
+    },
+    {
+     "name": "TemplateVersion",
+     "type": "number"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "DueDate",
+     "type": "text"
+    },
+    {
+     "name": "Fields",
+     "type": "note"
+    },
+    {
+     "name": "Answers",
+     "type": "note"
+    },
+    {
+     "name": "Written",
+     "type": "note"
+    },
+    {
+     "name": "CompletedOn",
+     "type": "text"
+    },
+    {
+     "name": "CompletedBy",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "AdvisoryPlans",
+   "displayName": "PP Advisory Plans",
+   "description": "each advisory client's Freedom Plan (Freedom Number, where the business is now, levers). One row per client; Json holds the plan.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "UpdatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "JobTime",
+   "displayName": "PP Job Time",
+   "description": "time worked on each job by stage (timer and manual entries)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "StageNo",
+     "type": "number"
+    },
+    {
+     "name": "StageName",
+     "type": "text"
+    },
+    {
+     "name": "Started",
+     "type": "text"
+    },
+    {
+     "name": "Ended",
+     "type": "text"
+    },
+    {
+     "name": "Hours",
+     "type": "number"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Note",
+     "type": "note"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "CustomValues",
+   "displayName": "PP Custom Values",
+   "description": "values of the practice's own fields on clients and jobs",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "EntityKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "BillingLinks",
+   "displayName": "PP Billing Links",
+   "description": "fee lines billed through Adfin",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "ServiceKey",
+     "type": "text"
+    },
+    {
+     "name": "FeeKey",
+     "type": "text"
+    },
+    {
+     "name": "CustomerId",
+     "type": "text"
+    },
+    {
+     "name": "CustomerName",
+     "type": "text"
+    },
+    {
+     "name": "ScheduleId",
+     "type": "text"
+    },
+    {
+     "name": "ScheduleNo",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Method",
+     "type": "text"
+    },
+    {
+     "name": "Amount",
+     "type": "number"
+    },
+    {
+     "name": "VatRate",
+     "type": "number"
+    },
+    {
+     "name": "Period",
+     "type": "text"
+    },
+    {
+     "name": "StartDate",
+     "type": "text"
+    },
+    {
+     "name": "Description",
+     "type": "text"
+    },
+    {
+     "name": "NextDate",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "SyncedAt",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalUsers",
+   "displayName": "PP Portal Users",
+   "description": "Practice Planner client portal: portal logins. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalAccess",
+   "displayName": "PP Portal Access",
+   "description": "Practice Planner client portal: which person can see which business. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalAudit",
+   "displayName": "PP Portal Audit",
+   "description": "Practice Planner client portal: the portal audit trail. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalInvites",
+   "displayName": "PP Portal Invites",
+   "description": "Practice Planner client portal: portal invitations. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalDocuments",
+   "displayName": "PP Portal Documents",
+   "description": "Practice Planner client portal: documents shared with clients. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalSigning",
+   "displayName": "PP Portal Signing",
+   "description": "Practice Planner client portal: signing requests and evidence. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalIdentity",
+   "displayName": "PP Portal Identity",
+   "description": "Practice Planner client portal: identity document requests and records. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalRequests",
+   "displayName": "PP Portal Requests",
+   "description": "Practice Planner client portal: information requests. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalMessages",
+   "displayName": "PP Portal Messages",
+   "description": "Practice Planner client portal: secure messages. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalChanges",
+   "displayName": "PP Portal Changes",
+   "description": "Practice Planner client portal: business detail change requests. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalNotices",
+   "displayName": "PP Portal Notices",
+   "description": "Practice Planner client portal: client notifications. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalReminders",
+   "displayName": "PP Portal Reminders",
+   "description": "Practice Planner client portal: reminder schedules and history. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalSettings",
+   "displayName": "PP Portal Settings",
+   "description": "Practice Planner client portal: portal branding. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "PortalProposals",
+   "displayName": "PP Portal Proposals",
+   "description": "Practice Planner client portal: proposal links and the answers given through them. Written only by the portal server.",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Ref1",
+     "type": "text"
+    },
+    {
+     "name": "Ref2",
+     "type": "text"
+    },
+    {
+     "name": "Rev",
+     "type": "text"
+    },
+    {
+     "name": "Json",
+     "type": "note"
+    }
+   ]
+  }
+ ]
+}
