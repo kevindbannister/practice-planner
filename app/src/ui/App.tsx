@@ -123,7 +123,8 @@ export function App({ demo }: { demo: boolean }) {
           <EditorProvider>
             <AssistantProvider>
               <PortalProvider>
-                <TopBar section={section} demo={demo} ready={status === "ready"} />
+                {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
+                {!(section === "advisory" && parts[1]) && <TopBar section={section} demo={demo} ready={status === "ready"} />}
                 {status === "ready" && <ActionSync />}
                 {status === "ready" && <CoSecSync />}
                 {status === "ready" && <TimerChip />}

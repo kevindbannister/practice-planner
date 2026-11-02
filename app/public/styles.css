@@ -2591,3 +2591,12 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 .jt-dot { width: 9px; height: 9px; border-radius: 50%; background: #d92d20; animation: jt-pulse 1.4s ease-in-out infinite; flex: none; }
 @keyframes jt-pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .jt-dot { animation: none; } }
+
+/* ---------- Freedom Plan banner: looks like the main menu bar, replaces it while a client's plan is open ---------- */
+.adv-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; padding: 10px 14px 10px 24px; margin: 12px 0 0; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; position: sticky; top: 12px; z-index: 10; box-shadow: 0 6px 24px rgba(13, 35, 71, 0.08); }
+.adv-bar-title { display: flex; flex-direction: column; min-width: 0; }
+.adv-bar-title h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adv-bar .adv-kicker { color: #9a7b22; font-size: 11px; }
+.adv-bar-actions { display: flex; align-items: center; gap: 8px; }
+.adv-bar-icon { width: 44px; height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; }
+@media (max-width: 700px) { .adv-bar { border-radius: 28px; padding: 8px 10px 8px 16px; } }

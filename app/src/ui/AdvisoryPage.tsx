@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { emptyPlan, gap, readPlan, writePlan } from "../lib/advisory";
 import { Client, fmtDate } from "../lib/domain";
 import { newKey } from "../lib/planning";
-import { ClientBadge, go, href, useRoute } from "./bits";
+import { ClientBadge, Icon, go, href, useRoute } from "./bits";
 import { useData } from "./data";
 import { SaveNote, gbp, gbpBr, pct, usePlan } from "./advisoryKit";
 import { FreedomTab, GapTab, LeversTab, NowTab, Stat } from "./AdvisoryTabs";
@@ -137,13 +137,17 @@ function AdvisoryClient({ clientKey, tab }: { clientKey: string; tab: TabKey }) 
   const g = gap(plan);
   return (
     <div className="page adv">
-      <Band kicker="Freedom Plan" title={String(client.Title)}>
-        <div className="adv-band-links">
-          <SaveNote s={s} />
-          <a href={href("advisory")}>All Freedom Plans</a>
-          <a href={href("clients", clientKey)}>Client page</a>
+      <header className="adv-bar">
+        <div className="adv-bar-title">
+          <span className="adv-kicker">Freedom Plan</span>
+          <h1>{String(client.Title)}</h1>
         </div>
-      </Band>
+        <div className="adv-bar-actions">
+          <SaveNote s={s} />
+          <a className="btn adv-bar-icon" href={href("clients", clientKey)} aria-label="Client page" title="Client page"><Icon name="clients" size={20} /></a>
+          <a className="btn adv-bar-icon" href={href("advisory")} aria-label="Leave Freedom Plan" title="Leave Freedom Plan (back to all Freedom Plans)"><Icon name="close" size={20} /></a>
+        </div>
+      </header>
 
       <label className="adv-why">
         <span>In their own words</span>
