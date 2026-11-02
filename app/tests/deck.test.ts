@@ -2,13 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { accountsFigures, Mapping } from "../src/lib/tbMap";
 import { detailGroups } from "../src/lib/accounts";
-import { DEFAULT_BRAND, blankSlide, duplicateSlide, kfmt, moveSlide, onColour, presentable, readDeck, refreshDeck, starterDeck, themeOf, yearLabel, SLIDE_TYPES } from "../src/lib/deck";
+import { DEFAULT_BRAND, blankSlide, duplicateSlide, kfmt, moveSlide, onColour, presentable, readDeck, themeOf, yearLabel, SLIDE_TYPES } from "../src/lib/deck";
+import { refreshDeck, starterDeck } from "../src/lib/deckPlan";
 
 const m = (dest: string, balance: number, account = dest): Mapping => ({ acct: { key: account, code: account, account, iris: "", type: "", tbDr: 0, tbCr: 0, jDr: 0, jCr: 0, dr: 0, cr: 0, inTb: true, lines: [] }, balance, swBalance: balance, jBalance: 0, iris: "", irisName: "", dest, saved: false, why: "" } as Mapping);
 const year = (s: number, c: number, r: number, w: number, bank: number) => { const dr = c + r + w + bank, cr = s + 100; return [m("income/sales", -s, "Sales"), m("expenditure/cos", c, "Materials"), m("expenditure/premises", r, "Rent"), m("expenditure/employee", w, "Wages"), m("bank/current", bank, "Bank"), m("capital/shares", -100), m("capital/reserves", dr - cr > 0 ? -(dr - cr) : cr - dr)]; };
 const now = year(100000, 30000, 6000, 20000, 20000), before = year(80000, 28000, 5000, 20000, 15000);
 const input = (withPrior = true) => ({ clientName: "Acme Ltd", period: "2026-04-30", f: accountsFigures(now), p: withPrior ? accountsFigures(before) : undefined,
-  groups: { expenses: detailGroups(now).expenses, costs: detailGroups(now).costs }, priorGroups: withPrior ? { expenses: detailGroups(before).expenses, costs: detailGroups(before).costs } : undefined, queries: [{ question: "Is the loan repayable?", answer: "" }] });
+  maps: now, priorMaps: withPrior ? before : undefined, groups: { expenses: detailGroups(now).expenses, costs: detailGroups(now).costs }, priorGroups: withPrior ? { expenses: detailGroups(before).expenses, costs: detailGroups(before).costs } : undefined, queries: [{ question: "Is the loan repayable?", answer: "" }] });
 
 test("figures read as they do on a slide", () => {
   assert.equal(kfmt(1688000), "£1.69m"); assert.equal(kfmt(169411), "£169.4k"); assert.equal(kfmt(850), "£850"); assert.equal(kfmt(-45200), "-£45.2k");
@@ -16,7 +17,7 @@ test("figures read as they do on a slide", () => {
 });
 test("the starter deck has the standard slides, filled from the figures", () => {
   const d = starterDeck(input());
-  assert.deepEqual(d.slides.map((s) => s.type), ["cover", "kpis", "bars", "bridge", "bars", "table", "kpis", "table", "checklist"]);
+  assert.deepEqual(d.slides.map((s) => s.type), ["cover", "kpis", "bars", "bridge", "bars", "table", "kpis", "kpis", "table", "checklist"]);
   assert.equal(d.slides[0].title, "2025/26 business performance review");
   const k = d.slides[1]; assert.equal(k.tiles![0].value, "£100k".replace("£100k", "£100k")); assert.equal(k.tiles![0].change, "+25%");
   const br = d.slides[3].bridge!.rows; assert.equal(br[0].value, 27000); assert.equal(br[br.length - 1].value, 44000);

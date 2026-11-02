@@ -6,7 +6,9 @@ import { createPortal } from "react-dom";
 import { Client } from "../lib/domain";
 import { brandOf, readBranding } from "../lib/docBranding";
 import { detailGroups } from "../lib/accounts";
-import { Deck, DeckBrand, DeckInput, SLIDE_TYPES, Slide, SlideType, blankSlide, duplicateSlide, isHex, moveSlide, presentable, readDeck, refreshDeck, starterDeck } from "../lib/deck";
+import { CustomMeasure, Deck, DeckBrand, DeckInput, SLIDE_TYPES, Slide, SlideType, blankSlide, duplicateSlide, isHex, moveSlide, presentable, readDeck } from "../lib/deck";
+import { FigCtx, bindDeck, figureChecks, fmt, infoOf, measure, newCustomKey, options, sourceOf } from "../lib/deckFigures";
+import { PLAN_SECTIONS, ctxOf, planStatus, refreshDeck, setInclude, starterDeck } from "../lib/deckPlan";
 import { buildPptx } from "../lib/deckPptx";
 import { accountsFigures } from "../lib/tbMap";
 import { linesFor, priorPeriod, setupOf } from "../lib/papers";
@@ -65,20 +67,33 @@ export function logoColour(dataUrl: string): Promise<string | undefined> {
 
 // ------------------------------------------------------------------ small inputs
 
-function Num({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
+function Num({ value, onChange, label, disabled }: { value: number; onChange: (n: number) => void; label: string; disabled?: boolean }) {
   const [t, setT] = useState(String(value));
   useEffect(() => { if (Number(t.replace(/,/g, "")) !== value) setT(String(value)); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <input className="input mono deck-num" inputMode="decimal" aria-label={label} value={t} onChange={(e) => { setT(e.target.value); const n = Number(e.target.value.replace(/[£,\s]/g, "")); if (e.target.value.trim() !== "" && Number.isFinite(n)) onChange(n); }} />;
+  return <input className="input mono deck-num" inputMode="decimal" aria-label={label} disabled={disabled} title={disabled ? "Follows the figure chosen for this row" : undefined} value={t} onChange={(e) => { setT(e.target.value); const n = Number(e.target.value.replace(/[£,\s]/g, "")); if (e.target.value.trim() !== "" && Number.isFinite(n)) onChange(n); }} />;
 }
 const Txt = ({ value, onChange, label, area, placeholder }: { value: string; onChange: (v: string) => void; label: string; area?: boolean; placeholder?: string }) => (
   <label className="doc-field">{label}{area ? <textarea className="input" rows={3} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} /> : <input className="input" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />}</label>
 );
+/** Choose the figure a number shows: one of the named figures, a change on last year, one of your own, or a trial balance account. */
+function FigSelect({ value, onChange, ctx, label, onNew }: { value?: string; onChange: (m: string | undefined) => void; ctx: FigCtx; label: string; onNew: () => void }) {
+  const groups = useMemo(() => options(ctx), [ctx]);
+  const known = !value || groups.some((g) => g.items.some((x) => x.key === value));
+  return (
+    <select className="input deck-fig" aria-label={label} value={value || ""} onChange={(e) => (e.target.value === "__new" ? onNew() : onChange(e.target.value || undefined))}>
+      <option value="">Type my own</option>
+      {!known && <option value={value}>(figure no longer on the trial balance)</option>}
+      {groups.map((g) => <optgroup key={g.group} label={g.group}>{g.items.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}</optgroup>)}
+      <option value="__new">+ A figure of my own…</option>
+    </select>
+  );
+}
 const Mini = ({ onClick, label, children, disabled }: { onClick: () => void; label: string; children: ReactNode; disabled?: boolean }) => <button type="button" className="deck-mini" aria-label={label} title={label} disabled={disabled} onClick={onClick}>{children}</button>;
 
 // ------------------------------------------------------------------ the form for one slide
 
-function SlideForm({ s, set }: { s: Slide; set: (p: Partial<Slide>) => void }) {
-  const detach = { auto: undefined } as Partial<Slide>;
+function SlideForm({ s, set, ctx, onNew }: { s: Slide; set: (p: Partial<Slide>) => void; ctx: FigCtx; onNew: () => void }) {
+  const detach = {} as Partial<Slide>; // figures that follow the accounts stay linked to the standard slide; typing over one unlinks that figure only
   const move = <T,>(list: T[], i: number, by: number) => { const j = i + by; if (j < 0 || j >= list.length) return list; const c = [...list]; [c[i], c[j]] = [c[j], c[i]]; return c; };
   return (
     <div className="stack" style={{ gap: 10 }}>
@@ -86,15 +101,28 @@ function SlideForm({ s, set }: { s: Slide; set: (p: Partial<Slide>) => void }) {
       {["bars", "bridge", "line", "cover", "section"].includes(s.type) && <Txt label={s.type === "cover" || s.type === "section" ? "Line under the title" : "Sub-heading"} value={s.subtitle || ""} onChange={(v) => set({ subtitle: v })} />}
       {s.tiles && (
         <fieldset className="deck-set"><legend>Figures</legend>
-          {s.tiles.map((t, i) => (
-            <div key={i} className="deck-row">
-              <input className="input" aria-label={`Label ${i + 1}`} placeholder="Label" value={t.label} onChange={(e) => set({ ...detach, tiles: s.tiles!.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)) })} />
-              <input className="input" aria-label={`Value ${i + 1}`} placeholder="£169k" value={t.value} onChange={(e) => set({ ...detach, tiles: s.tiles!.map((x, k) => (k === i ? { ...x, value: e.target.value } : x)) })} />
-              <input className="input" aria-label={`Change ${i + 1}`} placeholder="+19%" value={t.change} onChange={(e) => set({ ...detach, tiles: s.tiles!.map((x, k) => (k === i ? { ...x, change: e.target.value } : x)) })} />
-              <select className="input" aria-label={`Colour ${i + 1}`} value={t.tone} onChange={(e) => set({ tiles: s.tiles!.map((x, k) => (k === i ? { ...x, tone: e.target.value as "up" | "down" | "flat" } : x)) })}><option value="up">Good</option><option value="down">Bad</option><option value="flat">Neutral</option></select>
-              <Mini label="Remove this figure" onClick={() => set({ tiles: s.tiles!.filter((_, k) => k !== i) })}>×</Mini>
-            </div>
-          ))}
+          {s.tiles.map((t, i) => {
+            const upd = (p: Partial<typeof t>) => set({ tiles: s.tiles!.map((x, k) => (k === i ? { ...x, ...p } : x)) });
+            const pick = (m: string | undefined) => { const old = t.m ? infoOf(t.m, ctx)?.label : undefined, nu = m ? infoOf(m, ctx)?.label : undefined; upd({ m, label: !t.label || t.label === old ? (nu || t.label) : t.label }); };
+            return (
+              <div key={i} className="deck-tile-edit">
+                <div className="deck-row">
+                  <input className="input" aria-label={`Label ${i + 1}`} placeholder="Label" value={t.label} onChange={(e) => upd({ label: e.target.value })} />
+                  <Mini label="Remove this figure" onClick={() => set({ tiles: s.tiles!.filter((_, k) => k !== i) })}>×</Mini>
+                </div>
+                <div className="deck-row">
+                  <FigSelect label={`Figure ${i + 1} comes from`} value={t.m} ctx={ctx} onChange={pick} onNew={onNew} />
+                </div>
+                {t.m ? <div className="muted deck-live">{t.value} <span>{t.change}</span> · follows the accounts</div> : (
+                  <div className="deck-row">
+                    <input className="input" aria-label={`Value ${i + 1}`} placeholder="£169k" value={t.value} onChange={(e) => upd({ value: e.target.value })} />
+                    <input className="input" aria-label={`Change ${i + 1}`} placeholder="+19%" value={t.change} onChange={(e) => upd({ change: e.target.value })} />
+                    <select className="input" aria-label={`Colour ${i + 1}`} value={t.tone} onChange={(e) => upd({ tone: e.target.value as "up" | "down" | "flat" })}><option value="up">Good</option><option value="down">Bad</option><option value="flat">Neutral</option></select>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {s.tiles.length < 5 && <button type="button" className="btn small" onClick={() => set({ tiles: [...s.tiles!, { label: "Figure", value: "£0", change: "", sub: "", tone: "flat" }] })}>+ Add a figure</button>}
         </fieldset>
       )}
@@ -104,12 +132,13 @@ function SlideForm({ s, set }: { s: Slide; set: (p: Partial<Slide>) => void }) {
             <label className="row-wrap" style={{ gap: 6 }}>Shown as <select className="input" value={s.bars.unit} onChange={(e) => set({ bars: { ...s.bars!, unit: e.target.value } })}><option value="£">£ amounts</option><option value="%">Percentages</option></select></label>
             <label className="row-wrap" style={{ gap: 6 }}><input type="checkbox" checked={s.bars.horizontal} onChange={(e) => set({ bars: { ...s.bars!, horizontal: e.target.checked } })} /> Horizontal</label>
           </div>
-          <div className="deck-grid" style={{ gridTemplateColumns: `1.4fr repeat(${s.bars.names.length}, 1fr) auto` }}>
-            <span />{s.bars.names.map((n, j) => <input key={j} className="input" aria-label={`Series ${j + 1} name`} value={n} onChange={(e) => set({ bars: { ...s.bars!, names: s.bars!.names.map((x, k) => (k === j ? e.target.value : x)) } })} />)}<span />
+          <div className="deck-grid" style={{ gridTemplateColumns: `1.2fr 1.3fr repeat(${s.bars.names.length}, 0.8fr) auto` }}>
+            <span /><span />{s.bars.names.map((n, j) => <input key={j} className="input" aria-label={`Series ${j + 1} name`} value={n} onChange={(e) => set({ bars: { ...s.bars!, names: s.bars!.names.map((x, k) => (k === j ? e.target.value : x)) } })} />)}<span />
             {s.bars.rows.map((r, i) => (
               <div key={i} style={{ display: "contents" }}>
                 <input className="input" aria-label={`Row ${i + 1} label`} value={r.label} onChange={(e) => set({ ...detach, bars: { ...s.bars!, rows: s.bars!.rows.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)) } })} />
-                {s.bars!.names.map((_, j) => <Num key={j} label={`${r.label} ${s.bars!.names[j]}`} value={r.values[j] ?? 0} onChange={(n) => set({ ...detach, bars: { ...s.bars!, rows: s.bars!.rows.map((x, k) => (k === i ? { ...x, values: s.bars!.names.map((__, jj) => (jj === j ? n : x.values[jj] ?? 0)) } : x)) } })} />)}
+                <FigSelect label={`Row ${i + 1} figure`} value={r.m} ctx={ctx} onNew={onNew} onChange={(m) => set({ bars: { ...s.bars!, unit: m && infoOf(m, ctx)?.unit === "%" ? "%" : m ? "£" : s.bars!.unit, rows: s.bars!.rows.map((x, k) => (k === i ? { ...x, m } : x)) } })} />
+                {s.bars!.names.map((_, j) => <Num key={j} disabled={!!r.m} label={`${r.label} ${s.bars!.names[j]}`} value={r.values[j] ?? 0} onChange={(n) => set({ ...detach, bars: { ...s.bars!, rows: s.bars!.rows.map((x, k) => (k === i ? { ...x, values: s.bars!.names.map((__, jj) => (jj === j ? n : x.values[jj] ?? 0)) } : x)) } })} />)}
                 <Mini label={`Remove ${r.label}`} onClick={() => set({ bars: { ...s.bars!, rows: s.bars!.rows.filter((_, k) => k !== i) } })}>×</Mini>
               </div>
             ))}
@@ -126,7 +155,9 @@ function SlideForm({ s, set }: { s: Slide; set: (p: Partial<Slide>) => void }) {
           {s.bridge.rows.map((r, i) => (
             <div key={i} className="deck-row">
               <input className="input" aria-label={`Step ${i + 1} label`} value={r.label} onChange={(e) => set({ ...detach, bridge: { rows: s.bridge!.rows.map((x, k) => (k === i ? { ...x, label: e.target.value } : x)) } })} />
-              <Num label={`${r.label} amount`} value={r.value} onChange={(n) => set({ ...detach, bridge: { rows: s.bridge!.rows.map((x, k) => (k === i ? { ...x, value: n } : x)) } })} />
+              <FigSelect label={`${r.label} figure`} value={r.m} ctx={ctx} onNew={onNew} onChange={(m) => set({ bridge: { rows: s.bridge!.rows.map((x, k) => (k === i ? { ...x, m, w: m ? (x.total ? "now" : "change") : undefined } : x)) } })} />
+              {r.m && <select className="input" style={{ maxWidth: 90 }} aria-label={`${r.label} shows`} value={r.w || (r.total ? "now" : "change")} onChange={(e) => set({ bridge: { rows: s.bridge!.rows.map((x, k) => (k === i ? { ...x, w: e.target.value as "now" | "prior" | "change" } : x)) } })}><option value="now">This year</option><option value="prior">Last year</option><option value="change">Change</option></select>}
+              <Num label={`${r.label} amount`} disabled={!!r.m} value={r.value} onChange={(n) => set({ ...detach, bridge: { rows: s.bridge!.rows.map((x, k) => (k === i ? { ...x, value: n } : x)) } })} />
               <label className="row-wrap" style={{ gap: 4, fontSize: 12 }}><input type="checkbox" checked={!!r.total} onChange={(e) => set({ bridge: { rows: s.bridge!.rows.map((x, k) => (k === i ? { ...x, total: e.target.checked } : x)) } })} /> Total</label>
               <Mini label="Move up" disabled={i === 0} onClick={() => set({ bridge: { rows: move(s.bridge!.rows, i, -1) } })}>↑</Mini><Mini label="Move down" disabled={i === s.bridge!.rows.length - 1} onClick={() => set({ bridge: { rows: move(s.bridge!.rows, i, 1) } })}>↓</Mini>
               <Mini label={`Remove ${r.label}`} onClick={() => set({ bridge: { rows: s.bridge!.rows.filter((_, k) => k !== i) } })}>×</Mini>
@@ -168,17 +199,18 @@ function SlideForm({ s, set }: { s: Slide; set: (p: Partial<Slide>) => void }) {
       )}
       {s.table && (
         <fieldset className="deck-set"><legend>Table</legend>
-          <div className="deck-grid" style={{ gridTemplateColumns: `repeat(${s.table.head.length}, 1fr) auto` }}>
-            {s.table.head.map((h, j) => <input key={j} className="input" style={{ fontWeight: 700 }} aria-label={`Column ${j + 1} heading`} value={h} onChange={(e) => set({ ...detach, table: { ...s.table!, head: s.table!.head.map((x, k) => (k === j ? e.target.value : x)) } })} />)}<span />
+          <div className="deck-grid" style={{ gridTemplateColumns: `repeat(${s.table.head.length}, 1fr) ${s.table.head.length <= 3 ? "1.2fr " : ""}auto` }}>
+            {s.table.head.map((h, j) => <input key={j} className="input" style={{ fontWeight: 700 }} aria-label={`Column ${j + 1} heading`} value={h} onChange={(e) => set({ ...detach, table: { ...s.table!, head: s.table!.head.map((x, k) => (k === j ? e.target.value : x)) } })} />)}{s.table.head.length <= 3 && <span className="muted" style={{ fontSize: 11 }}>Figure</span>}<span />
             {s.table.rows.map((r, i) => (
               <div key={i} style={{ display: "contents" }}>
-                {r.map((c, j) => <input key={j} className="input" aria-label={`Row ${i + 1} column ${j + 1}`} value={c} onChange={(e) => set({ ...detach, table: { ...s.table!, rows: s.table!.rows.map((x, k) => (k === i ? x.map((y, kk) => (kk === j ? e.target.value : y)) : x)) } })} />)}
-                <Mini label={`Remove row ${i + 1}`} onClick={() => set({ table: { ...s.table!, rows: s.table!.rows.filter((_, k) => k !== i) } })}>×</Mini>
+                {r.map((c, j) => <input key={j} className="input" disabled={!!s.tableM?.[i] && j > 0} aria-label={`Row ${i + 1} column ${j + 1}`} value={c} onChange={(e) => set({ ...detach, table: { ...s.table!, rows: s.table!.rows.map((x, k) => (k === i ? x.map((y, kk) => (kk === j ? e.target.value : y)) : x)) } })} />)}
+                {s.table!.head.length <= 3 && <FigSelect label={`Row ${i + 1} figure`} value={s.tableM?.[i]} ctx={ctx} onNew={onNew} onChange={(m) => { const tm = s.table!.rows.map((_, k) => s.tableM?.[k]); tm[i] = m; set({ tableM: tm }); }} />}
+                <Mini label={`Remove row ${i + 1}`} onClick={() => set({ table: { ...s.table!, rows: s.table!.rows.filter((_, k) => k !== i) }, tableM: s.tableM?.filter((_, k) => k !== i) })}>×</Mini>
               </div>
             ))}
           </div>
           <div className="row-wrap" style={{ gap: 8 }}>
-            <button type="button" className="btn small" onClick={() => set({ table: { ...s.table!, rows: [...s.table!.rows, s.table!.head.map(() => "")] } })}>+ Add a row</button>
+            <button type="button" className="btn small" onClick={() => set({ table: { ...s.table!, rows: [...s.table!.rows, s.table!.head.map(() => "")] }, tableM: s.tableM ? [...s.tableM, undefined] : undefined })}>+ Add a row</button>
             {s.table.head.length < 5 && <button type="button" className="btn small" onClick={() => set({ table: { head: [...s.table!.head, ""], rows: s.table!.rows.map((r) => [...r, ""]) } })}>+ Add a column</button>}
             {s.table.head.length > 2 && <button type="button" className="btn small" onClick={() => set({ table: { head: s.table!.head.slice(0, -1), rows: s.table!.rows.map((r) => r.slice(0, -1)) } })}>Remove the last column</button>}
           </div>
@@ -206,6 +238,75 @@ function SlideForm({ s, set }: { s: Slide; set: (p: Partial<Slide>) => void }) {
         <label className="row-wrap" style={{ gap: 6, fontSize: 13 }} title="Left out of the presentation, the PDF and the PowerPoint unless you include internal slides"><input type="checkbox" checked={!!s.internal} onChange={(e) => set({ internal: e.target.checked })} /> For us only</label>
       </div>
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ structure and figures
+
+function StructurePanel({ deck, input, onInclude }: { deck: Deck; input: DeckInput; onInclude: (key: string, on: boolean) => void }) {
+  const rows = planStatus(deck, input);
+  return (
+    <section className="card pad stack deck-panel" aria-label="Structure">
+      <p className="muted" style={{ margin: 0, maxWidth: "70ch" }}>The deck follows a set storyline. Each slide switches on by itself when the figures make it relevant, and the reason is shown. Tick or untick any slide to override it for this client; your choice is remembered.</p>
+      {PLAN_SECTIONS.map((sec) => (
+        <div key={sec.key}>
+          <h4 style={{ margin: "6px 0" }}>{sec.label}</h4>
+          {rows.filter((r) => r.section === sec.key).map((r) => (
+            <label key={r.key} className="deck-plan-row">
+              <input type="checkbox" checked={r.present} disabled={r.key === "cover"} onChange={(e) => onInclude(r.key, e.target.checked)} />
+              <span><strong>{r.title}</strong>{r.optional && <em className="deck-opt"> optional</em>}<br /><span className="muted">{r.stale ? "No longer relevant on the figures. " : ""}{r.forced || r.present || r.on ? r.why : `Not relevant yet: ${r.why.toLowerCase()}. Tick to add it anyway`}</span></span>
+            </label>
+          ))}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function FiguresPanel({ deck, ctx, setCustom, openNew }: { deck: Deck; ctx: FigCtx; setCustom: (c: CustomMeasure[]) => void; openNew: boolean }) {
+  const custom = deck.custom || [];
+  const [adding, setAdding] = useState(openNew);
+  const [name, setName] = useState(""), [pick, setPick] = useState<string[]>([]), [find, setFind] = useState("");
+  const [flip, setFlip] = useState<boolean | undefined>(undefined);
+  useEffect(() => { if (openNew) setAdding(true); }, [openNew]);
+  const checks = figureChecks(deck, ctx);
+  const accts = ctx.maps.filter((m) => m.acct.key);
+  const credit = pick.length > 0 && pick.reduce((a, k) => a + (ctx.maps.find((m) => m.acct.key === k)?.balance || 0), 0) < 0;
+  const useFlip = flip ?? credit;
+  const trial: CustomMeasure = { key: "c:preview", label: name, accounts: pick, flip: useFlip };
+  const pv = measure("c:preview", { ...ctx, custom: [trial] });
+  const save = () => { setCustom([...custom, { key: newCustomKey(custom), label: name.trim() || "My figure", accounts: pick, flip: useFlip }]); setAdding(false); setName(""); setPick([]); setFlip(undefined); setFind(""); };
+  const shown = accts.filter((m) => `${m.acct.code} ${m.acct.account}`.toLowerCase().includes(find.toLowerCase()));
+  return (
+    <section className="card pad stack deck-panel" aria-label="Figures">
+      {checks.length ? <ul className="deck-checks" role="status">{checks.map((c, i) => <li key={i}>{c}</li>)}</ul> : <p className="muted" style={{ margin: 0 }}>The trial balance is fully mapped and balances.</p>}
+      <div style={{ overflowX: "auto" }}>
+        <table className="deck-fig-table">
+          <thead><tr><th>Figure</th><th>This year</th><th>Last year</th><th>Where it comes from</th></tr></thead>
+          <tbody>
+            {options(ctx).filter((g) => g.group !== "Trial balance accounts" && g.group !== "Change on last year (%)").flatMap((g) => g.items).map((x) => { const info = infoOf(x.key, ctx)!, v = measure(x.key, ctx); return <tr key={x.key}><td>{x.label}</td><td className="num">{fmt(v.now, info.unit)}</td><td className="num">{fmt(v.prior, info.unit)}</td><td className="muted">{sourceOf(x.key, ctx)}</td></tr>; })}
+          </tbody>
+        </table>
+      </div>
+      <div className="stack" style={{ gap: 8 }}>
+        <strong>Your own figures</strong>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>Add trial balance accounts together to make a figure the standard list does not have (for example, subcontractor costs, or rent and rates). It then appears in every figure dropdown.</p>
+        {custom.map((c) => <div key={c.key} className="deck-row"><span style={{ flex: 1 }}>{c.label} <span className="muted">· {sourceOf(c.key, ctx)}</span></span><span className="mono">{fmt(measure(c.key, ctx).now, "£")}</span><Mini label={`Remove ${c.label}`} onClick={() => setCustom(custom.filter((x) => x.key !== c.key))}>×</Mini></div>)}
+        {!adding ? <div><button type="button" className="btn small" onClick={() => setAdding(true)}>+ Make a figure</button></div> : (
+          <div className="deck-set stack" style={{ gap: 8 }}>
+            <Txt label="Name" value={name} onChange={setName} placeholder="e.g. Subcontractors" />
+            <label className="doc-field">Find an account<input className="input" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Type part of the name or code" /></label>
+            <div className="deck-acct-list" role="group" aria-label="Accounts">
+              {shown.map((m) => <label key={m.acct.key} className="row-wrap" style={{ gap: 6, fontSize: 13 }}><input type="checkbox" checked={pick.includes(m.acct.key)} onChange={(e) => setPick(e.target.checked ? [...pick, m.acct.key] : pick.filter((k) => k !== m.acct.key))} /> <span style={{ flex: 1 }}>{m.acct.code} {m.acct.account}</span><span className="mono muted">{fmt(m.balance, "£")}</span></label>)}
+              {!shown.length && <span className="muted">No accounts match.</span>}
+            </div>
+            <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}><input type="checkbox" checked={useFlip} onChange={(e) => setFlip(e.target.checked)} /> Show credit balances (income, creditors) as positive</label>
+            <div className="muted" style={{ fontSize: 13 }}>{pick.length} selected · this year {fmt(pv.now, "£")}{pv.prior !== undefined ? `, last year ${fmt(pv.prior, "£")}` : ""}</div>
+            <div className="row-wrap" style={{ gap: 8 }}><button type="button" className="btn small primary" disabled={!pick.length} onClick={save}>Save figure</button><button type="button" className="btn small" onClick={() => setAdding(false)}>Cancel</button></div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -309,7 +410,8 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
   const [deck, setDeckState] = useState<Deck | undefined>();
   const [state, setState] = useState<"loading" | "none" | "ready" | "error">(meta.file ? "loading" : "none");
   const [sel, setSel] = useState("");
-  const [showBrand, setShowBrand] = useState(false);
+  const [panel, setPanel] = useState<"" | "brand" | "structure" | "figures">("");
+  const [newFig, setNewFig] = useState(0);
   const [adding, setAdding] = useState(false);
   const [presenting, setPresenting] = useState(false);
   const [internal, setInternal] = useState(false);
@@ -348,6 +450,7 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
     setDeckState((d) => {
       if (!d) return d;
       const n = typeof next === "function" ? next(d) : next;
+      if (n === d) return d;
       dirty.current = true;
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => { dirty.current = false; void persist(n); }, 900);
@@ -359,9 +462,13 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
   const input = useMemo<DeckInput>(() => {
     const f = accountsFigures(acc.maps || []), p = acc.priorMaps ? accountsFigures(acc.priorMaps) : undefined;
     const g = detailGroups(acc.maps || []), pg = acc.priorMaps ? detailGroups(acc.priorMaps) : undefined;
-    return { clientName: client.Title, period, f, p, groups: { expenses: g.expenses, costs: g.costs }, priorGroups: pg ? { expenses: pg.expenses, costs: pg.costs } : undefined,
+    return { clientName: client.Title, period, f, p, maps: acc.maps || [], priorMaps: acc.priorMaps || undefined, groups: { expenses: g.expenses, costs: g.costs }, priorGroups: pg ? { expenses: pg.expenses, costs: pg.costs } : undefined,
       queries: linesFor(data.paperLines, client.Key, period, "queries", "main").filter((l) => l.Detail.trim()).map((l) => ({ question: l.Detail, answer: l.Remark })) };
   }, [acc.maps, acc.priorMaps, client, period, data.paperLines]);
+
+  const ctx = useMemo(() => ctxOf(input, deck?.custom || []), [input, deck?.custom]);
+  // keep every figure that points at the accounts in step with them
+  useEffect(() => { if (state === "ready") setDeck((d) => bindDeck(d, ctx)); }, [ctx, state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const make = async () => {
     setBusy("make"); setError("");
@@ -378,7 +485,7 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
 
   const slides = deck?.slides || [];
   const current = slides.find((s) => s.id === sel) || slides[0];
-  const patchSlide = (id: string, p: Partial<Slide>) => setDeck((d) => ({ ...d, slides: d.slides.map((s) => (s.id === id ? { ...s, ...p } : s)) }));
+  const patchSlide = (id: string, p: Partial<Slide>) => setDeck((d) => bindDeck({ ...d, slides: d.slides.map((s) => (s.id === id ? { ...s, ...p } : s)) }, ctxOf(input, d.custom)));
   const shown = deck ? presentable(deck, internal) : [];
 
   const exportPptx = async () => {
@@ -420,7 +527,9 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
         <span className="muted" style={{ fontSize: 12 }}>{saved || "Changes save as you go"}</span>
         <span className="deck-actions">
           <label className="row-wrap" style={{ gap: 6, fontSize: 13 }} title="Include the slides marked For us only"><input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} /> Include internal slides</label>
-          <button type="button" className="btn small" aria-expanded={showBrand} onClick={() => setShowBrand(!showBrand)}>Branding</button>
+          <button type="button" className="btn small" aria-expanded={panel === "structure"} onClick={() => setPanel(panel === "structure" ? "" : "structure")}>Structure</button>
+          <button type="button" className="btn small" aria-expanded={panel === "figures"} onClick={() => setPanel(panel === "figures" ? "" : "figures")}>Figures</button>
+          <button type="button" className="btn small" aria-expanded={panel === "brand"} onClick={() => setPanel(panel === "brand" ? "" : "brand")}>Branding</button>
           <button type="button" className="btn small" title="Bring the standard slides' figures up to date with the accounts and papers" onClick={() => setDeck((d) => refreshDeck(d, input))}><Icon name="refresh" size={14} /> Refresh figures</button>
           <button type="button" className="btn small" disabled={!shown.length} onClick={() => setPrinting(true)}><Icon name="print" size={14} /> PDF</button>
           <button type="button" className="btn small" disabled={busy === "pptx"} onClick={() => void exportPptx()}><Icon name="download" size={14} /> {busy === "pptx" ? "Making…" : "PowerPoint"}</button>
@@ -428,7 +537,9 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
         </span>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
-      {showBrand && <BrandForm brand={deck.brand} firmLogo={firmLogo} set={(p) => setDeck((d) => ({ ...d, brand: { ...d.brand, ...p } }))} />}
+      {panel === "structure" && <StructurePanel deck={deck} input={input} onInclude={(k, on) => setDeck((d) => setInclude(d, input, k, on))} />}
+      {panel === "figures" && <FiguresPanel deck={deck} ctx={ctx} openNew={newFig > 0} setCustom={(c) => setDeck((d) => ({ ...d, custom: c }))} />}
+      {panel === "brand" && <BrandForm brand={deck.brand} firmLogo={firmLogo} set={(p) => setDeck((d) => ({ ...d, brand: { ...d.brand, ...p } }))} />}
 
       <div className="deck-layout">
         <nav className="deck-thumbs card" aria-label="Slides">
@@ -440,7 +551,7 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
               <div className="deck-thumb-bar"><span>{i + 1}{s.hidden ? " · hidden" : s.internal ? " · us only" : ""}</span>
                 <Mini label="Move up" disabled={i === 0} onClick={() => setDeck((d) => moveSlide(d, s.id, -1))}>↑</Mini><Mini label="Move down" disabled={i === slides.length - 1} onClick={() => setDeck((d) => moveSlide(d, s.id, 1))}>↓</Mini>
                 <Mini label="Copy this slide" onClick={() => setDeck((d) => duplicateSlide(d, s.id))}>⧉</Mini>
-                <Mini label="Delete this slide" disabled={slides.length === 1} onClick={() => { if (window.confirm(`Delete "${s.title}"?`)) { setDeck((d) => ({ ...d, slides: d.slides.filter((x) => x.id !== s.id) })); if (s.id === current.id) setSel(slides[Math.max(0, i - 1)].id); } }}>×</Mini>
+                <Mini label="Delete this slide" disabled={slides.length === 1} onClick={() => { if (window.confirm(`Delete "${s.title}"?`)) { setDeck((d) => ({ ...d, plan: s.auto ? { ...(d.plan || {}), [s.auto]: false } : d.plan, slides: d.slides.filter((x) => x.id !== s.id) })); if (s.id === current.id) setSel(slides[Math.max(0, i - 1)].id); } }}>×</Mini>
               </div>
             </div>
           ))}
@@ -461,7 +572,7 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
         </div>
         <aside className="card pad deck-form" aria-label="Edit this slide">
           <h3 style={{ margin: "0 0 10px" }}>Edit slide {idx + 1}</h3>
-          <SlideForm s={current} set={(p) => patchSlide(current.id, p)} />
+          <SlideForm s={current} ctx={ctx} onNew={() => { setPanel("figures"); setNewFig((n) => n + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }} set={(p) => patchSlide(current.id, p)} />
         </aside>
       </div>
 

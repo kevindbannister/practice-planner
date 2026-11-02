@@ -2916,3 +2916,14 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 }
 @media (max-width: 1280px) { .deck-layout { grid-template-columns: 180px minmax(0, 1fr); } .deck-form { grid-column: 1 / -1; position: static; max-height: none; } }
 @media (max-width: 760px) { .deck-layout { grid-template-columns: 1fr; } .deck-thumbs { position: static; flex-direction: row; max-height: none; overflow-x: auto; } .deck-thumb { min-width: 160px; } }
+
+/* client deck: structure and figures */
+.deck-panel { gap: 8px; }
+.deck-plan-row { display: flex; gap: 10px; align-items: flex-start; padding: 6px 4px; border-radius: 8px; cursor: pointer; font-size: 14px; } .deck-plan-row:hover { background: rgba(20,117,173,.06); } .deck-plan-row input { margin-top: 3px; }
+.deck-opt { font-size: 11px; color: #46607c; background: rgba(20,117,173,.1); border-radius: 999px; padding: 1px 7px; font-style: normal; }
+.deck-checks { margin: 0; padding-left: 18px; color: #8a5300; font-size: 13px; }
+.deck-fig-table { width: 100%; border-collapse: collapse; font-size: 13px; } .deck-fig-table th { text-align: left; font-size: 11px; color: #5b6b82; padding: 4px 8px; } .deck-fig-table td { padding: 4px 8px; border-top: 1px solid rgba(0,0,0,.06); } .deck-fig-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.deck-acct-list { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(20,117,173,.2); border-radius: 10px; padding: 8px; }
+.deck-fig { min-width: 0; width: 100%; font-size: 12px; }
+.deck-tile-edit { display: flex; flex-direction: column; gap: 5px; padding-bottom: 8px; border-bottom: 1px dashed rgba(20,117,173,.2); } .deck-tile-edit:last-of-type { border-bottom: 0; }
+.deck-live { font-size: 12px; } .deck-live span { font-weight: 700; }

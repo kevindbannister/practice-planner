@@ -1,7 +1,7 @@
 // The client deck: the draft accounts as a presentation for the client. A deck is a list of slides (each one of a few types:
 // headline tiles, bar chart, bridge, line, timeline, table, checklist...) with the client's branding. The standard slides are
 // worked out from the accounts figures and can be refreshed from them; everything can be changed, hidden or added to.
-import { AccountsFigures } from "./tbMap";
+import { AccountsFigures, Mapping } from "./tbMap";
 import { DetailGroup } from "./accounts";
 import { NEXT_STEPS, balanceItems, bridge, dateWords, draft, headline, spend } from "./clientReview";
 
@@ -19,7 +19,9 @@ export const SLIDE_TYPES: { type: SlideType; name: string; hint: string }[] = [
   { type: "section", name: "Section heading", hint: "A divider between parts" },
 ];
 
-export type Tile = { label: string; value: string; change: string; sub: string; tone: "up" | "down" | "flat" };
+export type Tile = { label: string; value: string; change: string; sub: string; tone: "up" | "down" | "flat"; /** the figure it shows, kept up to date from the accounts (see deckFigures) */ m?: string };
+/** A figure of the user's own: chosen trial balance accounts added together */
+export type CustomMeasure = { key: string; label: string; accounts: string[]; flip?: boolean; unit?: "£" };
 export type Slide = {
   id: string; type: SlideType; title: string; notes: string; hidden?: boolean;
   /** only for us: left out of the presentation, the PDF and the PowerPoint unless asked for */
@@ -28,8 +30,10 @@ export type Slide = {
   auto?: string;
   subtitle?: string; takeaway?: string;
   tiles?: Tile[];
-  bars?: { unit: string; horizontal: boolean; names: string[]; rows: { label: string; values: number[] }[] };
-  bridge?: { rows: { label: string; value: number; total?: boolean }[] };
+  bars?: { unit: string; horizontal: boolean; names: string[]; rows: { label: string; values: number[]; m?: string }[] };
+  bridge?: { rows: { label: string; value: number; total?: boolean; m?: string; w?: "prior" | "now" | "change" }[] };
+  /** for a table: the figure behind each row (this year in the second column, last year in the third) */
+  tableM?: (string | undefined)[];
   line?: { categories: string[]; series: { name: string; values: number[] }[] };
   points?: { label: string; value: string; sub: string }[];
   table?: { head: string[]; rows: string[][] };
@@ -39,7 +43,7 @@ export type Slide = {
   bullets?: string[];
 };
 export type DeckBrand = { clientName: string; logo: string; cover: string; primary: string; dark: string; background: string; serif: boolean; footer: string; firmLogo: boolean };
-export type Deck = { v: 1; brand: DeckBrand; slides: Slide[] };
+export type Deck = { v: 1; brand: DeckBrand; slides: Slide[]; custom?: CustomMeasure[]; /** slides switched on (true) or off (false) by hand, overriding the rule for this company */ plan?: Record<string, boolean> };
 
 export const DEFAULT_BRAND: DeckBrand = { clientName: "", logo: "", cover: "", primary: "#e0680a", dark: "#141414", background: "#f6f4ee", serif: true, footer: "", firmLogo: true };
 
@@ -79,6 +83,7 @@ export function themeOf(b: DeckBrand) {
 
 export type DeckInput = {
   clientName: string; period: string; f: AccountsFigures; p?: AccountsFigures;
+  maps?: Mapping[]; priorMaps?: Mapping[];
   groups: { expenses: DetailGroup[]; costs: DetailGroup[] }; priorGroups?: { expenses: DetailGroup[]; costs: DetailGroup[] };
   queries: { question: string; answer: string }[];
 };
@@ -86,9 +91,9 @@ export type DeckInput = {
 export const yearLabel = (end: string) => { const y = Number(end.slice(0, 4)), m = Number(end.slice(5, 7)), d = Number(end.slice(8, 10)); return m === 12 && d === 31 ? String(y) : `${y - 1}/${String(y).slice(2)}`; };
 const pc = (now: number, before?: number) => (before ? Math.round(((now - before) / Math.abs(before)) * 100) : undefined);
 const tone = (n: number | undefined): Tile["tone"] => (n === undefined || n === 0 ? "flat" : n > 0 ? "up" : "down");
-const pcTile = (label: string, now: number, before?: number): Tile => {
+export const pcTile = (label: string, now: number, before?: number, m?: string): Tile => {
   const c = pc(now, before);
-  return { label, value: kfmt(now), change: c === undefined ? "" : `${c >= 0 ? "+" : ""}${c}%`, sub: c === undefined ? "" : "year on year", tone: tone(c) };
+  return { m, label, value: kfmt(now), change: c === undefined ? "" : `${c >= 0 ? "+" : ""}${c}%`, sub: c === undefined ? "" : "year on year", tone: tone(c) };
 };
 
 /** The data fields of the standard slides, worked out from the figures. */
@@ -99,13 +104,13 @@ export function standard(i: DeckInput): Slide[] {
   const out: Slide[] = [];
   const pbtUp = p ? f.pbt >= p.pbt : undefined;
   out.push({ id: slideId(), type: "kpis", auto: "headline", title: p ? (pbtUp ? "A good year, with profit up" : "A harder year, with profit down") : "Your year at a glance",
-    tiles: [pcTile("Turnover", f.turnover, p?.turnover),
-      { label: "Gross margin", value: `${margin(f).toFixed(1)}%`, change: p ? `${margin(f) - margin(p) >= 0 ? "+" : ""}${(margin(f) - margin(p)).toFixed(1)} pts` : "", sub: p ? "year on year" : "", tone: tone(p ? margin(f) - margin(p) : undefined) },
-      pcTile("Profit before tax", f.pbt, p?.pbt),
-      { label: "Cash at bank", value: kfmt(f.bank), change: p ? signed(f.bank - p.bank) : "", sub: p ? "vs last year" : "", tone: tone(p ? f.bank - p.bank : undefined) }],
+    tiles: [pcTile("Turnover", f.turnover, p?.turnover, "turnover"),
+      { m: "grossMargin", label: "Gross margin", value: `${margin(f).toFixed(1)}%`, change: p ? `${margin(f) - margin(p) >= 0 ? "+" : ""}${(margin(f) - margin(p)).toFixed(1)} pts` : "", sub: p ? "year on year" : "", tone: tone(p ? margin(f) - margin(p) : undefined) },
+      pcTile("Profit before tax", f.pbt, p?.pbt, "pbt"),
+      { m: "bank", label: "Cash at bank", value: kfmt(f.bank), change: p ? signed(f.bank - p.bank) : "", sub: p ? "vs last year" : "", tone: tone(p ? f.bank - p.bank : undefined) }],
     takeaway: draft("headline", f, p), notes: note(`Turnover ${kfmt(f.turnover)}${p ? ` (last year ${kfmt(p.turnover)})` : ""}; profit before tax ${kfmt(f.pbt)}${p ? ` (last year ${kfmt(p.pbt)})` : ""}.`) });
   if (p) {
-    const rows = [{ label: "Turnover", values: [pc(f.turnover, p.turnover) ?? 0] }, { label: "Gross profit", values: [pc(f.grossProfit, p.grossProfit) ?? 0] }, { label: "Profit before tax", values: [pc(f.pbt, p.pbt) ?? 0] }];
+    const rows = [{ m: "g:turnover", label: "Turnover", values: [pc(f.turnover, p.turnover) ?? 0] }, { m: "g:grossProfit", label: "Gross profit", values: [pc(f.grossProfit, p.grossProfit) ?? 0] }, { m: "g:pbt", label: "Profit before tax", values: [pc(f.pbt, p.pbt) ?? 0] }];
     out.push({ id: slideId(), type: "bars", auto: "growth", title: "Growth compared with last year", subtitle: "Change on last year", bars: { unit: "%", horizontal: true, names: ["Change"], rows },
       takeaway: `Gross margin ${margin(f) >= margin(p) ? "rose" : "fell"} from ${margin(p).toFixed(1)}% to ${margin(f).toFixed(1)}%`, notes: note("Percentage change on last year, rounded.") });
     const b = bridge(f, p, d.expenses, pd?.expenses);
@@ -117,33 +122,18 @@ export function standard(i: DeckInput): Slide[] {
     bars: { unit: "£", horizontal: false, names: p ? ["Last year", "This year"] : ["This year"], rows: sp.slice(0, 7).map((x) => ({ label: x.title, values: p ? [Math.round(x.prior ?? 0), Math.round(x.now)] : [Math.round(x.now)] })) },
     takeaway: draft("spend", f, p, d.expenses, pd?.expenses, d.costs, pd?.costs), notes: note("Cost of sales and the groups of overheads, largest first.") });
   const bal = balanceItems(f, p);
-  out.push({ id: slideId(), type: "table", auto: "position", title: "What the company owns and owes", table: { head: ["", "This year", ...(p ? ["Last year"] : [])],
-    rows: [...bal.owns, ...bal.owes, { label: "Net assets", now: f.netAssets, prior: p?.netAssets }].map((x) => [x.label, kfmt(x.now), ...(p ? [kfmt(x.prior ?? 0)] : [])]) },
+  const BALKEY: Record<string, string> = { "Fixed assets": "fixed", Stock: "stock", "Debtors (owed to the company)": "debtors", "Cash at bank": "bank", "Creditors due within a year": "creditorsWithin", "Creditors due after a year": "creditorsAfter", Provisions: "provisions", "Net assets": "netAssets" };
+  const balRows = [...bal.owns, ...bal.owes, { label: "Net assets", now: f.netAssets, prior: p?.netAssets }];
+  out.push({ id: slideId(), type: "table", auto: "position", title: "What the company owns and owes", tableM: balRows.map((x) => BALKEY[x.label]), table: { head: ["", "This year", ...(p ? ["Last year"] : [])],
+    rows: balRows.map((x) => [x.label, kfmt(x.now), ...(p ? [kfmt(x.prior ?? 0)] : [])]) },
     takeaway: draft("position", f, p), notes: note("The balance sheet in plain terms.") });
-  out.push({ id: slideId(), type: "kpis", auto: "tax", title: "Tax and dividends", tiles: [pcTile("Profit before tax", f.pbt, p?.pbt), pcTile("Tax charge", f.tax, p?.tax), pcTile("Profit after tax", f.pat, p?.pat), pcTile("Kept in the company", f.retained, p?.retained)],
+  out.push({ id: slideId(), type: "kpis", auto: "tax", title: "Tax and dividends", tiles: [pcTile("Profit before tax", f.pbt, p?.pbt, "pbt"), pcTile("Tax charge", f.tax, p?.tax, "tax"), pcTile("Profit after tax", f.pat, p?.pat, "pat"), pcTile("Kept in the company", f.retained, p?.retained, "retained")],
     takeaway: draft("tax", f, p, undefined, undefined, undefined, undefined, i.period), notes: note("The tax figure is an estimate until the corporation tax return is finalised.") });
   out.push({ id: slideId(), type: "table", auto: "questions", title: "Questions for you", table: { head: ["Question", "Your answer"], rows: i.queries.length ? i.queries.map((q) => [q.question, q.answer]) : [["", ""]] },
     takeaway: "Please confirm these before we finalise the accounts", notes: "Taken from the Queries paper when the deck was made. Edit here or refresh from the papers." });
   const steps = NEXT_STEPS(i.period);
   out.push({ id: slideId(), type: "checklist", auto: "next", title: "Next steps", items: steps.map((s) => ({ title: s.text, text: "" })), band: { left: `Year ended ${dateWords(i.period)}`, right: "" }, notes: "Dates are the standard deadlines for a small company; check them against the diary." });
   return out;
-}
-
-export function starterDeck(i: DeckInput, brand: Partial<DeckBrand> = {}): Deck {
-  const b: DeckBrand = { ...DEFAULT_BRAND, ...brand, clientName: i.clientName };
-  const cover: Slide = { id: slideId(), type: "cover", title: `${yearLabel(i.period)} business performance review`, subtitle: `Year ended ${dateWords(i.period)}`,
-    notes: "All figures come from the draft accounts and may change before the accounts and corporation tax return are finalised." };
-  return { v: 1, brand: b, slides: [cover, ...standard(i)] };
-}
-
-/** Bring the standard slides' figures up to date with the accounts; titles, notes and anything added by hand are kept. */
-export function refreshDeck(deck: Deck, i: DeckInput): Deck {
-  const fresh = new Map(standard(i).map((s) => [s.auto as string, s]));
-  return { ...deck, slides: deck.slides.map((s) => {
-    const n = s.auto ? fresh.get(s.auto) : undefined;
-    if (!n) return s;
-    return { ...s, tiles: n.tiles, bars: n.bars, bridge: n.bridge, table: n.table, items: s.auto === "next" ? n.items : s.items, takeaway: n.takeaway, subtitle: n.subtitle };
-  }) };
 }
 
 // ------------------------------------------------------------------ slides added by hand and moved about
