@@ -298,7 +298,7 @@ function CheckTab({ a, set, checks, client, period }: Common & { checks: ReturnT
 }
 
 
-/** The accounts figures as one scrollable page: the income statement, balance sheet and detailed profit and loss with a divider where each page would break. */
+/** The accounts figures as one scrollable page: the income statement and balance sheet with a divider where each page would break. */
 export function AccountsFigures({ client, period }: { client: Client; period: string }) {
   const { effective } = useAccSetup(client);
   const { data } = useData();
@@ -310,10 +310,10 @@ export function AccountsFigures({ client, period }: { client: Client; period: st
     name: client.Title, number: String(client.CompanyNumber || ""), start: nextDay(priorPeriod(period)), end: period, priorEnd: priorPeriod(period),
     firm: displayName(branding), firmAddress: (branding.correspondenceAddress || branding.registeredAddress || "").trim(), kind: String(client.Kind || "Ltd"),
   }), [client, period, branding]);
-  const link = (section: string) => (SECTIONS.some((x) => x.key === section) ? `${href("papers", String(client.Key), period)}?section=${encodeURIComponent(section)}&from=figures` : undefined);
+  const link = (section: string) => (SECTIONS.some((x) => x.key === section) ? `${href("papers", String(client.Key), period)}?section=${encodeURIComponent(section)}` : undefined);
   const sections = useMemo(() => {
     const setup: AccSetup = { ...effective, include: { ...effective.include, income: effective.type !== "dormant", balance: true, detailed: effective.type !== "dormant" } };
-    const keep = ["income", "balance", "detailed"];
+    const keep = ["income", "balance"];
     return buildSections({ facts, setup, figures, prior, maps: acc.maps, priorMaps: acc.priorMaps, assets: acc.assets, priorAssets: acc.priorAssets, link }).filter((x) => keep.includes(x.key));
   }, [effective, figures, prior, acc.maps, acc.priorMaps, acc.assets, facts]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
