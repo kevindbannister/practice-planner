@@ -8,6 +8,7 @@ import { sectionIcon } from "./paperIcons";
 import { AccountsProductionPage, AccountsStatusSelect } from "./AccountsProduction";
 import { BannerMenu } from "./BannerMenu";
 import { QuickJournalButton } from "./QuickJournal";
+import { ClientReview } from "./ClientReview";
 import { AccountsFigures, AccountsScreen } from "./AccountsScreen";
 import { WorkbookImport } from "./PaperImport";
 import { XeroImport } from "./XeroImport";
@@ -233,7 +234,7 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
   const [wb, setWb] = useState(false);
   const [xr, setXr] = useState(false);
   const { query } = useRoute();
-  const VIEWS = ["papers", "accounts"] as const;
+  const VIEWS = ["papers", "accounts", "review"] as const;
   type View = (typeof VIEWS)[number];
   const [view, setView] = useState<View>(VIEWS.includes(query.get("view") as View) ? (query.get("view") as View) : "papers");
   // each side remembers how far down the page it was
@@ -256,6 +257,7 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
             <button type="button" className={`btn small paper-tool paper-view-icon${view === "papers" ? " primary" : ""}`} aria-pressed={view === "papers"} aria-label="Working papers" title="Working papers" onClick={() => flip("papers")}><Icon name="list" size={16} /></button>
             <button type="button" className={`btn small paper-tool paper-view-icon${figs ? " primary" : ""}`} aria-pressed={figs} aria-label="Accounts figures" title={figs ? "Hide the accounts figures" : "Show the balance sheet and profit and loss beside the papers"} onClick={toggleFigs}><Icon name="chart" size={16} /></button>
             <button type="button" className={`btn small paper-tool${view === "accounts" ? " primary" : ""}`} aria-pressed={view === "accounts"} onClick={() => flip("accounts")}>Accounts</button>
+            <button type="button" className={`btn small paper-tool${view === "review" ? " primary" : ""}`} aria-pressed={view === "review"} title="Talk the client through their draft accounts" onClick={() => flip("review")}>Client review</button>
           </span>
           <AccountsStatusSelect clientKey={String(c.Key)} period={period} />
           <button type="button" className="btn small paper-tool" aria-expanded={wb} title="Import a working paper workbook (Excel)" onClick={() => { setWb(!wb); setXr(false); }}>
@@ -273,6 +275,7 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
       <WorkbookImport client={c} period={period} open={wb} onClose={() => setWb(false)} />
       <XeroImport client={c} period={period} open={xr} onClose={() => setXr(false)} />
       {/* both stay open so each keeps its place (the section, the tab) when the person flips between them */}
+      <div hidden={view !== "review"}><ClientReview client={c} period={period} onPaper={(section) => { window.location.hash = `${href("papers", String(c.Key), period)}?section=${encodeURIComponent(section)}`; }} /></div>
       <div hidden={view !== "accounts"}><AccountsScreen client={c} period={period} onPapers={() => flip("papers")} /></div>
       <div className={figs ? "paper-split" : undefined}>
       <div className="paper-split-main">
