@@ -976,9 +976,40 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
       </Fragment>
     );
   };
-  const block = (list: typeof rows, label?: string) => (
+  // the trial balance accounts (with their codes) assigned to the lines under a heading
+  const maps = useTbMaps(w.period);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const codesFor = (list: typeof rows) => {
+    const keys = new Set(list.map((r) => `${section.key}/${r.sub.key}`));
+    const sign = section.key === "income" ? -1 : 1;
+    return (maps || []).filter((m) => keys.has(m.dest) && (m.balance || m.acct.code)).map((m) => ({ code: m.acct.code, iris: m.iris, name: m.acct.account || m.acct.code, amount: Math.round(sign * m.balance * 100) / 100, line: list.find((r) => `${section.key}/${r.sub.key}` === m.dest)?.label || "" }))
+      .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+  };
+  const block = (list: typeof rows, label?: string, withCodes = false) => (
     <>
-      {label && <tr className="lead-label"><td colSpan={span}>{label}</td></tr>}
+      {label && (withCodes ? (
+        <tr className="lead-label lead-group">
+          <td colSpan={span}>
+            <button type="button" className="lead-toggle" aria-expanded={openGroups.includes(label)} onClick={() => setOpenGroups((o) => (o.includes(label) ? o.filter((x) => x !== label) : [...o, label]))}>
+              <span className="lead-chev" aria-hidden="true">{openGroups.includes(label) ? "▾" : "▸"}</span>{label}
+            </button>
+          </td>
+        </tr>
+      ) : <tr className="lead-label"><td colSpan={span}>{label}</td></tr>)}
+      {withCodes && label && openGroups.includes(label) && (
+        <tr className="lead-codes"><td colSpan={span}>
+          {(() => {
+            const c = codesFor(list);
+            if (!c.length) return <p className="muted" style={{ margin: 0, fontSize: 12 }}>{maps ? "No trial balance accounts are assigned to this heading." : "Add the trial balance to see the account codes assigned here."}</p>;
+            return (
+              <table className="grid lead-codes-table" aria-label={`Codes assigned to ${label}`}>
+                <thead><tr><th scope="col">Code</th><th scope="col">IRIS</th><th scope="col">Account</th><th scope="col">Goes to</th><th scope="col" className="num">{w.period.slice(0, 4)}</th></tr></thead>
+                <tbody>{c.map((x, i) => <tr key={i}><td className="mono">{x.code}</td><td className="mono muted">{x.iris}</td><td>{x.name}</td><td className="muted">{x.line}</td><td className="num mono">{money(x.amount) || "0.00"}</td></tr>)}</tbody>
+              </table>
+            );
+          })()}
+        </td></tr>
+      )}
       {list.map(line)}
       {list.length > 1 && <tr className="lead-sub"><td>{label ? `Total ${label.toLowerCase()}` : "Total"}</td><td className="num mono">{money(sum(list, "now")) || "–"}</td><td className="num mono prior">{money(sum(list, "before")) || "–"}</td>{tbCells(sum(list, "now"), Math.round(tbSum(list) * 100) / 100)}</tr>}
     </>
@@ -1007,7 +1038,7 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
       <table className="grid lead">
         <thead><tr><th scope="col">Lead schedule</th><th scope="col" className="num">{w.period.slice(0, 4)}</th><th scope="col" className="num prior">{priorPeriod(w.period).slice(0, 4)}</th>{checks && <><th scope="col" className="num">Per trial balance</th><th scope="col" className="num">Difference</th></>}</tr></thead>
         <tbody>
-          {after.length && within.length ? <>{block(within, "Due within one year")}{block(after, "Due after one year")}</> : groups ? groups.map(([g, list]) => <Fragment key={g}>{block(list, g)}</Fragment>) : block(rows)}
+          {after.length && within.length ? <>{block(within, "Due within one year")}{block(after, "Due after one year")}</> : groups ? groups.map(([g, list]) => <Fragment key={g}>{block(list, g, true)}</Fragment>) : block(rows)}
           {(after.length > 0 && within.length > 0) || (groups && groups.length > 1) && <tr className="lead-total"><td>Total</td><td className="num mono">{money(sum(rows, "now")) || "–"}</td><td className="num mono prior">{money(sum(rows, "before")) || "–"}</td>{tbCells(sum(rows, "now"), Math.round(tbSum(rows) * 100) / 100)}</tr>}
         </tbody>
       </table>
