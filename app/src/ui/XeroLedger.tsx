@@ -3,7 +3,7 @@
 // show Xero's bank summary and the items not reconciled at the year end.
 import { useEffect, useMemo, useState } from "react";
 import { money } from "../lib/papers";
-import { LedgerLine, XeroBook, ledgerCheck, r2 } from "../lib/xero";
+import { LedgerLine, XeroBook, ledgerCheck, r2, xeroLink } from "../lib/xero";
 import { PayrollMonth, ReturnLine, controlMovement, filterLines, groupLines, GroupBy, payeRecon, vatRecon } from "../lib/xeroViews";
 import { useData } from "./data";
 
@@ -130,7 +130,7 @@ export function LedgerTable({ book, accountKey, name, normal, extras = {} }: { b
             {!filtered && (
               <tr className="ledger-open"><td colSpan={7}>{opening ? "Brought forward" : "Opening balance"}</td><td className="num mono">{money(sign(opening)) || "0.00"}</td></tr>
             )}
-            {visible.map(({ l, run }, i) => <LedgerRow key={`${l.j ?? ""}-${i}`} l={l} run={filtered ? undefined : sign(run)} />)}
+            {visible.map(({ l, run }, i) => <LedgerRow key={`${l.j ?? ""}-${i}`} l={l} run={filtered ? undefined : sign(run)} shortCode={book.shortCode} />)}
             {!all && rows.length > LIMIT && (
               <tr><td colSpan={8}><button type="button" className="linkbtn" onClick={() => setAll(true)}>Show all {rows.length} transactions</button></td></tr>
             )}
@@ -179,13 +179,14 @@ export function LedgerTable({ book, accountKey, name, normal, extras = {} }: { b
   );
 }
 
-function LedgerRow({ l, run }: { l: LedgerLine; run?: number }) {
+function LedgerRow({ l, run, shortCode }: { l: LedgerLine; run?: number; shortCode?: string }) {
+  const href = xeroLink(shortCode, l);
   return (
     <tr>
       <td style={{ whiteSpace: "nowrap" }}>{fmtD(l.d)}</td>
       <td style={{ whiteSpace: "nowrap" }}>{typeName(l.t)}</td>
       <td>{l.c}</td>
-      <td>{l.r}</td>
+      <td>{href ? <a href={href} target="_blank" rel="noopener noreferrer" title="Open this transaction in Xero">{l.r || typeName(l.t) || "Open in Xero"} <span aria-hidden="true">↗</span></a> : l.r}</td>
       <td>{l.x}{l.tax ? <span className="muted" style={{ fontSize: 11 }}> · VAT {money(Math.abs(l.tax))}</span> : null}</td>
       <td className="num mono">{l.amt > 0 ? money(l.amt) : ""}</td>
       <td className="num mono">{l.amt < 0 ? money(-l.amt) : ""}</td>

@@ -255,7 +255,7 @@ export class FakeXero implements XeroApi {
           journalNumber: e.no, journalDate: e.date, description: l.desc || e.desc,
           account: { id: a.id, code: a.code, name: a.name, class: a.cls, type: a.type, status: "ACTIVE", systemAccountCode: a.sys || "NONE" },
           netAmount: { value: Math.abs(l.amt), type: l.amt >= 0 ? "DEBIT" : "CREDIT" }, signedNetAmount: l.amt, signedTaxAmount: l.tax || 0,
-          source: { documentType: e.type, contactName: e.contact || null, reference: e.ref || null },
+          source: { documentId: `5d1c0000-0000-4000-8000-${String(e.no).padStart(12, "0")}`, documentType: e.type, contactName: e.contact || null, reference: e.ref || null },
           taxRate: { name: l.rate || null },
         });
       }

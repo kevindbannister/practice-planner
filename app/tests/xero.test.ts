@@ -190,3 +190,17 @@ test("fixed assets: refused by Xero, the import says which tick to use", async (
   assert.equal(x.fixedAssets.length, 0);
   assert.ok(x.problems.some((p) => /Fixed asset register/.test(p)));
 });
+
+test("a ledger line links to its transaction in Xero", async () => {
+  const { xeroLink } = await import("../src/lib/xero");
+  const id = "5d1c0000-0000-4000-8000-000000000007";
+  const u = xeroLink("!AB12C", { t: "ACCPAY", id })!;
+  assert.ok(u.startsWith("https://go.xero.com/organisationlogin/default.aspx?shortcode=!AB12C") || u.includes("shortcode=!AB12C") || u.includes("shortcode=%21AB12C"));
+  assert.ok(decodeURIComponent(u).includes(`/AccountsPayable/View.aspx?InvoiceID=${id}`));
+  assert.ok(decodeURIComponent(xeroLink(undefined, { t: "ACCREC", id })!).startsWith(`https://go.xero.com/AccountsReceivable/View.aspx?InvoiceID=${id}`));
+  assert.ok(xeroLink("!A", { t: "SPEND", id })!.includes("ViewTransaction"));
+  assert.ok(xeroLink("!A", { t: "ACCRECPAYMENT", ii: id })!.includes("AccountsReceivable"));
+  assert.equal(xeroLink("!A", { t: "ACCRECPAYMENT", id }), undefined);
+  assert.equal(xeroLink("!A", { t: "PAYRUN", id }), undefined);
+  assert.equal(xeroLink("!A", { t: "ACCREC" }), undefined);
+});

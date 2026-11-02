@@ -161,7 +161,26 @@ export class HttpXero implements XeroApi {
 // ------------------------------------------------------------------ shapes we keep
 
 /** One nominal ledger line. amt is signed: debit positive. a is the account key (code|name). */
-export type LedgerLine = { d: string; a: string; amt: number; tax?: number; t?: string; c?: string; r?: string; x?: string; j?: number; rate?: string };
+export type LedgerLine = { d: string; a: string; amt: number; tax?: number; t?: string; c?: string; r?: string; x?: string; j?: number; rate?: string; id?: string; ii?: string };
+
+/**
+ * Where a transaction opens in Xero. Needs the Xero id of the document (id; for a payment, the invoice or credit note it paid: ii)
+ * and, to land in the right organisation, the organisation's short code. Payroll, depreciation and conversion balances have no page.
+ */
+export function xeroLink(shortCode: string | undefined, l: Pick<LedgerLine, "t" | "id" | "ii">): string | undefined {
+  const t = String(l.t || "").toUpperCase();
+  let path = "";
+  if (l.id && t === "ACCREC") path = `/AccountsReceivable/View.aspx?InvoiceID=${l.id}`;
+  else if (l.id && t === "ACCPAY") path = `/AccountsPayable/View.aspx?InvoiceID=${l.id}`;
+  else if (l.id && t === "ACCRECCREDIT") path = `/AccountsReceivable/ViewCreditNote.aspx?creditNoteID=${l.id}`;
+  else if (l.id && t === "ACCPAYCREDIT") path = `/AccountsPayable/ViewCreditNote.aspx?creditNoteID=${l.id}`;
+  else if (l.id && /^(SPEND|RECEIVE)/.test(t)) path = `/Bank/ViewTransaction.aspx?bankTransactionID=${l.id}`;
+  else if (l.id && t === "MANJOURNAL") path = `/GeneralLedger/ViewManualJournal.aspx?journalID=${l.id}`;
+  else if (l.ii && /^(ACCRECPAYMENT|ARCREDITPAYMENT)$/.test(t)) path = `/AccountsReceivable/View.aspx?InvoiceID=${l.ii}`;
+  else if (l.ii && /^(ACCPAYPAYMENT|APCREDITPAYMENT)$/.test(t)) path = `/AccountsPayable/View.aspx?InvoiceID=${l.ii}`;
+  if (!path) return undefined;
+  return shortCode ? `https://go.xero.com/organisationlogin/default.aspx?shortcode=${encodeURIComponent(shortCode)}&redirecturl=${encodeURIComponent(path)}` : `https://go.xero.com${path}`;
+}
 export type XAccount = { id: string; code: string; name: string; type: string; cls: string; sys: string; key: string };
 export type BankRow = { account: string; key?: string; opening: number; received: number; spent: number; closing: number };
 export type Unreconciled = { d: string; a: string; amt: number; c?: string; r?: string; x?: string; t: string };
@@ -176,6 +195,8 @@ export type XeroBook = {
   from: string;
   to: string;
   at: string;
+  /** the organisation's Xero short code, for links that open a transaction in Xero */
+  shortCode?: string;
   source: "accountdata" | "rebuilt" | "none";
   accounts: XAccount[];
   /** signed balances (debit positive) per account key, from the trial balances */
@@ -310,6 +331,8 @@ export function lineFromAccountData(x: any): LedgerLine {
   if (src.reference) line.r = String(src.reference);
   if (x.description) line.x = String(x.description);
   if (x.journalNumber) line.j = Number(x.journalNumber);
+  const sid = src.documentId || src.documentID || src.id;
+  if (sid) line.id = String(sid);
   if (x.taxRate?.name) line.rate = String(x.taxRate.name);
   return line;
 }
@@ -358,16 +381,16 @@ export function rebuildLedger(docs: Documents, accounts: XAccount[], from: strin
   const document = (d: Doc, sign: number, t: string) => {
     const date = xDate(d.DateString || d.Date);
     if (!inYear(date) || !["AUTHORISED", "PAID"].includes(d.Status)) return;
-    const c = d.Contact?.Name, ref = d.InvoiceNumber || d.CreditNoteNumber || d.Reference;
+    const c = d.Contact?.Name, ref = d.InvoiceNumber || d.CreditNoteNumber || d.Reference, docId: string | undefined = d.InvoiceID || d.CreditNoteID;
     let tax = 0;
     for (const li of d.LineItems || []) {
       const lt = d.LineAmountTypes === "NoTax" ? 0 : num(li.TaxAmount);
       tax += lt;
-      push({ d: date, a: keyOf(li.AccountCode, li.AccountID), amt: sign * netOf(li, d.LineAmountTypes), tax: sign * lt, t, c, r: ref, x: li.Description, rate: li.TaxType });
+      push({ d: date, a: keyOf(li.AccountCode, li.AccountID), amt: sign * netOf(li, d.LineAmountTypes), tax: sign * lt, t, c, r: ref, x: li.Description, rate: li.TaxType, id: docId });
     }
-    if (tax && vat) push({ d: date, a: vat.key, amt: sign * tax, t, c, r: ref, x: "VAT" });
+    if (tax && vat) push({ d: date, a: vat.key, amt: sign * tax, t, c, r: ref, x: "VAT", id: docId });
     const control = /ACCREC/.test(t) ? debtors : creditors;
-    if (control) push({ d: date, a: control.key, amt: -sign * num(d.Total), t, c, r: ref, x: d.Reference || "" });
+    if (control) push({ d: date, a: control.key, amt: -sign * num(d.Total), t, c, r: ref, x: d.Reference || "", id: docId });
   };
   for (const d of docs.invoices) document(d, d.Type === "ACCREC" ? -1 : 1, d.Type);
   for (const d of docs.creditNotes) document(d, d.Type === "ACCRECCREDIT" ? 1 : -1, d.Type === "ACCRECCREDIT" ? "ACCRECCREDIT" : "ACCPAYCREDIT");
@@ -381,8 +404,9 @@ export function rebuildLedger(docs: Documents, accounts: XAccount[], from: strin
     const ar = /^(ACCREC|AR)/.test(p.PaymentType || "") || p.Invoice?.Type === "ACCREC";
     const control = ar ? debtors : creditors;
     const c = p.Invoice?.Contact?.Name || p.CreditNote?.Contact?.Name, ref = p.Invoice?.InvoiceNumber || p.Reference;
-    push({ d: date, a: keyOf(p.Account?.Code, p.Account?.AccountID), amt: amount, t: p.PaymentType || "PAYMENT", c, r: ref, x: p.Reference || "Payment" });
-    if (control) push({ d: date, a: control.key, amt: -amount, t: p.PaymentType || "PAYMENT", c, r: ref, x: p.Reference || "Payment" });
+    const ii: string | undefined = p.Invoice?.InvoiceID || p.CreditNote?.CreditNoteID;
+    push({ d: date, a: keyOf(p.Account?.Code, p.Account?.AccountID), amt: amount, t: p.PaymentType || "PAYMENT", c, r: ref, x: p.Reference || "Payment", ii });
+    if (control) push({ d: date, a: control.key, amt: -amount, t: p.PaymentType || "PAYMENT", c, r: ref, x: p.Reference || "Payment", ii });
   }
 
   // bank transactions (spend and receive money, overpayments and prepayments); transfers come from BankTransfers
@@ -395,10 +419,10 @@ export function rebuildLedger(docs: Documents, accounts: XAccount[], from: strin
     for (const li of b.LineItems || []) {
       const lt = b.LineAmountTypes === "NoTax" ? 0 : num(li.TaxAmount);
       tax += lt;
-      push({ d: date, a: keyOf(li.AccountCode, li.AccountID), amt: sign * netOf(li, b.LineAmountTypes), tax: sign * lt, t: b.Type, c, r: ref, x: li.Description, rate: li.TaxType });
+      push({ d: date, a: keyOf(li.AccountCode, li.AccountID), amt: sign * netOf(li, b.LineAmountTypes), tax: sign * lt, t: b.Type, c, r: ref, x: li.Description, rate: li.TaxType, id: b.BankTransactionID });
     }
-    if (tax && vat) push({ d: date, a: vat.key, amt: sign * tax, t: b.Type, c, r: ref, x: "VAT" });
-    push({ d: date, a: keyOf(b.BankAccount?.Code, b.BankAccount?.AccountID, b.BankAccount?.Name), amt: -sign * num(b.Total), t: b.Type, c, r: ref, x: b.Reference || "" });
+    if (tax && vat) push({ d: date, a: vat.key, amt: sign * tax, t: b.Type, c, r: ref, x: "VAT", id: b.BankTransactionID });
+    push({ d: date, a: keyOf(b.BankAccount?.Code, b.BankAccount?.AccountID, b.BankAccount?.Name), amt: -sign * num(b.Total), t: b.Type, c, r: ref, x: b.Reference || "", id: b.BankTransactionID });
   }
   for (const t of docs.bankTransfers) {
     const date = xDate(t.DateString || t.Date);
@@ -416,9 +440,9 @@ export function rebuildLedger(docs: Documents, accounts: XAccount[], from: strin
       const lt = j.LineAmountTypes === "NoTax" || !li.TaxAmount ? 0 : num(li.TaxAmount);
       tax += lt;
       const net = j.LineAmountTypes === "Inclusive" ? num(li.LineAmount) - lt : num(li.LineAmount);
-      push({ d: date, a: keyOf(li.AccountCode, li.AccountID), amt: net, tax: lt, t: "MANJOURNAL", r: j.Narration?.slice(0, 60), x: li.Description || j.Narration, rate: li.TaxType });
+      push({ d: date, a: keyOf(li.AccountCode, li.AccountID), amt: net, tax: lt, t: "MANJOURNAL", r: j.Narration?.slice(0, 60), x: li.Description || j.Narration, rate: li.TaxType, id: j.ManualJournalID });
     }
-    if (tax && vat) push({ d: date, a: vat.key, amt: tax, t: "MANJOURNAL", x: "VAT", r: j.Narration?.slice(0, 60) });
+    if (tax && vat) push({ d: date, a: vat.key, amt: tax, t: "MANJOURNAL", x: "VAT", r: j.Narration?.slice(0, 60), id: j.ManualJournalID });
   }
   return out.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
 }
@@ -721,6 +745,8 @@ export async function readFromXero(
   say("Reading the chart of accounts…");
   const accounts = parseAccounts(await api.get(id, "accounting", "Accounts"));
   const sys = (s: string) => accounts.find((a) => a.sys === s);
+  let shortCode: string | undefined;
+  try { shortCode = (await api.get(id, "accounting", "Organisation"))?.Organisations?.[0]?.ShortCode || undefined; } catch { /* links then open in whichever organisation Xero has open */ }
 
   let tb: TbLine[] = [], priorTb: TbLine[] = [];
   const needTb = parts.has("tb") || parts.has("ledger") || parts.has("bank");
@@ -738,7 +764,7 @@ export async function readFromXero(
   }
 
   const book: XeroBook = {
-    v: 1, tenantId: id, tenantName: t.tenantName, period, from, to, at: new Date().toISOString(), source: "none",
+    v: 1, tenantId: id, tenantName: t.tenantName, period, from, to, at: new Date().toISOString(), ...(shortCode ? { shortCode } : {}), source: "none",
     accounts, opening: balancesOf(priorTb), closing: balancesOf(tb), lines: [], unreconciled: [], bank: [], notes: [],
   };
 
