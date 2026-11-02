@@ -2756,3 +2756,9 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 .paper-split-figs .acc-table td { padding: 2px 4px; }
 @media (max-width: 1100px) { .paper-split { grid-template-columns: 1fr; } .paper-split-figs { position: static; max-height: none; } }
 @media (max-width: 800px) { .paper { grid-template-columns: 1fr; } .paper-side { width: auto; max-width: none; } .paper-page { padding-left: 0; padding-right: 0; } }
+
+/* prepared and reviewed: dotted circles marked P and R, solid green once signed */
+.signoffs { gap: 8px; flex-wrap: nowrap; }
+.signoff-dot { width: 40px; height: 40px; min-height: 0; padding: 0; border-radius: 50%; border: 2px dotted var(--line-strong, #9aa8bb); background: transparent; color: var(--muted); font-weight: 700; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: none; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+.signoff-dot:hover { border-color: var(--blue); color: var(--blue-ink); background: var(--blue-soft); }
+.signoff-dot.on { border: 2px solid var(--green); background: var(--green-soft); color: var(--green); }

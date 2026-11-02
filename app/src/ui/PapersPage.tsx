@@ -437,10 +437,9 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
             {(["Prepared", "Reviewed"] as const).map((k) => {
               const by = k === "Prepared" ? st.preparedBy : st.reviewedBy, on = k === "Prepared" ? st.preparedOn : st.reviewedOn;
               return (
-                <button key={k} type="button" className={`signoff${on ? " on" : ""}`} aria-pressed={!!on} onClick={() => void sign(k)}
-                  title={on ? "Click to take the sign-off off" : `Sign this section off as ${k.toLowerCase()}`}>
-                  <span className="signoff-k">{k}</span>
-                  <span className="signoff-v">{on ? `${by} · ${fmtDate(on, { year: false })}` : "Not yet"}</span>
+                <button key={k} type="button" onClick={() => void sign(k)} className={`signoff-dot${on ? " on" : ""}`} aria-pressed={!!on} aria-label={on ? `${k} by ${by} on ${fmtDate(on)}. Click to take it off` : `${k}: not yet. Click to sign this section off`}
+                  title={on ? `${k} by ${by}, ${fmtDate(on)}. Click to take the sign-off off` : `Sign this section off as ${k.toLowerCase()}`}>
+                  {k === "Prepared" ? "P" : "R"}
                 </button>
               );
             })}
