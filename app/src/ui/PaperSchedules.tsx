@@ -623,7 +623,8 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
           </thead>
           <tbody>
             {lines.map((l) => (
-              <tr key={l.Key} className={done && l.Done ? "line-done" : undefined}>
+              <Fragment key={l.Key}>
+              <tr className={done && l.Done ? "line-done" : undefined}>
                 {cols.map((c) => (
                   <td key={c.key} className={c.type === "money" || c.type === "int" ? "num" : undefined}>
                     {c.calc ? <span className="mono calc">{money(c.calc(l, s) as number) || "–"}</span> : (
@@ -637,6 +638,26 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
                 {done && <td style={{ textAlign: "center" }}><input type="checkbox" checked={l.Done} aria-label={`Completed: ${l.Detail || "this note"}`} style={{ width: 18, height: 18 }} onChange={(e) => void w.patchLine(l, { Done: e.target.checked })} /></td>}
                 <td><button type="button" className="iconbtn" aria-label={`Remove ${l.Detail || "this line"}`} disabled={w.busy} onClick={() => void w.removeLine(l)}><Icon name="close" size={14} /></button></td>
               </tr>
+              {sb.kind === "journals" && lines.filter((x) => Number(x.f.no) === Number(l.f.no)).pop() === l && (() => {
+                const t = journalTotals(lines).find((j) => j.no === (Number(l.f.no) || 0));
+                if (!t) return null;
+                const out = Math.round((t.dr - t.cr) * 100) / 100;
+                return (
+                  <tr className="journal-total">
+                    {cols.map((c, i) => (
+                      <td key={c.key} className={c.type === "money" ? "num mono" : undefined}>
+                        {c.key === "dr" ? <strong>{money(t.dr) || "0.00"}</strong> : c.key === "cr" ? <strong>{money(t.cr) || "0.00"}</strong>
+                          : i === cols.findIndex((x) => x.key === "Detail") ? <strong>Journal {t.no || ""} total</strong>
+                          : c.key === "Remark" ? <span className={out ? "diff-bad" : "diff-ok"}>{out ? `Out by ${money(Math.abs(out))}` : "Balances ✔"}</span> : null}
+                      </td>
+                    ))}
+                    {showPrior && <td />}
+                    {done && <td />}
+                    <td />
+                  </tr>
+                );
+              })()}
+              </Fragment>
             ))}
             {!lines.length && <tr><td colSpan={colCount} className="muted" style={{ padding: 12 }}>{done ? "Nothing here yet." : "No lines yet."}</td></tr>}
           </tbody>
