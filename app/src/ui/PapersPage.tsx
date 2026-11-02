@@ -5,6 +5,7 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useXeroLinks } from "./XeroSettings";
 import { sectionIcon } from "./paperIcons";
+import { AccountsProductionPage, AccountsStatusSelect } from "./AccountsProduction";
 import { WorkbookImport } from "./PaperImport";
 import { XeroImport } from "./XeroImport";
 import { AddSchedule, AssetSummary, LeadTable, PaperWriter, Schedule, useSectionsInUse, useWriterState } from "./PaperSchedules";
@@ -31,7 +32,32 @@ export function periodsFor(c: Client, jobs: Job[], today: string): { all: string
 
 export function PapersPage() {
   const { parts } = useRoute();
+  if (parts[1] === "production") return <ProductionView />;
   return parts[1] ? <PaperView clientKey={parts[1]} period={parts[2]} /> : <PapersList />;
+}
+
+function PapersTabs({ current }: { current: "companies" | "production" }) {
+  return (
+    <nav className="tabs" aria-label="Working papers">
+      <a href={href("papers")} aria-current={current === "companies" ? "page" : undefined}>Companies</a>
+      <a href={href("papers", "production")} aria-current={current === "production" ? "page" : undefined}>Accounts production</a>
+    </nav>
+  );
+}
+
+function ProductionView() {
+  return (
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1>Working papers</h1>
+          <p className="muted" style={{ margin: "4px 0 0" }}>Where each company's accounts have got to.</p>
+        </div>
+      </div>
+      <PapersTabs current="production" />
+      <AccountsProductionPage />
+    </div>
+  );
 }
 
 function PapersList() {
@@ -68,6 +94,7 @@ function PapersList() {
           <p className="muted" style={{ margin: "4px 0 0" }}>{rows.length} compan{rows.length === 1 ? "y" : "ies"}. Open one to work through its papers.</p>
         </div>
       </div>
+      <PapersTabs current="companies" />
       <div className="row-wrap">
         <label className="search" style={{ flex: "1 1 280px", maxWidth: 420 }}>
           <Icon name="search" />
@@ -208,6 +235,7 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
     <>
       {top(
         <>
+          <AccountsStatusSelect clientKey={String(c.Key)} period={period} />
           <button type="button" className="btn small paper-tool" aria-expanded={wb} title="Import a working paper workbook (Excel)" onClick={() => { setWb(!wb); setXr(false); }}>
             <Icon name="download" size={15} /> Workbook
           </button>
