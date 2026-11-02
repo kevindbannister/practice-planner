@@ -2682,3 +2682,33 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 .acc-table td a { color: #1a4f8b; text-decoration: none; border-bottom: 1px dotted #1a4f8b; }
 .acc-table td a:hover { background: #e6f0fb; }
 .acc-sheet.draft::after { content: "DRAFT"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 120px; font-weight: 800; color: rgba(90, 90, 100, 0.1); transform: rotate(-45deg); pointer-events: none; }
+
+/* working papers: one rounded banner at the top in place of the main menu, soft rounded cards */
+.paper-top { position: sticky; top: 10px; z-index: 20; flex-wrap: nowrap; gap: 10px; padding: 8px 14px 8px 10px; margin: 10px 0 18px; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 8px 28px rgba(20, 90, 150, 0.12); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); overflow-x: auto; scrollbar-width: none; }
+.paper-top::-webkit-scrollbar { display: none; }
+.paper-top > * { flex: none; }
+.paper-top h1 { font-size: 18px; white-space: nowrap; }
+.paper-top .chip { font-size: 11.5px; white-space: nowrap; }
+.paper-top-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; color: var(--blue-ink); background: var(--blue-soft); text-decoration: none; }
+.paper-top-icon:hover { background: var(--blue-line); }
+.paper-top .paper-year, .paper-top .accounts-status { font-size: 12px !important; }
+.paper-top .paper-year select.input, .paper-top .accounts-status select.input { min-height: 34px !important; font-size: 12.5px; }
+.paper-top .paper-tool { min-height: 34px; font-size: 12.5px; }
+.paper-side { top: 92px; border-radius: 24px; box-shadow: 0 8px 28px rgba(20, 90, 150, 0.10); border-color: transparent; background: color-mix(in srgb, var(--surface) 94%, transparent); }
+.paper-main > .card, .paper-main > section.card, .paper-main > .stack > .card { border-radius: 24px; border-color: transparent; box-shadow: 0 8px 28px rgba(20, 90, 150, 0.08); background: color-mix(in srgb, var(--surface) 94%, transparent); }
+.paper-main > .card:first-child, .paper-main > section.card:first-child { border-top: 0; }
+.paper-main > .card:first-child h1, .paper-main > .card:first-child h2 { font-size: 24px; letter-spacing: -0.01em; }
+.paper-main > .card:first-child .eyebrow { font-size: 11px; letter-spacing: 0.08em; }
+.paper-main table thead th, .paper-main table.grid thead th { border-radius: 0; }
+.paper-main .lead-total td, .paper-main .lead-sub td { font-weight: 700; }
+.paper-main .btn.primary { border-radius: 16px; min-height: 52px; padding: 0 28px; font-size: 16px; box-shadow: 0 10px 24px rgba(12, 100, 150, 0.28); }
+@media (max-width: 800px) { .paper-top { border-radius: 28px; flex-wrap: wrap; overflow: visible; } }
+.paper-top > .chip { flex: 0 1 auto; min-width: 0; max-width: 210px; overflow: hidden; text-overflow: ellipsis; }
+.paper-top h1 { flex: 0 1 auto; min-width: 0; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+.paper-top .accounts-status > span { display: none; }
+.paper-top .paper-tools { flex: 1 0 auto; justify-content: flex-end; gap: 6px; }
+.paper-top .chip-fixed { flex: none; max-width: none; overflow: visible; }
+.paper-top > .chip.mono { flex: none; max-width: none; }
+.paper-top h1 { max-width: 380px; }
+.paper-top > button.chip { max-width: 260px; }
+.paper-top .paper-year > span { display: none; }

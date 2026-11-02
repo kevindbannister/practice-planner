@@ -169,11 +169,11 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
   const linked = period ? (idx.jobsByClient.get(c.Key) || []).filter((j) => PAPER_JOBS.has(j.ServiceKey || "") && j.PeriodEnd === period) : [];
 
   const top = (tools: ReactNode) => (
-    <div className="paper-top">
-      <a className="crumb" href="#/papers" title="All working papers">‹ Papers</a>
+    <header className="paper-top">
+      <a className="paper-top-icon" href="#/papers" title="Back to all working papers" aria-label="Back to all working papers"><Icon name="book" size={20} /></a>
       <h1>{c.Title}</h1>
       {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}</span>}
-      <a className="chip blue" href={href("clients", c.Key)}>Client page</a>
+      <a className="chip blue chip-fixed" href={href("clients", c.Key)}>Client page</a>
       {linked.map((j) => (
         <button key={j.Key} type="button" className="chip blue" style={{ cursor: "pointer" }} title="Open this job" onClick={() => editor.open({ kind: "job", key: j.Key as string })}>
           {j.Title}{j.Status === "done" || j.CompletedDate ? " · complete" : j.Deadline ? ` · due ${fmtDate(j.Deadline as string, { year: false })}` : ""}
@@ -189,8 +189,9 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
           </select>
         </label>
         {tools}
+        <a className="paper-top-icon" href="#/home" title="Leave the working papers" aria-label="Leave the working papers"><Icon name="home" size={18} /></a>
       </div>
-    </div>
+    </header>
   );
 
   return (
@@ -245,7 +246,7 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
       {top(
         <>
           <span className="row-wrap paper-views" role="group" aria-label="Working papers or statutory accounts" style={{ gap: 4 }}>
-            <button type="button" className={`btn small paper-tool${view === "papers" ? " primary" : ""}`} aria-pressed={view === "papers"} onClick={() => flip("papers")}>Working papers</button>
+            <button type="button" className={`btn small paper-tool${view === "papers" ? " primary" : ""}`} aria-pressed={view === "papers"} onClick={() => flip("papers")} title="Working papers">Papers</button>
             <button type="button" className={`btn small paper-tool${view === "accounts" ? " primary" : ""}`} aria-pressed={view === "accounts"} onClick={() => flip("accounts")}>Accounts</button>
           </span>
           <AccountsStatusSelect clientKey={String(c.Key)} period={period} />
