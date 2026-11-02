@@ -28,18 +28,6 @@ export function AdvisoryPage() {
   return <AdvisoryClient key={clientKey} clientKey={clientKey} tab={tab} />;
 }
 
-function Band({ title, kicker, children }: { title: string; kicker: string; children?: React.ReactNode }) {
-  return (
-    <div className="adv-band">
-      <div>
-        <span className="adv-kicker">{kicker}</span>
-        <h1>{title}</h1>
-      </div>
-      {children}
-    </div>
-  );
-}
-
 function AdvisoryHome() {
   const { data, create } = useData();
   const [pick, setPick] = useState("");
@@ -73,10 +61,14 @@ function AdvisoryHome() {
 
   return (
     <div className="page adv">
-      <Band kicker="Advisory" title="Freedom Plans" />
-      <p className="muted" style={{ margin: 0, maxWidth: 760 }}>
-        A Freedom Plan works out what a client's life costs, what their business delivers today, and how far the numbers move if they change their prices, sales and costs.
-      </p>
+      <div className="page-head">
+        <div>
+          <h1>Freedom Plans</h1>
+          <p className="muted" style={{ margin: "4px 0 0", maxWidth: 760 }}>
+            Works out what a client's life costs, what their business delivers today, and how far the numbers move if they change their prices, sales and costs.
+          </p>
+        </div>
+      </div>
 
       <section className="card pad row-wrap" aria-label="Start a Freedom Plan" style={{ gap: 12 }}>
         <label className="field" style={{ flex: "1 1 280px", maxWidth: 420 }}>
@@ -131,7 +123,7 @@ function AdvisoryClient({ clientKey, tab }: { clientKey: string; tab: TabKey }) 
   if (!client) {
     return (
       <div className="page adv">
-        <Band kicker="Advisory" title="Client not found" />
+        <div className="page-head"><h1>Client not found</h1></div>
         <p><a href={href("advisory")}>Back to Freedom Plans</a></p>
       </div>
     );
