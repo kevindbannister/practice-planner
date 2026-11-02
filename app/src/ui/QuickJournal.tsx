@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { linesFor } from "../lib/papers";
-import { QLine, blankLine, checkJournal, fmtAmount, imbalance, setAmount, toPaperLines } from "../lib/quickJournal";
+import { QLine, blankLine, checkJournal, imbalance, rebalance, setAmount, toPaperLines } from "../lib/quickJournal";
 import { Icon } from "./bits";
 import { useData } from "./data";
 import { AccountList, nextJournal, useWriter } from "./PaperSchedules";
@@ -76,7 +76,7 @@ function QuickJournal({ open, onClose, onSaved }: { open: boolean; onClose: () =
         <AccountList />
         <div className="quick-journal-wrap">
           <table className="quick-journal-table">
-            <thead><tr><th scope="col">Journal</th><th scope="col">Code</th><th scope="col">Account</th><th scope="col" className="num">Debit</th><th scope="col" className="num">Credit</th><th scope="col">Narrative</th></tr></thead>
+            <thead><tr><th scope="col">Journal</th><th scope="col">Code</th><th scope="col">Account</th><th scope="col" className="num">Debit</th><th scope="col" className="num">Credit</th><th scope="col">Narrative</th><th scope="col"><span className="sr-only">Delete line</span></th></tr></thead>
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
@@ -86,6 +86,8 @@ function QuickJournal({ open, onClose, onSaved }: { open: boolean; onClose: () =
                   <td><input className="input num mono" inputMode="decimal" aria-label={`Line ${i + 1} debit`} value={l.dr} tabIndex={open ? 0 : -1} onChange={(e) => setLines((ls) => setAmount(ls, i, "dr", e.target.value))} /></td>
                   <td><input className="input num mono" inputMode="decimal" aria-label={`Line ${i + 1} credit`} value={l.cr} tabIndex={open ? 0 : -1} onChange={(e) => setLines((ls) => setAmount(ls, i, "cr", e.target.value))} /></td>
                   <td><input className="input" aria-label={`Line ${i + 1} narrative`} value={l.narrative} placeholder={narrative} tabIndex={open ? 0 : -1} onChange={(e) => patch(i, { narrative: e.target.value })} /></td>
+                  <td><button type="button" className="quick-journal-del" aria-label={`Delete line ${i + 1}`} title={lines.length <= 2 ? "A journal keeps at least two lines" : "Delete this line"} disabled={lines.length <= 2} tabIndex={open ? 0 : -1}
+                    onClick={() => setLines((ls) => rebalance(ls.filter((_, k) => k !== i)))}><Icon name="close" size={14} /></button></td>
                 </tr>
               ))}
             </tbody>

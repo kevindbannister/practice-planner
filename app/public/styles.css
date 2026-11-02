@@ -2811,7 +2811,7 @@ label > .card-title { font-size: 17px; margin-bottom: 8px; }
 .quick-journal-btn { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--grad); color: #fff; cursor: pointer; flex: none; box-shadow: 0 4px 10px rgba(12, 90, 140, 0.3); }
 .quick-journal-btn:hover, .quick-journal-btn[aria-expanded="true"] { filter: brightness(1.1); }
 .quick-journal-done { font-size: 11.5px; color: #0b6b4f; font-weight: 600; flex-basis: 100%; }
-.quick-journal { position: fixed; top: 0; left: 0; right: 0; z-index: 60; display: flex; justify-content: center; padding: 10px 12px 0; visibility: hidden; opacity: 0; transform: translateY(-110%); pointer-events: none;
+.quick-journal { position: fixed; bottom: 0; left: 0; right: 0; z-index: 60; display: flex; justify-content: center; padding: 0 12px 10px; visibility: hidden; opacity: 0; transform: translateY(110%); pointer-events: none;
   transition: transform 0.28s ease, opacity 0.2s ease, visibility 0s linear 0.28s; }
 .quick-journal.open { visibility: visible; opacity: 1; transform: none; pointer-events: none; transition-delay: 0s; }
 .quick-journal-card { pointer-events: auto; width: min(1040px, 100%); padding: 14px 16px 14px; border-radius: 24px; background: var(--grad); color: #fff; box-shadow: 0 18px 40px rgba(12, 90, 140, 0.4); }
@@ -2839,3 +2839,7 @@ label > .card-title { font-size: 17px; margin-bottom: 8px; }
 .quick-journal-save { margin-left: auto; border: 0; border-radius: 16px; padding: 9px 20px; background: #fff; color: #0c5a8c; font-weight: 700; cursor: pointer; }
 .quick-journal-save:disabled { opacity: .6; }
 @media (prefers-reduced-motion: reduce) { .quick-journal { transition: none; } }
+.quick-journal-del { border: 0; border-radius: 50%; width: 28px; height: 28px; display: grid; place-items: center; background: rgba(255,255,255,.2); color: #fff; cursor: pointer; }
+.quick-journal-del:hover:not(:disabled) { background: rgba(255,255,255,.34); } .quick-journal-del:disabled { opacity: .35; cursor: default; }
+.quick-journal-table td:last-child { width: 34px; }
+.quick-journal-card { max-height: calc(100vh - 20px); overflow-y: auto; }
