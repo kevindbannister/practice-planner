@@ -190,7 +190,7 @@ export const total = (lines: { Amount?: number }[]) => round2(lines.reduce((t, l
 /** Amounts are typed freely: "£1,234.50", "(200)" for minus, "-5". Empty is no figure. */
 export function parseAmount(text: string): number | undefined {
   const t = text.replace(/[£,\s]/g, "");
-  if (!t) return undefined;
+  if (!t || !/\d/.test(t)) return undefined; // blank, or the "-" shown for nothing
   const neg = /^\(.*\)$/.test(t) || t.startsWith("-");
   const n = Number(t.replace(/[()\-]/g, ""));
   return Number.isFinite(n) ? round2(neg ? -n : n) : undefined;
@@ -198,6 +198,7 @@ export function parseAmount(text: string): number | undefined {
 
 export function money(n: number | undefined): string {
   if (n === undefined || !Number.isFinite(n)) return "";
+  if (Math.abs(n) < 0.005) return "-"; // nothing is shown as a dash, as in accounts
   const t = Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return n < 0 ? `(${t})` : t;
 }
