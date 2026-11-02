@@ -476,7 +476,7 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
 
       <div className="card pad stack">
         <label>
-          {isDoc ? "Notes" : "Notes on this section"}
+          <span className="card-title"><span className="card-title-ico" aria-hidden="true"><Icon name="letter" size={16} /></span>{isDoc ? "Notes" : "Notes on this section"}</span>
           <textarea className="input" rows={isDoc ? 8 : 4} value={note} placeholder="What you did, what you found, what to ask the client"
             onChange={(e) => setNote(e.target.value)} onBlur={commit} />
         </label>

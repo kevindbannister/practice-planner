@@ -987,6 +987,7 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
   const panelRow = rows.find((r) => open.includes(r.sub.key));
   return (
     <section className="card pad stack" aria-label={`${section.title} lead schedule`}>
+      <h3 className="card-title"><span className="card-title-ico" aria-hidden="true"><Icon name="calc" size={16} /></span>Lead Schedule</h3>
       {!onOpen && <div className="row-wrap lead-mode">
         <span className="muted" style={{ fontSize: 12 }}>A line opens:</span>
         <div className="seg" role="group" aria-label="How a line opens its schedule">
