@@ -6,6 +6,7 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useXeroLinks } from "./XeroSettings";
 import { sectionIcon } from "./paperIcons";
 import { AccountsProductionPage, AccountsStatusSelect } from "./AccountsProduction";
+import { BannerMenu } from "./BannerMenu";
 import { AccountsScreen } from "./AccountsScreen";
 import { WorkbookImport } from "./PaperImport";
 import { XeroImport } from "./XeroImport";
@@ -189,7 +190,7 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
           </select>
         </label>
         {tools}
-        <a className="paper-top-icon" href="#/home" title="Leave the working papers" aria-label="Leave the working papers"><Icon name="home" size={18} /></a>
+        <BannerMenu />
       </div>
     </header>
   );

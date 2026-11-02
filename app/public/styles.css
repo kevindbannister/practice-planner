@@ -2712,3 +2712,18 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 .paper-top h1 { max-width: 380px; }
 .paper-top > button.chip { max-width: 260px; }
 .paper-top .paper-year > span { display: none; }
+
+/* the menu that slides down from the banner's menu icon */
+.paper-top { overflow: visible; }
+.banner-menu { position: relative; flex: none; }
+.banner-menu-btn { border: 0; cursor: pointer; }
+.banner-menu.open .banner-menu-btn { background: var(--grad); color: #fff; }
+/* the panel starts at the icon with a transparent bridge above it, so moving the pointer down onto it never closes it */
+.banner-menu-panel { position: absolute; top: 100%; right: -6px; padding-top: 16px; width: min(460px, 86vw); visibility: hidden; opacity: 0; transform: translateY(-10px) scale(0.98); transform-origin: top right; pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.22s ease, visibility 0s linear 0.22s; z-index: 30; }
+.banner-menu.open .banner-menu-panel { visibility: visible; opacity: 1; transform: none; pointer-events: auto; transition-delay: 0s; }
+.banner-menu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 12px; border-radius: 24px; background: var(--grad); box-shadow: 0 18px 40px rgba(12, 90, 140, 0.35); }
+.banner-menu-grid a { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 16px; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; background: rgba(255, 255, 255, 0.10); transition: background 0.15s; }
+.banner-menu-grid a:hover, .banner-menu-grid a:focus-visible { background: rgba(255, 255, 255, 0.26); outline: none; }
+.banner-menu-grid a[aria-current="page"] { background: rgba(255, 255, 255, 0.30); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7); }
+@media (prefers-reduced-motion: reduce) { .banner-menu-panel { transition: none; transform: none; } }
