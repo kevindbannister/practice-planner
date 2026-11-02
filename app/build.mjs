@@ -4,6 +4,7 @@
 //   node build.mjs --demo    build that talks to an in-browser fake SharePoint (for testing)
 import { build, context } from "esbuild";
 import { cpSync, mkdirSync, rmSync } from "node:fs";
+const cp = cpSync;
 
 const serve = process.argv.includes("--serve");
 const demo = process.argv.includes("--demo") || serve;
@@ -16,6 +17,9 @@ mkdirSync("dist/pdf", { recursive: true });
 for (const f of ["pdf.min.mjs", "pdf.worker.min.mjs"]) cpSync(`node_modules/pdfjs-dist/build/${f}`, `dist/pdf/${f}`);
 // pdf-lib, for making PDF documents (letters and other documents): also served from the site
 cpSync("node_modules/pdf-lib/dist/pdf-lib.esm.min.js", "dist/pdf/pdf-lib.esm.min.js");
+
+// pptxgenjs (with its zip library), for exporting a deck as a PowerPoint file: also served from the site
+cp("node_modules/pptxgenjs/dist/pptxgen.bundle.js", "dist/pdf/pptxgen.bundle.js");
 
 const options = {
   entryPoints: ["src/main.tsx"],

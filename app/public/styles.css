@@ -2885,3 +2885,34 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .review-nav { align-items: center; }
 .client-view .review-title { font-size: 28px; } .client-view .review-tile-num { font-size: 34px; } .client-view .review-comment { font-size: 19px; }
 @media (max-width: 720px) { .review-bar-row { grid-template-columns: 1fr; gap: 4px; } }
+
+/* client deck */
+.deck-bar { align-items: center; gap: 12px; } .deck-actions { margin-left: auto; display: inline-flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.deck-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
+.deck-thumbs { display: flex; flex-direction: column; gap: 10px; padding: 10px; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.deck-thumb { border-radius: 12px; padding: 4px; border: 2px solid transparent; } .deck-thumb.on { border-color: #1475ad; background: rgba(20,117,173,.08); } .deck-thumb.hid { opacity: .55; }
+.deck-thumb-pic { display: block; width: 100%; padding: 0; border: 1px solid rgba(0,0,0,.12); border-radius: 6px; overflow: hidden; background: none; cursor: pointer; }
+.deck-thumb-bar { display: flex; align-items: center; gap: 2px; font-size: 11px; margin-top: 3px; } .deck-thumb-bar span { flex: 1; color: #5b6b82; }
+.deck-mini { border: 0; background: rgba(20,117,173,.1); color: #12476b; border-radius: 6px; width: 24px; height: 24px; cursor: pointer; font-size: 13px; line-height: 1; } .deck-mini:hover:not(:disabled) { background: rgba(20,117,173,.22); } .deck-mini:disabled { opacity: .35; cursor: default; }
+.deck-preview { padding: 10px; } .deck-preview > div { border-radius: 6px; box-shadow: 0 6px 22px rgba(20,90,150,.18); }
+.deck-form { max-height: calc(100vh - 24px); overflow-y: auto; position: sticky; top: 12px; }
+.deck-set { border: 1px solid rgba(20,117,173,.2); border-radius: 12px; padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 8px; } .deck-set legend { font-weight: 700; font-size: 12px; padding: 0 4px; color: #46607c; }
+.deck-row { display: flex; gap: 6px; align-items: center; } .deck-row .input { min-width: 0; flex: 1; }
+.deck-grid { display: grid; gap: 6px; align-items: center; } .deck-grid .input { min-width: 0; }
+.deck-num { text-align: right; }
+.deck-gallery { display: flex; flex-direction: column; gap: 4px; } .deck-gallery button { text-align: left; border: 0; background: rgba(20,117,173,.08); border-radius: 10px; padding: 7px 9px; cursor: pointer; display: flex; flex-direction: column; font: inherit; } .deck-gallery button:hover { background: rgba(20,117,173,.18); } .deck-gallery span { font-size: 11px; color: #5b6b82; }
+.deck-logo-preview { max-height: 56px; max-width: 160px; object-fit: contain; border: 1px solid rgba(0,0,0,.1); border-radius: 8px; background: #fff; padding: 4px; }
+.deck-colours { display: flex; gap: 14px; flex-wrap: wrap; }
+.deck-present { position: fixed; inset: 0; z-index: 100; background: #000; display: flex; flex-direction: column; }
+.deck-present-stage { flex: 1; min-height: 0; padding: 12px; cursor: pointer; }
+.deck-present-bar { display: flex; gap: 14px; justify-content: center; align-items: center; padding: 8px; color: #ccc; font-size: 13px; opacity: .55; } .deck-present-bar:hover { opacity: 1; }
+.deck-present-bar button { background: #222; color: #fff; border: 0; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 15px; } .deck-present-bar button:disabled { opacity: .35; }
+.deck-print-root { display: none; }
+@media print {
+  body.deck-printing > *:not(.deck-print-root) { display: none !important; }
+  body.deck-printing .deck-print-root { display: block !important; }
+  body.deck-printing .deck-page { width: 960px; height: 540px; overflow: hidden; page-break-after: always; break-after: page; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { size: 960px 540px; margin: 0; }
+}
+@media (max-width: 1280px) { .deck-layout { grid-template-columns: 180px minmax(0, 1fr); } .deck-form { grid-column: 1 / -1; position: static; max-height: none; } }
+@media (max-width: 760px) { .deck-layout { grid-template-columns: 1fr; } .deck-thumbs { position: static; flex-direction: row; max-height: none; overflow-x: auto; } .deck-thumb { min-width: 160px; } }

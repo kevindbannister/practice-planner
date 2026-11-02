@@ -8,7 +8,7 @@ import { sectionIcon } from "./paperIcons";
 import { AccountsProductionPage, AccountsStatusSelect } from "./AccountsProduction";
 import { BannerMenu } from "./BannerMenu";
 import { QuickJournalButton } from "./QuickJournal";
-import { ClientReview } from "./ClientReview";
+import { ClientDeck } from "./ClientDeck";
 import { AccountsFigures, AccountsScreen } from "./AccountsScreen";
 import { WorkbookImport } from "./PaperImport";
 import { XeroImport } from "./XeroImport";
@@ -275,7 +275,7 @@ function PaperScreen({ client: c, period, today, top }: { client: Client; period
       <WorkbookImport client={c} period={period} open={wb} onClose={() => setWb(false)} />
       <XeroImport client={c} period={period} open={xr} onClose={() => setXr(false)} />
       {/* both stay open so each keeps its place (the section, the tab) when the person flips between them */}
-      <div hidden={view !== "review"}><ClientReview client={c} period={period} onPaper={(section) => { window.location.hash = `${href("papers", String(c.Key), period)}?section=${encodeURIComponent(section)}`; }} /></div>
+      <div hidden={view !== "review"}><ClientDeck client={c} period={period} /></div>
       <div hidden={view !== "accounts"}><AccountsScreen client={c} period={period} onPapers={() => flip("papers")} /></div>
       <div className={figs ? "paper-split" : undefined}>
       <div className="paper-split-main">
