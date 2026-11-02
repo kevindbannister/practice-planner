@@ -1,5 +1,5 @@
 // An MCP server (Model Context Protocol, streamable HTTP, no sessions) that lets your bots read and change the
-// planner's data. Each bot presents its own key as "Authorization: Bearer <key>". Settings (Azure):
+// planner's data. Each bot presents its own key as "x-api-key: <key>" ("Authorization: Bearer <key>" still works locally). Settings (Azure):
 //   MCP_KEYS                 JSON of bot names to {sha256, write}; make entries with `node api/mcp/make-key.js <name> [write]`
 //   MCP_GRAPH_TENANT_ID, MCP_GRAPH_CLIENT_ID, MCP_GRAPH_CLIENT_SECRET   the MCP's own app registration (application permission
 //                            limited to the planner's site, e.g. Sites.Selected with write on that site only)
@@ -66,8 +66,13 @@ function createHandler(deps = {}) {
   return async function handler(context, req) {
     const method = String(req.method || "").toUpperCase();
     if (!configured) { context.res = out(503, { error: "not-configured", message: "The MCP server isn't set up yet." }); return; }
-    const token = header(req, "authorization").replace(/^Bearer\s+/i, "") || header(req, "x-api-key");
-    const bot = botFor(keys, token.trim());
+    // Azure Static Web Apps replaces the Authorization header with its own token on the way to the API, so bots send
+    // their key in x-api-key (or x-mcp-key). Authorization: Bearer still works where nothing replaces it, such as locally.
+    let bot = null;
+    for (const token of [header(req, "x-api-key"), header(req, "x-mcp-key"), header(req, "authorization").replace(/^Bearer\s+/i, "")]) {
+      bot = botFor(keys, token.trim());
+      if (bot) break;
+    }
     if (!bot) { context.res = out(401, { error: "unauthorised" }, { "WWW-Authenticate": "Bearer" }); return; }
     if (method !== "POST") { context.res = out(405, { error: "method-not-allowed" }, { Allow: "POST" }); return; }
     if (limited(bot)) { context.res = out(429, { error: "rate-limited" }, { "Retry-After": "30" }); return; }

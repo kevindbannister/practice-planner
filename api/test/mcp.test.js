@@ -131,3 +131,11 @@ test("no secret column or portal list is ever visible", () => {
   for (const l of policy.visibleLists()) for (const c of policy.visibleColumns(l)) assert.ok(!policy.HIDDEN_COLUMN.test(c.name), `${l.key}.${c.name}`);
   assert.ok(policy.visibleLists().every((l) => !/^Portal/.test(l.key)));
 });
+
+test("a key in x-api-key works even when Authorization carries an unrelated token (Static Web Apps replaces it)", async () => {
+  const { rpc } = setup();
+  const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+  assert.equal((await rpc("unrelated-swa-token", ping, { headers: { authorization: "Bearer unrelated-swa-token", "x-api-key": READ } })).status, 200);
+  assert.equal((await rpc("unrelated-swa-token", ping, { headers: { authorization: "Bearer unrelated-swa-token", "x-mcp-key": WRITE } })).status, 200);
+  assert.equal((await rpc("unrelated-swa-token", ping, { headers: { authorization: "Bearer unrelated-swa-token" } })).status, 401);
+});
