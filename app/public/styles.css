@@ -2665,3 +2665,4 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 .client-head .logo-mark, .client-head .badge.lg { flex: none; }
 .client-head .badge.lg { width: 36px; height: 36px; font-size: 13px; border-radius: 12px; }
 @media (max-width: 1100px) { .client-head, .client-head-id { flex-wrap: wrap; } .client-page .client-head h1 { white-space: normal; } }
+.warn-text { color: #8a5a00; font-size: 13px; }

@@ -15,7 +15,10 @@ import { Band, Column, Design, fillVars, layoutFor, pageLabel } from "./docDesig
 export type PdfLib = typeof import("pdf-lib");
 export type RenderInput = { content: DocContent; layout?: Partial<DocLayout>; branding: Branding; title?: string; reference?: string; author?: string; created?: Date;
   /** a document design (cover page, header and footer columns); without one the plain header and footer are drawn */
-  design?: Design; vars?: { client?: string; date?: string } };
+  design?: Design; vars?: { client?: string; date?: string };
+  /** large pale text across every page (e.g. DRAFT) */ watermark?: string;
+  /** count the cover as page 1 in the page numbers (accounts do) */ numberCover?: boolean;
+  /** filled with the page each section starts on (a section starts at the top and after each page break; page 1 is the first page of the content, before any cover) */ marks?: number[] };
 
 const MM = 72 / 25.4;
 const A4 = { w: 595.28, h: 841.89 };
@@ -226,8 +229,9 @@ function columnWidths(c: Ctx, rows: Cell[][], width: number, size: number, pad: 
 }
 
 function table(c: Ctx, pg: Pager, b: Extract<Block, { type: "table" }>) {
-  const size = Math.max(8, c.layout.fontSize - 0.5), pad = 4;
-  const widths = columnWidths(c, b.rows, pg.width, size, pad);
+  const plain = !!b.plain;
+  const size = Math.max(8, c.layout.fontSize - 0.5), pad = plain ? 2.5 : 4;
+  const widths = plain && b.widths && b.widths.length ? (() => { const t = b.widths.reduce((a, x) => a + x, 0) || 1; return b.widths.map((x) => (x * pg.width) / t); })() : columnWidths(c, b.rows, pg.width, size, pad);
   const cols = widths.length;
   const laid = b.rows.map((r, ri) => {
     const head = b.header && ri === 0;
@@ -235,7 +239,7 @@ function table(c: Ctx, pg: Pager, b: Extract<Block, { type: "table" }>) {
       const cell = r[i] || { runs: [] };
       const align = cell.align || (numeric(runsText(cell.runs)) ? "right" : undefined);
       const lines = wrap(atomsOf(c, cell.runs, size, c.ink, false, head), widths[i] - 2 * pad, 0, size);
-      return { lines, align };
+      return { lines, align, rule: cell.rule };
     });
   });
   const rowHeight = (cells: { lines: Line[] }[], from = 0, to = Infinity) => Math.max(...cells.map((x) => x.lines.slice(from, to).reduce((a, l) => a + l.height, 0))) + 2 * pad;
@@ -246,7 +250,11 @@ function table(c: Ctx, pg: Pager, b: Extract<Block, { type: "table" }>) {
     const h = rowHeight(cells, from, to);
     const top = pg.top - pg.y;
     cells.forEach((cell, i) => {
-      pg.page.drawRectangle({ x: xs[i], y: top - h, width: widths[i], height: h, borderColor: border, borderWidth: 0.5, ...(head ? { color: tint(c.lib, c.brand.primary, 0.86) } : {}) });
+      if (plain) {
+        const ink = c.lib.rgb(0.2, 0.2, 0.22), edge = (y: number) => pg.page.drawLine({ start: { x: xs[i] + pad, y }, end: { x: xs[i] + widths[i] - pad, y }, thickness: 0.6, color: ink });
+        if (cell.rule === "top") edge(top);
+        if (cell.rule === "double") { edge(top - h + 1.2); edge(top - h + 3.2); }
+      } else pg.page.drawRectangle({ x: xs[i], y: top - h, width: widths[i], height: h, borderColor: border, borderWidth: 0.5, ...(head ? { color: tint(c.lib, c.brand.primary, 0.86) } : {}) });
       let ly = top - pad;
       for (const ln of cell.lines.slice(from, to)) {
         drawLine(c, pg, ln, xs[i] + pad, widths[i] - 2 * pad, cell.align, ly);
@@ -280,7 +288,7 @@ function table(c: Ctx, pg: Pager, b: Extract<Block, { type: "table" }>) {
       if (from < maxLines) { pg.newPage(); repeatHeader(); }
     }
   });
-  pg.y += c.layout.fontSize * 0.8;
+  pg.y += c.layout.fontSize * (plain ? 0.4 : 0.8);
 }
 
 async function image(c: Ctx, pg: Pager, b: Extract<Block, { type: "img" }>) {
@@ -379,12 +387,12 @@ function drawBand(c: Ctx, p: PDFPage, b: Band, atTop: boolean, d: DesignVars, n:
   if (b.rule) { const ry = atTop ? y0 : y0 + h; p.drawLine({ start: { x: x0, y: ry }, end: { x: x1, y: ry }, thickness: 0.5, color: hex(c.lib, b.colour) }); }
 }
 
-function designedFurniture(c: Ctx, pages: PDFPage[], design: Design, d: DesignVars) {
-  const total = pages.length;
+function designedFurniture(c: Ctx, pages: PDFPage[], design: Design, d: DesignVars, offset = 0) {
+  const total = pages.length + offset;
   pages.forEach((p, i) => {
-    const label = pageLabel(design.pageNumbers, i + 1, total);
-    drawBand(c, p, design.header, true, d, i + 1, total, "");
-    drawBand(c, p, design.footer, false, d, i + 1, total, label);
+    const label = pageLabel(design.pageNumbers, i + 1 + offset, total);
+    drawBand(c, p, design.header, true, d, i + 1 + offset, total, "");
+    drawBand(c, p, design.footer, false, d, i + 1 + offset, total, label);
     // with no room in the footer's right column, or no footer at all, the number goes at the foot of the margin
     if (label && (!design.footer.enabled || design.footer.right.kind !== "empty")) {
       const f = c.fonts.get(false), w = f.widthOfTextAtSize(label, 8.5);
@@ -433,6 +441,13 @@ function coverPage(c: Ctx, design: Design, d: DesignVars) {
 }
 const MAX_INFO_PIECES = 4;
 
+/** Large pale text across the middle of each page. */
+function watermark(c: Ctx, pages: PDFPage[], text: string) {
+  const f = c.fonts.get(true), t = c.fonts.safe(f, text.toUpperCase()), size = 110;
+  const w = f.widthOfTextAtSize(t, size), a = Math.PI / 4;
+  for (const p of pages) p.drawText(t, { x: A4.w / 2 - (w / 2) * Math.cos(a), y: A4.h / 2 - (w / 2) * Math.sin(a), size, font: f, color: c.lib.rgb(0.55, 0.55, 0.58), opacity: 0.16, rotate: c.lib.degrees(45) });
+}
+
 /** Makes the PDF. */
 export async function renderPdf(lib: PdfLib, input: RenderInput): Promise<Uint8Array> {
   const design = input.design;
@@ -451,6 +466,8 @@ export async function renderPdf(lib: PdfLib, input: RenderInput): Promise<Uint8A
   }
   const pg = new Pager(c);
   pg.newPage();
+  const marks = input.marks;
+  if (marks) { marks.length = 0; marks.push(1); }
   for (const b of input.content.blocks) {
     switch (b.type) {
       case "p": case "h":
@@ -461,12 +478,13 @@ export async function renderPdf(lib: PdfLib, input: RenderInput): Promise<Uint8A
       case "list": list(c, pg, b); break;
       case "table": if (b.rows.length) table(c, pg, b); break;
       case "img": await image(c, pg, b); break;
-      case "break": if (pg.y > 0) pg.newPage(); break;
+      case "break": if (pg.y > 0) pg.newPage(); if (marks) marks.push(pg.pages.length); break;
     }
   }
+  if (input.watermark) watermark(c, pg.pages, input.watermark);
   if (design) {
     const dv: DesignVars = { vars: { title: input.title, reference: input.reference, client: input.vars?.client, date: input.vars?.date, branding: input.branding } };
-    designedFurniture(c, pg.pages, design, dv);
+    designedFurniture(c, pg.pages, design, dv, input.numberCover && design.cover.enabled ? 1 : 0);
     if (design.cover.enabled) coverPage(c, design, dv);
   } else furniture(c, pg.pages);
   doc.setTitle(input.title || input.reference || "Document");

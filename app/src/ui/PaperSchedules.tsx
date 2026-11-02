@@ -205,6 +205,29 @@ function useTbChecks(period?: string): Map<string, number> | undefined {
   return useMemo(() => (maps ? tbTotals(maps) : undefined), [maps]);
 }
 
+/** What the statutory accounts are made from: the mapped final trial balance for this year and last, and the fixed asset totals. */
+export function useAccountsData(): { maps?: Mapping[]; priorMaps?: Mapping[]; assets?: AssetTotals; priorAssets?: AssetTotals; ready: boolean } {
+  const { data } = useData();
+  const w = useWriter();
+  const maps = useTbMaps(w.period), priorMaps = useTbMaps(priorPeriod(w.period));
+  const totals = (period: string): AssetTotals | undefined => {
+    const section = SECTIONS.find((x) => x.key === "fixed");
+    if (!section) return undefined;
+    const classes = subsFor(section, data.papers, w.client.Key, period).filter((x) => x.kind === "register");
+    if (!classes.length) return undefined;
+    const sum = {} as AssetTotals;
+    for (const sb of classes) {
+      const st: Setup = { ...setupOf(data.papers, w.client.Key, period, setupKey(section.key, sb.key)), _period: period };
+      const t = registerTotals(linesFor(data.paperLines, w.client.Key, period, section.key, sb.key), st);
+      for (const k of Object.keys(t) as (keyof AssetTotals)[]) sum[k] = Math.round(((sum[k] || 0) + t[k]) * 100) / 100;
+    }
+    return sum;
+  };
+  const assets = useMemo(() => totals(w.period), [data.papers, data.paperLines, w.client.Key, w.period]); // eslint-disable-line react-hooks/exhaustive-deps
+  const priorAssets = useMemo(() => totals(priorPeriod(w.period)), [data.papers, data.paperLines, w.client.Key, w.period]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { maps, priorMaps, assets, priorAssets, ready: true };
+}
+
 /** The sections the trial balance puts balances into (shown even if turned off). */
 export function useSectionsInUse(): Set<string> {
   const w = useWriter();

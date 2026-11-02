@@ -112,7 +112,7 @@ export function documentFileName(title: string, date: string, ref: string) {
 let designs: Designs = {};
 export const setDesigns = (d: Designs) => { designs = d; };
 
-export async function makePdf(input: { content: DocContent; layout: DocLayout; branding: Branding; title: string; reference: string; author?: string; docType?: DocType; client?: string; date?: string; design?: Design }): Promise<{ bytes: Uint8Array; pages: number }> {
+export async function makePdf(input: { content: DocContent; layout: DocLayout; branding: Branding; title: string; reference: string; author?: string; docType?: DocType; client?: string; date?: string; design?: Design; watermark?: string; marks?: number[]; numberCover?: boolean }): Promise<{ bytes: Uint8Array; pages: number }> {
   const lib = await loadPdfLib();
   const { docType, client, date, design, ...rest } = input;
   const chosen = design || (docType && designs[docType]);

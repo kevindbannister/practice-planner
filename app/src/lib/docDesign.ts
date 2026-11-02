@@ -7,10 +7,10 @@
 import { Branding, displayName } from "./docBranding";
 import { DocLayout, DEFAULT_LAYOUT, cleanColour } from "./docModel";
 
-export const DOC_TYPES = ["proposal", "engagement", "disengagement", "clearance", "adhoc"] as const;
+export const DOC_TYPES = ["proposal", "engagement", "disengagement", "clearance", "accounts", "adhoc"] as const;
 export type DocType = (typeof DOC_TYPES)[number];
 export const DOC_TYPE_NAMES: Record<DocType, string> = {
-  proposal: "Proposal", engagement: "Letters of engagement", disengagement: "Disengagement letter", clearance: "Professional clearance letter", adhoc: "Ad-hoc PDF",
+  proposal: "Proposal", engagement: "Letters of engagement", disengagement: "Disengagement letter", clearance: "Professional clearance letter", accounts: "Statutory accounts", adhoc: "Ad-hoc PDF",
 };
 
 /** What one column holds: nothing, the logo, or text (which may use {fields}). */
@@ -24,7 +24,7 @@ export type Band = {
   left: Column; middle: Column; right: Column;
   rule: boolean; // a fine line on the inner edge
 };
-export type PageNumbers = "none" | "page-of" | "number" | "slash";
+export type PageNumbers = "none" | "page-of" | "number" | "slash" | "dashed";
 export type Cover = {
   enabled: boolean;
   background: string; // page colour
@@ -55,13 +55,13 @@ export const defaultDesign = (type: DocType): Design => ({
   fontSize: DEFAULT_LAYOUT.fontSize,
   margins: { ...DEFAULT_LAYOUT.margins },
   cover: {
-    enabled: type === "proposal", background: "#ffffff", overlay: "#1f3a5f", overlayOpacity: 90, logo: true,
-    title: type === "proposal" ? "{title}" : "{title}", info: type === "proposal" ? [{ label: "Prepared for", value: "{client}" }, { label: "Reference", value: "{reference}" }, { label: "Date", value: "{date}" }] : [],
+    enabled: type === "proposal" || type === "accounts", background: "#ffffff", overlay: "#1f3a5f", overlayOpacity: 90, logo: true,
+    title: "{title}", info: type === "accounts" ? [{ label: "Registered number", value: "{reference}" }, { label: "Prepared for", value: "{client}" }] : type === "proposal" ? [{ label: "Prepared for", value: "{client}" }, { label: "Reference", value: "{reference}" }, { label: "Date", value: "{date}" }] : [],
     address: true, textColour: "#ffffff",
   },
-  header: { enabled: true, background: "", colour: "#1f3a5f", bold: true, minHeight: 15, left: { kind: "text", text: "{firm}" }, middle: none, right: { kind: "logo", text: "" }, rule: true },
+  header: { enabled: true, background: "", colour: "#1f3a5f", bold: true, minHeight: 15, left: { kind: "text", text: type === "accounts" ? "{client}" : "{firm}" }, middle: none, right: type === "accounts" ? { kind: "text", text: "Registered number: {reference}" } : { kind: "logo", text: "" }, rule: true },
   footer: { enabled: true, background: "", colour: "#666666", bold: false, minHeight: 10, left: { kind: "text", text: "{address}" }, middle: none, right: none, rule: true },
-  pageNumbers: "page-of",
+  pageNumbers: type === "accounts" ? "dashed" : "page-of",
 });
 
 const str = (v: unknown, max = 500) => (typeof v === "string" ? v.slice(0, max) : "");
@@ -96,7 +96,7 @@ export function cleanDesign(v: unknown, type: DocType): Design {
       logo: typeof c.logo === "boolean" ? c.logo : d.cover.logo, title: typeof c.title === "string" ? str(c.title, 200) : d.cover.title, info, address: typeof c.address === "boolean" ? c.address : d.cover.address, textColour: col(c.textColour, d.cover.textColour),
     },
     header: band(o.header, d.header), footer: band(o.footer, d.footer),
-    pageNumbers: o.pageNumbers === "none" || o.pageNumbers === "number" || o.pageNumbers === "slash" || o.pageNumbers === "page-of" ? o.pageNumbers : d.pageNumbers,
+    pageNumbers: o.pageNumbers === "none" || o.pageNumbers === "number" || o.pageNumbers === "slash" || o.pageNumbers === "dashed" || o.pageNumbers === "page-of" ? o.pageNumbers : d.pageNumbers,
   };
 }
 
@@ -140,4 +140,4 @@ export function designProblems(d: Design): string[] {
 export function layoutFor(d: Design, base?: Partial<DocLayout>): DocLayout {
   return { ...DEFAULT_LAYOUT, ...(base || {}), margins: { ...d.margins }, fontSize: d.fontSize, header: "", footer: "", showLogo: false, pageNumbers: d.pageNumbers !== "none" };
 }
-export const pageLabel = (style: PageNumbers, n: number, total: number): string => (style === "page-of" ? `Page ${n} of ${total}` : style === "number" ? String(n) : style === "slash" ? `${n} / ${total}` : "");
+export const pageLabel = (style: PageNumbers, n: number, total: number): string => (style === "page-of" ? `Page ${n} of ${total}` : style === "number" ? String(n) : style === "slash" ? `${n} / ${total}` : style === "dashed" ? `- ${n} -` : "");

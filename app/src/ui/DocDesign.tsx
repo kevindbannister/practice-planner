@@ -119,7 +119,7 @@ export function DocDesignSettings() {
             <div className="row-wrap" style={{ gap: 8, alignItems: "flex-end" }}>
               <label className="doc-field">Font <select className="input" value={d.font} onChange={(e) => set({ font: e.target.value as Design["font"] })}><option value="inherit">Branding profile's font</option><option value="sans">Sans-serif</option><option value="serif">Serif</option><option value="mono">Monospace</option></select></label>
               <label className="doc-field">Text size (pt) <input type="number" min={8} max={14} step={0.5} value={d.fontSize} onChange={(e) => set({ fontSize: Number(e.target.value) })} style={{ width: 70 }} /></label>
-              <label className="doc-field">Page numbers <select className="input" value={d.pageNumbers} onChange={(e) => set({ pageNumbers: e.target.value as Design["pageNumbers"] })}><option value="page-of">Page 1 of 3</option><option value="slash">1 / 3</option><option value="number">1</option><option value="none">None</option></select></label>
+              <label className="doc-field">Page numbers <select className="input" value={d.pageNumbers} onChange={(e) => set({ pageNumbers: e.target.value as Design["pageNumbers"] })}><option value="page-of">Page 1 of 3</option><option value="slash">1 / 3</option><option value="number">1</option><option value="dashed">- 1 -</option><option value="none">None</option></select></label>
             </div>
             <div className="row-wrap" style={{ gap: 8 }}>
               {(["top", "right", "bottom", "left"] as const).map((k) => (
