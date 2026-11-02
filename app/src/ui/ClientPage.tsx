@@ -77,13 +77,11 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
 
   return (
     <div className="page client-page">
-      <div className="page-head">
-        <div className="stack" style={{ gap: 8 }}>
-          <div className="row-wrap" style={{ gap: "8px 14px" }}>
-            <h1>{c.Title}</h1>
-            <ClientLogoMark client={c} />
-          </div>
-          <div className="row-wrap" style={{ gap: 6 }}>
+      <div className="page-head client-head">
+        <div className="client-head-id">
+          <h1>{c.Title}</h1>
+          <ClientLogoMark client={c} />
+          <div className="row-wrap client-head-chips" style={{ gap: 6 }}>
             <span className="chip green">{c.Status === "active" || !c.Status ? "Active" : String(c.Status)}</span>
             <span className="chip">{KIND_LABEL[c.Kind || ""] || c.Kind}</span>
             {importanceOf(c) !== "normal" && <span className={`chip ${importanceOf(c) === "key" ? "amber" : ""}`}>{importanceLabel(c)}</span>}
@@ -95,7 +93,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
             ))}
           </div>
         </div>
-        <div className="row-wrap">
+        <div className="row-wrap client-head-actions">
           <a className="btn" href={href("advisory", c.Key)} title="Open this client's Freedom Plan to go through with them"><Icon name="flag" size={16} /> Advisory</a>
           {ch && <a className="btn" href={ch} target="_blank" rel="noreferrer">Companies House</a>}
           {elementsUrl(c) && <a className="btn" href={elementsUrl(c)} target="_blank" rel="noreferrer noopener" title="Open this client in Iris Elements">Iris Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span></a>}
