@@ -32,7 +32,7 @@ type Writer = {
   removeLine: (l: Line) => Promise<void>;
 };
 const WriterContext = createContext<Writer | null>(null);
-const useWriter = () => useContext(WriterContext)!;
+export const useWriter = () => useContext(WriterContext)!;
 
 export function PaperWriter({ client, period, children }: { client: Client; period: string; children: ReactNode }) {
   const { data, update, create, createMany, remove } = useData();
@@ -448,7 +448,7 @@ function KindSettings({ section, sb, itemKey, s, lines }: { section: Section; sb
 }
 
 /** The accounts on the software's trial balance, to pick from on a journal line. */
-function AccountList() {
+export function AccountList() {
   const { data } = useData();
   const w = useWriter();
   const tb = linesFor(data.paperLines, w.client.Key, w.period, "tb", "main");
@@ -699,7 +699,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
   );
 }
 
-const nextJournal = (lines: Line[]) => {
+export const nextJournal = (lines: Line[]) => {
   const nos = lines.map((l) => Number(l.f.no) || 0);
   const last = nos.length ? Math.max(...nos) : 0;
   // a new journal starts once the last one balances

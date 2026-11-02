@@ -7,6 +7,7 @@ import { useXeroLinks } from "./XeroSettings";
 import { sectionIcon } from "./paperIcons";
 import { AccountsProductionPage, AccountsStatusSelect } from "./AccountsProduction";
 import { BannerMenu } from "./BannerMenu";
+import { QuickJournalButton } from "./QuickJournal";
 import { AccountsFigures, AccountsScreen } from "./AccountsScreen";
 import { WorkbookImport } from "./PaperImport";
 import { XeroImport } from "./XeroImport";
@@ -314,6 +315,7 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
     <div className="paper">
       <nav className="paper-side" aria-label="Sections of the working papers">
         <div className="paper-side-head">
+          <QuickJournalButton />
           <strong>{prog.done} of {prog.total} done</strong>
           <button type="button" className="linkbtn" style={{ fontSize: 12, marginLeft: "auto" }} aria-expanded={choosing} onClick={() => setChoosing(!choosing)}>
             {choosing ? "Done choosing" : "Choose sections"}
