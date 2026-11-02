@@ -8,11 +8,12 @@ import {
 import { brandOf, displayName, readBranding } from "../lib/docBranding";
 import { accountsFigures } from "../lib/tbMap";
 import { Client, fmtDate, todayIso } from "../lib/domain";
-import { priorPeriod, Setup } from "../lib/papers";
+import { SECTIONS, priorPeriod, Setup } from "../lib/papers";
 import { downloadFile } from "./commsKit";
 import { makePdf } from "./docsKit";
 import { AccountsStatusSelect } from "./AccountsProduction";
 import { useAccountsData, useWriterState } from "./PaperSchedules";
+import { href } from "./bits";
 import { useData } from "./data";
 
 const TABS = [["details", "Details"], ["contents", "Contents"], ["notes", "Notes"], ["policies", "Policies"], ["view", "View"], ["check", "Check & File"]] as const;
@@ -58,7 +59,8 @@ export function AccountsScreen({ client, period, onPapers }: { client: Client; p
     name: client.Title, number: String(client.CompanyNumber || ""), start: nextDay(priorPeriod(period)), end: period, priorEnd: priorPeriod(period),
     firm: displayName(branding), firmAddress: (branding.correspondenceAddress || branding.registeredAddress || "").trim(), kind: String(client.Kind || "Ltd"),
   }), [client, period, branding]);
-  const input: AccountsInput = { facts, setup: a, figures, prior, maps: acc.maps, priorMaps: acc.priorMaps, assets: acc.assets, priorAssets: acc.priorAssets };
+  const link = (section: string) => (SECTIONS.some((x) => x.key === section) ? `${location.origin}${location.pathname}${href("papers", String(client.Key), period)}?section=${encodeURIComponent(section)}` : undefined);
+  const input: AccountsInput = { facts, setup: a, figures, prior, maps: acc.maps, priorMaps: acc.priorMaps, assets: acc.assets, priorAssets: acc.priorAssets, link };
   const checks = useMemo(() => checkAccounts(input), [a, figures, prior, acc.maps, facts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -225,7 +227,7 @@ function ViewTab({ input, branding }: { input: AccountsInput; branding: ReturnTy
         <button type="button" className="btn primary" disabled={state.busy} onClick={run}>{state.busy ? "Making the PDF…" : state.url ? "Refresh the PDF" : "Make the PDF"}</button>
         {state.bytes && <button type="button" className="btn" onClick={() => downloadFile(state.bytes as Uint8Array, name, "application/pdf")}>Download ({state.pages} pages)</button>}
       </div>
-      <p className="muted" style={{ margin: 0 }}>The PDF is made in your browser from the papers. It is not filed anywhere; compare it with Elements before relying on it.</p>
+      <p className="muted" style={{ margin: 0 }}>Figures in blue are links: click one in the PDF to open that working paper (you need to be signed in). The PDF is made in your browser from the papers. It is not filed anywhere; compare it with Elements before relying on it.</p>
       {state.error && <p className="error-text" role="alert">{state.error}</p>}
       {state.url && <iframe title="Accounts PDF" src={state.url} style={{ width: "100%", height: "75vh", border: "1px solid var(--line, #ddd)", borderRadius: 8 }} />}
     </section>

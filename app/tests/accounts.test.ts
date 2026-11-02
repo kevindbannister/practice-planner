@@ -70,3 +70,11 @@ test("checks catch a missing signer, approval date and an unbalanced sheet", () 
   assert.ok(checkAccounts(input({ setup: { ...input().setup, type: "dormant" } })).some((c) => c.level === "error" && /dormant/.test(c.text)));
   assert.ok(hasErrors(checkAccounts(input({ maps: undefined }))));
 });
+test("figures carry the working paper link they come from", () => {
+  const secs = buildSections(input({ link: (s) => `https://x/#/papers/C1/2025-03-31?section=${s}` }));
+  const bs = secs.find((x) => x.key === "balance")!.blocks.find((b) => b.type === "table") as { rows: { link?: string }[][] };
+  const links = bs.rows.flat().map((c) => c.link).filter(Boolean) as string[];
+  assert.ok(links.some((l) => l.endsWith("section=debtors")) && links.some((l) => l.endsWith("section=bank")) && links.some((l) => l.endsWith("section=capital")));
+  const none = buildSections(input()).find((x) => x.key === "balance")!.blocks.find((b) => b.type === "table") as { rows: { link?: string }[][] };
+  assert.ok(none.rows.flat().every((c) => !c.link));
+});

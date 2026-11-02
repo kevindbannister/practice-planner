@@ -239,7 +239,7 @@ function table(c: Ctx, pg: Pager, b: Extract<Block, { type: "table" }>) {
       const cell = r[i] || { runs: [] };
       const align = cell.align || (numeric(runsText(cell.runs)) ? "right" : undefined);
       const lines = wrap(atomsOf(c, cell.runs, size, c.ink, false, head), widths[i] - 2 * pad, 0, size);
-      return { lines, align, rule: cell.rule };
+      return { lines, align, rule: cell.rule, link: cell.link };
     });
   });
   const rowHeight = (cells: { lines: Line[] }[], from = 0, to = Infinity) => Math.max(...cells.map((x) => x.lines.slice(from, to).reduce((a, l) => a + l.height, 0))) + 2 * pad;
@@ -255,6 +255,10 @@ function table(c: Ctx, pg: Pager, b: Extract<Block, { type: "table" }>) {
         if (cell.rule === "top") edge(top);
         if (cell.rule === "double") { edge(top - h + 1.2); edge(top - h + 3.2); }
       } else pg.page.drawRectangle({ x: xs[i], y: top - h, width: widths[i], height: h, borderColor: border, borderWidth: 0.5, ...(head ? { color: tint(c.lib, c.brand.primary, 0.86) } : {}) });
+      if (cell.link && /^https?:\/\//i.test(cell.link) && from === 0) {
+        const ann = c.doc.context.obj({ Type: "Annot", Subtype: "Link", Rect: [xs[i], top - h, xs[i] + widths[i], top], Border: [0, 0, 0], A: { Type: "Action", S: "URI", URI: c.lib.PDFString.of(cell.link) } });
+        pg.page.node.addAnnot(c.doc.context.register(ann));
+      }
       let ly = top - pad;
       for (const ln of cell.lines.slice(from, to)) {
         drawLine(c, pg, ln, xs[i] + pad, widths[i] - 2 * pad, cell.align, ly);

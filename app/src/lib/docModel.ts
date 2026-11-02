@@ -9,7 +9,7 @@
 
 export type Align = "left" | "center" | "right" | "justify";
 export type Run = { t: string; b?: boolean; i?: boolean; u?: boolean; color?: string; size?: number };
-export type Cell = { runs: Run[]; align?: Align; /** a line over the figure (a sub-total) or a double line under it (a final total); plain tables only */ rule?: "top" | "double" };
+export type Cell = { runs: Run[]; align?: Align; /** a line over the figure (a sub-total) or a double line under it (a final total); plain tables only */ rule?: "top" | "double"; /** a web address the cell opens when clicked in the PDF */ link?: string };
 export type Block =
   | { type: "p"; runs: Run[]; align?: Align }
   | { type: "h"; level: 1 | 2 | 3; runs: Run[]; align?: Align }

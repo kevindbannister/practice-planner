@@ -108,13 +108,13 @@ const longDate = (d: string) => (d ? new Date(`${d}T12:00:00Z`).toLocaleDateStri
 export const dateLong = longDate;
 const yearOf = (d: string) => (d ? d.slice(0, 4) : "");
 
-export type StRow = { label: string; note?: string; now?: number; prior?: number; kind?: "head" | "line" | "sub" | "total" | "gap" };
+export type StRow = { label: string; note?: string; /** the working paper section the figures come from */ section?: string; now?: number; prior?: number; kind?: "head" | "line" | "sub" | "total" | "gap" };
 
 type F = AccountsFigures;
 const R = (f: F | undefined, pick: (f: F) => number) => (f ? r0(pick(f)) : undefined);
 /** One statement row from a figure in each year; the totals are added up from the rounded lines so the page casts. */
-function row(label: string, now: F, prior: F | undefined, pick: (f: F) => number, kind: StRow["kind"] = "line", note?: string): StRow {
-  return { label, note, kind, now: r0(pick(now)), prior: R(prior, pick) };
+function row(label: string, now: F, prior: F | undefined, pick: (f: F) => number, kind: StRow["kind"] = "line", note?: string, section?: string): StRow {
+  return { label, note, section, kind, now: r0(pick(now)), prior: R(prior, pick) };
 }
 const zeroBoth = (r: StRow) => !r.now && !r.prior;
 
@@ -129,22 +129,22 @@ export function incomeStatement(f: F, prior: F | undefined, type: AccountsType):
   const xn = r0(f.tax), xp = prior ? r0(prior.tax) : undefined;
   const sum = (...v: (number | undefined)[]) => v.reduce<number>((a, b) => a + (b ?? 0), 0);
   const has = prior !== undefined;
-  out.push({ label: "Turnover", now: tn, prior: tp, kind: "line" });
+  out.push({ label: "Turnover", now: tn, prior: tp, kind: "line", section: "income" });
   if (type === "micro") {
-    keep({ label: "Other income", now: on, prior: op });
-    keep({ label: "Cost of sales and other expenses", now: -sum(cn, en), prior: has ? -sum(cp, ep) : undefined });
+    keep({ label: "Other income", now: on, prior: op, section: "income" });
+    keep({ label: "Cost of sales and other expenses", now: -sum(cn, en), prior: has ? -sum(cp, ep) : undefined, section: "expenditure" });
     out.push({ label: "Profit before taxation", now: sum(tn, on, -cn, -en), prior: has ? sum(tp, op, -cp, -ep) : undefined, kind: "sub" });
   } else {
     if (cn || cp) {
-      out.push({ label: "Cost of sales", now: -cn, prior: has ? -(cp as number) : undefined });
+      out.push({ label: "Cost of sales", now: -cn, prior: has ? -(cp as number) : undefined, section: "expenditure" });
       out.push({ label: "Gross profit", now: tn - cn, prior: has ? (tp as number) - (cp as number) : undefined, kind: "sub" });
     }
-    keep({ label: "Administrative expenses", now: -en, prior: has ? -(ep as number) : undefined });
-    keep({ label: "Other operating income", now: on, prior: op });
+    keep({ label: "Administrative expenses", now: -en, prior: has ? -(ep as number) : undefined, section: "expenditure" });
+    keep({ label: "Other operating income", now: on, prior: op, section: "income" });
     out.push({ label: type === "llp" ? "Profit for the financial year before taxation" : "Profit before taxation", now: sum(tn, -cn, -en, on), prior: has ? sum(tp, -cp, -ep, op) : undefined, kind: "sub" });
   }
   const pbtN = sum(tn, -cn, -en, on), pbtP = has ? sum(tp, -cp, -ep, op) : undefined;
-  if (xn || xp || type !== "llp") out.push({ label: "Tax on profit", now: -xn, prior: has ? -(xp as number) : undefined });
+  if (xn || xp || type !== "llp") out.push({ label: "Tax on profit", now: -xn, prior: has ? -(xp as number) : undefined, section: "taxation" });
   out.push({
     label: type === "llp" ? "Profit for the financial year before members' remuneration and profit shares" : "Profit for the financial year",
     now: pbtN - xn, prior: has ? (pbtP as number) - (xp as number) : undefined, kind: "total",
@@ -157,45 +157,45 @@ export type NoteRefs = Partial<Record<"tangible" | "investments" | "stock" | "de
 export function balanceSheet(f: F, prior: F | undefined, type: AccountsType, refs: NoteRefs = {}): StRow[] {
   const out: StRow[] = [];
   const has = prior !== undefined;
-  const ln = (label: string, pick: (f: F) => number, note?: string, always = false) => { const r = row(label, f, prior, pick, "line", note); if (always || !zeroBoth(r)) out.push(r); };
+  const ln = (label: string, pick: (f: F) => number, note?: string, always = false, section?: string) => { const r = row(label, f, prior, pick, "line", note, section); if (always || !zeroBoth(r)) out.push(r); };
   const tot = (label: string, now: number, before: number | undefined, kind: StRow["kind"]) => out.push({ label, now, prior: has ? before : undefined, kind });
   const v = (pick: (g: F) => number) => r0(pick(f)), p = (pick: (g: F) => number) => (prior ? r0(pick(prior)) : 0);
   const sum2 = (picks: ((g: F) => number)[], g: "now" | "prior") => picks.reduce((a, k) => a + (g === "now" ? v(k) : p(k)), 0);
 
   out.push({ label: "Fixed assets", kind: "head" });
-  ln("Tangible assets", (g) => g.fixed, refs.tangible);
-  ln("Investments", (g) => g.investments, refs.investments);
+  ln("Tangible assets", (g) => g.fixed, refs.tangible, false, "fixed");
+  ln("Investments", (g) => g.investments, refs.investments, false, "investments");
   const fa = [(g: F) => g.fixed, (g: F) => g.investments];
   tot("", sum2(fa, "now"), sum2(fa, "prior"), "sub");
   out.push({ label: "Current assets", kind: "head" });
-  ln("Stocks", (g) => g.stock, refs.stock);
-  ln("Debtors", (g) => g.debtors, refs.debtors);
-  ln("Cash at bank and in hand", (g) => g.bank);
+  ln("Stocks", (g) => g.stock, refs.stock, false, "stock");
+  ln("Debtors", (g) => g.debtors, refs.debtors, false, "debtors");
+  ln("Cash at bank and in hand", (g) => g.bank, undefined, false, "bank");
   const ca = [(g: F) => g.stock, (g: F) => g.debtors, (g: F) => g.bank];
   tot("", sum2(ca, "now"), sum2(ca, "prior"), "sub");
-  out.push({ label: "Creditors: amounts falling due within one year", now: -v((g) => g.creditorsWithin), prior: has ? -p((g) => g.creditorsWithin) : undefined, note: refs.creditors, kind: "line" });
+  out.push({ label: "Creditors: amounts falling due within one year", now: -v((g) => g.creditorsWithin), prior: has ? -p((g) => g.creditorsWithin) : undefined, note: refs.creditors, kind: "line", section: "creditors" });
   const ncN = sum2(ca, "now") - v((g) => g.creditorsWithin), ncP = sum2(ca, "prior") - p((g) => g.creditorsWithin);
   tot("Net current assets", ncN, ncP, "sub");
   const talN = sum2(fa, "now") + ncN, talP = sum2(fa, "prior") + ncP;
   tot("Total assets less current liabilities", talN, talP, "sub");
-  if (v((g) => g.creditorsAfter) || p((g) => g.creditorsAfter)) out.push({ label: "Creditors: amounts falling due after more than one year", now: -v((g) => g.creditorsAfter), prior: has ? -p((g) => g.creditorsAfter) : undefined, note: refs.creditorsAfter, kind: "line" });
-  if (v((g) => g.provisions) || p((g) => g.provisions)) out.push({ label: "Provisions for liabilities", now: -v((g) => g.provisions), prior: has ? -p((g) => g.provisions) : undefined, note: refs.provisions, kind: "line" });
+  if (v((g) => g.creditorsAfter) || p((g) => g.creditorsAfter)) out.push({ label: "Creditors: amounts falling due after more than one year", now: -v((g) => g.creditorsAfter), prior: has ? -p((g) => g.creditorsAfter) : undefined, note: refs.creditorsAfter, kind: "line", section: "creditors" });
+  if (v((g) => g.provisions) || p((g) => g.provisions)) out.push({ label: "Provisions for liabilities", now: -v((g) => g.provisions), prior: has ? -p((g) => g.provisions) : undefined, note: refs.provisions, kind: "line", section: "provisions" });
   const naN = talN - v((g) => g.creditorsAfter) - v((g) => g.provisions), naP = talP - p((g) => g.creditorsAfter) - p((g) => g.provisions);
   tot(type === "llp" ? "Net assets attributable to members" : "Net assets", naN, naP, "total");
   out.push({ label: "", kind: "gap" });
   if (type === "llp") {
     out.push({ label: "Represented by:", kind: "head" });
-    ln("Loans and other debts due to members", (g) => g.capitalAccounts);
+    ln("Loans and other debts due to members", (g) => g.capitalAccounts, undefined, false, "capital");
     out.push({ label: "Members' other interests", kind: "head" });
-    ln("Members' capital", (g) => g.shares, refs.shares);
-    ln("Other reserves", (g) => g.reservesCf);
+    ln("Members' capital", (g) => g.shares, refs.shares, false, "capital");
+    ln("Other reserves", (g) => g.reservesCf, undefined, false, "capital");
     const tot2 = (g: "now" | "prior") => sum2([(x) => x.capitalAccounts, (x) => x.shares, (x) => x.reservesCf], g);
     tot("Total members' interests", tot2("now"), tot2("prior"), "total");
   } else {
     out.push({ label: "Capital and reserves", kind: "head" });
-    ln("Called up share capital", (g) => g.shares, refs.shares);
-    ln("Profit and loss account", (g) => g.reservesCf, undefined, true);
-    ln("Other reserves", (g) => g.capitalAccounts);
+    ln("Called up share capital", (g) => g.shares, refs.shares, false, "capital");
+    ln("Profit and loss account", (g) => g.reservesCf, undefined, true, "capital");
+    ln("Other reserves", (g) => g.capitalAccounts, undefined, false, "capital");
     const tot2 = (g: "now" | "prior") => sum2([(x) => x.shares, (x) => x.reservesCf, (x) => x.capitalAccounts], g);
     tot("Shareholders' funds", tot2("now"), tot2("prior"), "total");
   }
@@ -203,7 +203,7 @@ export function balanceSheet(f: F, prior: F | undefined, type: AccountsType, ref
 }
 
 /** The profit and loss detail by account from the mapped final trial balance, grouped as the destinations are. */
-export type DetailGroup = { title: string; items: { label: string; amount: number }[]; total: number };
+export type DetailGroup = { title: string; section: string; items: { label: string; amount: number }[]; total: number };
 export function detailGroups(maps: Mapping[]): { income: DetailGroup[]; costs: DetailGroup[]; expenses: DetailGroup[]; other: DetailGroup[]; tax: DetailGroup[] } {
   const by = new Map<string, DetailGroup>();
   const out = { income: [] as DetailGroup[], costs: [] as DetailGroup[], expenses: [] as DetailGroup[], other: [] as DetailGroup[], tax: [] as DetailGroup[] };
@@ -215,7 +215,7 @@ export function detailGroups(maps: Mapping[]): { income: DetailGroup[]; costs: D
     const bucket = d.section === "income" ? (d.key === "income/sales" ? "income" : "other") : d.section === "taxation" ? "tax" : d.key === "expenditure/cos" ? "costs" : "expenses";
     const id = `${bucket}|${d.key}`;
     let g = by.get(id);
-    if (!g) { g = { title: d.label.split("›").pop()?.trim() || d.label, items: [], total: 0 }; by.set(id, g); out[bucket].push(g); }
+    if (!g) { g = { title: d.label.split("›").pop()?.trim() || d.label, section: d.section, items: [], total: 0 }; by.set(id, g); out[bucket].push(g); }
     g.items.push({ label: m.acct.account || m.acct.code, amount });
     g.total = Math.round((g.total + amount) * 100) / 100;
   }
@@ -289,14 +289,16 @@ const multi = (t: string): Block[] => t.split(/\n+/).map((x) => x.trim()).filter
 const cellT = (t: string, o: Partial<Run> = {}, align?: Cell["align"], rule?: Cell["rule"]): Cell => ({ runs: [run(t, o)], align, rule });
 
 /** A statement as a plain table: description, note, this year and last year. */
-export function statementTable(rows: StRow[], cols: { now: string; prior?: string }, hasNotes: boolean): Block {
+export function statementTable(rows: StRow[], cols: { now: string; prior?: string }, hasNotes: boolean, link?: (section: string) => string | undefined): Block {
   const comp = cols.prior !== undefined;
   const head: Cell[] = [cellT(""), ...(hasNotes ? [cellT("Notes", { b: true }, "center")] : []), cellT(cols.now, { b: true }, "right"), ...(comp ? [cellT(cols.prior as string, { b: true }, "right")] : [])];
   const body = rows.map((r): Cell[] => {
     if (r.kind === "gap") return [cellT(" "), ...(hasNotes ? [cellT("")] : []), cellT(""), ...(comp ? [cellT("")] : [])];
     const bold = r.kind === "head" || r.kind === "total";
     const rule = r.kind === "total" ? "double" : r.kind === "sub" ? "top" : undefined;
-    const figs = r.kind === "head" ? [cellT(""), ...(comp ? [cellT("")] : [])] : [cellT(fmt(r.now), { b: bold }, "right", rule), ...(comp ? [cellT(fmt(r.prior), { b: bold }, "right", rule)] : [])];
+    const url = r.section && link ? link(r.section) : undefined;
+    const fig = (n: number | undefined): Cell => { const c = cellT(fmt(n), { b: bold, ...(url ? { color: "#1a4f8b" } : {}) }, "right", rule); if (url) c.link = url; return c; };
+    const figs = r.kind === "head" ? [cellT(""), ...(comp ? [cellT("")] : [])] : [fig(r.now), ...(comp ? [fig(r.prior)] : [])];
     return [cellT(r.label, { b: bold }), ...(hasNotes ? [cellT(r.note || "", {}, "center")] : []), ...figs];
   });
   const widths = hasNotes ? (comp ? [54, 8, 19, 19] : [62, 8, 30]) : comp ? [60, 20, 20] : [70, 30];
@@ -309,6 +311,7 @@ export type Facts = {
 };
 export type AccountsInput = {
   facts: Facts; setup: AccSetup; figures: AccountsFigures; prior?: AccountsFigures; maps?: Mapping[]; priorMaps?: Mapping[]; assets?: AssetTotals; priorAssets?: AssetTotals;
+  /** the web address of a working paper section (the figures in the PDF link to it) */ link?: (section: string) => string | undefined;
 };
 export type Section = { key: string; title: string; blocks: Block[] };
 
@@ -343,10 +346,6 @@ export function noteList(i: AccountsInput): Note[] {
   return on.map((n, k) => ({ key: n.key, no: k + 1, title: n.title, blocks: [] }));
 }
 
-function totalTable(label: string, now: number, prior: number | undefined, comp: boolean, year: { now: string; prior?: string }): Block {
-  return statementTable([{ label, now, prior, kind: "total" }], year, false);
-}
-
 function noteBlocks(n: Note, i: AccountsInput): Block[] {
   const a = i.setup, f = i.figures, p = i.prior, comp = compOn(i), F = i.facts;
   const yr = { now: yearOf(F.end), prior: comp ? yearOf(F.priorEnd) : undefined };
@@ -379,20 +378,20 @@ function noteBlocks(n: Note, i: AccountsInput): Block[] {
         out.push(P("Net book value", { b: true }));
         add(`At ${longDate(F.end)}`, t.nbvCf, true, "double"); if (t.nbvBf || (p && p.fixed)) add(`At ${longDate(F.priorEnd)}`, t.nbvBf, true);
         out.push({ type: "table", header: false, plain: true, widths: [70, 30], rows: rows.slice(1) });
-      } else out.push(statementTable([{ label: "Net book value", now: f.fixed, prior: p?.fixed, kind: "total" }], yrHead, false));
+      } else out.push(statementTable([{ label: "Net book value", now: f.fixed, prior: p?.fixed, kind: "total", section: "fixed" }], yrHead, false, i.link));
       if (custom) out.push(...multi(custom));
       break;
     }
     case "debtors":
-      out.push(statementTable([{ label: "Total debtors", now: f.debtors, prior: comp ? p?.debtors : undefined, kind: "total" }], yrHead, false));
+      out.push(statementTable([{ label: "Total debtors", now: f.debtors, prior: comp ? p?.debtors : undefined, kind: "total", section: "debtors" }], yrHead, false, i.link));
       if (custom) out.push(...multi(custom));
       break;
     case "creditors":
-      out.push(totalTable("Total creditors falling due within one year", f.creditorsWithin, comp ? p?.creditorsWithin : undefined, comp, yrHead));
+      out.push(statementTable([{ label: "Total creditors falling due within one year", now: f.creditorsWithin, prior: comp ? p?.creditorsWithin : undefined, kind: "total", section: "creditors" }], yrHead, false, i.link));
       if (custom) out.push(...multi(custom));
       break;
     case "creditorsAfter":
-      out.push(totalTable("Total creditors falling due after more than one year", f.creditorsAfter, comp ? p?.creditorsAfter : undefined, comp, yrHead));
+      out.push(statementTable([{ label: "Total creditors falling due after more than one year", now: f.creditorsAfter, prior: comp ? p?.creditorsAfter : undefined, kind: "total", section: "creditors" }], yrHead, false, i.link));
       if (custom) out.push(...multi(custom));
       break;
     case "shares": {
@@ -466,13 +465,13 @@ export function buildSections(i: AccountsInput): Section[] {
 
   if (a.include.income && a.type !== "dormant") {
     const rows = incomeStatement(f, comp ? i.prior : undefined, a.type);
-    out.push({ key: "income", title: "Income statement", blocks: [...heading("Income statement", F), statementTable(rows, cols, false)] });
+    out.push({ key: "income", title: "Income statement", blocks: [...heading("Income statement", F), statementTable(rows, cols, false, i.link)] });
   }
 
   if (a.include.balance) {
     const rows = balanceSheet(f, comp ? i.prior : undefined, a.type, refs);
     const hasNotes = rows.some((r) => r.note);
-    const b: Block[] = [...heading(a.type === "micro" ? "Balance sheet" : "Statement of financial position", F, `as at ${longDate(F.end)}`), statementTable(rows, cols, hasNotes), P(" ")];
+    const b: Block[] = [...heading(a.type === "micro" ? "Balance sheet" : "Statement of financial position", F, `as at ${longDate(F.end)}`), statementTable(rows, cols, hasNotes, i.link), P(" ")];
     b.push(...multi(a.auditExempt
       ? a.type === "dormant"
         ? `For the year ended ${longDate(F.end)} the ${company} was entitled to exemption from audit under section 480 of the Companies Act 2006 relating to dormant companies. The members have not required the ${company} to obtain an audit of its financial statements for the year in question in accordance with section 476. The ${dirsWord} acknowledge their responsibilities for complying with the requirements of the Act with respect to accounting records and the preparation of financial statements.`
@@ -497,12 +496,12 @@ export function buildSections(i: AccountsInput): Section[] {
     const block = (title: string, list: DetailGroup[], plist: DetailGroup[] | undefined, withItems: boolean) => {
       for (const grp of list) {
         if (withItems) rows.push({ label: grp.title, kind: "head" });
-        for (const it of grp.items) rows.push({ label: it.label, now: it.amount, prior: priorFor(plist, grp.title, it.label), kind: "line" });
+        for (const it of grp.items) rows.push({ label: it.label, now: it.amount, prior: priorFor(plist, grp.title, it.label), kind: "line", section: grp.section });
       }
       return title;
     };
     const sales = g.income.reduce((n, x) => n + x.total, 0), salesP = comp && pg ? pg.income.reduce((n, x) => n + x.total, 0) : undefined;
-    rows.push({ label: "Turnover", now: sales, prior: salesP, kind: "total" });
+    rows.push({ label: "Turnover", now: sales, prior: salesP, kind: "total", section: "income" });
     const cos = g.costs.reduce((n, x) => n + x.total, 0), cosP = comp && pg ? pg.costs.reduce((n, x) => n + x.total, 0) : undefined;
     if (cos || cosP) {
       rows.push({ label: "Cost of sales", kind: "head" });
@@ -522,7 +521,7 @@ export function buildSections(i: AccountsInput): Section[] {
     rows.push({ label: "Profit for the financial year", now: pbt - tx, prior: pbtP !== undefined ? pbtP - (txP || 0) : undefined, kind: "total" });
     out.push({
       key: "detailed", title: "Detailed profit and loss account",
-      blocks: [...heading("Detailed profit and loss account", F), P("This page does not form part of the statutory financial statements.", { i: true }, "center"), statementTable(rows, cols, false)],
+      blocks: [...heading("Detailed profit and loss account", F), P("This page does not form part of the statutory financial statements.", { i: true }, "center"), statementTable(rows, cols, false, i.link)],
     });
   }
   return out;
