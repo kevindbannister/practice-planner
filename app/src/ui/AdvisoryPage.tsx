@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 import { emptyPlan, gap, readPlan, writePlan } from "../lib/advisory";
 import { Client, fmtDate } from "../lib/domain";
 import { newKey } from "../lib/planning";
-import { LogoPicker } from "./ClientPage";
+import { ClientLogoMark, LogoMenu } from "./LogoMenu";
+import { LogoSize } from "../lib/logoSize";
 import { ClientBadge, Icon, go, href, useRoute } from "./bits";
 import { useData } from "./data";
 import { SaveNote, gbp, gbpBr, pct, usePlan } from "./advisoryKit";
@@ -126,6 +127,7 @@ function AdvisoryClient({ clientKey, tab }: { clientKey: string; tab: TabKey }) 
   const { data } = useData();
   const client = data.clients.find((c) => c.Key === clientKey);
   const s = usePlan(clientKey);
+  const [preview, setPreview] = useState<LogoSize | null>(null);
   if (!client) {
     return (
       <div className="page adv">
@@ -141,7 +143,7 @@ function AdvisoryClient({ clientKey, tab }: { clientKey: string; tab: TabKey }) 
       <header className="adv-bar">
         <div className="adv-bar-id">
           {/* the same logo as on the client's page: it is saved on the client's record, so adding it here adds it there */}
-          <LogoPicker client={client as unknown as Client} compact />
+          <ClientLogoMark client={client as unknown as Client} preview={preview} />
           <div className="adv-bar-title">
             <span className="adv-kicker">Freedom Plan</span>
             <h1>{String(client.Title)}</h1>
@@ -149,6 +151,7 @@ function AdvisoryClient({ clientKey, tab }: { clientKey: string; tab: TabKey }) 
         </div>
         <div className="adv-bar-actions">
           <SaveNote s={s} />
+          <LogoMenu client={client as unknown as Client} onPreview={setPreview} />
           <a className="btn adv-bar-icon" href={href("clients", clientKey)} aria-label="Client page" title="Client page"><Icon name="clients" size={20} /></a>
           <a className="btn adv-bar-icon" href={href("advisory")} aria-label="Leave Freedom Plan" title="Leave Freedom Plan (back to all Freedom Plans)"><Icon name="close" size={20} /></a>
         </div>

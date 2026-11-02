@@ -2632,3 +2632,19 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
   .paper-item { min-height: 27px; padding: 3px 10px; }
   button.paper-group-name { min-height: 26px; }
 }
+
+/* ---------- logo mark and cog menu (Freedom Plan banner, client page) ---------- */
+.logo-mark { display: inline-flex; align-items: center; justify-content: center; flex: none; padding: 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-sizing: border-box; }
+.logo-mark img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+.logo-menu { position: relative; }
+.logo-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; min-width: 190px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 32px rgba(13, 35, 71, 0.16); padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.logo-pop > button { text-align: left; border: 0; background: transparent; padding: 9px 12px; border-radius: 10px; cursor: pointer; font-size: 14px; color: var(--ink); min-height: 0; box-shadow: none; }
+.logo-pop > button:hover:not(:disabled) { background: var(--line-2); }
+.logo-resize { padding: 14px; gap: 12px; min-width: 260px; }
+.logo-shapes { border: 0; margin: 0; padding: 0; display: flex; gap: 8px; }
+.logo-shapes label { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-size: 14px; }
+.logo-shapes label.on { border-color: var(--blue); background: var(--blue-soft); }
+.logo-shapes input { position: absolute; opacity: 0; pointer-events: none; }
+.shape-sq { width: 16px; height: 16px; border: 2px solid currentColor; border-radius: 3px; }
+.shape-rect { width: 24px; height: 12px; border: 2px solid currentColor; border-radius: 3px; }
+.logo-range { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
