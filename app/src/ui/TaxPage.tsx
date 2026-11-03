@@ -852,7 +852,7 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
   if (k === "interest") {
     const set = (list: Interest[]) => update((r) => ({ ...r, interest: list }));
     return <ListTable<Interest> rows={ret.interest} onChange={set} blank={() => ({ id: newId(), payer: "", untaxed: 0 })} cols={[
-      { label: "Bank or society", text: "payer" }, { label: "Untaxed interest", money: "untaxed" }, { label: "Taxed interest (net)", money: "net" }, { label: "Tax taken off", money: "taxTaken" }, { label: "Foreign", tick: "foreign" }, { label: "Foreign tax", money: "foreignTax" },
+      { label: "Bank or society", text: "payer" }, { label: "Account number", text: "accountNumber" }, { label: "Untaxed interest", money: "untaxed" }, { label: "Taxed interest (net)", money: "net" }, { label: "Tax taken off", money: "taxTaken" }, { label: "Foreign", tick: "foreign" }, { label: "Foreign tax", money: "foreignTax" },
     ]} />;
   }
   if (k === "dividends") {

@@ -6,7 +6,7 @@
 // IRIS can also print the whole return in one PDF: the filled-in SA100 and its supplementary pages (read box by box, see
 // taxReturnRead.ts), followed by the calculation and the summaries. The return is then the base, the summaries add the
 // company names and the pence, and the calculation fills what the return's pages can't give yet.
-import { Employment, TaxReturn, compute, emptyReturn, newId } from "./tax";
+import { Employment, Gain, TaxReturn, compute, emptyReturn, newId } from "./tax";
 import { ReadPage, readFormPages } from "./taxReturnRead";
 
 /** `forms` are the pages of HMRC's forms found in the PDF, with what is written in each box (formMap.mjs). */
@@ -45,6 +45,9 @@ const allMoney = (s: string) => {
   return [...s.matchAll(LOOSE)].map((m) => { const t = m[0]; const v = Number(t.replace(/[(),-]/g, "")); return t.startsWith("(") || t.includes("-") ? -v : v; });
 };
 const withoutMoney = (s: string) => s.replace(/\(?-?£\s?[\d,]+(?:\.\d{1,2})?\)?/g, " ").replace(LOOSE, " ").replace(/(^|\s)£(?=\s|$)/g, " ").replace(/\s+/g, " ").trim();
+/** The figure at the end of a capital gains line, in pounds or pence, with brackets or a minus for a negative. */
+const GAIN_FIGURE = /\(?-?£?\s?\d[\d,]*(?:\.\d{1,2})?\)?\s*$/;
+const gainFigure = (s: string): number | undefined => { const m = s.match(/(\()?(-)?£?\s?(\d[\d,]*(?:\.\d{1,2})?)\)?\s*$/); return m ? (m[1] || m[2] ? -1 : 1) * Number(m[3].replace(/,/g, "")) : undefined; };
 const has = (s: string, re: RegExp) => re.test(s);
 
 /** The tax year (as the app names it: the year it ends in) a page is for. */
@@ -104,7 +107,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
     // interest", and the figures already read from their boxes) must not be read as schedule lines
     const body = f.pages.filter((pg) => !pg.some((l) => /^SA1\d\d\b|^IRmark:/.test(l.trim()))).flat().map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
     let isCalc = body.some((l) => /Tax calculation for|SA302|How I have worked out your Income Tax/i.test(l));
-    let isSummaries = body.some((l) => /Detailed summaries/i.test(l));
+    let isSummaries = body.some((l) => /Detailed summaries|Capital Gains Tax computation/i.test(l));
     // the same pages given twice (the whole pack and then its calculation again) would double every figure: the first is kept
     if (isCalc && readCalc) { res.warnings.push(`${f.name} repeats the tax calculation already read from ${readCalc}, so it was ignored.`); isCalc = false; }
     if (isSummaries && readSummaries) { res.warnings.push(`${f.name} repeats the detailed summaries already read from ${readSummaries}, so they were ignored.`); isSummaries = false; }
@@ -150,8 +153,40 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
       res.kinds.push("summaries");
       let sec = "", cur: Employment | undefined, tradeName = "", country = "";
       let trade: { profit?: number; turnover?: number; items: { id: string; label: string; amount: number }[] } | undefined;
+      // capital gains: each disposal's proceeds, its costs and any private residence relief, and the gain they give
+      let cgtKind: Gain["kind"] = "other", cgtDesc = "", cgt: { desc: string; kind: Gain["kind"]; date?: string; proceeds: number; costs: number; prr: number; subtotal?: number } | undefined;
+      const finishGain = () => {
+        if (!cgt) return;
+        const cost = Math.round((cgt.costs + cgt.prr) * 100) / 100;
+        r.gains.push({ id: newId(), description: cgt.desc + (cgt.prr ? " (after private residence relief)" : ""), kind: cgt.kind, date: cgt.date, proceeds: cgt.proceeds, cost });
+        if (cgt.subtotal !== undefined && Math.abs(cgt.subtotal - cost) > 1) res.warnings.push(`${cgt.desc}: the costs add up to £${cost.toLocaleString("en-GB", { minimumFractionDigits: 2 })}, but the return shows £${cgt.subtotal.toLocaleString("en-GB", { minimumFractionDigits: 2 })}: check the computation.`);
+        cgt = undefined;
+      };
       for (const l of body) {
         const plain = withoutMoney(l);
+        if (/^Capital Gains Tax computation/i.test(plain)) { finishGain(); sec = "gains"; cgtKind = "other"; cgtDesc = ""; continue; }
+        if (sec === "gains") {
+          // the computation shows whole pounds as well as pence, so its figure is the last number on the line
+          const last = gainFigure(l), label = l.replace(GAIN_FIGURE, "").trim();
+          if (/^(Chargeable gain|Summary of disposals|Computation|Taxable gains)/i.test(label)) { finishGain(); sec = ""; continue; }
+          const proceeds = /^Disposal proceeds/i.test(label);
+          if (proceeds && last !== undefined) {
+            finishGain();
+            const d = l.match(/\((\d{2})\/(\d{2})\/(\d{4})\)/);
+            cgt = { desc: cgtDesc || "Disposal", kind: cgtKind, date: d ? `${d[3]}-${d[2]}-${d[1]}` : undefined, proceeds: last, costs: 0, prr: 0 };
+            continue;
+          }
+          if (!label || /^Total\b/i.test(label)) { if (!label && last !== undefined && cgt && l.includes("(")) cgt.subtotal = Math.abs(last); continue; }
+          if (last === undefined) {
+            // a heading such as "Property" or "Shares" sets the kind of the disposals that follow
+            cgtDesc = label; cgtKind = /residential|property/i.test(label) ? "residential" : /share/i.test(label) ? "shares" : /crypto/i.test(label) ? "crypto" : "other";
+            continue;
+          }
+          if (cgt) {
+            if (/^Private Residence Relief/i.test(label)) cgt.prr += Math.abs(last); else cgt.costs += Math.abs(last);
+          }
+          continue;
+        }
         const head = HEADINGS.find(([re]) => re.test(plain));
         // inside a trade, an expense such as "Business travel 120.00" is a line, not a new trade
         const inTrade = head?.[1] === "trade" && sec === "trade" && allMoney(l).length > 0;
@@ -191,7 +226,10 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
           const company = plain.replace(/\s+\d[\d,]*$/, "").replace(/\s+\d{2}\/\d{2}\/\d{4}$/, "").replace(/\s+\d[\d,]*$/, "").trim();
           r.dividends.push({ id: newId(), company: complete(company), amount: v, foreign: sec === "foreignDividends" || undefined });
         } else if (sec === "interest") {
-          r.interest.push({ id: newId(), payer: plain.replace(/\s+(gross|net|untaxed|taxed)$/i, "").trim() || "Interest", untaxed: v });
+          // the account number column sits between the name and the amount, so a number-like last word is the account
+          const words = plain.replace(/\s+(gross|net|untaxed|taxed)$/i, "").trim().split(/\s+/);
+          const acct = words.length >= 2 && /^[0-9][0-9\-\/]{3,}$/.test(words[words.length - 1]) ? words.pop() : undefined;
+          r.interest.push({ id: newId(), payer: words.join(" ") || "Interest", accountNumber: acct, untaxed: v });
         } else if (sec === "pensions") {
           (r.pensions ||= { others: [] }).others.push({ id: newId(), payer: plain || "Pension", amount: v, tax: 0 });
         } else if (sec === "statePension") {
@@ -217,6 +255,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
           r.otherIncome = { amount: (r.otherIncome?.amount || 0) + v, description: r.otherIncome?.description || plain };
         }
       }
+      finishGain();
     }
     if (!isCalc && !isSummaries && !f.forms?.length && !seenBefore) res.warnings.push(`${f.name} doesn't look like an IRIS tax calculation or detailed summaries, so nothing was read from it.`);
   }
@@ -254,6 +293,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
   for (const d of r.dividends) res.found.push(`Dividends: ${d.company} £${d.amount.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   for (const i of r.interest) res.found.push(`Interest: ${i.payer} £${i.untaxed.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   for (const s of r.selfEmployments) res.found.push(`Self-employment: ${s.name}, turnover £${s.turnover.toLocaleString("en-GB", { minimumFractionDigits: 2 })}, expenses £${s.expenses.toLocaleString("en-GB", { minimumFractionDigits: 2 })}${s.expenseItems?.length ? ` (${s.expenseItems.length} lines)` : " (no breakdown)"}`);
+  for (const g of r.gains) res.found.push(`Capital gain: ${g.description}, proceeds £${g.proceeds.toLocaleString("en-GB", { minimumFractionDigits: 2 })}, costs £${g.cost.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   for (const p of r.partnerships) res.found.push(`Partnership: ${p.name}, share £${p.profit.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   if (r.property) res.found.push(`UK property profit £${r.property.income.toLocaleString("en-GB", { minimumFractionDigits: 2 })} (entered as rents with no expenses)`);
   if (r.pensions?.state) res.found.push(`State Pension £${r.pensions.state.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
@@ -295,6 +335,7 @@ function mergeDetail(base: TaxReturn, s: TaxReturn): TaxReturn {
   const fBox = base.interest.find((i) => i.payer.startsWith("Foreign interest")), fS = s.interest.filter((i) => i.foreign);
   if (fBox && fS.length && near(sumOf(fS.map((i) => i.untaxed)), fBox.untaxed)) out.interest = [...out.interest.filter((i) => i !== fBox), ...fS];
   else if (!fBox && fS.length) out.interest = [...out.interest, ...fS];
+  if (!out.gains.length && s.gains.length) out.gains = s.gains;
   if (!out.selfEmployments.length && s.selfEmployments.length) out.selfEmployments = s.selfEmployments;
   if (!out.partnerships.length && s.partnerships.length) out.partnerships = s.partnerships;
   if (!out.property && s.property) out.property = s.property;

@@ -74,3 +74,24 @@ test("the summaries give each bank account's interest, foreign interest and self
   assert.equal(trade.expenses, 11500);
   assert.deepEqual(trade.expenseItems?.map((x) => [x.label, x.amount]), [["Cost of goods", 10000], ["Business travel", 1000], ["Business insurance", 500]]);
 });
+
+test("interest lines keep their account number, and a capital gain is read with its costs and relief", () => {
+  const detail = { name: "Detailed summaries.pdf", pages: [[
+    "Mr Sam Example UTR: 1234567890", "Detailed summaries for year ended 5 April 2025",
+    "Untaxed UK Interest etc", "Account Number", "Gross interest",
+    "Example Bank 12345678 1,200.00", "Sample Savings plc 300.50", "Total 1,500.50",
+    "Capital Gains Tax computation for year ended 5 April 2025", "Property",
+    "Disposal proceeds (12/03/2025) 100,000", "Cost 60,000", "Legal Fees 500", "Private Residence Relief 10,000",
+    "(70,500)", "Chargeable gain liable to rates for residential property and carried interest 29,500",
+    "Summary of disposals Loss Gain", "Residential property and carried interest", "Property 29,500",
+  ]] };
+  const res = readImport([detail]);
+  assert.deepEqual(res.ret.interest.map((i) => [i.payer, i.accountNumber, i.untaxed]), [["Example Bank", "12345678", 1200], ["Sample Savings plc", undefined, 300.5]]);
+  assert.equal(res.ret.gains.length, 1);
+  const g = res.ret.gains[0];
+  assert.equal(g.kind, "residential");
+  assert.equal(g.date, "2025-03-12");
+  assert.equal(g.proceeds, 100000);
+  assert.equal(g.cost, 70500);
+  assert.equal(g.proceeds - g.cost, 29500);
+});

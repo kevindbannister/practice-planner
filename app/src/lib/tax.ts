@@ -26,7 +26,7 @@ export type SelfEmployment = {
   expenseItems?: { id: string; label: string; amount: number }[];
 };
 export type Partnership = { id: string; name: string; utr?: string; profit: number; lossesBf?: number; transitionProfit?: number; savings?: number; dividends?: number; taxDeducted?: number; cis?: number };
-export type Interest = { id: string; payer: string; untaxed: number; net?: number; taxTaken?: number; foreign?: boolean; foreignTax?: number };
+export type Interest = { id: string; payer: string; accountNumber?: string; untaxed: number; net?: number; taxTaken?: number; foreign?: boolean; foreignTax?: number };
 export type Dividend = { id: string; company: string; amount: number; foreign?: boolean; foreignTax?: number };
 export type OtherPension = { id: string; payer: string; amount: number; tax: number };
 export type Gain = { id: string; description: string; kind: "residential" | "shares" | "other" | "crypto"; date?: string; proceeds: number; cost: number; badr?: boolean; ir?: boolean };
