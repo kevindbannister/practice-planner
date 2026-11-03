@@ -1849,6 +1849,8 @@ body { background: var(--bg-glow), var(--ground); background-attachment: fixed; 
 
 /* headings: the big ones carry the gradient */
 .page-head h1, .plan-head h1, .plan-title h1, .home-hero h1 { background: var(--grad-text); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: -0.03em; }
+/* the gradient runs across the words, not the whole width of the page, so every title shows it */
+.page-head h1, .plan-head h1, .plan-title h1, .home-hero h1 { width: fit-content; max-width: 100%; }
 .card h2, .card h3 { letter-spacing: -0.025em; }
 
 /* top bar: a floating frosted pill on bigger screens */

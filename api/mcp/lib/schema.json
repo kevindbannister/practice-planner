@@ -5091,6 +5091,10 @@
      "type": "text"
     },
     {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
      "name": "Status",
      "type": "text"
     },

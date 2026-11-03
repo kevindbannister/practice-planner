@@ -467,7 +467,7 @@ export const LISTS: ListDef[] = [
   // See lib/payroll/*. RtiSubmissions is also read and written by the server's scheduled filing (api/rti), so keep the names in step.
   {
     key: "PayrollSchemes", displayName: "PP Payroll Schemes", description: "Practice Planner: PAYE schemes run as agent",
-    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Name"), t("OfficeNo"), t("PayeRef"), t("AORef"), t("COTAXRef"), t("Freq"), t("ClaimEA"), t("SmallEmployer"), t("Status", true), t("Created"), t("CreatedBy"), t("Updated")],
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Name"), t("OfficeNo"), t("PayeRef"), t("AORef"), t("COTAXRef"), t("Freq"), t("ClaimEA"), t("SmallEmployer"), t("Kind"), t("Status", true), t("Created"), t("CreatedBy"), t("Updated")],
   },
   {
     key: "PayrollPeople", displayName: "PP Payroll People", description: "Practice Planner: employees and directors on each payroll",

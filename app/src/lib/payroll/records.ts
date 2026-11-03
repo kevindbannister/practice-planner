@@ -17,10 +17,13 @@ const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 // ------------------------------------------------------------------ scheme and people
 
-export type SchemeRec = Scheme & { key: string; clientKey: string; freq: Freq; claimEA: boolean; smallEmployer: boolean; status: string };
+/** "directors": a directors-only payroll paid from a plan (often once a year or a set salary); "standard": employees paid each period. */
+export type PayrollKind = "directors" | "standard";
+export const KIND_LABEL: Record<PayrollKind, string> = { directors: "Directors' payroll", standard: "Standard payroll" };
+export type SchemeRec = Scheme & { key: string; clientKey: string; freq: Freq; claimEA: boolean; smallEmployer: boolean; status: string; kind: PayrollKind };
 export const readScheme = (r: Row): SchemeRec => ({
   key: str(r.Key), clientKey: str(r.ClientKey), name: str(r.Name), officeNo: str(r.OfficeNo), payeRef: str(r.PayeRef).toUpperCase(), aoRef: str(r.AORef).toUpperCase(), cotaxRef: str(r.COTAXRef),
-  freq: (["M1", "W1", "W2", "W4"] as const).find((f) => f === str(r.Freq)) || "M1", claimEA: yes(r.ClaimEA), smallEmployer: yes(r.SmallEmployer), status: str(r.Status) || "active",
+  freq: (["M1", "W1", "W2", "W4"] as const).find((f) => f === str(r.Freq)) || "M1", claimEA: yes(r.ClaimEA), smallEmployer: yes(r.SmallEmployer), status: str(r.Status) || "active", kind: str(r.Kind) === "directors" ? "directors" : "standard",
 });
 
 export type PersonRec = {
@@ -347,4 +350,10 @@ export function aeReport(s: SchemeRec, people: PersonRec[], view: PeriodView[], 
     const r = assess({ dob: p.dob, payday: next?.payday || "", earnings: line ? line.gross : 0, freq: s.freq, year, director: p.director, hasContract: p.hasContract, otherContracts: contracts > 1, status: p.ae.status, postponeUntil: p.ae.postponeUntil });
     return { person: p, period: next?.period || 0, payday: next?.payday || "", ...r };
   });
+}
+
+/** Split "123/AB45678" (or "123 / AB45678") into the tax office number and reference. */
+export function splitPayeRef(v: string): { officeNo: string; payeRef: string } | null {
+  const m = String(v || "").trim().toUpperCase().match(/^(\d{3})\s*\/?\s*([A-Z0-9]{1,10})$/);
+  return m ? { officeNo: m[1], payeRef: m[2] } : null;
 }

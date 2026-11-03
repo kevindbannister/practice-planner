@@ -59,10 +59,21 @@ function PayrollList() {
   useEffect(() => { rti.info().then(setInfo).catch((e) => setErr(e instanceof RtiError ? e.message : "Couldn't check HMRC filing.")); }, [rti]);
   const schemes = data.payrollSchemes.map(rec.readScheme).filter((x) => x.status !== "removed");
   const companies = (data.clients as Client[]).filter((c) => (c.Kind === "Ltd" || c.Kind === "LLP" || c.CompanyNumber) && String(c.Status) !== "Archived").sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
-  const [f, setF] = useState({ clientKey: "", paye: "", ao: "", utr: "", freq: "M1" as Freq, ea: false });
+  const [f, setF] = useState({ clientKey: "", paye: "", ao: "", utr: "", freq: "M1" as Freq, ea: false, kind: "directors" as rec.PayrollKind });
   const [msg, setMsg] = useState("");
+  const [filter, setFilter] = useState<{ q: string; kind: "" | rec.PayrollKind; freq: "" | Freq; state: "" | "attention" | "waiting" | "no-paydays" }>(() => { try { return { q: "", kind: "", freq: "", state: "", ...JSON.parse(localStorage.getItem("pp.payroll.filter") || "{}") }; } catch { return { q: "", kind: "", freq: "", state: "" }; } });
+  const setFilt = (p: Partial<typeof filter>) => { const n = { ...filter, ...p }; setFilter(n); try { localStorage.setItem("pp.payroll.filter", JSON.stringify({ ...n, q: "" })); } catch { /* this visit only */ } };
+  /** Choosing the client fills in its PAYE reference, Accounts Office reference and company UTR from the client record. */
+  const pickClient = (key: string) => {
+    const c = companies.find((x) => x.Key === key);
+    if (!c) { setF({ ...f, clientKey: "" }); return; }
+    const ref = rec.splitPayeRef(String(c.PAYERef || ""));
+    setF({ ...f, clientKey: key, paye: ref ? `${ref.officeNo}/${ref.payeRef}` : String(c.PAYERef || ""), ao: String(c.AccountsOfficeRef || "").toUpperCase().replace(/\s/g, ""), utr: String(c.CTUTR || c.UTR || "").replace(/\s/g, "") });
+    const missing = [!c.PAYERef && "PAYE reference", !c.AccountsOfficeRef && "Accounts Office reference", !(c.CTUTR || c.UTR) && "company UTR"].filter(Boolean);
+    setMsg(missing.length ? `Not on the client record: ${missing.join(", ")}. Type ${missing.length === 1 ? "it" : "them"} in (and add to the client record).` : "");
+  };
   const add = async () => {
-    const m = f.paye.trim().toUpperCase().match(/^(\d{3})\s*\/\s*([A-Z0-9]{1,10})$/);
+    const m = f.paye.trim().toUpperCase().match(/^(\d{3})\s*\/?\s*([A-Z0-9]{1,10})$/);
     const c = companies.find((x) => x.Key === f.clientKey);
     if (!c) { setMsg("Choose the client."); return; }
     if (!m) { setMsg("Enter the PAYE reference as 123/AB45678."); return; }
@@ -70,7 +81,7 @@ function PayrollList() {
     const p = schemeProblems(sc); if (p.length) { setMsg(p.join(" ")); return; }
     const o = ctx();
     const key = o.newKey("PS");
-    await create("PayrollSchemes", { Key: key, PracticeId: o.pid, ClientKey: c.Key, Name: c.Title, OfficeNo: sc.officeNo, PayeRef: sc.payeRef, AORef: sc.aoRef, COTAXRef: sc.cotaxRef, Freq: f.freq, ClaimEA: f.ea ? "yes" : "no", SmallEmployer: "yes", Status: "active", Created: o.now, CreatedBy: o.actor, Updated: o.now });
+    await create("PayrollSchemes", { Key: key, PracticeId: o.pid, ClientKey: c.Key, Name: c.Title, OfficeNo: sc.officeNo, PayeRef: sc.payeRef, AORef: sc.aoRef, COTAXRef: sc.cotaxRef, Freq: f.freq, ClaimEA: f.ea ? "yes" : "no", SmallEmployer: "yes", Kind: f.kind, Status: "active", Created: o.now, CreatedBy: o.actor, Updated: o.now });
     window.location.hash = href("payroll", key, "people");
   };
   return (
@@ -81,32 +92,56 @@ function PayrollList() {
           : info.configured ? <p style={{ margin: 0 }}><span className={`chip ${info.live ? "green" : "amber"}`}>{info.live ? "Live" : "HMRC test service"}</span> Filing as agent is set up{info.live ? "" : ": submissions go to HMRC's test service until RTI_LIVE is switched on"}.</p>
           : <p className="warn" style={{ margin: 0 }}>Filing to HMRC isn't set up on the server yet ({info.missing.join(", ")}). Runs can be prepared and queued; nothing is sent until it is.</p>}
       </section>
-      <div className="card table-wrap"><table className="grid">
-        <thead><tr><th>Client</th><th>PAYE reference</th><th>Pay</th><th>Next payday</th><th>Waiting to go</th><th>Problems</th></tr></thead>
-        <tbody>
-          {schemes.length === 0 && <tr><td colSpan={6} className="muted">No payrolls yet.</td></tr>}
-          {schemes.map((x) => {
-            const y = rec.readYear(data.payYears.find((r) => r.SchemeKey === x.key && Number(r.TaxYear) === year), x.key, year, x.freq);
-            const next = y.paydays.filter((d) => d && d >= todayIso()).sort()[0];
-            const waiting = data.rtiSubmissions.filter((r) => r.SchemeKey === x.key && ["queued", "pending", "sending"].includes(s(r.Status))).length;
-            const bad = data.rtiSubmissions.filter((r) => r.SchemeKey === x.key && ["rejected", "failed"].includes(s(r.Status))).length;
-            return (
-              <tr key={x.key}><td><a href={href("payroll", x.key)}>{x.name}</a></td><td className="mono">{x.officeNo}/{x.payeRef}</td><td>{FREQ_LABEL[x.freq]}</td><td>{next ? fmt(next) : <span className="muted">Set paydays</span>}</td><td>{waiting || ""}</td><td>{bad ? <span className="chip red">{bad} to fix</span> : ""}</td></tr>
-            );
-          })}
-        </tbody>
-      </table></div>
+      <div className="row-wrap" style={{ gap: 8 }} role="group" aria-label="Filter payrolls">
+        <input className="input" style={{ maxWidth: 280 }} placeholder="Find a client or PAYE reference" aria-label="Find a payroll" value={filter.q} onChange={(e) => setFilt({ q: e.target.value })} />
+        <select className="input" style={{ width: "auto" }} aria-label="Kind of payroll" value={filter.kind} onChange={(e) => setFilt({ kind: e.target.value as typeof filter.kind })}><option value="">All payrolls</option><option value="directors">Directors' payrolls</option><option value="standard">Standard payrolls</option></select>
+        <select className="input" style={{ width: "auto" }} aria-label="How often" value={filter.freq} onChange={(e) => setFilt({ freq: e.target.value as typeof filter.freq })}><option value="">Any frequency</option>{(Object.keys(FREQ_LABEL) as Freq[]).map((k) => <option key={k} value={k}>{FREQ_LABEL[k]}</option>)}</select>
+        <select className="input" style={{ width: "auto" }} aria-label="State" value={filter.state} onChange={(e) => setFilt({ state: e.target.value as typeof filter.state })}><option value="">Any state</option><option value="attention">Needs attention (rejected or failed)</option><option value="waiting">Submissions waiting to go</option><option value="no-paydays">No paydays set this year</option></select>
+        {(filter.q || filter.kind || filter.freq || filter.state) && <button className="linkbtn" type="button" onClick={() => setFilt({ q: "", kind: "", freq: "", state: "" })}>Clear</button>}
+      </div>
+      {(() => {
+        const rows = schemes.map((x) => {
+          const y = rec.readYear(data.payYears.find((r) => r.SchemeKey === x.key && Number(r.TaxYear) === year), x.key, year, x.freq);
+          const next = y.paydays.filter((d) => d && d >= todayIso()).sort()[0];
+          const waiting = data.rtiSubmissions.filter((r) => r.SchemeKey === x.key && ["queued", "pending", "sending"].includes(s(r.Status))).length;
+          const bad = data.rtiSubmissions.filter((r) => r.SchemeKey === x.key && ["rejected", "failed"].includes(s(r.Status))).length;
+          const people = data.payrollPeople.filter((r) => r.SchemeKey === x.key && s(r.Status) !== "removed").length;
+          return { x, next, waiting, bad, people, anyPayday: y.paydays.some(Boolean) };
+        }).filter(({ x, waiting, bad, anyPayday }) => {
+          const q = filter.q.trim().toLowerCase();
+          if (q && !`${x.name} ${x.officeNo}/${x.payeRef}`.toLowerCase().includes(q)) return false;
+          if (filter.kind && x.kind !== filter.kind) return false;
+          if (filter.freq && x.freq !== filter.freq) return false;
+          if (filter.state === "attention" && !bad) return false;
+          if (filter.state === "waiting" && !waiting) return false;
+          if (filter.state === "no-paydays" && anyPayday) return false;
+          return true;
+        }).sort((a, b) => a.x.name.localeCompare(b.x.name));
+        return (
+          <div className="card table-wrap"><table className="grid">
+            <thead><tr><th>Client</th><th>Kind</th><th>PAYE reference</th><th>Pay</th><th className="num">People</th><th>Next payday</th><th>Waiting to go</th><th>Problems</th></tr></thead>
+            <tbody>
+              {rows.length === 0 && <tr><td colSpan={8} className="muted">{schemes.length ? "No payrolls match." : "No payrolls yet."}</td></tr>}
+              {rows.map(({ x, next, waiting, bad, people }) => (
+                <tr key={x.key}><td><a href={href("payroll", x.key)}>{x.name}</a></td><td><span className={`chip${x.kind === "directors" ? " green" : ""}`}>{rec.KIND_LABEL[x.kind]}</span></td><td className="mono">{x.officeNo}/{x.payeRef}</td><td>{FREQ_LABEL[x.freq]}</td><td className="num">{people}</td><td>{next ? fmt(next) : <span className="muted">Set paydays</span>}</td><td>{waiting || ""}</td><td>{bad ? <span className="chip red">{bad} to fix</span> : ""}</td></tr>
+              ))}
+            </tbody>
+          </table></div>
+        );
+      })()}
       {can && (
         <section className="card pad stack" aria-label="Set up a payroll">
           <h2 style={{ margin: 0, fontSize: 16 }}>Set up a payroll</h2>
           <div className="cf-grid">
-            <label className="field"><span>Client</span><select className="input" value={f.clientKey} onChange={(e) => setF({ ...f, clientKey: e.target.value })}><option value="">Choose</option>{companies.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}</select></label>
+            <label className="field"><span>Client</span><select className="input" value={f.clientKey} onChange={(e) => pickClient(e.target.value)}><option value="">Choose</option>{companies.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}</select></label>
+            <label className="field"><span>Kind of payroll</span><select className="input" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as rec.PayrollKind })}><option value="directors">Directors' payroll</option><option value="standard">Standard payroll (employees)</option></select></label>
             <label className="field"><span>PAYE reference</span><input className="input" placeholder="123/AB45678" value={f.paye} onChange={(e) => setF({ ...f, paye: e.target.value })} /></label>
             <label className="field"><span>Accounts Office reference</span><input className="input" placeholder="123PA00045678" value={f.ao} onChange={(e) => setF({ ...f, ao: e.target.value })} /></label>
-            <label className="field"><span>Company UTR (optional)</span><input className="input" value={f.utr} onChange={(e) => setF({ ...f, utr: e.target.value })} /></label>
+            <label className="field"><span>Company UTR</span><input className="input" value={f.utr} onChange={(e) => setF({ ...f, utr: e.target.value })} /></label>
             <label className="field"><span>Paid</span><select className="input" value={f.freq} onChange={(e) => setF({ ...f, freq: e.target.value as Freq })}>{(Object.keys(FREQ_LABEL) as Freq[]).map((k) => <option key={k} value={k}>{FREQ_LABEL[k]}</option>)}</select></label>
           </div>
           <label className="row-wrap"><input type="checkbox" checked={f.ea} onChange={(e) => setF({ ...f, ea: e.target.checked })} /> Claim Employment Allowance (sent on an EPS with the first payment of the year)</label>
+          <p className="muted" style={{ margin: 0, fontSize: 12 }}>{f.kind === "directors" ? "Directors' payroll: people are added as directors on the annual NI basis and paid planned amounts (from the agreed tax plan, monthly or at the year end)." : "Standard payroll: employees paid a salary or by the hour each period, with auto-enrolment and statutory pay."}</p>
           <div className="row-wrap" style={{ gap: 8 }}><button className="btn primary" type="button" onClick={add}>Set up payroll</button><span role="status" className="warn">{msg}</span></div>
         </section>
       )}
@@ -135,7 +170,7 @@ function SchemePage({ schemeKey, tab }: { schemeKey: string; tab: string }) {
   return (
     <div className="page">
       <div className="page-head">
-        <div><a className="crumb" href="#/payroll">Payroll</a><h1>{scheme.name}</h1><p className="muted mono" style={{ margin: "4px 0 0" }}>{scheme.officeNo}/{scheme.payeRef} · {scheme.aoRef} · {FREQ_LABEL[scheme.freq]}</p></div>
+        <div><a className="crumb" href="#/payroll">Payroll</a><h1>{scheme.name}</h1><p className="muted mono" style={{ margin: "4px 0 0" }}>{rec.KIND_LABEL[scheme.kind]} · {scheme.officeNo}/{scheme.payeRef} · {scheme.aoRef} · {FREQ_LABEL[scheme.freq]}</p></div>
         <select className="input" style={{ width: "auto" }} aria-label="Tax year" value={year} onChange={(e) => setYear(Number(e.target.value))}>{[...PAYROLL_YEARS].reverse().map((v) => <option key={v} value={v}>{yearLabel(v)}</option>)}</select>
       </div>
       <div className="row-wrap" role="tablist" aria-label="Payroll" style={{ gap: 8 }}>{TABS.map(([k, l]) => <a key={k} role="tab" aria-selected={t === k} className={`btn small${t === k ? " primary" : ""}`} href={href("payroll", schemeKey, k)}>{l}</a>)}</div>
@@ -498,7 +533,7 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
   const [edit, setEdit] = useState<Row | null>(null);
   const [msg, setMsg] = useState("");
   const officers = data.cosecOfficers.filter((o) => o.ClientKey === scheme.clientKey && String(o.Role) === "director" && String(o.Status) !== "resigned" && !o.ResignedOn);
-  const startEdit = (r?: Row) => setEdit(r ? { ...r } : { ...blankPerson, PayId: String(people.length + 1).padStart(3, "0") });
+  const startEdit = (r?: Row) => setEdit(r ? { ...r } : { ...blankPerson, PayId: String(people.length + 1).padStart(3, "0"), ...(scheme.kind === "directors" ? { Director: "yes", NicMethod: "AN", Hours: "E", PayBasis: "plan" } : {}) });
   const fromOfficer = (o: Row) => {
     const person = o.PersonClientKey ? idx.clientByKey.get(String(o.PersonClientKey)) : undefined;
     setEdit({ ...blankPerson, PayId: String(people.length + 1).padStart(3, "0"), Title: s(o.Title), First: s(o.First), Last: s(o.Last), DOB: s(o.DOB).length === 10 ? s(o.DOB) : "", Director: "yes", NicMethod: "AN", AppointedOn: s(o.AppointedOn), Hours: "E", PayBasis: "plan", PersonClientKey: s(o.PersonClientKey), NINO: s(person?.NINO || person?.NiNumber || ""), Address: s(o.ResidentialAddress || "").split(/,\s*/).slice(0, 4).join("\n") });
@@ -675,14 +710,14 @@ function HmrcTab({ P, scheme, people, y, runs, subs }: { P: PP; scheme: rec.Sche
 
 function SettingsTab({ P, row, scheme }: { P: PP; row: Row; scheme: rec.SchemeRec }) {
   const { update, can } = P;
-  const [f, setF] = useState({ paye: `${scheme.officeNo}/${scheme.payeRef}`, ao: scheme.aoRef, utr: scheme.cotaxRef || "", ea: scheme.claimEA, small: scheme.smallEmployer, freq: scheme.freq });
+  const [f, setF] = useState({ paye: `${scheme.officeNo}/${scheme.payeRef}`, ao: scheme.aoRef, utr: scheme.cotaxRef || "", ea: scheme.claimEA, small: scheme.smallEmployer, freq: scheme.freq, kind: scheme.kind });
   const [msg, setMsg] = useState("");
   const save = async () => {
     const m = f.paye.trim().toUpperCase().match(/^(\d{3})\s*\/\s*([A-Z0-9]{1,10})$/);
     if (!m) { setMsg("Enter the PAYE reference as 123/AB45678."); return; }
     const p = schemeProblems({ officeNo: m[1], payeRef: m[2], aoRef: f.ao.toUpperCase().replace(/\s/g, ""), cotaxRef: f.utr, name: scheme.name });
     if (p.length) { setMsg(p.join(" ")); return; }
-    await update("PayrollSchemes", row, { OfficeNo: m[1], PayeRef: m[2], AORef: f.ao.toUpperCase().replace(/\s/g, ""), COTAXRef: f.utr.trim(), ClaimEA: f.ea ? "yes" : "no", SmallEmployer: f.small ? "yes" : "no", Freq: f.freq, Updated: new Date().toISOString() });
+    await update("PayrollSchemes", row, { OfficeNo: m[1], PayeRef: m[2], AORef: f.ao.toUpperCase().replace(/\s/g, ""), COTAXRef: f.utr.trim(), ClaimEA: f.ea ? "yes" : "no", SmallEmployer: f.small ? "yes" : "no", Freq: f.freq, Kind: f.kind, Updated: new Date().toISOString() });
     setMsg("Saved. Submissions already queued keep the references they were built with.");
   };
   return (
@@ -691,6 +726,7 @@ function SettingsTab({ P, row, scheme }: { P: PP; row: Row; scheme: rec.SchemeRe
         <label className="field"><span>PAYE reference</span><input className="input" disabled={!can} value={f.paye} onChange={(e) => setF({ ...f, paye: e.target.value })} /></label>
         <label className="field"><span>Accounts Office reference</span><input className="input" disabled={!can} value={f.ao} onChange={(e) => setF({ ...f, ao: e.target.value })} /></label>
         <label className="field"><span>Company UTR</span><input className="input" disabled={!can} value={f.utr} onChange={(e) => setF({ ...f, utr: e.target.value })} /></label>
+        <label className="field"><span>Kind of payroll</span><select className="input" disabled={!can} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as rec.PayrollKind })}><option value="directors">Directors' payroll</option><option value="standard">Standard payroll</option></select></label>
         <label className="field"><span>Paid</span><select className="input" disabled={!can} value={f.freq} onChange={(e) => setF({ ...f, freq: e.target.value as Freq })}>{(Object.keys(FREQ_LABEL) as Freq[]).map((k) => <option key={k} value={k}>{FREQ_LABEL[k]}</option>)}</select></label>
       </div>
       <label className="row-wrap"><input type="checkbox" disabled={!can} checked={f.ea} onChange={(e) => setF({ ...f, ea: e.target.checked })} /> Claim Employment Allowance</label>
