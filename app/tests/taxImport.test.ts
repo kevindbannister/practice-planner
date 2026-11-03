@@ -140,3 +140,18 @@ test("import check: IRIS's total tax is compared with the tax still due after ta
   assert.equal(chk.ours, due); assert.equal(chk.matches, true);
   assert.equal(checkImport({ ret, year: 2025, theirs: { totalTax: c.totalLiability } } as any).matches, false);
 });
+
+test("import: CIS deducted by contractors is tax already paid, not an expense", async () => {
+  const { readImport } = await import("../src/lib/taxImport");
+  const txt = [
+    "Detailed summaries", "UTR: 1234567890", "Tax year 6 April 2024 to 5 April 2025",
+    "Self-employment - Building Co 01/04/2024 to 05/04/2025",
+    "Turnover 20,000.00", "Construction industry - payments to subcontractors 2,000.00", "Business travel 500.00",
+    "Net profit 17,500.00", "CIS deductions 1,200.00",
+  ];
+  const res = readImport([{ name: "s.pdf", pages: [txt.map((x) => x)] } as any], []);
+  const s = res.ret.selfEmployments[0];
+  assert.equal(s.cis, 1200);
+  assert.equal(s.expenseItems!.length, 2);
+  assert.equal(s.expenses, 2500);
+});

@@ -184,7 +184,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
     if (isSummaries) {
       res.kinds.push("summaries");
       let sec = "", cur: Employment | undefined, tradeName = "", country = "";
-      let trade: { profit?: number; turnover?: number; items: ExpenseLine[] } | undefined;
+      let trade: { profit?: number; turnover?: number; items: ExpenseLine[]; cis?: number; taxDeducted?: number } | undefined;
       // capital gains: each disposal's proceeds, its costs and any private residence relief, and the gain they give
       let cgtKind: Gain["kind"] = "other", cgtDesc = "", cgt: { desc: string; kind: Gain["kind"]; date?: string; proceeds: number; costs: number; prr: number; subtotal?: number } | undefined;
       // a pension with its gross, tax and net on separate rows under a "Pension: name" heading
@@ -289,12 +289,21 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
           // turnover, each expense, then the net profit; the transitional profit and reconciliation lines are not this year's trade
           if (/^turnover\b/i.test(plain)) trade.turnover = v;
           else if (/^net profit/i.test(plain)) trade.profit = v;
+          // tax taken off by contractors under the Construction Industry Scheme, or other tax taken off the trade: not an expense
+          else if (/\bCIS\b|construction industry scheme/i.test(plain) && !/subcontract/i.test(plain)) trade.cis = (trade.cis || 0) + Math.abs(v);
+          else if (/tax (deducted|taken off)/i.test(plain)) trade.taxDeducted = (trade.taxDeducted || 0) + Math.abs(v);
           else if (plain && !/transition|profit|loss|taxable|^net\b/i.test(plain)) trade.items.push({ id: newId(), label: plain, amount: v, box: expenseBoxFor(plain) });
-          if (trade.profit !== undefined && !r.selfEmployments.some((s) => s.name === tradeName)) {
+          // written as the lines come, so CIS and other lines after the net profit are kept too
+          if (trade.profit !== undefined) {
             const sum = Math.round(trade.items.reduce((a, x) => a + x.amount, 0) * 100) / 100;
             const turnover = trade.turnover ?? Math.round((trade.profit + sum) * 100) / 100;
-            if (trade.items.length && Math.abs(turnover - trade.profit - sum) > 1) res.warnings.push(`${tradeName}: the expenses add up to £${sum.toLocaleString("en-GB", { minimumFractionDigits: 2 })}, but turnover less profit is £${(turnover - trade.profit).toLocaleString("en-GB", { minimumFractionDigits: 2 })}: check the summaries.`);
-            r.selfEmployments.push({ id: newId(), name: tradeName, turnover, expenses: trade.items.length ? sum : Math.round((turnover - trade.profit) * 100) / 100, expenseItems: trade.items.length ? trade.items : undefined });
+            const rec = { name: tradeName, turnover, expenses: trade.items.length ? sum : Math.round((turnover - trade.profit) * 100) / 100, expenseItems: trade.items.length ? trade.items : undefined, cis: trade.cis, taxDeducted: trade.taxDeducted };
+            const existing = r.selfEmployments.find((x) => x.name === tradeName);
+            if (existing) Object.assign(existing, rec);
+            else {
+              if (trade.items.length && Math.abs(turnover - trade.profit - sum) > 1) res.warnings.push(`${tradeName}: the expenses add up to £${sum.toLocaleString("en-GB", { minimumFractionDigits: 2 })}, but turnover less profit is £${(turnover - trade.profit).toLocaleString("en-GB", { minimumFractionDigits: 2 })}: check the summaries.`);
+              r.selfEmployments.push({ id: newId(), ...rec });
+            }
           }
         } else if (sec === "property") {
           if (/profit|net/i.test(plain)) r.property = { income: v, finance: 0 };
