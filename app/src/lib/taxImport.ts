@@ -6,7 +6,7 @@
 // IRIS can also print the whole return in one PDF: the filled-in SA100 and its supplementary pages (read box by box, see
 // taxReturnRead.ts), followed by the calculation and the summaries. The return is then the base, the summaries add the
 // company names and the pence, and the calculation fills what the return's pages can't give yet.
-import { Employment, Gain, TaxReturn, compute, emptyReturn, newId } from "./tax";
+import { Employment, ExpenseBox, ExpenseLine, Gain, TaxReturn, compute, emptyReturn, newId } from "./tax";
 import { ReadPage, readFormPages } from "./taxReturnRead";
 
 /** `forms` are the pages of HMRC's forms found in the PDF, with what is written in each box (formMap.mjs). */
@@ -45,6 +45,20 @@ const allMoney = (s: string) => {
   return [...s.matchAll(LOOSE)].map((m) => { const t = m[0]; const v = Number(t.replace(/[(),-]/g, "")); return t.startsWith("(") || t.includes("-") ? -v : v; });
 };
 const withoutMoney = (s: string) => s.replace(/\(?-?£\s?[\d,]+(?:\.\d{1,2})?\)?/g, " ").replace(LOOSE, " ").replace(/(^|\s)£(?=\s|$)/g, " ").replace(/\s+/g, " ").trim();
+/** The SA103 box an expense line goes in, from its name (other allowable expenses, box 19, when nothing else fits). */
+export function expenseBoxFor(label: string): ExpenseBox {
+  const t = label.toLowerCase();
+  if (/cost of goods|materials|stock|purchases|cost of sales/.test(t)) return "11";
+  if (/\bcar\b|van|travel|motor|mileage|fuel|vehicle/.test(t)) return "12";
+  if (/wages|salar|staff|subcontract|sub-contract|employee/.test(t)) return "13";
+  if (/rent|rates|power|electric|\bgas\b|water|insurance|energy|utilities/.test(t)) return "14";
+  if (/repair|maintenance|renewal/.test(t)) return "15";
+  if (/account|legal|professional|subscription/.test(t)) return "16";
+  if (/interest|bank charge|financial charge|finance charge|loan/.test(t)) return "17";
+  if (/telephone|phone|stationery|office|postage|internet|broadband|mobile/.test(t)) return "18";
+  return "19";
+}
+
 /** The figure at the end of a capital gains line, in pounds or pence, with brackets or a minus for a negative. */
 const GAIN_FIGURE = /\(?-?£?\s?\d[\d,]*(?:\.\d{1,2})?\)?\s*$/;
 const gainFigure = (s: string): number | undefined => { const m = s.match(/(\()?(-)?£?\s?(\d[\d,]*(?:\.\d{1,2})?)\)?\s*$/); return m ? (m[1] || m[2] ? -1 : 1) * Number(m[3].replace(/,/g, "")) : undefined; };
@@ -152,7 +166,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
     if (isSummaries) {
       res.kinds.push("summaries");
       let sec = "", cur: Employment | undefined, tradeName = "", country = "";
-      let trade: { profit?: number; turnover?: number; items: { id: string; label: string; amount: number }[] } | undefined;
+      let trade: { profit?: number; turnover?: number; items: ExpenseLine[] } | undefined;
       // capital gains: each disposal's proceeds, its costs and any private residence relief, and the gain they give
       let cgtKind: Gain["kind"] = "other", cgtDesc = "", cgt: { desc: string; kind: Gain["kind"]; date?: string; proceeds: number; costs: number; prr: number; subtotal?: number } | undefined;
       const finishGain = () => {
@@ -238,7 +252,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
           // turnover, each expense, then the net profit; the transitional profit and reconciliation lines are not this year's trade
           if (/^turnover\b/i.test(plain)) trade.turnover = v;
           else if (/^net profit/i.test(plain)) trade.profit = v;
-          else if (plain && !/transition|profit|loss|taxable|^net\b/i.test(plain)) trade.items.push({ id: newId(), label: plain, amount: v });
+          else if (plain && !/transition|profit|loss|taxable|^net\b/i.test(plain)) trade.items.push({ id: newId(), label: plain, amount: v, box: expenseBoxFor(plain) });
           if (trade.profit !== undefined && !r.selfEmployments.some((s) => s.name === tradeName)) {
             const sum = Math.round(trade.items.reduce((a, x) => a + x.amount, 0) * 100) / 100;
             const turnover = trade.turnover ?? Math.round((trade.profit + sum) * 100) / 100;

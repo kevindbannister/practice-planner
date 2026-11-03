@@ -6,7 +6,7 @@ import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { Client, fmtDate, todayIso } from "../lib/domain";
 import { PaperStatus, STATUS_LABEL, readSetup, setupRow, stateOf } from "../lib/papers";
 import {
-  Computation, Dividend, Employment, Gain, Interest, NOT_YET, OtherPension, Partnership, ReturnState, SECTIONS, STATE_LABEL, SectionDef, SectionKey, SelfEmployment, TaxReturn,
+  Computation, Dividend, Employment, EXPENSE_BOXES, ExpenseBox, ExpenseLine, expenseBoxOf, Gain, Interest, NOT_YET, OtherPension, Partnership, ReturnState, SECTIONS, STATE_LABEL, SectionDef, SectionKey, SelfEmployment, TaxReturn,
   bringForward, compute, defaultPaymentLines, emptyReturn, hasSection, newId, outstandingPayments, paymentLines, PaymentLine, propertyProfit, readReturn, rollForward, tradeProfit, employmentIncome,
 } from "../lib/tax";
 import { ImportResult } from "../lib/taxImport";
@@ -781,8 +781,9 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
     const set = (p: Partial<SelfEmployment>) => patchList("selfEmployments", s.id, p);
     const t = tradeProfit(s);
     const items = s.expenseItems || [];
-    // each expense line as the accounts show it; the total is their sum, so the lines and the total can't disagree
-    const setItems = (next: { id: string; label: string; amount: number }[]) => set({ expenseItems: next.length ? next : undefined, expenses: Math.round(next.reduce((a, x) => a + x.amount, 0) * 100) / 100 });
+    const boxTotal = (b: ExpenseBox) => Math.round(items.filter((x) => expenseBoxOf(x) === b).reduce((a, x) => a + x.amount, 0) * 100) / 100;
+    // each expense line as the accounts show it, with its SA103 box; the total is their sum, so the lines and the total can't disagree
+    const setItems = (next: ExpenseLine[]) => set({ expenseItems: next.length ? next : undefined, expenses: Math.round(next.reduce((a, x) => a + x.amount, 0) * 100) / 100 });
     return (<>
       <Group title="Business">
         <Text label="Business name" value={s.name} onChange={(v) => set({ name: v })} /><Text label="Description" value={s.description} onChange={(v) => set({ description: v })} />
@@ -802,11 +803,22 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
       {!s.tradingAllowance && <Group title="Expense breakdown">
         {items.map((x, i) => <div key={x.id} className="tax-expense-row">
           <Text label="Expense" value={x.label} onChange={(v) => setItems(items.map((y, j) => (j === i ? { ...y, label: v || "" } : y)))} />
+          <label className="tax-expense-box"><span>SA103 box</span><select value={expenseBoxOf(x)} onChange={(e) => setItems(items.map((y, j) => (j === i ? { ...y, box: e.target.value as ExpenseBox } : y)))}>
+            {EXPENSE_BOXES.map((b) => <option key={b.box} value={b.box}>{b.box}: {b.label}</option>)}
+          </select></label>
           <Money label="Amount" value={x.amount} onChange={(v) => setItems(items.map((y, j) => (j === i ? { ...y, amount: v || 0 } : y)))} />
           <button type="button" className="btn small" onClick={() => setItems(items.filter((_, j) => j !== i))}>Remove</button>
         </div>)}
-        <button type="button" className="btn small" onClick={() => setItems([...items, { id: newId(), label: "New expense", amount: 0 }])}><Icon name="plus" size={14} /> Add an expense line</button>
+        <button type="button" className="btn small" onClick={() => setItems([...items, { id: newId(), label: "New expense", amount: 0, box: "19" }])}><Icon name="plus" size={14} /> Add an expense line</button>
       </Group>}
+      <Group title="Tax return boxes (SA103)">
+        <Readout label="Box 9 Turnover" value={s.turnover} />
+        <Readout label="Box 10 Other business income" value={s.otherIncome || 0} />
+        {s.tradingAllowance && <Readout label="Box 10.1 Trading income allowance" value={R.tradingAllowance} />}
+        {!s.tradingAllowance && EXPENSE_BOXES.map((b) => <Readout key={b.box} label={`Box ${b.box} ${b.label}`} value={boxTotal(b.box)} />)}
+        {!s.tradingAllowance && <Readout label="Box 20 Total allowable expenses" value={s.expenses} strong />}
+        {!s.tradingAllowance && !items.length && <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>Add the expense lines to split the total across boxes 11 to 19.</p>}
+      </Group>
       <Group title="Profits and losses">
         {year >= 2025 && year <= 2028 && <Money label="Transition profit taxable this year" hint="(basis period reform)" value={s.transitionProfit} onChange={(v) => set({ transitionProfit: v })} />}
         <Money label="Losses brought forward" value={s.lossesBf} onChange={(v) => set({ lossesBf: v })} />

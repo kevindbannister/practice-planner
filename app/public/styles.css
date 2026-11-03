@@ -3135,3 +3135,5 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 
 .tax-expense-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px}
 .tax-expense-row>*{flex:1 1 160px;min-width:0}
+.tax-expense-box{display:flex;flex-direction:column;gap:4px;flex:1 1 220px;min-width:0;font-size:13px}
+.tax-expense-box select{padding:6px;border:1px solid #c9ced8;border-radius:6px;font:inherit}

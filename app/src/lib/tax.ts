@@ -23,9 +23,20 @@ export type SelfEmployment = {
   turnover: number; otherIncome?: number; expenses: number; disallowable?: number; capitalAllowances?: number; balancingCharges?: number;
   tradingAllowance?: boolean; transitionProfit?: number; lossesBf?: number; lossSideways?: number; cis?: number; taxDeducted?: number;
   /** each expense as the accounts show it (from IRIS's detailed summaries); `expenses` is their total */
-  expenseItems?: { id: string; label: string; amount: number }[];
+  expenseItems?: ExpenseLine[];
 };
 export type Partnership = { id: string; name: string; utr?: string; profit: number; lossesBf?: number; transitionProfit?: number; savings?: number; dividends?: number; taxDeducted?: number; cis?: number };
+/** The self-employment boxes on the SA103 form for expenses (11 to 19; box 20 is their total). */
+export const EXPENSE_BOXES: { box: ExpenseBox; label: string }[] = [
+  { box: "11", label: "Cost of goods sold / materials" }, { box: "12", label: "Motor and travel expenses" }, { box: "13", label: "Wages and staff costs" },
+  { box: "14", label: "Rent, rates, power and insurance" }, { box: "15", label: "Repairs and maintenance" }, { box: "16", label: "Accountancy, legal and professional fees" },
+  { box: "17", label: "Interest and financial charges" }, { box: "18", label: "Telephone, stationery and office expenses" }, { box: "19", label: "Other allowable expenses" },
+];
+export type ExpenseBox = "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19";
+/** One expense as the accounts show it, with the SA103 box it goes in (other if not given). */
+export type ExpenseLine = { id: string; label: string; amount: number; box?: ExpenseBox };
+export const expenseBoxOf = (x: ExpenseLine): ExpenseBox => x.box ?? "19";
+
 export type Interest = { id: string; payer: string; accountNumber?: string; untaxed: number; net?: number; taxTaken?: number; foreign?: boolean; foreignTax?: number };
 export type Dividend = { id: string; company: string; amount: number; foreign?: boolean; foreignTax?: number };
 export type OtherPension = { id: string; payer: string; amount: number; tax: number };

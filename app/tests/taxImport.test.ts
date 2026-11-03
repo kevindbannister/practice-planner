@@ -95,3 +95,18 @@ test("interest lines keep their account number, and a capital gain is read with 
   assert.equal(g.cost, 70500);
   assert.equal(g.proceeds - g.cost, 29500);
 });
+
+test("expense lines go to their SA103 boxes", () => {
+  const detail = { name: "Detailed summaries.pdf", pages: [[
+    "Mr Sam Example UTR: 1234567890", "Detailed summaries for year ended 5 April 2025",
+    "Self employment: Sample Trader - year ended 05/04/2025", "Turnover 10,000.00", "Less: expenses",
+    "Cost of goods 1,000.00", "Car, van and travel expenses 500.00", "Office stationery 200.00", "Accountancy fees 300.00",
+    "Bank charges 50.00", "Something else 150.00", "Net profit 7,800.00",
+  ]] };
+  const trade = readImport([detail]).ret.selfEmployments[0];
+  assert.deepEqual(trade.expenseItems?.map((x) => [x.label, x.box]), [
+    ["Cost of goods", "11"], ["Car, van and travel expenses", "12"], ["Office stationery", "18"],
+    ["Accountancy fees", "16"], ["Bank charges", "17"], ["Something else", "19"],
+  ]);
+  assert.equal(trade.expenses, 2200);
+});
