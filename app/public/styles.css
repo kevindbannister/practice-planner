@@ -3121,3 +3121,14 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .tax-pay-line .tax-field input, .tax-pay-line .input { min-width: 0; width: 100%; }
 .tax-pay-line .tax-field > span { font-size: 12px; }
 .tax-pay-date input { min-height: 36px; }
+
+/* the client's name in a tax return, which switches to another client */
+.tax-switcher { position: relative; min-width: 0; }
+.tax-switcher-name { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0; color: inherit; cursor: pointer; min-width: 0; }
+.tax-switcher-title { font-size: 20px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tax-switcher-name:hover .tax-switcher-title, .tax-switcher-name:focus-visible .tax-switcher-title { text-decoration: underline; }
+.tax-switcher-panel { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.08); display: flex; align-items: flex-start; justify-content: center; padding: 90px 16px 16px; }
+.tax-switcher-card { width: min(380px, 100%); max-height: 70vh; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; background: var(--surface, #fff); color: var(--ink, #1c1f24); box-shadow: 0 18px 40px rgba(0,0,0,.2); }
+.tax-switcher-card ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; gap: 2px; }
+.tax-switcher-card li button { width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 10px; font: inherit; color: inherit; cursor: pointer; }
+.tax-switcher-card li button:hover, .tax-switcher-card li button:focus-visible { background: var(--tint, rgba(120,140,255,.12)); }

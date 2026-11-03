@@ -107,6 +107,47 @@ function TaxList() {
 type View = "inputs" | "return" | "summary";
 const readView = (): View => { try { const v = localStorage.getItem("pp.tax.view"); return v === "return" || v === "summary" ? v : "inputs"; } catch { return "inputs"; } };
 
+/** The client's name, which opens a list of the other clients to jump to their return for the same year. */
+function ClientSwitcher({ current, year }: { current: Client; year: number }) {
+  const { data } = useData();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const list = useMemo(() => (data.clients as Client[])
+    .filter((c) => !isCompany(c) && c.Key !== current.Key && (!q || String(c.Title).toLowerCase().includes(q.toLowerCase())))
+    .sort((a, b) => String(a.Title).localeCompare(String(b.Title)))
+    .slice(0, 200), [data.clients, current.Key, q]);
+  useEffect(() => {
+    if (!open) return;
+    const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", k);
+    return () => document.removeEventListener("keydown", k);
+  }, [open]);
+  return (
+    <div className="tax-switcher">
+      <button type="button" className="tax-switcher-name" aria-haspopup="listbox" aria-expanded={open} title="Switch to another client" onClick={() => setOpen((o) => !o)}>
+        <span className="tax-switcher-title">{current.Title}</span><span aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <div className="tax-switcher-panel" role="presentation" onClick={() => setOpen(false)}>
+          <div className="tax-switcher-card" role="listbox" aria-label="Switch client" onClick={(e) => e.stopPropagation()}>
+            <input className="input" autoFocus placeholder="Find a client" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a client" />
+            <ul>
+              {list.map((c) => (
+                <li key={c.Key}>
+                  <button type="button" role="option" aria-selected={false} onClick={() => { setOpen(false); window.location.hash = href("tax", String(c.Key), String(year)); }}>
+                    {c.Title}{c.UTR ? <span className="muted mono"> · {String(c.UTR)}</span> : null}
+                  </button>
+                </li>
+              ))}
+              {!list.length && <li className="muted" style={{ padding: 8 }}>No client matches.</li>}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; year?: number; start?: Start }) {
   const idx = useIndex();
   const { data } = useData();
@@ -128,7 +169,7 @@ function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; yea
     <div className="page paper-page tax-page">
       <header className="paper-top">
         <a className="paper-top-icon" href="#/tax" title="Back to all tax returns" aria-label="Back to all tax returns"><Icon name="book" size={20} /></a>
-        <h1>{c.Title}</h1>
+        <ClientSwitcher current={c} year={year} />
         <span className="chip">SA100 {yearLabel(year)}</span>
         {state && <span className={`chip${state === "submitted" ? " green" : state === "final" ? " blue" : ""}`}>{STATE_LABEL[state]}</span>}
         {c.UTR && <span className="chip mono" title="Self Assessment UTR">{String(c.UTR)}</span>}
