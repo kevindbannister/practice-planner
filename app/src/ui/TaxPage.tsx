@@ -255,7 +255,7 @@ function TaxScreen({ client: c, year }: { client: Client; year: number }) {
           {w.error && <p className="error-text" role="alert">{w.error}</p>}
         </section>
       </div>
-      <aside className="tax-comp" aria-label="Tax computation"><CompPanel comp={comp} year={year} client={c} /></aside>
+      <aside className="tax-comp hero-wash" aria-label="Tax computation"><CompPanel comp={comp} year={year} client={c} /></aside>
       {adding && <AddSection ret={ret} onAdd={add} onClose={() => setAdding(false)} />}
     </div>
   );
