@@ -25,6 +25,7 @@ import { AssistantProvider, useAssistant } from "./Assistant";
 import { PageBoundary } from "./ErrorBoundary";
 import { CommsPage } from "./Comms";
 import { PapersPage } from "./PapersPage";
+import { TaxPage } from "./TaxPage";
 import { SalesPage } from "./SalesPage";
 import { CoSecPage } from "./CoSecPage";
 import { AdvisoryPage } from "./AdvisoryPage";
@@ -115,6 +116,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <CommsPage />;
   } else if (section === "papers") {
     body = <PapersPage />;
+  } else if (section === "tax") {
+    body = <TaxPage />;
   } else if (section === "checklists") {
     body = <><SettingsTabs current="checklists" /><ChecklistsPage /></>;
   } else if (section === "portal") {
@@ -131,7 +134,7 @@ export function App({ demo }: { demo: boolean }) {
             <AssistantProvider>
               <PortalProvider>
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
-                {!((section === "advisory" || section === "papers") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
+                {!((section === "advisory" || section === "papers" || section === "tax") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
                 {status === "ready" && <ActionSync />}
                 {status === "ready" && <CoSecSync />}
                 {status === "ready" && <TimerChip />}
