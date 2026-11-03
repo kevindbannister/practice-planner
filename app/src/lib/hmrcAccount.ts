@@ -5,8 +5,13 @@
 import { PaymentLine, TaxReturn, compute, emptyReturn, newId, paymentLines } from "./tax";
 import { YEARS, yearLabel, yearOf } from "./taxRates";
 
-export type AccountKind = "payment" | "interest" | "charge" | "repayment" | "other";
-export type AccountRow = { date: string; description: string; amount: number; kind: AccountKind; key: string; text: string };
+/** "allocation": a line of the breakdown of a year's payments (what each payment was allocated to) */
+export type AccountKind = "payment" | "interest" | "charge" | "repayment" | "other" | "allocation";
+export type AccountRow = {
+  date: string; description: string; amount: number; kind: AccountKind; key: string; text: string;
+  /** breakdown lines: the due date of what was paid, the payment it came from, and what it is */
+  due?: string; from?: number; alloc?: "poa1" | "poa2" | "balancing" | "other";
+};
 /** what a line is, and the tax year (ending year) it belongs to */
 export type Role = { kind: "poa1" | "poa2" | "balancing" | "payment" | "charge" | "credit"; year: number };
 export type PlanRow = {
@@ -14,7 +19,7 @@ export type PlanRow = {
   /** undefined: not applied (already imported, outside the years held, or skipped by the person) */
   role?: Role;
   /** system: the same payment is already in the return, so it is not added again */
-  status: "match" | "check" | "already" | "system" | "outside" | "skip";
+  status: "match" | "check" | "already" | "system" | "covered" | "outside" | "skip";
   /** what the return already has for this line: a payment entered, or a payment on account still to pay */
   system?: string;
   note: string;
@@ -129,7 +134,7 @@ const money = (v: number | undefined) => `£${(v ?? 0).toLocaleString("en-GB", {
 /** The role of each line: the first tax year it could belong to that the app holds and whose figures it matches, otherwise the
  * most likely one flagged to check. `choose` replaces the role for a line (by its index); null skips it. A line whose payment is
  * already in the return is marked system and is not applied again. */
-export function planAccount(rows: AccountRow[], returns: Map<number, TaxReturn>, imported: Set<string>, choose: Record<number, Role | null> = {}): PlanRow[] {
+export function planAccount(rows: AccountRow[], returns: Map<number, TaxReturn>, imported: Set<string>, choose: Record<number, Role | null> = {}, covered: Set<string> = new Set()): PlanRow[] {
   const base = (row: AccountRow, i: number): PlanRow => {
     if (i in choose) {
       const role = choose[i];
@@ -139,6 +144,7 @@ export function planAccount(rows: AccountRow[], returns: Map<number, TaxReturn>,
         : { row, status: "outside", note: `${yearLabel(role.year)} isn't held` };
     }
     if (imported.has(row.key)) return { row, status: "already", note: "Already brought in" };
+    if (covered.has(`${row.date}|${row.amount}`)) return { row, status: "covered", note: "Covered by the breakdown: applied from there" };
     const cands = candidates(row);
     if (!cands.length) return { row, status: "skip", note: "Not a payment, interest or charge: left out" };
     const held = cands.filter((c) => heldYear(c.year));
@@ -155,6 +161,7 @@ export function planAccount(rows: AccountRow[], returns: Map<number, TaxReturn>,
   };
   return rows.map((row, i): PlanRow => {
     const p = base(row, i);
+    if (p.status === "covered") return p;
     if (!p.role || !heldYear(p.role.year) || p.status === "already") return p;
     const sys = systemMatch(returns, p.role, row);
     if (!sys) {
@@ -184,8 +191,13 @@ export function applyAccount(plan: PlanRow[], returns: Map<number, TaxReturn>): 
     const r = get(role.year);
     const imported = r.payments.imported || [];
     if (imported.includes(row.key)) continue;
-    const lines: PaymentLine[] = paymentLines(r, role.year).map((l) => ({ ...l }));
-    if (role.kind === "credit") {
+    let lines: PaymentLine[] = paymentLines(r, role.year).map((l) => ({ ...l }));
+    if (row.kind === "allocation") {
+      // the breakdown says what the year's payment was: an unpaid payment on account of that kind is replaced by it
+      if (role.kind === "poa1" || role.kind === "poa2") lines = lines.filter((l) => !(l.kind === role.kind && !l.paid));
+      const label = role.kind === "balancing" ? `Balancing payment (due ${fmtDue(row.due)})` : `${LABEL[role.kind]} (due ${fmtDue(row.due)})`;
+      lines.push({ id: newId(), kind: role.kind === "poa1" || role.kind === "poa2" ? role.kind : "other", label, date: row.date, amount: row.amount, paid: true, hmrcKey: row.key });
+    } else if (role.kind === "credit") {
       r.payments.credits = [...(r.payments.credits || []), { date: row.date, description: row.description, amount: row.amount, key: row.key }];
     } else if (role.kind === "charge") {
       lines.push({ id: newId(), kind: "other", label: `${row.description} (from the HMRC account)`, date: row.date, late: row.amount, paid: true, hmrcKey: row.key });
@@ -206,3 +218,84 @@ export function applyAccount(plan: PlanRow[], returns: Map<number, TaxReturn>): 
 export function importedKeys(returns: Map<number, TaxReturn>): Set<string> {
   return new Set([...returns.values()].flatMap((r) => r.payments.imported || []));
 }
+
+const fmtDue = (iso?: string) => (iso ? new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
+
+/** The tax year (ending year) a breakdown line belongs to, from what it was due for: a balance is due 31 January after its year ends,
+ * a first payment on account is due in the year it is named for, and a second payment on account is due 31 July of that year or,
+ * when it was deferred into the next January, 31 January after it. */
+export function allocationYear(alloc: NonNullable<AccountRow["alloc"]>, due: string): number {
+  const y = Number(due.slice(0, 4)), m = Number(due.slice(5, 7));
+  if (alloc === "balancing") return y - 1;
+  if (alloc === "poa1") return y;
+  if (alloc === "poa2") return m === 1 ? y - 1 : y;
+  return taxYear(due);
+}
+
+/** Reads a breakdown of a client's payments, copied from the HMRC account: one line for each payment, with what it was allocated to,
+ * the due date and the payment it came from. The total line is read too, so it can be checked against the lines. */
+export function parseBreakdown(text: string): { rows: AccountRow[]; skipped: string[]; total?: number } {
+  const rows: AccountRow[] = [], skipped: string[] = [];
+  let total: number | undefined;
+  const seen = new Map<string, number>();
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const t = /^total\b[\s\t]*£?([\d,]*\.?\d+)$/i.exec(line);
+    if (t) { total = Number(t[1].replace(/,/g, "")); continue; }
+    const m = LINE.exec(line.replace(/\t+/g, " "));
+    const month = m && MONTHS[m[2].toLowerCase()];
+    if (!m || !month) { skipped.push(line); continue; }
+    const date = `${m[3]}-${String(month).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    const description = m[4].trim().replace(/\s+/g, " ");
+    const amount = p2(Number(m[5].replace(/,/g, "")));
+    const due = /due (\d{1,2}) ([A-Za-z]{3}) (\d{4})/.exec(description);
+    const dueIso = due && MONTHS[due[2].toLowerCase()] ? `${due[3]}-${String(MONTHS[due[2].toLowerCase()]).padStart(2, "0")}-${due[1].padStart(2, "0")}` : undefined;
+    const from = /from payment\/credit £([\d,]*\.?\d+)/i.exec(description);
+    const d = description.toLowerCase();
+    const alloc: NonNullable<AccountRow["alloc"]> = /^first payment on account/.test(d) ? "poa1" : /^second payment on account/.test(d) ? "poa2" : /^balancing payment/.test(d) ? "balancing" : "other";
+    if (!dueIso) { skipped.push(line); continue; }
+    const base = `alloc|${date}|${description}|${amount}`;
+    const count = (seen.get(base) || 0) + 1;
+    seen.set(base, count);
+    rows.push({ date, description: description.replace(/\s*\(from payment.*$/i, ""), amount, kind: "allocation", alloc, due: dueIso, from: from ? p2(Number(from[1].replace(/,/g, ""))) : undefined, key: count > 1 ? `${base}#${count}` : base, text: line });
+  }
+  return { rows, skipped, total };
+}
+
+/** The account lines a breakdown covers in full (its allocations add up to the payment): these are not applied a second time. */
+export function coveredBy(breakdown: AccountRow[]): Set<string> {
+  const sums = new Map<string, { date: string; from: number; sum: number }>();
+  for (const b of breakdown) {
+    if (b.from === undefined) continue;
+    const k = `${b.date}|${p2(b.from)}`;
+    const cur = sums.get(k) || { date: b.date, from: p2(b.from), sum: 0 };
+    cur.sum = p2(cur.sum + b.amount);
+    sums.set(k, cur);
+  }
+  return new Set([...sums.values()].filter((x) => Math.abs(x.sum - x.from) < 0.005).map((x) => `${x.date}|${x.from}`));
+}
+
+/** The breakdown lines' roles: each line goes to the tax year its due date belongs to. A line already in the return (paid, with the
+ * same date and amount) is not added again. */
+export function planBreakdown(rows: AccountRow[], returns: Map<number, TaxReturn>, imported: Set<string>, choose: Record<number, Role | null> = {}): PlanRow[] {
+  return rows.map((row, i): PlanRow => {
+    const alloc = row.alloc || "other";
+    const year = allocationYear(alloc, row.due || row.date);
+    if (i in choose) {
+      const role = choose[i];
+      if (!role) return { row, status: "skip", note: "Left out" };
+      return heldYear(role.year) ? { row, role, status: "check", note: `Set by hand to ${LABEL[role.kind]}, ${yearLabel(role.year)}` } : { row, status: "outside", note: `${yearLabel(role.year)} isn't held` };
+    }
+    if (imported.has(row.key)) return { row, status: "already", note: "Already brought in" };
+    if (!heldYear(year)) return { row, status: "outside", note: `${yearLabel(year)} isn't held (the years held start at 2019-20)` };
+    const role: Role = { kind: alloc === "poa1" || alloc === "poa2" || alloc === "balancing" ? alloc : "payment", year };
+    const r = returns.get(year);
+    const lines = r ? paymentLines(r, year) : [];
+    const made = lines.find((l) => l.paid && Math.abs(n0(l.amount) - row.amount) < 0.005 && l.date === row.date && (alloc === "poa1" || alloc === "poa2" ? l.kind === alloc : l.kind === "other"));
+    if (made) return { row, role, status: "system", system: `${made.label}, paid ${made.date}`, note: `Already in the return: ${made.label}, paid ${made.date}` };
+    return { row, role, status: "match", note: `${LABEL[role.kind]} for ${yearLabel(year)}, due ${fmtDue(row.due)}` };
+  });
+}
+
+const n0 = (v: number | undefined) => v ?? 0;

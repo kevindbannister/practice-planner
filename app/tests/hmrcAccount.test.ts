@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyAccount, importedKeys, knownFor, parseAccount, planAccount } from "../src/lib/hmrcAccount";
+import { allocationYear, applyAccount, coveredBy, importedKeys, knownFor, parseAccount, parseBreakdown, planAccount, planBreakdown } from "../src/lib/hmrcAccount";
 import { TaxReturn, emptyReturn } from "../src/lib/tax";
 
 // Made-up lines in the layout the HMRC account page copies in (not a real client's figures)
@@ -147,4 +147,56 @@ test("a line left out of the approved plan is not applied", () => {
   const { rows } = parseAccount("30 Jan 2026\tPayment\t1,222.22");
   const plan = planAccount(rows, returns, new Set()).map((p) => ({ ...p, role: undefined }));
   assert.equal(applyAccount(plan, returns).size, 0);
+});
+
+// A made-up breakdown in the layout HMRC copies (amounts and totals are invented)
+const BREAKDOWN = [
+  "27 Jan 2020\tFirst payment on account due 31 Jan 2020 (from payment/credit £1000.00)\t600.00",
+  "27 Jan 2020\tSecond payment on account due 31 Jan 2021 (from payment/credit £1000.00)\t400.00",
+  "23 Jan 2021\tBalancing payment due 31 Jan 2021 (from payment/credit £2000.00)\t500.00",
+  "23 Jan 2021\tSecond payment on account due 31 Jan 2021 (from payment/credit £2000.00)\t1,500.00",
+  "Total\t3,000.00",
+].join("\n");
+
+test("a breakdown is read line by line with its due date, the payment it came from and the total", () => {
+  const b = parseBreakdown(BREAKDOWN);
+  assert.equal(b.rows.length, 4);
+  assert.equal(b.total, 3000);
+  assert.deepEqual(b.rows.map((x) => x.alloc), ["poa1", "poa2", "balancing", "poa2"]);
+  assert.equal(b.rows[1].due, "2021-01-31");
+  assert.equal(b.rows[1].from, 1000);
+});
+
+test("each breakdown line goes to the tax year its due date belongs to, including a deferred second payment on account", () => {
+  assert.equal(allocationYear("poa1", "2020-01-31"), 2020);
+  assert.equal(allocationYear("poa2", "2021-01-31"), 2020); // deferred from July 2020
+  assert.equal(allocationYear("poa2", "2020-07-31"), 2020);
+  assert.equal(allocationYear("balancing", "2021-01-31"), 2020);
+});
+
+test("a payment whose breakdown adds up to it is covered, so the account line is not applied a second time", () => {
+  const b = parseBreakdown(BREAKDOWN).rows;
+  assert.deepEqual([...coveredBy(b)].sort(), ["2020-01-27|1000", "2021-01-23|2000"]);
+  const { rows } = parseAccount("27 Jan 2020\tPayment\t1,000.00");
+  assert.equal(planAccount(rows, new Map(), new Set(), {}, coveredBy(b))[0].status, "covered");
+});
+
+test("applying a breakdown replaces the unpaid placeholders with what was paid, and the payments add up to the total", () => {
+  const returns = new Map<number, TaxReturn>([[2020, withPoas(2020, 600, 1500)]]);
+  const plan = planBreakdown(parseBreakdown(BREAKDOWN).rows, returns, new Set());
+  assert.ok(plan.every((p) => p.status === "match"));
+  const out = applyAccount(plan, returns).get(2020)!;
+  const lines = out.payments.lines!;
+  assert.equal(lines.filter((l) => !l.paid).length, 0);
+  assert.equal(lines.filter((l) => l.kind === "poa2").length, 2);
+  assert.equal(Math.round(lines.reduce((a, l) => a + (l.paid ? l.amount || 0 : 0), 0) * 100) / 100, 3000);
+  // bringing it in again adds nothing
+  assert.equal(applyAccount(planBreakdown(parseBreakdown(BREAKDOWN).rows, new Map([[2020, out]]), importedKeys(new Map([[2020, out]]))), new Map([[2020, out]])).size, 0);
+});
+
+test("a breakdown payment already in the return is not added again", () => {
+  const r = withPoas(2020, 600, 1500);
+  r.payments.lines = [{ id: "a", kind: "poa1", label: "First payment on account", date: "2020-01-27", amount: 600, paid: true }];
+  const plan = planBreakdown(parseBreakdown(BREAKDOWN).rows, new Map([[2020, r]]), new Set());
+  assert.equal(plan[0].status, "system");
 });
