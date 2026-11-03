@@ -27,6 +27,13 @@ test("a figure the AI gives that isn't printed is left out and reported", () => 
   assert.deepEqual(dropped, ["employments[1].tax", "interest[1].untaxed"]);
 });
 
+test("tax taken off in brackets is a size, not a negative figure", () => {
+  const printed = printedNumbers([file(["Tax (528.00)", "Net 2,112.00"])]);
+  const { ret } = sanitiseRead({ pensions: { others: [{ payer: "Scheme", amount: 2640, tax: -528, net: 2112 }] } }, printed);
+  assert.equal(ret.pensions?.others[0].tax, 528);
+  assert.equal(ret.pensions?.others[0].net, 2112);
+});
+
 test("texts must fit their field: a region, a date or a plan that isn't allowed is left out", () => {
   const { ret } = sanitiseRead({
     front: { region: "Scotland-ish", dob: "20/05/1960", utr: "1234567890" },

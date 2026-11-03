@@ -201,7 +201,8 @@ function parseTaxRead(text) {
     if (typeof v === "string") {
       const t = v.trim().slice(0, 300);
       if (!t) return undefined;
-      if (!TAX_READ_STRINGS.has(key) && /^\(?-?£?\s?[\d,]+(\.\d+)?\)?$/.test(t)) return Number(t.replace(/[(),£\s]/g, "")) * (/^\(|^-/.test(t) ? -1 : 1);
+      // amounts are sizes: brackets and minus signs are how the document shows tax taken off, not a negative figure
+      if (!TAX_READ_STRINGS.has(key) && /^\(?-?£?\s?[\d,]+(\.\d+)?\)?$/.test(t)) return Math.abs(Number(t.replace(/[(),£\s-]/g, "")));
       return t;
     }
     if (typeof v === "number") return Number.isFinite(v) ? v : undefined;

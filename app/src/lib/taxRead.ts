@@ -29,6 +29,8 @@ const ENUMS: Record<string, string[]> = {
 };
 const PLANS = ["plan1", "plan2", "plan4", "plan5"];
 const DATE_KEYS = new Set(["dob", "start", "end", "date"]);
+/** Amounts that are sizes (tax taken off, what was paid, what was earned): a minus or brackets never make them negative. */
+const SIZES = new Set(["tax", "net", "taxTaken", "stateLumpSumTax", "incapacityTax", "foreignTax", "amount", "untaxed", "pay", "tips", "gross"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -39,7 +41,8 @@ export function sanitiseRead(raw: Record<string, unknown>, printed: Set<number>)
   const dropped: string[] = [];
   const walk = (v: unknown, key: string, path: string): unknown => {
     if (typeof v === "number") {
-      if (v === 0 || printed.has(round2(Math.abs(v)))) return v;
+      const size = SIZES.has(key) ? Math.abs(v) : v;
+      if (size === 0 || printed.has(round2(Math.abs(v)))) return size;
       dropped.push(path);
       return undefined;
     }
