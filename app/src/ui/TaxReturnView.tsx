@@ -345,11 +345,10 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
                   <strong>Income tax check against the document</strong>
                   <table style={{ width: "100%", marginTop: 4, borderCollapse: "collapse" }}>
                     <tbody>
-                      <tr><td>Income tax worked out from these figures (before tax deducted at source)</td><td className="mono" style={{ textAlign: "right" }}>{gbp(res.check.ours)}</td></tr>
-                      <tr><td>Tax deducted at source (PAYE, interest, pensions and so on)</td><td className="mono" style={{ textAlign: "right" }}>{gbp(res.check.deducted)}</td></tr>
-                      <tr><td><strong>Total income tax due after tax deducted at source</strong></td><td className="mono" style={{ textAlign: "right" }}><strong>{gbp(res.check.ours - res.check.deducted)}</strong></td></tr>
-                      <tr><td>Income tax due printed in the document</td><td className="mono" style={{ textAlign: "right" }}>{res.check.document === undefined ? "not found" : gbp(res.check.document)}</td></tr>
-                      <tr><td>Result</td><td style={{ textAlign: "right" }}>{res.check.agrees === "gross" ? "agrees, before tax deducted" : res.check.agrees === "after deduction" ? "agrees, after tax deducted" : "does not agree"}</td></tr>
+                      <tr><td>Income Tax charged after allowances and reliefs</td><td className="mono" style={{ textAlign: "right" }}>{gbp(res.check.ours)}</td></tr>
+                      <tr><td>Less tax deducted at source (PAYE, interest, pensions and so on)</td><td className="mono" style={{ textAlign: "right" }}>-{gbp(res.check.deducted)}</td></tr>
+                      <tr><td><strong>Total Income Tax due</strong></td><td className="mono" style={{ textAlign: "right", borderTop: "1px solid #111" }}><strong>{gbp(res.check.ours - res.check.deducted)}</strong></td></tr>
+                      <tr><td colSpan={2} style={{ paddingTop: 6 }}>Income Tax due printed in the document: {res.check.document === undefined ? "not found" : gbp(res.check.document)}. Result: {res.check.agrees === "gross" ? "agrees, before tax deducted at source" : res.check.agrees === "after deduction" ? "agrees, after tax deducted at source" : "does not agree"}.</td></tr>
                     </tbody>
                   </table>
                 </div>
