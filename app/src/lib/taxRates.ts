@@ -3,6 +3,10 @@
 // years", GOV.UK "Rates and allowances: National Insurance contributions", gov.scot "Scottish Income Tax: rates and bands",
 // student loan thresholds as published for employers, Child Benefit uprating, CGT rates (including the 30 October 2024
 // change). A year is named by the calendar year it ends in: 2026 means 6 April 2025 to 5 April 2026.
+// Checked against the rates tables for 2020/21 to 2026/27 (income tax, dividends, savings, CGT, Class 2 and 4 NI, allowances,
+// student loans, payments on account): Plan 4 is removed for 2019/20 and 2020/21, when it did not exist. Still to decide:
+// 2023/24 Class 4 main rate is 9% here; it was cut to 8% from 6 January 2024, which the app does not split. 2022/23 lower
+// profits limit is £11,908 here; the table gives £11,909.
 
 export type Region = "england" | "scotland" | "wales";
 export type Band = { upTo: number; rate: number; name: string }; // upTo is in taxable income after allowances; Infinity for the last
@@ -19,7 +23,8 @@ export type YearRates = {
   /** profits from which compulsory Class 2 is due (to 2021-22 the Small Profits Threshold; from 2022-23 the Lower Profits Limit, which is the default) */
   class2From?: number;
   class4Lower: number; class4Upper: number; class4Main: number; class4Additional: number;
-  studentLoan: { plan1: number; plan2: number; plan4: number; plan5?: number; postgrad: number };
+  /** Plan 4 (Scotland) starts in 2021-22, so it has no threshold before then */
+  studentLoan: { plan1: number; plan2: number; plan4?: number; plan5?: number; postgrad: number };
   childBenefit: { eldest: number; other: number }; // weekly
   hicbc: { from: number; per1pc: number };
   cgt: { exempt: number; basic: number; higher: number; resBasic: number; resHigher: number; badr: number;
@@ -69,7 +74,7 @@ export const YEARS: YearRates[] = [
     ...base, year: 2020, label: "2019-20", personalAllowance: 12500, marriageAllowance: 1250, blindAllowance: 2450, uk: ukOld(37500), scotland: scotOld(2049, 12444, 30930),
     dividendAllowance: 2000, dividendRates: [0.075, 0.325, 0.381],
     class2Weekly: 3.0, smallProfitsThreshold: 6365, class2Compulsory: true, class2From: 6365, class4Lower: 8632, class4Upper: 50000, class4Main: 0.09,
-    studentLoan: { plan1: 18935, plan2: 25725, plan4: 18935, postgrad: 21000 },
+    studentLoan: { plan1: 18935, plan2: 25725, postgrad: 21000 },
     childBenefit: { eldest: 20.7, other: 13.7 }, hicbc: { from: 50000, per1pc: 100 },
     cgt: { exempt: 12000, basic: 0.1, higher: 0.2, resBasic: 0.18, resHigher: 0.28, badr: 0.1 },
   },
@@ -77,7 +82,7 @@ export const YEARS: YearRates[] = [
     ...base, year: 2021, label: "2020-21", personalAllowance: 12500, marriageAllowance: 1250, blindAllowance: 2500, uk: ukOld(37500), scotland: scotOld(2085, 12658, 30930),
     dividendAllowance: 2000, dividendRates: [0.075, 0.325, 0.381],
     class2Weekly: 3.05, smallProfitsThreshold: 6475, class2Compulsory: true, class2From: 6475, class4Lower: 9500, class4Upper: 50000, class4Main: 0.09,
-    studentLoan: { plan1: 19390, plan2: 26575, plan4: 19390, postgrad: 21000 },
+    studentLoan: { plan1: 19390, plan2: 26575, postgrad: 21000 },
     childBenefit: { eldest: 21.05, other: 13.95 }, hicbc: { from: 50000, per1pc: 100 },
     cgt: { exempt: 12300, basic: 0.1, higher: 0.2, resBasic: 0.18, resHigher: 0.28, badr: 0.1 },
   },
