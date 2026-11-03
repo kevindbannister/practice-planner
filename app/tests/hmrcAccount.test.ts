@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allocationYear, applyAccount, coveredBy, importedKeys, knownFor, parseAccount, parseBreakdown, planAccount, planBreakdown } from "../src/lib/hmrcAccount";
+import { allocationYear, applyAccount, coveredBy, importedKeys, knownFor, parseAccount, parseBreakdown, placeholdersFor, planAccount, planBreakdown, removePlaceholders } from "../src/lib/hmrcAccount";
 import { TaxReturn, emptyReturn } from "../src/lib/tax";
 
 // Made-up lines in the layout the HMRC account page copies in (not a real client's figures)
@@ -199,4 +199,23 @@ test("a breakdown payment already in the return is not added again", () => {
   r.payments.lines = [{ id: "a", kind: "poa1", label: "First payment on account", date: "2020-01-27", amount: 600, paid: true }];
   const plan = planBreakdown(parseBreakdown(BREAKDOWN).rows, new Map([[2020, r]]), new Set());
   assert.equal(plan[0].status, "system");
+});
+
+test("a placeholder payment on account is listed when the breakdown shows HMRC paid that kind for something else", () => {
+  // the 2021 breakdown has a second payment on account paid, but no first: the 2021 first payment on account placeholder is not HMRC's
+  const b = parseBreakdown("31 Jul 2021\tSecond payment on account due 31 Jul 2021 (from payment/credit £500.00)\t500.00").rows;
+  const returns = new Map<number, TaxReturn>([[2021, withPoas(2021, 800, 800)]]);
+  const ph = placeholdersFor(b, returns, "2026-11-03");
+  assert.deepEqual(ph.map((x) => [x.year, x.id, x.overdue]), [[2021, "poa1", true]]);
+  const out = removePlaceholders(new Map(), returns, ph.map((x) => ({ year: x.year, id: x.id })));
+  const lines = out.get(2021)!.payments.lines!;
+  assert.equal(lines.some((l) => l.id === "poa1"), false);
+  assert.equal(lines.some((l) => l.id === "poa2"), true);
+});
+
+test("a placeholder that was paid, or came from the account, is not listed", () => {
+  const b = parseBreakdown("31 Jul 2021\tSecond payment on account due 31 Jul 2021 (from payment/credit £500.00)\t500.00").rows;
+  const r = withPoas(2021, 800, 800);
+  r.payments.lines = [{ id: "x", kind: "poa1", label: "First payment on account", date: "2021-01-30", amount: 800, paid: true }, { id: "y", kind: "poa2", label: "Second", date: "2021-07-31", amount: 800, hmrcKey: "k" }];
+  assert.deepEqual(placeholdersFor(b, new Map([[2021, r]]), "2026-11-03"), []);
 });

@@ -4,7 +4,7 @@
 // there isn't one yet).
 import { useMemo, useState } from "react";
 import { Client, todayIso } from "../lib/domain";
-import { applyAccount, coveredBy, importedKeys, parseAccount, parseBreakdown, planAccount, planBreakdown, PlanRow, Role } from "../lib/hmrcAccount";
+import { applyAccount, coveredBy, importedKeys, parseAccount, parseBreakdown, placeholdersFor, planAccount, planBreakdown, PlanRow, removePlaceholders, Role } from "../lib/hmrcAccount";
 import { setupRow, readSetup } from "../lib/papers";
 import { newKey } from "../lib/planning";
 import { TaxReturn, compute, readReturn } from "../lib/tax";
@@ -41,6 +41,8 @@ export function HmrcAccountDialog({ client, onClose }: { client: Client; onClose
   const [choose, setChoose] = useState<Record<number, Role | null>>({});
   /** the person's own ticks: a line is approved by default only when it matches the return */
   const [approved, setApproved] = useState<Record<number, boolean>>({});
+  /** placeholders (unpaid payments on account the return made) to take out: overdue ones by default, the person can untick them */
+  const [dropPh, setDropPh] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ saved: number[]; failed: number[] } | null>(null);
 
@@ -75,7 +77,11 @@ export function HmrcAccountDialog({ client, onClose }: { client: Client; onClose
   const isApproved = (p: PlanRow, i: number) => canApprove(p) && (i in approved ? approved[i] : p.status === "match");
   // only the approved lines are brought in
   const toApply = useMemo(() => plan.map((p, i): PlanRow => (isApproved(p, i) ? p : { ...p, role: undefined })), [plan, approved]);
-  const changed = useMemo(() => applyAccount(toApply, returns), [toApply, returns]);
+  const today = todayIso();
+  const placeholders = useMemo(() => placeholdersFor(breakdown.rows, returns, today), [breakdown.rows, returns, today]);
+  const phKey = (p: { year: number; id: string }) => `${p.year}|${p.id}`;
+  const dropping = placeholders.filter((p) => (phKey(p) in dropPh ? dropPh[phKey(p)] : p.overdue));
+  const changed = useMemo(() => removePlaceholders(applyAccount(toApply, returns), returns, dropping.map((p) => ({ year: p.year, id: p.id }))), [toApply, returns, dropping]); // eslint-disable-line react-hooks/exhaustive-deps
   const approvedCount = toApply.filter((p) => p.role).length;
   const counts = (st: PlanRow["status"]) => plan.filter((p) => p.status === st).length;
   const money = (v: number) => gbp(v);
@@ -209,13 +215,33 @@ export function HmrcAccountDialog({ client, onClose }: { client: Client; onClose
                 </div>
               )}
 
+              {placeholders.length > 0 && (
+                <div className="table-wrap">
+                  <p style={{ margin: "0 0 6px", fontSize: 13 }}><strong>Payments on account in the return that HMRC didn't allocate</strong>: these were made up by the return, and the breakdown shows HMRC paid for something else. Remove them.</p>
+                  <table className="grid">
+                    <thead><tr><th>Remove</th><th>Tax year</th><th>Placeholder</th><th>Due</th><th className="num">Amount</th></tr></thead>
+                    <tbody>
+                      {placeholders.map((p) => (
+                        <tr key={phKey(p)}>
+                          <td><input type="checkbox" aria-label={`Remove ${p.label} for ${yearLabel(p.year)}`} checked={phKey(p) in dropPh ? dropPh[phKey(p)] : p.overdue} onChange={(e) => setDropPh((prev) => ({ ...prev, [phKey(p)]: e.target.checked }))} /></td>
+                          <td>{yearLabel(p.year)}</td>
+                          <td>{p.label}</td>
+                          <td className="mono">{p.date}{p.overdue ? <div className="tax-note">past due</div> : <div className="tax-note">not yet due: untick to keep</div>}</td>
+                          <td className="num mono">{p.amount !== undefined ? gbp(p.amount) : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               {newYears.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>A blank return is started for {newYears.map(yearLabel).join(", ")}, where there isn't one yet.</p>}
               <p className="muted" style={{ margin: 0, fontSize: 12 }}>Lines already in a return aren't added again. To remove a payment that is already in a return, use its Remove button on the return's payments.</p>
             </div>
             <div className="row-wrap" style={{ gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
               <button type="button" className="btn" onClick={onClose} disabled={saving}>Cancel</button>
-              <button type="button" className="btn primary" disabled={!approvedCount || saving} onClick={() => void save()}>
-                {approvedCount ? `Bring in ${approvedCount} approved line${approvedCount === 1 ? "" : "s"}` : "Approve lines to bring in"}
+              <button type="button" className="btn primary" disabled={!(approvedCount || dropping.length) || saving} onClick={() => void save()}>
+                {approvedCount || dropping.length ? [approvedCount ? `Bring in ${approvedCount} approved line${approvedCount === 1 ? "" : "s"}` : "", dropping.length ? `remove ${dropping.length} placeholder${dropping.length === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ") : "Approve lines to bring in"}
               </button>
             </div>
           </>

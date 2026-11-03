@@ -299,3 +299,37 @@ export function planBreakdown(rows: AccountRow[], returns: Map<number, TaxReturn
 }
 
 const n0 = (v: number | undefined) => v ?? 0;
+
+/** An unpaid payment on account the return made (not one from the account) that the breakdowns show HMRC did not allocate to it:
+ * for a year a breakdown covers, a placeholder of a kind that the breakdown has no paid payment for. */
+export type Placeholder = { year: number; id: string; label: string; date: string; amount?: number; overdue: boolean };
+export function placeholdersFor(breakdown: AccountRow[], returns: Map<number, TaxReturn>, today: string): Placeholder[] {
+  const covered = new Set<number>(), paidKinds = new Set<string>();
+  for (const b of breakdown) {
+    const alloc = b.alloc || "other";
+    const y = allocationYear(alloc, b.due || b.date);
+    covered.add(y);
+    if (alloc === "poa1" || alloc === "poa2") paidKinds.add(`${y}|${alloc}`);
+  }
+  const out: Placeholder[] = [];
+  for (const y of [...covered].sort((a, b) => a - b)) {
+    const r = returns.get(y);
+    if (!r) continue;
+    for (const l of paymentLines(r, y)) {
+      if (l.paid || l.hmrcKey || (l.kind !== "poa1" && l.kind !== "poa2") || paidKinds.has(`${y}|${l.kind}`)) continue;
+      out.push({ year: y, id: l.id, label: l.label, date: l.date, amount: l.amount, overdue: l.date < today });
+    }
+  }
+  return out;
+}
+
+/** Takes the placeholders out of the returns (on top of the changes already made). Returns the changed returns. */
+export function removePlaceholders(changed: Map<number, TaxReturn>, returns: Map<number, TaxReturn>, remove: { year: number; id: string }[]): Map<number, TaxReturn> {
+  const out = new Map(changed);
+  for (const { year, id } of remove) {
+    let r = out.get(year);
+    if (!r) { r = structuredClone(returns.get(year) ?? emptyReturn()); out.set(year, r); }
+    r.payments.lines = paymentLines(r, year).filter((l) => l.id !== id);
+  }
+  return out;
+}
