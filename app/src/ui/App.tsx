@@ -26,6 +26,7 @@ import { PageBoundary } from "./ErrorBoundary";
 import { CommsPage } from "./Comms";
 import { PapersPage } from "./PapersPage";
 import { TaxPage } from "./TaxPage";
+import { PracticePage } from "./PracticePage";
 import { SalesPage } from "./SalesPage";
 import { CoSecPage } from "./CoSecPage";
 import { AdvisoryPage } from "./AdvisoryPage";
@@ -118,6 +119,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <PapersPage />;
   } else if (section === "tax") {
     body = <TaxPage />;
+  } else if (section === "practice") {
+    body = <PracticePage />;
   } else if (section === "checklists") {
     body = <><SettingsTabs current="checklists" /><ChecklistsPage /></>;
   } else if (section === "portal") {

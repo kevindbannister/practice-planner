@@ -156,6 +156,7 @@ export function HomePage() {
               <div className="hero-hours"><div className="hero-hours-tx"><span>Not a working day{todayBizCap ? ` · business ${fmtHours(todayBiz) || "0h"} of ${fmtHours(todayBizCap)}` : ""}</span></div></div>
             )}
             <div className="row-wrap">
+              <a className="btn" href="#/practice">Practice view</a>
               <a className="btn" href="#/plan/deadlines">Deadlines</a>
               <a className="btn primary" href="#/plan">Open the plan</a>
             </div>
