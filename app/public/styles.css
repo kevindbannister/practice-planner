@@ -3039,3 +3039,7 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .tax-page .paper-main .tax-head-title { margin: 2px 0 0; }
 .tax-page .paper-main .tax-form .tax-group h3, .tax-page .paper-main .tax-form .tax-sub { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); border-bottom: 1px solid var(--blue-line); padding-bottom: 3px; margin: 0 0 6px; }
 .tax-page .tax-add-cols h3 { font-size: 12px; color: var(--muted); margin: 0 0 2px; font-weight: 600; text-transform: none; letter-spacing: 0; border: 0; }
+
+/* tax planning: one column on narrow screens */
+.tp-layout > * { min-width: 0; }
+@media (max-width: 900px) { .tp-layout { grid-template-columns: minmax(0, 1fr) !important; } }

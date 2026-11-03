@@ -11,6 +11,7 @@ import {
 } from "../lib/tax";
 import { YEARS, ratesFor, yearEnd, yearLabel, yearOf } from "../lib/taxRates";
 import { Icon, href, useRoute } from "./bits";
+import { TaxPlanView, TaxPlanningList } from "./TaxPlanning";
 import { BannerMenu } from "./BannerMenu";
 import { useEditor } from "./Editors";
 import { useData, useIndex } from "./data";
@@ -24,6 +25,7 @@ const latestYear = (today: string) => { const y = yearOf(today); return Math.max
 
 export function TaxPage() {
   const { parts } = useRoute();
+  if (parts[1] === "planning") return parts[2] ? <TaxPlanView clientKey={parts[2]} year={Number(parts[3]) || undefined} /> : <TaxPlanningList />;
   return parts[1] ? <TaxView clientKey={parts[1]} year={Number(parts[2]) || undefined} /> : <TaxList />;
 }
 
@@ -55,6 +57,7 @@ function TaxList() {
           <h1>Personal tax</h1>
           <p className="muted" style={{ margin: "4px 0 0" }}>Self Assessment returns and tax computations for each client and tax year.</p>
         </div>
+        <a className="btn" href="#/tax/planning">Tax planning</a>
         <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Tax year
           <select className="input" value={year} style={{ width: "auto" }} onChange={(e) => setYear(Number(e.target.value))}>{[...YEARS].reverse().map((y) => <option key={y.year} value={y.year}>{y.label}</option>)}</select>
         </label>

@@ -4979,6 +4979,69 @@
    ]
   },
   {
+   "key": "TaxPlans",
+   "displayName": "PP Tax Plans",
+   "description": "salary and dividend planning for owner-managed companies",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "TaxYear",
+     "type": "number"
+    },
+    {
+     "name": "Inputs",
+     "type": "note"
+    },
+    {
+     "name": "Chosen",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "AgreedBy",
+     "type": "text"
+    },
+    {
+     "name": "AgreedOn",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "UpdatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
    "key": "PortalUsers",
    "displayName": "PP Portal Users",
    "description": "Practice Planner client portal: portal logins. Written only by the portal server.",

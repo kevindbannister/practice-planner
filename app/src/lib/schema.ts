@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -457,6 +457,11 @@ export const LISTS: ListDef[] = [
     // The practice's own recurring dates: insurance, registrations, reviews. See lib/compliance.ts.
     key: "Obligations", displayName: "PP Obligations", description: "Practice Planner: the practice's own compliance dates",
     columns: [t("Key", true), t("PracticeId", true), t("Title"), t("Kind"), t("Due", true), t("Repeat"), t("Owner"), t("Status", true), t("LastDone"), note("Notes"), t("Created"), t("CreatedBy")],
+  },
+  {
+    // Tax planning: one assessment per company and tax year, the inputs as JSON and the option chosen. See lib/taxPlanning.ts.
+    key: "TaxPlans", displayName: "PP Tax Plans", description: "Practice Planner: salary and dividend planning for owner-managed companies",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), n("TaxYear"), note("Inputs"), t("Chosen"), t("Status", true), t("AgreedBy"), t("AgreedOn"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"), t("UpdatedBy")],
   },
   ...portalLists(),
 ];
