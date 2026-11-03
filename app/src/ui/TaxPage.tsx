@@ -783,7 +783,12 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
     const items = s.expenseItems || [];
     const boxTotal = (b: ExpenseBox) => Math.round(items.filter((x) => expenseBoxOf(x) === b).reduce((a, x) => a + x.amount, 0) * 100) / 100;
     // each expense line as the accounts show it, with its SA103 box; the total is their sum, so the lines and the total can't disagree
-    const setItems = (next: ExpenseLine[]) => set({ expenseItems: next.length ? next : undefined, expenses: Math.round(next.reduce((a, x) => a + x.amount, 0) * 100) / 100 });
+    // the total and the disallowable total are the sums of the lines, so the boxes, the totals and the return can't disagree
+    const setItems = (next: ExpenseLine[]) => set({
+      expenseItems: next.length ? next : undefined,
+      expenses: Math.round(next.reduce((a, x) => a + x.amount, 0) * 100) / 100,
+      ...(next.length ? { disallowable: Math.round(next.reduce((a, x) => a + (x.disallowable || 0), 0) * 100) / 100 } : {}),
+    });
     return (<>
       <Group title="Business">
         <Text label="Business name" value={s.name} onChange={(v) => set({ name: v })} /><Text label="Description" value={s.description} onChange={(v) => set({ description: v })} />
@@ -797,19 +802,30 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
         {items.length
           ? <Readout label="Allowable expenses (total of the lines below)" value={s.expenses} />
           : <Money label="Allowable expenses (total)" value={s.expenses} onChange={(v) => set({ expenses: v || 0 })} />}
-        <Money label="Disallowable expenses added back" value={s.disallowable} onChange={(v) => set({ disallowable: v })} />
+        {items.length
+          ? <Readout label="Disallowable expenses added back (total of the lines below)" value={s.disallowable || 0} />
+          : <Money label="Disallowable expenses added back" value={s.disallowable} onChange={(v) => set({ disallowable: v })} />}
         <Money label="Capital allowances" value={s.capitalAllowances} onChange={(v) => set({ capitalAllowances: v })} /><Money label="Balancing charges" value={s.balancingCharges} onChange={(v) => set({ balancingCharges: v })} />
       </Group>}
-      {!s.tradingAllowance && <Group title="Expense breakdown">
-        {items.map((x, i) => <div key={x.id} className="tax-expense-row">
-          <Text label="Expense" value={x.label} onChange={(v) => setItems(items.map((y, j) => (j === i ? { ...y, label: v || "" } : y)))} />
-          <label className="tax-expense-box"><span>SA103 box</span><select value={expenseBoxOf(x)} onChange={(e) => setItems(items.map((y, j) => (j === i ? { ...y, box: e.target.value as ExpenseBox } : y)))}>
-            {EXPENSE_BOXES.map((b) => <option key={b.box} value={b.box}>{b.box}: {b.label}</option>)}
-          </select></label>
-          <Money label="Amount" value={x.amount} onChange={(v) => setItems(items.map((y, j) => (j === i ? { ...y, amount: v || 0 } : y)))} />
-          <button type="button" className="btn small" onClick={() => setItems(items.filter((_, j) => j !== i))}>Remove</button>
-        </div>)}
-        <button type="button" className="btn small" onClick={() => setItems([...items, { id: newId(), label: "New expense", amount: 0, box: "19" }])}><Icon name="plus" size={14} /> Add an expense line</button>
+      {!s.tradingAllowance && <Group title="Expense breakdown by SA103 box">
+        {EXPENSE_BOXES.map((b) => {
+          const mine = items.map((x, i) => ({ x, i })).filter(({ x }) => expenseBoxOf(x) === b.box);
+          const disTotal = Math.round(mine.reduce((a, { x }) => a + (x.disallowable || 0), 0) * 100) / 100;
+          return (<div key={b.box} className="tax-box-group">
+            <div className="tax-box-head"><strong>Box {b.box}: {b.label}</strong><span className="mono">{gbp(boxTotal(b.box))}</span>{disTotal > 0 && <span className="muted mono">disallowable {gbp(disTotal)}</span>}</div>
+            {mine.map(({ x, i }) => <div key={x.id} className="tax-expense-row">
+              <Text label="Expense" value={x.label} onChange={(v) => setItems(items.map((y, j) => (j === i ? { ...y, label: v || "" } : y)))} />
+              <Money label="Amount" value={x.amount} onChange={(v) => setItems(items.map((y, j) => (j === i ? { ...y, amount: v || 0 } : y)))} />
+              <Money label="Disallowable" value={x.disallowable} onChange={(v) => setItems(items.map((y, j) => (j === i ? { ...y, disallowable: v } : y)))} />
+              <label className="tax-expense-box"><span>SA103 box</span><select value={expenseBoxOf(x)} onChange={(e) => setItems(items.map((y, j) => (j === i ? { ...y, box: e.target.value as ExpenseBox } : y)))}>
+                {EXPENSE_BOXES.map((o) => <option key={o.box} value={o.box}>{o.box}: {o.label}</option>)}
+              </select></label>
+              <button type="button" className="btn small" onClick={() => setItems(items.filter((_, j) => j !== i))}>Remove</button>
+            </div>)}
+            <button type="button" className="btn small" onClick={() => setItems([...items, { id: newId(), label: b.label, amount: 0, box: b.box }])}><Icon name="plus" size={14} /> Add a line to box {b.box}</button>
+          </div>);
+        })}
+        {items.length > 0 && <div className="tax-expense-totals"><Readout label="Total expenses" value={s.expenses} strong />{(s.disallowable || 0) > 0 && <Readout label="Total disallowable" value={s.disallowable || 0} />}</div>}
       </Group>}
       <Group title="Tax return boxes (SA103)">
         <Readout label="Box 9 Turnover" value={s.turnover} />

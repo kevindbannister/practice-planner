@@ -34,7 +34,7 @@ export const EXPENSE_BOXES: { box: ExpenseBox; label: string }[] = [
 ];
 export type ExpenseBox = "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19";
 /** One expense as the accounts show it, with the SA103 box it goes in (other if not given). */
-export type ExpenseLine = { id: string; label: string; amount: number; box?: ExpenseBox };
+export type ExpenseLine = { id: string; label: string; amount: number; box?: ExpenseBox; disallowable?: number };
 export const expenseBoxOf = (x: ExpenseLine): ExpenseBox => x.box ?? "19";
 
 export type Interest = { id: string; payer: string; accountNumber?: string; untaxed: number; net?: number; taxTaken?: number; foreign?: boolean; foreignTax?: number };
