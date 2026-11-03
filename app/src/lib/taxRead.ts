@@ -113,9 +113,9 @@ export function readWithAi(files: ImportFile[], answer: TaxReadAnswer, names: st
   const local = readImport(files, names);
   const { ret, dropped } = sanitiseRead(answer.ret as Record<string, unknown>, printedNumbers(files));
   const warnings: string[] = [];
-  const given = countLeaves(answer.ret), kept = countLeaves(ret);
+  const given = countLeaves(answer.ret), usable = given - dropped.length;
   if (given === 0) warnings.push("The AI gave no figures for this return. Try Read with AI again.");
-  else if (kept === 0) warnings.push(`The AI gave ${given} figures, but none of them could be matched to the PDFs' text. Open 'What the AI returned' to see them.`);
+  else if (usable <= 0) warnings.push(`The AI gave ${given} figures, but none of them could be matched to the PDFs' text. Open 'What the AI returned' to see them.`);
   if (dropped.length) {
     const shown = dropped.slice(0, 6).join(", ");
     warnings.push(`${dropped.length} figure${dropped.length === 1 ? " the AI gave isn't" : "s the AI gave aren't"} printed in the PDFs, so ${dropped.length === 1 ? "it was" : "they were"} left out: ${shown}${dropped.length > 6 ? " and more" : ""}.`);
