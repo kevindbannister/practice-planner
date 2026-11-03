@@ -38,7 +38,9 @@ export type ExpenseLine = { id: string; label: string; amount: number; box?: Exp
 export const expenseBoxOf = (x: ExpenseLine): ExpenseBox => x.box ?? "19";
 
 export type Interest = { id: string; payer: string; accountNumber?: string; untaxed: number; net?: number; taxTaken?: number; foreign?: boolean; foreignTax?: number };
-export type Dividend = { id: string; company: string; amount: number; foreign?: boolean; foreignTax?: number };
+/** Where a dividend came from when it was brought in from the Company Secretarial records (kept so it isn't brought in twice). */
+export type DividendSource = { ref: string; companyKey: string; holderKey: string; type: string; cls: string; shares: number; declaredOn: string; paidOn: string; recordDate: string };
+export type Dividend = { id: string; company: string; amount: number; foreign?: boolean; foreignTax?: number; source?: DividendSource };
 /** amount is the gross pension; tax is taken off it; net is what was paid (as the summaries show it, when given) */
 export type OtherPension = { id: string; payer: string; amount: number; tax: number; net?: number };
 export type Gain = { id: string; description: string; kind: "residential" | "shares" | "other" | "crypto"; date?: string; proceeds: number; cost: number; badr?: boolean; ir?: boolean };

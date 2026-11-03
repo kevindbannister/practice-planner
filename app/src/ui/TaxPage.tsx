@@ -10,6 +10,7 @@ import {
   bringForward, compute, defaultPaymentLines, emptyReturn, hasSection, newId, outstandingPayments, paymentLines, PaymentLine, propertyProfit, readReturn, rollForward, tradeProfit, employmentIncome,
 } from "../lib/tax";
 import { ImportResult } from "../lib/taxImport";
+import { cosecDividendsFor, taxYearWindow } from "../lib/taxCosec";
 import { brandOf, readBranding, displayName } from "../lib/docBranding";
 import { Ask, ConfirmBox, ImportDialog, NewReturnDialog, ReturnViewer, Start, sendImport, takeImport } from "./TaxReturnView";
 import { BulkImportDialog } from "./TaxBulkImport";
@@ -393,7 +394,7 @@ function TaxScreen({ client: c, year, view, setView, start, frozen }: { client: 
                 <div key={it.key} className="stack tax-form" style={{ gap: 10 }}>
                   {eItems.length > 1 && <h3 className="tax-sub">{it.title}</h3>}
                   {it.section.key === "front" && <FrontStatus ret={ret} update={update} />}
-                  <SectionForm item={it} ret={ret} update={update} year={year} />
+                  <SectionForm item={it} ret={ret} update={update} year={year} clientKey={String(c.Key)} />
                 </div>
               ))}
               <div className="row-wrap" style={{ gap: 8, marginTop: 12 }}>
@@ -460,7 +461,7 @@ function TaxScreen({ client: c, year, view, setView, start, frozen }: { client: 
             </div>
           )}
           <div className="card pad stack tax-form">
-            <SectionForm item={cur} ret={ret} update={update} year={year} />
+            <SectionForm item={cur} ret={ret} update={update} year={year} clientKey={String(c.Key)} />
           </div>
           <SectionFoot item={cur} clientKey={c.Key} period={period} onNext={i < items.length - 1 ? () => setPick(items[i + 1].key) : undefined} />
           {w.error && <p className="error-text" role="alert">{w.error}</p>}
@@ -718,7 +719,44 @@ const Readout = ({ label, value, strong }: { label: string; value: number; stron
 
 // ------------------------------------------------------------------ the forms
 
-function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxReturn; update: (f: (r: TaxReturn) => TaxReturn) => void; year: number }) {
+/** The dividends this person has been paid from the companies on Company Secretarial, for the year, and bringing them into the return. */
+function CosecDividendsPanel({ clientKey, year, ret, update }: { clientKey: string; year: number; ret: TaxReturn; update: (f: (r: TaxReturn) => TaxReturn) => void }) {
+  const { data } = useData();
+  const items = useMemo(() => {
+    const names = new Map(data.clients.map((c) => [String(c.Key), String(c.Title || "")]));
+    return cosecDividendsFor(clientKey, year, data.cosecDividends, (k) => names.get(k) || "Company");
+  }, [clientKey, year, data.cosecDividends, data.clients]);
+  const { from, to } = taxYearWindow(year);
+  const linked = (i: { ref: string; companyKey: string }) => ret.dividends.find((d) => d.source && d.source.ref === i.ref && d.source.companyKey === i.companyKey);
+  const pending = items.filter((i) => !linked(i));
+  const bringIn = () => update((r) => ({
+    ...r,
+    dividends: [...r.dividends, ...pending.map((i) => ({ id: newId(), company: i.company, amount: i.amount, source: { ref: i.ref, companyKey: i.companyKey, holderKey: clientKey, type: i.type, cls: i.cls, shares: i.shares, declaredOn: i.declaredOn, paidOn: i.paidOn, recordDate: i.recordDate } }))],
+  }));
+  return (
+    <div className="stack" style={{ gap: 6, marginBottom: 12 }}>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <strong style={{ fontSize: 14 }}>From Company Secretarial, {from.split("-").reverse().join("/")} to {to.split("-").reverse().join("/")}</strong>
+        {pending.length > 0 && <button type="button" className="btn small" onClick={bringIn}>Bring in {pending.length} dividend{pending.length === 1 ? "" : "s"}</button>}
+      </div>
+      {!items.length
+        ? <p className="muted" style={{ margin: 0, fontSize: 13 }}>No dividends from a company on Company Secretarial in this tax year. Only declared or paid dividends count, by the date paid (or declared, if not yet paid).</p>
+        : <div className="tax-expense-totals" style={{ borderTop: 0, marginTop: 0, paddingTop: 0 }}>
+            {items.map((i) => {
+              const l = linked(i);
+              return <div key={`${i.companyKey}:${i.ref}`} className="tax-expense-row" style={{ alignItems: "center" }}>
+                <span style={{ flex: "2 1 220px" }}>{i.company}: {i.type === "final" ? "final" : "interim"} dividend {i.ref}, {i.shares.toLocaleString("en-GB")} {i.cls} shares</span>
+                <span className="muted mono" style={{ flex: "1 1 160px" }}>{i.paidOn ? `paid ${i.paidOn.split("-").reverse().join("/")}` : `declared ${i.declaredOn.split("-").reverse().join("/")}, not yet paid`}</span>
+                <span className="mono" style={{ flex: "0 1 110px", textAlign: "right" }}>{gbp(i.amount)}</span>
+                <span style={{ flex: "0 1 130px" }} className={l ? "ok-text" : "warn"}>{l ? (Math.abs((l.amount || 0) - i.amount) < 0.005 ? "In the return" : `In the return at ${gbp(l.amount)}`) : "Not brought in"}</span>
+              </div>;
+            })}
+          </div>}
+    </div>
+  );
+}
+
+function SectionForm({ item, ret, update, year, clientKey }: { item: NavItem; ret: TaxReturn; update: (f: (r: TaxReturn) => TaxReturn) => void; year: number; clientKey: string }) {
   const R = ratesFor(year);
   const k = item.section.key;
   const patchList = <K extends "employments" | "selfEmployments" | "partnerships">(list: K, id: string, p: Partial<TaxReturn[K][number]>) =>
@@ -885,9 +923,12 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
   }
   if (k === "dividends") {
     const set = (list: Dividend[]) => update((r) => ({ ...r, dividends: list }));
-    return <ListTable<Dividend> rows={ret.dividends} onChange={set} blank={() => ({ id: newId(), company: "", amount: 0 })} cols={[
-      { label: "Company", text: "company" }, { label: "Dividends received", money: "amount" }, { label: "Foreign", tick: "foreign" }, { label: "Foreign tax", money: "foreignTax" },
-    ]} />;
+    return <>
+      <CosecDividendsPanel clientKey={clientKey} year={year} ret={ret} update={update} />
+      <ListTable<Dividend> rows={ret.dividends} onChange={set} blank={() => ({ id: newId(), company: "", amount: 0 })} cols={[
+        { label: "Company", text: "company" }, { label: "Dividends received", money: "amount" }, { label: "Foreign", tick: "foreign" }, { label: "Foreign tax", money: "foreignTax" },
+      ]} />
+    </>;
   }
   if (k === "otherDividends") {
     const o = ret.otherDividends || {}, set = (p: Partial<NonNullable<TaxReturn["otherDividends"]>>) => update((r) => ({ ...r, otherDividends: { ...o, ...p } }));
