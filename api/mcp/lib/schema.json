@@ -236,6 +236,14 @@
     {
      "name": "CHVerified",
      "type": "note"
+    },
+    {
+     "name": "CeasedOn",
+     "type": "text"
+    },
+    {
+     "name": "CeasedReason",
+     "type": "text"
     }
    ]
   },
@@ -4837,6 +4845,136 @@
     {
      "name": "Note",
      "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "ComplianceLog",
+   "displayName": "PP Compliance Log",
+   "description": "data requests, breaches, complaints and retention decisions",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Person",
+     "type": "text"
+    },
+    {
+     "name": "Opened",
+     "type": "text"
+    },
+    {
+     "name": "Due",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Owner",
+     "type": "text"
+    },
+    {
+     "name": "Summary",
+     "type": "note"
+    },
+    {
+     "name": "Outcome",
+     "type": "note"
+    },
+    {
+     "name": "Closed",
+     "type": "text"
+    },
+    {
+     "name": "Reported",
+     "type": "text"
+    },
+    {
+     "name": "Decision",
+     "type": "text"
+    },
+    {
+     "name": "ReviewOn",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Obligations",
+   "displayName": "PP Obligations",
+   "description": "the practice's own compliance dates",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "Due",
+     "type": "text"
+    },
+    {
+     "name": "Repeat",
+     "type": "text"
+    },
+    {
+     "name": "Owner",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "LastDone",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
     }
    ]
   },

@@ -123,7 +123,7 @@ export function PracticePage() {
           </Card>
         )}
 
-        <Card title="Compliance">
+        <Card title="Compliance" to="#/compliance" link="Risk register">
           <div className="stack" style={{ gap: 6 }}>
             <Line n={g.amlNone.length} text="clients with no approved AML assessment" tone="red" keys={g.amlNone} name={name} tab="aml" />
             <Line n={g.amlOverdue.length} text="AML reviews overdue" tone="red" keys={g.amlOverdue} name={name} tab="aml" />

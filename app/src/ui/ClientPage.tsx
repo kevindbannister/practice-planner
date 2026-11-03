@@ -102,6 +102,10 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         </div>
       </div>
 
+      {String(c.Status) === "Archived" && (
+        <section className="alerts" aria-label="Ceased client"><div className="alert amber"><strong>Ceased{c.CeasedOn ? ` on ${fmtDate(String(c.CeasedOn))}` : ""}{c.CeasedReason ? `: ${String(c.CeasedReason)}` : ""}</strong><a href={href("clients", c.Key, "disengage")}>Ceasing to act</a> <a href={href("compliance", "retention")}>Retention</a></div></section>
+      )}
+
       {(urgent.length > 0 || (tab === "overview" && (amlAlert || loe.warn))) && (
         <section className="alerts" aria-label="Needs attention">
           {urgent.slice(0, 3).map((j) => {

@@ -7,7 +7,9 @@ import { REASONS, Reason, defaultInput, disengageLetter, problems } from "../lib
 import { newKey } from "../lib/planning";
 import { go } from "./bits";
 import { useCommsPrefs } from "./commsKit";
+import { ceaseClient, reinstateClient } from "../lib/compliance";
 import { useData, useIndex } from "./data";
+import { useSales } from "./salesKit";
 
 export function DisengageTab({ client }: { client: Client }) {
   const { create, user, store } = useData();
@@ -25,6 +27,17 @@ export function DisengageTab({ client }: { client: Client }) {
   const [extra, setExtra] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const sales = useSales();
+  const [ceasedOn, setCeasedOn] = useState(today);
+  const [ceasedWhy, setCeasedWhy] = useState("");
+  const [ceaseError, setCeaseError] = useState("");
+  const ceased = String(client.Status) === "Archived";
+  const markCeased = async (reinstate: boolean) => {
+    const w = reinstate ? reinstateClient(client, sales.pcan, sales.ctx()) : ceaseClient(client, ceasedOn, ceasedWhy, today, sales.pcan, sales.ctx());
+    if ("error" in w) { setCeaseError(w.error); return; }
+    setCeaseError("");
+    try { await sales.apply(w); } catch { setCeaseError("Couldn't save. Try again."); }
+  };
 
   const input = useMemo(() => ({
     ...defaultInput(client), reason, endDate: end ? longDate(end) : "", owing: Number(owing.replace(/[£,]/g, "")) || 0, returnRecords, authorities, newAccountant, extra,
@@ -56,6 +69,25 @@ export function DisengageTab({ client }: { client: Client }) {
   return (
     <div className="stack" style={{ maxWidth: 820 }}>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>A letter to {client.Title} confirming we are stopping. Choose what applies; you can edit every word afterwards. The wording is a starting point to check, not legal advice.</p>
+      <section className="card pad stack" aria-label="Mark as ceased">
+        <h2 style={{ margin: 0, fontSize: 16 }}>{ceased ? "This client has ceased" : "Mark as ceased"}</h2>
+        {ceased ? (
+          <>
+            <p style={{ margin: 0 }}>Last day {String(client.CeasedOn || "not recorded")}{client.CeasedReason ? `: ${String(client.CeasedReason)}` : ""}. They are left out of the active client counts. Their records can be reviewed for deletion under <a href="#/compliance/retention">Compliance › Retention</a>.</p>
+            {sales.pcan("send") && <div><button className="btn" type="button" onClick={() => markCeased(true)}>Reinstate as a client</button></div>}
+          </>
+        ) : (
+          <>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>Do this once the last day has passed. The client moves out of the active list and the clock starts on how long their records are kept. Nothing is deleted.</p>
+            <div className="cf-grid">
+              <label className="field"><span>Last day we acted</span><input className="input" type="date" value={ceasedOn} onChange={(e) => setCeasedOn(e.target.value)} /></label>
+              <label className="field"><span>Why they left</span><input className="input" value={ceasedWhy} onChange={(e) => setCeasedWhy(e.target.value)} placeholder="For example, sold the business" /></label>
+            </div>
+            {sales.pcan("send") ? <div><button className="btn" type="button" onClick={() => markCeased(false)}>Mark as ceased</button></div> : <p className="muted" style={{ margin: 0 }}>Only a manager or partner can do this.</p>}
+          </>
+        )}
+        {ceaseError && <p role="alert" className="warn" style={{ margin: 0 }}>{ceaseError}</p>}
+      </section>
       <section className="card pad stack" aria-label="Ending the engagement">
         <div className="cf-grid">
           <label className="field"><span>Why</span><select className="input" value={reason} onChange={(e) => setReason(e.target.value as Reason)}>{REASONS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}</select></label>

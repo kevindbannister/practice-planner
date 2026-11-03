@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -38,6 +38,7 @@ export const LISTS: ListDef[] = [
       t("TradingName"), note("BusinessActivity"),
       t("CISStatus"), t("CISRegistered"), t("CISFirstPayment"),
       note("CorrespondenceAddress"), note("CHVerified"),
+      t("CeasedOn"), t("CeasedReason"),
     ],
   },
   {
@@ -446,6 +447,16 @@ export const LISTS: ListDef[] = [
     // Chasing overdue invoices: each chaser drafted, each promise to pay, each dispute. Invoices live in Xero; this is only the practice's record of chasing them. See lib/collections.ts.
     key: "BillingChases", displayName: "PP Billing Chases", description: "Practice Planner: chasers, promises to pay and disputes on overdue invoices",
     columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Kind", true), t("InvoiceNos"), n("Level"), n("Amount"), t("At", true), t("Actor"), t("PromiseOn"), t("Status"), note("Note")],
+  },
+  {
+    // Requests (data access, erasure), breaches, complaints and retention decisions, with the deadline each has. See lib/compliance.ts.
+    key: "ComplianceLog", displayName: "PP Compliance Log", description: "Practice Planner: data requests, breaches, complaints and retention decisions",
+    columns: [t("Key", true), t("PracticeId", true), t("Kind", true), t("ClientKey", true), t("Person"), t("Opened"), t("Due"), t("Status", true), t("Owner"), note("Summary"), note("Outcome"), t("Closed"), t("Reported"), t("Decision"), t("ReviewOn"), t("Created"), t("CreatedBy")],
+  },
+  {
+    // The practice's own recurring dates: insurance, registrations, reviews. See lib/compliance.ts.
+    key: "Obligations", displayName: "PP Obligations", description: "Practice Planner: the practice's own compliance dates",
+    columns: [t("Key", true), t("PracticeId", true), t("Title"), t("Kind"), t("Due", true), t("Repeat"), t("Owner"), t("Status", true), t("LastDone"), note("Notes"), t("Created"), t("CreatedBy")],
   },
   ...portalLists(),
 ];

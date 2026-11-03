@@ -27,6 +27,7 @@ import { CommsPage } from "./Comms";
 import { PapersPage } from "./PapersPage";
 import { TaxPage } from "./TaxPage";
 import { PracticePage } from "./PracticePage";
+import { CompliancePage } from "./CompliancePage";
 import { SalesPage } from "./SalesPage";
 import { CoSecPage } from "./CoSecPage";
 import { AdvisoryPage } from "./AdvisoryPage";
@@ -121,6 +122,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <TaxPage />;
   } else if (section === "practice") {
     body = <PracticePage />;
+  } else if (section === "compliance") {
+    body = <CompliancePage />;
   } else if (section === "checklists") {
     body = <><SettingsTabs current="checklists" /><ChecklistsPage /></>;
   } else if (section === "portal") {
