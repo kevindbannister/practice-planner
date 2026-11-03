@@ -152,17 +152,18 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
   const [day, setDay] = useState(28);
   const [msg, setMsg] = useState("");
   const [pattern, setPattern] = useState<"spread" | "yearEnd">("spread");
-  useEffect(() => { setPaydays(y.paydays); setAmounts(y.amounts); /* eslint-disable-next-line */ }, [yearRow?.Key, yearRow?.Updated, y.year]);
+  const [startPeriod, setStartPeriod] = useState(y.startPeriod);
+  useEffect(() => { setPaydays(y.paydays); setAmounts(y.amounts); setStartPeriod(y.startPeriod); /* eslint-disable-next-line */ }, [yearRow?.Key, yearRow?.Updated, y.year]);
   const n = PERIODS[scheme.freq];
   const locked = new Set(view.periods.filter((p) => p.run).map((p) => p.period));
-  const dirty = JSON.stringify(paydays) !== JSON.stringify(y.paydays) || JSON.stringify(amounts) !== JSON.stringify(y.amounts);
+  const dirty = JSON.stringify(paydays) !== JSON.stringify(y.paydays) || JSON.stringify(amounts) !== JSON.stringify(y.amounts) || startPeriod !== y.startPeriod;
   const problems = rec.paydayProblems(y.year, scheme.freq, paydays);
-  const draft = { ...y, paydays, amounts };
+  const draft = { ...y, paydays, amounts, startPeriod };
   const preview = rec.yearView(scheme, people, draft, data.payRuns.filter((r) => r.SchemeKey === scheme.key).map(rec.readRun).filter((r) => r.year === y.year));
   const save = async (extra: Row = {}) => {
     if (problems.length) { setMsg(problems[0]); return; }
     const o = ctx();
-    const fields = { Paydays: JSON.stringify(paydays), Amounts: JSON.stringify(amounts), Updated: o.now, UpdatedBy: o.actor, ...extra };
+    const fields = { Paydays: JSON.stringify(paydays), Amounts: JSON.stringify(amounts), StartPeriod: startPeriod, Updated: o.now, UpdatedBy: o.actor, ...extra };
     try {
       if (yearRow) await update("PayYears", yearRow, fields);
       else await create("PayYears", { Key: o.newKey("PY"), PracticeId: o.pid, SchemeKey: scheme.key, TaxYear: y.year, Source: "", Pattern: "", Status: "", ...fields });
@@ -211,6 +212,10 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
           </div>}
         </div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Set every payday for the year in advance. Each FPS is sent to HMRC on its payday. Clear a date for a month with no pay: that month gets a nil EPS instead.</p>
+        <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>First period run here
+          <select className="input" style={{ width: "auto" }} disabled={!can || locked.size > 0} value={startPeriod} onChange={(e) => setStartPeriod(Number(e.target.value))}>{paydays.map((_, i) => <option key={i} value={i + 1}>{i + 1 === 1 ? "1 (the whole year)" : `${i + 1} (earlier periods were run in FreshPay)`}</option>)}</select>
+        </label>
+        {startPeriod > 1 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Enter each person's year to date from FreshPay under People ("Brought forward"), and their FreshPay payroll ID, so the tax and the FPS carry on correctly.</p>}
         <div className="row-wrap" style={{ gap: 8 }}>
           {paydays.map((d, i) => (
             <label key={i} className="field" style={{ width: 150 }}><span>{scheme.freq === "M1" ? `Month ${i + 1}` : `Week ${i + 1}`}{locked.has(i + 1) ? " (approved)" : ""}</span>
@@ -254,7 +259,7 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
           <thead><tr><th>Period</th><th>Payday</th><th className="num">Gross</th><th className="num">Tax</th><th className="num">Employee NI</th><th className="num">Employer NI</th><th className="num">Loans</th><th className="num">Net pay</th><th className="num">Due to HMRC</th><th>State</th></tr></thead>
           <tbody>{preview.periods.map((p) => (
             <tr key={p.period}><td>{p.period}</td><td>{p.payday ? fmt(p.payday) : <span className="muted">No pay</span>}</td>
-              {p.nil ? <td colSpan={7} className="muted">{p.payday ? "Nobody paid: nil EPS" : "Nil EPS"}</td> : <>
+              {p.elsewhere ? <td colSpan={7} className="muted">Run in FreshPay</td> : p.nil ? <td colSpan={7} className="muted">{p.payday ? "Nobody paid: nil EPS" : "Nil EPS"}</td> : <>
                 <td className="num">{gbp(p.totals.gross)}</td><td className="num">{gbp(p.totals.tax)}</td><td className="num">{gbp(p.totals.ee)}</td><td className="num">{gbp(p.totals.er)}</td><td className="num">{gbp(p.totals.sl)}</td><td className="num">{gbp(p.totals.net)}</td><td className="num">{gbp(p.totals.due)}</td></>}
               <td>{p.run ? <span className="chip green">Approved</span> : ""}</td></tr>
           ))}
@@ -301,7 +306,7 @@ function RunsTab({ P, scheme, people, y, runs, subs, view }: { P: PP; scheme: re
         <span role="status" className={/didn't|first|Only|Set|Nobody|add|choose|doesn't|isn't|look/i.test(msg) ? "warn" : "muted"}>{msg}</span>
         <div className="table-wrap"><table className="grid">
           <thead><tr><th>Period</th><th>Payday</th><th>People</th><th className="num">Gross</th><th className="num">Net</th><th className="num">Due to HMRC</th><th>FPS</th><th /></tr></thead>
-          <tbody>{view.periods.filter((p) => !p.nil || p.payday).map((p) => {
+          <tbody>{view.periods.filter((p) => !p.elsewhere && (!p.nil || p.payday)).map((p) => {
             const sub = subOf(p.run);
             return (
               <tr key={p.period}><td>{p.period}</td><td>{p.payday ? fmt(p.payday) : ""}</td>
@@ -420,6 +425,16 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
               <label className="field"><span>Employer %</span><input className="input" type="number" value={pension.erPct ?? 3} onChange={(e) => setEdit({ ...edit, Pension: JSON.stringify({ ...pension, erPct: Number(e.target.value) || 0 }) })} /></label>
               <label className="field"><span>On</span><select className="input" value={pension.basis || "qualifying"} onChange={(e) => setEdit({ ...edit, Pension: JSON.stringify({ ...pension, basis: e.target.value }) })}><option value="qualifying">Qualifying earnings</option><option value="total">All pay</option></select></label></>}
           </div>
+          <details open={!!s(edit.OpeningYtd)}><summary style={{ fontSize: 13 }}>Brought forward from FreshPay (moving part-way through the year)</summary>
+            <p className="muted" style={{ fontSize: 12, margin: "6px 0" }}>The year-to-date figures from the person's last FreshPay payslip or the FreshPay year-to-date report, for {yearLabel(year)}. The old payroll ID is sent once on the first FPS from here so HMRC doesn't think it is a new job.</p>
+            <div className="cf-grid">
+              {field("OldPayId", "FreshPay payroll ID")}
+              {([["gross", "Gross pay"], ["taxablePay", "Taxable pay"], ["tax", "Tax"], ["niEarnings", "Earnings for NI"], ["ee", "Employee NI"], ["er", "Employer NI"], ["atLel", "Earnings at LEL"], ["lelToPt", "LEL to PT"], ["ptToUel", "PT to UEL"], ["sl", "Student loan"], ["pgl", "Postgraduate loan"], ["eePension", "Employee pension (net pay)"]] as [string, string][]).map(([k, label]) => {
+                const o = (() => { try { return JSON.parse(s(edit.OpeningYtd) || "{}"); } catch { return {}; } })();
+                return <label key={k} className="field"><span>{label} (£)</span><input className="input" inputMode="decimal" value={o[k] ?? ""} onChange={(e) => setEdit({ ...edit, OpeningYtd: JSON.stringify({ ...o, year, [k]: e.target.value === "" ? undefined : Number(e.target.value.replace(/[£,\s]/g, "")) || 0 }) })} /></label>;
+              })}
+            </div>
+          </details>
           <div className="row-wrap" style={{ gap: 8 }}><button className="btn primary" type="button" onClick={save}>Save</button><button className="linkbtn" type="button" onClick={() => setEdit(null)}>Cancel</button>
             {edit.Key && <button className="linkbtn" type="button" onClick={async () => { await update("PayrollPeople", data.payrollPeople.find((x) => x.Key === edit.Key)!, { Status: "removed" }); setEdit(null); }}>Remove from payroll</button>}</div>
         </section>

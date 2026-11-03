@@ -66,6 +66,7 @@ export type FpsPerson = {
   director?: { method: "AN" | "AL"; apptWeek?: number };
   starter?: { startDate: string; declaration: "A" | "B" | "C"; studentLoan?: boolean; postgrad?: boolean };
   leavingDate?: string; hours: "A" | "B" | "C" | "D" | "E"; studentPlan?: "plan1" | "plan2" | "plan4" | "plan5" | ""; postgrad?: boolean;
+  /** the payroll ID the previous software used, sent once when moving software so HMRC doesn't see a new job */ oldPayId?: string;
 };
 const PLAN_CODE: Record<string, string> = { plan1: "01", plan2: "02", plan4: "04", plan5: "05" };
 const STAT_FIELD: [StatKind, string][] = [["smp", "SMPYTD"], ["spp", "SPPYTD"], ["sap", "SAPYTD"], ["shpp", "ShPPYTD"], ["spbp", "SPBPYTD"], ["sncp", "SNCPYTD"]];
@@ -104,6 +105,7 @@ export function buildFps(i: FpsInput): string {
       p.director?.apptWeek && p.director.apptWeek > 1 ? el("TaxWkOfApptOfDirector", String(p.director.apptWeek)) : null,
       p.starter ? raw("Starter", [el("StartDate", p.starter.startDate), el("StartDec", p.starter.declaration), p.starter.studentLoan ? el("StudentLoan", "yes") : null, p.starter.postgrad ? el("PostgradLoan", "yes") : null]) : null,
       el("PayId", p.payId),
+      p.oldPayId && p.oldPayId !== p.payId ? raw("PayIdChgd", [el("PayrollIdChangedIndicator", "yes"), el("OldPayrollId", p.oldPayId)]) : null,
       p.leavingDate ? el("LeavingDate", p.leavingDate) : null,
       raw("FiguresToDate", [
         el("TaxablePay", money(y.taxablePay)), el("TotalTax", money(y.tax)),

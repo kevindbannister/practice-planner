@@ -5234,6 +5234,14 @@
      "type": "number"
     },
     {
+     "name": "OpeningYtd",
+     "type": "note"
+    },
+    {
+     "name": "OldPayId",
+     "type": "text"
+    },
+    {
      "name": "Status",
      "type": "text"
     },
@@ -5275,6 +5283,10 @@
     {
      "name": "Amounts",
      "type": "note"
+    },
+    {
+     "name": "StartPeriod",
+     "type": "number"
     },
     {
      "name": "Source",

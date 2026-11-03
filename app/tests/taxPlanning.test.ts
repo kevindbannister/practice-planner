@@ -104,7 +104,7 @@ test("a non-director shareholder gets dividends but no salary", () => {
 test("shares held outside the plan are paid but not counted", () => {
   const p = one(80000); p.people[0].sharesPct = 75;
   const o = t.evaluate(p, ctxOf(p), { a: 12570 }, false);
-  assert.ok(o.warnings.some((w) => /25% of the shares/.test(w)));
+  assert.ok(o.warnings.some((w) => /not in this plan/.test(w)));
   near(o.company.dividendsToOthers, o.company.dividends * 0.25, 1);
 });
 
@@ -127,4 +127,90 @@ test("the search for the best salary is quick enough for three people", () => {
   const p = { ...one(180000), people: ["a", "b", "c"].map((id) => t.newPerson(id, { name: id, sharesPct: 33.33 })) };
   const s = Date.now(); t.assess(p, ctxOf(p)); const ms = Date.now() - s;
   assert.ok(ms < 4000, `took ${ms}ms`);
+});
+
+test("take home a set amount: dividends are worked out to give each person their cash, a loan credit is used first", () => {
+  const p = one(120000, { aim: "target" });
+  p.people[0].targetTakeHome = 40000; p.people[0].loanBalance = 5000;
+  const o = t.evaluate(p, ctxOf(p), { a: 12570 }, false);
+  near(o.people[0].takeHome, 40000, 2);
+  assert.equal(o.people[0].loanCash, 5000);
+  assert.equal(o.company.loansRepaid, 5000);
+  assert.ok(o.company.retained > 30000);
+  const without = t.evaluate({ ...p, people: [{ ...p.people[0], loanBalance: 0 }] }, ctxOf(p), { a: 12570 }, false);
+  assert.ok(without.company.dividends > o.company.dividends);
+});
+
+test("alphabet shares: each person's basic rate band is filled separately", () => {
+  const p: t.PlanInput = { ...one(150000, { aim: "basic", dividendSplit: "classes" }), people: [t.newPerson("a", { name: "A", sharesPct: 100, shareClass: "A" }), t.newPerson("b", { name: "B", sharesPct: 100, shareClass: "B", other: { ...t.blankOther(), nonSavings: 30000 } })] };
+  const o = t.evaluate(p, ctxOf(p), { a: 12570, b: 0 }, false);
+  near(o.people[0].dividends, 37700, 1);
+  near(o.people[1].dividends, 50270 - 30000, 1);
+  // with one class of share the split would follow the shares
+  const same = t.evaluate({ ...p, dividendSplit: "same", people: p.people.map((x) => ({ ...x, sharesPct: 50 })) }, ctxOf(p), { a: 12570, b: 0 }, false);
+  assert.equal(same.people[0].dividends, same.people[1].dividends);
+});
+
+test("alphabet shares, all profit out: lower bands are filled before anyone pays higher rate", () => {
+  const p: t.PlanInput = { ...one(100000, { dividendSplit: "classes" }), people: [t.newPerson("a", { name: "A", sharesPct: 100, shareClass: "A" }), t.newPerson("b", { name: "B", sharesPct: 100, shareClass: "B", director: false, salaried: false })] };
+  const o = t.evaluate(p, ctxOf(p), { a: 12570 }, false);
+  assert.ok(o.people[1].dividends > o.people[0].dividends);
+  near(o.company.retained, 0, 2);
+});
+
+test("benefits in kind are taxed on the person and cost the company Class 1A", () => {
+  const p = one(80000); p.people[0].bik = 5000;
+  const o = t.evaluate(p, ctxOf(p), { a: 12570 }, false);
+  assert.equal(o.company.class1A, 750);
+  const base = t.evaluate(one(80000), ctxOf(one(80000)), { a: 12570 }, false);
+  assert.ok(o.people[0].incomeTax > base.people[0].incomeTax);
+});
+
+test("an overdrawn loan account: s455, and a benefit over £10,000", () => {
+  const p = one(80000); p.people[0].loanBalance = -20000;
+  const o = t.evaluate(p, ctxOf(p), { a: 12570 }, false);
+  assert.equal(o.company.s455, 7150);
+  assert.equal(o.people[0].bik, 750); // 20,000 x 3.75%
+  assert.ok(o.people[0].warnings.some((w) => /s455/.test(w)));
+});
+
+test("Marriage Allowance received lowers the tax", () => {
+  const p = one(60000); const q = one(60000); q.people[0].marriage = "receive";
+  const a = t.evaluate(p, ctxOf(p), { a: 12570 }, false), b = t.evaluate(q, ctxOf(q), { a: 12570 }, false);
+  assert.ok(b.people[0].incomeTax < a.people[0].incomeTax);
+});
+
+test("employer pension counts as money for the people and saves corporation tax", () => {
+  const p = one(100000); p.people[0].employerPension = 10000;
+  const o = t.evaluate(p, ctxOf(p), { a: 12570 }, false);
+  assert.equal(o.company.pensions, 10000);
+  const base = t.evaluate(one(100000), ctxOf(one(100000)), { a: 12570 }, false);
+  assert.ok(o.value > base.value);
+});
+
+test("share classes come from the ledger", () => {
+  let n = 0;
+  const ps = t.startingPeople([{ name: "Alex", clientKey: "C1" }], [{ name: "Alex", key: "C1", number: 60, cls: "A" }, { name: "Sam", key: "C2", number: 40, cls: "B" }], () => `p${++n}`);
+  assert.equal(ps[0].shareClass, "A"); assert.equal(ps[0].sharesPct, 100);
+  assert.equal(ps[1].shareClass, "B"); assert.equal(ps[1].sharesPct, 100);
+  assert.equal(t.hasAlphabetShares([{ cls: "A", number: 1 }, { cls: "B", number: 1 }]), true);
+});
+
+test("the worked example: both directors get the cash they want, and the best salaries keep the most in the company", async () => {
+  const { examplePlan } = await import("../src/lib/taxPlanExample.ts");
+  const p = examplePlan(Y), ctx = ctxOf(p);
+  const opts = t.assess(p, ctx);
+  for (const o of opts) for (const x of o.likely.people) near(x.takeHome, x.target, 2);
+  const pa = opts.find((o) => o.key === "pa")!, best = t.recommended(opts)!;
+  assert.equal(pa.eligible, true);
+  assert.equal(pa.likely.people[0].loanCash, 6000);
+  assert.equal(pa.likely.company.class1A, 540);
+  assert.ok(best.likely.company.retained >= pa.likely.company.retained);
+});
+
+test("with share classes, each class can add up to 100%", async () => {
+  const { examplePlan } = await import("../src/lib/taxPlanExample.ts");
+  assert.deepEqual(t.planProblems(examplePlan(Y)), []);
+  const bad = examplePlan(Y); bad.people[1].shareClass = "A";
+  assert.ok(t.planProblems(bad).some((x) => /A shares add up to 200%/.test(x)));
 });

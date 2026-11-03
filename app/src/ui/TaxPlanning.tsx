@@ -14,6 +14,11 @@ import { href } from "./bits";
 import { useData, useIndex } from "./data";
 import { useSales } from "./salesKit";
 import { TAX_ITEM } from "./TaxPage";
+import { EXAMPLE_COMPANY, examplePlan } from "../lib/taxPlanExample";
+import { planLetter } from "../lib/taxPlanLetter";
+import { DEFAULT_LAYOUT } from "../lib/docModel";
+import { displayName } from "../lib/docBranding";
+import { makePdf, useDocs } from "./docsKit";
 
 const gbp = (n: number) => (n < 0 ? "-£" : "£") + Math.round(Math.abs(n)).toLocaleString("en-GB");
 const neg = (n: number) => (Math.round(n) ? `-${gbp(n)}` : "£0");
@@ -31,6 +36,7 @@ export function TaxPlanningList() {
     <div className="page">
       <div className="page-head">
         <div><a className="crumb" href="#/tax">Personal tax</a><h1>Tax planning</h1><p className="muted" style={{ margin: "4px 0 0" }}>Salary and dividends for each limited company's directors and shareholders.</p></div>
+        <a className="btn" href={href("tax", "planning", "example", String(year))}>Worked example</a>
         <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Tax year
           <select className="input" style={{ width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>{[...tp.PLAN_YEARS].reverse().map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}</select>
         </label>
@@ -52,13 +58,16 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
   const idx = useIndex();
   const sales = useSales();
   const year = yearParam && tp.PLAN_YEARS.includes(yearParam) ? yearParam : defaultYear(todayIso());
-  const c = idx.clientByKey.get(clientKey) as Client | undefined;
-  const row = planFor(data.taxPlans, clientKey, year);
+  const isExample = clientKey === "example";
+  const c = (isExample ? { Key: "example", Title: EXAMPLE_COMPANY, Kind: "Ltd" } : idx.clientByKey.get(clientKey)) as Client | undefined;
+  const row = isExample ? undefined : planFor(data.taxPlans, clientKey, year);
+  const docs = useDocs();
   const start = (): tp.PlanInput => {
+    if (isExample) return examplePlan(year);
     if (row) return tp.readPlan(row.Inputs, year, String(c?.Title || ""));
     const directors = data.cosecOfficers.filter((o) => o.ClientKey === clientKey && String(o.Role) === "director" && String(o.Status) !== "resigned" && !o.ResignedOn).map((o) => ({ name: officerName(o), clientKey: String(o.PersonClientKey || "") }));
     const holdings = replay(data.cosecLedger.filter((r) => r.ClientKey === clientKey).map(readEntry)).holdings.filter((h) => h.number > 0);
-    return { ...tp.blankPlan(year, String(c?.Title || "")), people: tp.startingPeople(directors, holdings, () => newKey("TP")) };
+    return { ...tp.blankPlan(year, String(c?.Title || "")), dividendSplit: tp.hasAlphabetShares(holdings) ? "classes" : "same", people: tp.startingPeople(directors, holdings, () => newKey("TP")) };
   };
   const [plan, setPlan] = useState<tp.PlanInput>(start);
   const [chosen, setChosen] = useState<tp.OptionKey>((row?.Chosen as tp.OptionKey) || "best");
@@ -92,6 +101,19 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
       setMsg(status === "agreed" ? "Plan agreed." : "Saved.");
     } catch { setMsg("That didn't save. Try again."); } finally { setBusy(false); }
   };
+  const letter = async () => {
+    if (!pick || !shown) return;
+    setBusy(true); setMsg("");
+    try {
+      const brand = docs.brand();
+      const content = planLetter({ plan, chosen: pick, options, outcome: shown, clientName: String(c.Title), practiceName: displayName(brand), signatory: brand.signatoryName || displayName(brand), date: todayIso() });
+      const made = await makePdf({ content, layout: DEFAULT_LAYOUT, branding: brand, title: `Salary and dividend plan ${yearLabel(year)}`, reference: "", docType: "adhoc", client: String(c.Title), date: todayIso() });
+      const url = URL.createObjectURL(new Blob([made.bytes as BlobPart], { type: "application/pdf" }));
+      const a = document.createElement("a"); a.href = url; a.download = `${todayIso()} ${String(c.Title)} salary and dividend plan ${yearLabel(year)}.pdf`; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setMsg("Client letter made.");
+    } catch { setMsg("Couldn't make the letter. Try again."); } finally { setBusy(false); }
+  };
+  const scheme = data.payrollSchemes.find((r) => r.ClientKey === clientKey && r.Status !== "removed");
   const money = (label: string, v: number, onChange: (n: number) => void, hint?: string) => (
     <label className="field"><span>{label}</span><input className="input" inputMode="decimal" value={v ? String(v) : ""} placeholder="0" onChange={(e) => onChange(Number(e.target.value.replace(/[£,\s]/g, "")) || 0)} />{hint && <small className="muted">{hint}</small>}</label>
   );
@@ -104,8 +126,11 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
         <div className="row-wrap" style={{ gap: 8 }}>
           <select className="input" style={{ width: "auto" }} aria-label="Tax year" value={year} onChange={(e) => { window.location.hash = href("tax", "planning", clientKey, e.target.value); }}>{[...tp.PLAN_YEARS].reverse().map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}</select>
           {agreed ? <span className="chip green">Agreed by {String(row?.AgreedBy)} on {String(row?.AgreedOn)}</span> : row ? <span className="chip amber">Draft</span> : null}
+          {isExample ? <span className="chip">Worked example: nothing is saved</span> : <>
           <button className="btn" type="button" disabled={busy || !dirty} onClick={() => save("draft")}>Save</button>
-          <button className="btn primary" type="button" disabled={busy || !!problems.length || agreed} onClick={() => save("agreed")}>Agree this plan</button>
+          <button className="btn primary" type="button" disabled={busy || !!problems.length || agreed} onClick={() => save("agreed")}>Agree this plan</button></>}
+          <button className="btn" type="button" disabled={busy || !shown} onClick={letter}>Client letter (PDF)</button>
+          {agreed && <a className="btn" href={scheme ? href("payroll", String(scheme.Key), "year") : "#/payroll"}>{scheme ? "Payroll for this plan" : "Set up payroll"}</a>}
           <button className="btn" type="button" onClick={() => window.print()}>Print</button>
           <span role="status" className="muted">{msg}</span>
         </div>
@@ -123,6 +148,8 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
             <label className="row-wrap"><input type="checkbox" checked={plan.connectedClaims} onChange={(e) => set({ connectedClaims: e.target.checked })} /> A connected company claims Employment Allowance</label>
             <label className="field"><span>Aim</span><select className="input" value={plan.aim} onChange={(e) => set({ aim: e.target.value as tp.Aim })}>{tp.AIMS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select><small className="muted">{tp.AIMS.find((a) => a[0] === plan.aim)?.[2]}</small></label>
             {plan.aim === "amount" && money("Total dividends to pay (£)", plan.amount, (n) => set({ amount: n }))}
+            <label className="field"><span>Dividends</span><select className="input" value={plan.dividendSplit} onChange={(e) => set({ dividendSplit: e.target.value as tp.PlanInput["dividendSplit"] })}><option value="same">One rate on every share</option><option value="classes">Different classes of share (alphabet shares)</option></select><small className="muted">{plan.dividendSplit === "classes" ? "Each class can be paid a different dividend. The articles must allow it." : "Everyone is paid by their shareholding."}</small></label>
+            <label className="field"><span>HMRC official rate of interest (%)</span><input className="input" inputMode="decimal" value={plan.officialRate} onChange={(e) => set({ officialRate: Number(e.target.value) || tp.DEFAULT_OFFICIAL_RATE })} /><small className="muted">Used for a director's loan over £10,000.</small></label>
           </section>
 
           <section className="card pad stack" aria-label="Directors and shareholders">
@@ -144,9 +171,14 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
                     <label className="row-wrap"><input type="checkbox" checked={x.hasContract} onChange={(e) => setPerson(x.id, { hasContract: e.target.checked })} /> Employment contract</label>
                   </div>
                   <div className="cf-grid">
-                    <label className="field"><span>Shares (%)</span><input className="input" inputMode="decimal" value={x.sharesPct || ""} placeholder="0" onChange={(e) => setPerson(x.id, { sharesPct: Number(e.target.value) || 0 })} /></label>
+                    <label className="field"><span>{plan.dividendSplit === "classes" ? "Shares of their class (%)" : "Shares (%)"}</span><input className="input" inputMode="decimal" value={x.sharesPct || ""} placeholder="0" onChange={(e) => setPerson(x.id, { sharesPct: Number(e.target.value) || 0 })} /></label>
+                    {plan.dividendSplit === "classes" && <label className="field"><span>Share class</span><input className="input" value={x.shareClass} onChange={(e) => setPerson(x.id, { shareClass: e.target.value })} /></label>}
+                    {plan.aim === "target" && money("Take-home wanted (£)", x.targetTakeHome, (n) => setPerson(x.id, { targetTakeHome: n }))}
                     {x.salaried && money("Your salary (£)", x.customSalary, (n) => { setPerson(x.id, { customSalary: n }); setChosen("custom"); })}
                     {money("Employer pension (£)", x.employerPension, (n) => setPerson(x.id, { employerPension: n }))}
+                    {x.director && money("Benefits in kind (£)", x.bik, (n) => setPerson(x.id, { bik: n }))}
+                    {x.director && <label className="field"><span>Loan account at year end (£)</span><input className="input" inputMode="decimal" value={x.loanBalance ? String(x.loanBalance) : ""} placeholder="0" onChange={(e) => setPerson(x.id, { loanBalance: Number(e.target.value.replace(/[£,\s]/g, "")) || 0 })} /><small className="muted">Owed to them: plus. Overdrawn: minus.</small></label>}
+                    <label className="field"><span>Marriage Allowance</span><select className="input" value={x.marriage} onChange={(e) => setPerson(x.id, { marriage: e.target.value as tp.Person["marriage"] })}><option value="none">None</option><option value="transfer">Gives it to their spouse</option><option value="receive">Receives it from their spouse</option></select></label>
                     <label className="field"><span>Lives in</span><select className="input" value={x.region} onChange={(e) => setPerson(x.id, { region: e.target.value as tp.Person["region"] })}><option value="england">England or Northern Ireland</option><option value="wales">Wales</option><option value="scotland">Scotland</option></select></label>
                   </div>
                   <label className="field"><span>Their other income</span>
@@ -207,11 +239,11 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
                 </select>
               </div>
               <div className="table-wrap"><table className="grid">
-                <thead><tr><th>Person</th><th className="num">Salary</th><th className="num">Dividends</th><th className="num">Income tax</th><th className="num">Employee NI</th><th className="num">Take-home</th><th className="num">Total income</th></tr></thead>
+                <thead><tr><th>Person</th><th className="num">Salary</th><th className="num">Dividends</th>{shown.company.loansRepaid > 0 && <th className="num">Loan repaid</th>}<th className="num">Income tax</th><th className="num">Employee NI</th><th className="num">Take-home</th>{plan.aim === "target" && <th className="num">Wanted</th>}{shown.company.pensions > 0 && <th className="num">Pension</th>}<th className="num">Total income</th></tr></thead>
                 <tbody>{shown.people.map((x) => (
-                  <tr key={x.id}><td>{x.name}{x.warnings.map((w) => <div key={w} className="warn" style={{ fontSize: 12 }}>{w}</div>)}</td><td className="num">{gbp(x.salary)}</td><td className="num">{gbp(x.dividends)}</td><td className="num">{gbp(x.incomeTax)}</td><td className="num">{gbp(x.employeeNi)}</td><td className="num"><strong>{gbp(x.takeHome)}</strong></td><td className="num">{gbp(x.totalIncome)}</td></tr>
+                  <tr key={x.id}><td>{x.name}{x.warnings.map((w) => <div key={w} className="warn" style={{ fontSize: 12 }}>{w}</div>)}</td><td className="num">{gbp(x.salary)}</td><td className="num">{gbp(x.dividends)}</td>{shown.company.loansRepaid > 0 && <td className="num">{gbp(x.loanCash)}</td>}<td className="num">{gbp(x.incomeTax)}</td><td className="num">{gbp(x.employeeNi)}</td><td className="num"><strong>{gbp(x.takeHome)}</strong></td>{plan.aim === "target" && <td className="num">{gbp(x.target)}</td>}{shown.company.pensions > 0 && <td className="num">{gbp(x.employerPension)}</td>}<td className="num">{gbp(x.totalIncome)}</td></tr>
                 ))}
-                  <tr><td><strong>Total</strong></td><td className="num">{gbp(shown.company.salaries)}</td><td className="num">{gbp(shown.company.dividends - shown.company.dividendsToOthers)}</td><td className="num">{gbp(shown.people.reduce((a, x) => a + x.incomeTax, 0))}</td><td className="num">{gbp(shown.people.reduce((a, x) => a + x.employeeNi, 0))}</td><td className="num"><strong>{gbp(shown.takeHome)}</strong></td><td /></tr>
+                  <tr><td><strong>Total</strong></td><td className="num">{gbp(shown.company.salaries)}</td><td className="num">{gbp(shown.company.dividends - shown.company.dividendsToOthers)}</td>{shown.company.loansRepaid > 0 && <td className="num">{gbp(shown.company.loansRepaid)}</td>}<td className="num">{gbp(shown.people.reduce((a, x) => a + x.incomeTax, 0))}</td><td className="num">{gbp(shown.people.reduce((a, x) => a + x.employeeNi, 0))}</td><td className="num"><strong>{gbp(shown.takeHome)}</strong></td>{plan.aim === "target" && <td />}{shown.company.pensions > 0 && <td className="num">{gbp(shown.company.pensions)}</td>}<td /></tr>
                 </tbody>
               </table></div>
               <table className="grid" style={{ maxWidth: 520 }}><tbody>
@@ -219,13 +251,14 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
                 <tr><td>Salaries</td><td className="num">{neg(shown.company.salaries)}</td></tr>
                 <tr><td>Employer NI{shown.company.eaUsed ? ` (after £${Math.round(shown.company.eaUsed).toLocaleString("en-GB")} Employment Allowance)` : ""}</td><td className="num">{neg(shown.company.employerNi)}</td></tr>
                 {shown.company.pensions > 0 && <tr><td>Employer pension</td><td className="num">{neg(shown.company.pensions)}</td></tr>}
+                {shown.company.class1A > 0 && <tr><td>Class 1A NI on benefits</td><td className="num">{neg(shown.company.class1A)}</td></tr>}
                 <tr><td>Taxable profit</td><td className="num">{gbp(shown.company.taxable)}</td></tr>
                 <tr><td>Corporation tax</td><td className="num">{neg(shown.company.ct)}</td></tr>
                 <tr><td>Dividends{shown.company.dividendsToOthers ? ` (${gbp(shown.company.dividendsToOthers)} to others)` : ""}</td><td className="num">{neg(shown.company.dividends)}</td></tr>
                 <tr><td><strong>Kept in the company</strong></td><td className="num"><strong>{gbp(shown.company.retained)}</strong></td></tr>
               </tbody></table>
               {shown.warnings.map((w) => <p key={w} className="warn" style={{ margin: 0 }}>{w}</p>)}
-              <p className="muted" style={{ margin: 0, fontSize: 12 }}>Assumes a 12-month accounting period in line with the tax year, salary paid in the year, directors' NI on the annual basis and one class of share (dividends shared by shareholding). Rates for {yearLabel(year)}.</p>
+              <p className="muted" style={{ margin: 0, fontSize: 12 }}>Assumes a 12-month accounting period in line with the tax year, salary paid in the year, directors' NI on the annual basis and {plan.dividendSplit === "classes" ? "dividends set for each class of share" : "one class of share (dividends shared by shareholding)"}. Rates for {yearLabel(year)}.</p>
             </section>
           )}
         </div>

@@ -25,6 +25,7 @@ export type PersonRec = {
   address: string[]; postcode: string; payId: string; startDate: string; startDec: "A" | "B" | "C" | ""; leavingDate: string;
   director: boolean; nicMethod: "AN" | "AL"; appointedOn: string; taxCode: string; niLetter: Letter; studentPlan: "" | "plan1" | "plan2" | "plan4" | "plan5"; postgrad: boolean;
   pension: Pension; hours: "A" | "B" | "C" | "D" | "E"; basis: "salary" | "hourly" | "plan"; annualSalary: number; hourlyRate: number; usualHours: number; status: string;
+  /** figures for the year so far from the previous payroll software, for the year they belong to */ opening: { year: number; ytd: Ytd } | null; oldPayId: string;
 };
 export const readPerson = (r: Row): PersonRec => {
   const p = json<Partial<Pension>>(r.Pension, {});
@@ -40,8 +41,19 @@ export const readPerson = (r: Row): PersonRec => {
     hours: (["A", "B", "C", "D", "E"] as const).find((x) => x === str(r.Hours)) || (yes(r.Director) ? "E" : "D"),
     basis: str(r.PayBasis) === "hourly" ? "hourly" : str(r.PayBasis) === "plan" ? "plan" : "salary",
     annualSalary: num(r.AnnualSalary), hourlyRate: num(r.HourlyRate), usualHours: num(r.UsualHours), status: str(r.Status) || "active",
+    opening: readOpening(r.OpeningYtd), oldPayId: str(r.OldPayId),
   };
 };
+/** Year-to-date figures brought in from the previous software (FreshPay or other). */
+export function readOpening(v: unknown): { year: number; ytd: Ytd } | null {
+  const j = json<Record<string, unknown> | null>(v, null);
+  if (!j || !num(j.year)) return null;
+  const y = zeroYtd();
+  for (const k of ["gross", "taxablePay", "tax", "niEarnings", "ee", "er", "atLel", "lelToPt", "ptToUel", "sl", "pgl", "eePension", "eePensionRas", "erPension", "net"] as const) y[k] = num(j[k]);
+  if (!y.gross) y.gross = y.niEarnings || y.taxablePay;
+  return { year: num(j.year), ytd: y };
+}
+const openingFor = (p: PersonRec, year: number): Ytd => (p.opening && p.opening.year === year ? p.opening.ytd : zeroYtd());
 export const fullName = (p: PersonRec) => [p.first, p.middle, p.last].filter(Boolean).join(" ") || "Unnamed";
 /** The tax week a director was appointed, if it was in this tax year (otherwise the whole year counts). */
 export const apptWeekOf = (p: PersonRec, year: number) => (p.director && isDate(p.appointedOn) && taxYearOf(p.appointedOn) === year ? taxWeek(p.appointedOn, year) : 1);
@@ -50,8 +62,9 @@ export const setupOf = (p: PersonRec, year: number): PersonSetup => ({
   studentPlan: p.studentPlan, postgrad: p.postgrad, pension: p.pension,
 });
 export const isActive = (p: PersonRec, year: number) => p.status !== "removed" && (!p.leavingDate || taxYearOf(p.leavingDate) >= year);
-export function fpsPersonOf(p: PersonRec, year: number, starter: boolean, leaving: boolean): FpsPerson {
+export function fpsPersonOf(p: PersonRec, year: number, starter: boolean, leaving: boolean, firstHere = false): FpsPerson {
   return {
+    oldPayId: firstHere && p.oldPayId ? p.oldPayId : undefined,
     nino: p.nino, title: p.title, first: p.first, middle: p.middle, last: p.last, birthDate: p.dob, gender: (p.gender || "M") as "M" | "F", address: p.address, postcode: p.postcode,
     payId: p.payId, letter: p.niLetter, hours: p.hours, studentPlan: p.studentPlan, postgrad: p.postgrad,
     director: p.director ? { method: p.nicMethod, apptWeek: apptWeekOf(p, year) } : undefined,
@@ -68,13 +81,15 @@ export function personMissing(p: PersonRec, year: number): string[] {
 
 // ------------------------------------------------------------------ the pay year: paydays and amounts
 
-export type PayYear = { key: string; schemeKey: string; year: number; paydays: string[]; amounts: Record<string, (number | null)[]>; source: string; pattern: string; status: string };
+export type PayYear = { key: string; schemeKey: string; year: number; paydays: string[]; amounts: Record<string, (number | null)[]>; source: string; pattern: string; status: string;
+  /** the first period run here; earlier periods were run and reported by the previous software */ startPeriod: number };
 export const readYear = (r: Row | undefined, schemeKey: string, year: number, freq: Freq): PayYear => {
   const n = PERIODS[freq];
   const paydays = json<string[]>(r?.Paydays, []);
   return {
     key: str(r?.Key), schemeKey, year, paydays: Array.from({ length: n }, (_, i) => (isDate(str(paydays[i])) ? str(paydays[i]) : "")),
     amounts: json<Record<string, (number | null)[]>>(r?.Amounts, {}), source: str(r?.Source), pattern: str(r?.Pattern), status: str(r?.Status),
+    startPeriod: Math.min(n, Math.max(1, num(r?.StartPeriod) || 1)),
   };
 };
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -115,7 +130,7 @@ export function amountsFor(p: PersonRec, y: PayYear, freq: Freq): (number | null
   const plan = y.amounts[p.key] || [];
   const usual = p.basis === "salary" ? r2(p.annualSalary / n) : p.basis === "hourly" ? r2(p.hourlyRate * p.usualHours) : 0;
   return Array.from({ length: n }, (_, i) => {
-    if (!y.paydays[i]) return null;
+    if (!y.paydays[i] || i + 1 < y.startPeriod) return null;
     if (p.startDate && y.paydays[i] < p.startDate) return null;
     if (p.leavingDate && y.paydays[i] > p.leavingDate) return null;
     const planned = plan[i];
@@ -138,13 +153,13 @@ export function ytdBefore(runs: RunRec[], personKey: string, period: number): Yt
   return zeroYtd();
 }
 
-export type PeriodView = { period: number; payday: string; run?: RunRec; lines: RunLine[]; nil: boolean; totals: { gross: number; tax: number; ee: number; er: number; net: number; sl: number; pension: number; due: number } };
+export type PeriodView = { period: number; payday: string; run?: RunRec; lines: RunLine[]; nil: boolean; /** run and reported by the previous software */ elsewhere: boolean; totals: { gross: number; tax: number; ee: number; er: number; net: number; sl: number; pension: number; due: number } };
 /** The whole year: saved runs as they are, the rest worked out in advance from the paydays and amounts. */
 export function yearView(s: SchemeRec, people: PersonRec[], y: PayYear, runs: RunRec[]): { periods: PeriodView[]; errors: string[] } {
   const n = PERIODS[s.freq], errors: string[] = [];
   const mine = runs.filter((r) => r.schemeKey === s.key && r.year === y.year && liveRun(r));
-  const ytd = new Map<string, Ytd>();
   const active = people.filter((p) => isActive(p, y.year));
+  const ytd = new Map<string, Ytd>(active.map((p) => [p.key, openingFor(p, y.year)]));
   const amounts = new Map(active.map((p) => [p.key, amountsFor(p, y, s.freq)]));
   const periods: PeriodView[] = [];
   for (let i = 1; i <= n; i++) {
@@ -163,7 +178,8 @@ export function yearView(s: SchemeRec, people: PersonRec[], y: PayYear, runs: Ru
     for (const l of lines) ytd.set(l.personKey, l.line.ytd);
     const t = lines.reduce((a, { line: l }) => ({ gross: a.gross + l.gross, tax: a.tax + l.tax, ee: a.ee + l.ee, er: a.er + l.er, net: a.net + l.net, sl: a.sl + l.sl + l.pgl, pension: a.pension + l.eePension + l.eePensionRas + l.erPension }), { gross: 0, tax: 0, ee: 0, er: 0, net: 0, sl: 0, pension: 0 });
     const totals = { gross: r2(t.gross), tax: r2(t.tax), ee: r2(t.ee), er: r2(t.er), net: r2(t.net), sl: r2(t.sl), pension: r2(t.pension), due: r2(t.tax + t.ee + t.er + t.sl) };
-    periods.push({ period: i, payday: run?.payday || y.paydays[i - 1], run, lines, nil: !lines.length, totals });
+    const elsewhere = i < y.startPeriod && !run;
+    periods.push({ period: i, payday: run?.payday || y.paydays[i - 1], run, lines, nil: !lines.length && !elsewhere, elsewhere, totals });
   }
   return { periods, errors };
 }
@@ -191,7 +207,8 @@ export function approveRun(s: SchemeRec, people: PersonRec[], y: PayYear, runs: 
   if (pv.run) return { error: "This period has already been approved." };
   if (!pv.payday) return { error: "Set a payday for this period first." };
   if (pv.nil) return { error: "Nobody is paid this period. Queue a nil EPS instead." };
-  const earlier = view.periods.filter((p) => p.period < period && !p.nil && !p.run);
+  if (period < y.startPeriod) return { error: `Periods before ${y.startPeriod} were run in the previous software.` };
+  const earlier = view.periods.filter((p) => p.period < period && !p.nil && !p.run && !p.elsewhere);
   if (earlier.length) return { error: `Approve period ${earlier[0].period} first.` };
   const byKey = new Map(people.map((p) => [p.key, p]));
   const problems = pv.lines.flatMap((l) => personMissing(byKey.get(l.personKey)!, y.year));
@@ -202,14 +219,14 @@ export function approveRun(s: SchemeRec, people: PersonRec[], y: PayYear, runs: 
     const p = byKey.get(l.personKey)!;
     const starter = !reported.has(p.key) && !!p.startDate && taxYearOf(p.startDate) === y.year;
     const leaving = !!p.leavingDate && p.leavingDate <= (view.periods[period]?.payday || "9999-12-31") && taxYearOf(p.leavingDate) === y.year;
-    return { person: fpsPersonOf(p, y.year, starter, leaving), line: l.line };
+    return { person: fpsPersonOf(p, y.year, starter && !(p.opening && p.opening.year === y.year), leaving, !reported.has(p.key)), line: l.line };
   });
   const final = period === lastPaidPeriod(view.periods) && view.periods.slice(period).every((p) => p.nil);
   const body = buildFps({ scheme: s, year: y.year, freq: s.freq, period, payday: pv.payday, people: fpsPeople, final });
   const runKey = o.newKey("RUN");
   const fps = submission(s, o, "FPS", y.year, period, pv.payday, body, `Period ${period}, paid ${pv.payday}: ${pv.lines.length} ${pv.lines.length === 1 ? "person" : "people"}, gross £${pv.totals.gross.toFixed(2)}${final ? " (final for the year)" : ""}`, runKey);
   const out: Row[] = [fps];
-  const firstPaid = !mineRuns.length;
+  const firstPaid = !mineRuns.length && y.startPeriod <= 1;
   if (firstPaid && s.claimEA && !subs.some((x) => str(x.SchemeKey) === s.key && num(x.TaxYear) === y.year && str(x.Kind) === "EPS" && str(x.Summary).startsWith("Employment Allowance") && str(x.Status) !== "cancelled")) {
     out.push(submission(s, o, "EPS", y.year, period, pv.payday, buildEps({ scheme: s, year: y.year, employmentAllowance: true }), "Employment Allowance claim for the year"));
   }
@@ -229,7 +246,7 @@ export function queueNilEps(s: SchemeRec, people: PersonRec[], y: PayYear, runs:
   const have = new Set(subs.filter((x) => str(x.SchemeKey) === s.key && num(x.TaxYear) === y.year && str(x.Kind) === "EPS" && str(x.Summary).startsWith("Nil EPS") && str(x.Status) !== "cancelled").map((x) => num(x.Period)));
   const out: Row[] = [];
   for (const p of view.periods) {
-    if (!p.nil || have.has(p.period)) continue;
+    if (!p.nil || p.elsewhere || have.has(p.period)) continue;
     const { to } = taxMonthDates(y.year, p.period);
     const sendOn = iso(new Date(Date.parse(`${to}T00:00:00Z`) + 86400000));
     const final = p.period === 12 && last < 12;

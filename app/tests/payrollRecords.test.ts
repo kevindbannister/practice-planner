@@ -104,3 +104,24 @@ test("a run that hasn't gone to HMRC can be cancelled; one that has can't", () =
   assert.ok(!("error" in rec.cancelRun(run, { Key: "X", Status: "queued" }, true)));
   assert.ok("error" in rec.cancelRun(run, { Key: "X", Status: "accepted" }, true));
 });
+
+test("moving from FreshPay part-way through the year: earlier months stay there, the year to date carries on", () => {
+  const y = { ...rec.readYear({ StartPeriod: 8 }, "S1", Y, "M1"), paydays: rec.defaultPaydays(Y, "M1", { kind: "day", day: 28 }) };
+  y.amounts = { P1: Array(12).fill(3000) };
+  const moved = [rec.readPerson({ ...alexRow, PayId: "X1", OldPayId: "FP-17", OpeningYtd: JSON.stringify({ year: Y, gross: 21000, taxablePay: 21000, tax: 2733.4, niEarnings: 21000, ee: 674.4, er: 2400, atLel: 6708, lelToPt: 5862, ptToUel: 8430 }) })];
+  const v = rec.yearView(s, moved, y, []);
+  assert.equal(v.periods[6].elsewhere, true);
+  assert.equal(v.periods[6].nil, false);
+  assert.equal(v.periods[7].lines[0].line.ytd.gross, 24000);
+  assert.ok("error" in rec.approveRun(s, moved, y, [], [], 7, true, O));
+  const q = rec.approveRun(s, moved, y, [], [], 8, true, O) as rec.Queued;
+  assert.equal(q.submissions.length, 1); // no Employment Allowance EPS: the old software claimed it for the year
+  assert.match(String(q.submissions[0].Body), /<PayIdChgd><PayrollIdChangedIndicator>yes<\/PayrollIdChangedIndicator><OldPayrollId>FP-17<\/OldPayrollId><\/PayIdChgd>/);
+  assert.match(String(q.submissions[0].Body), /<GrossEarningsForNICsYTD>24000.00<\/GrossEarningsForNICsYTD>/);
+  const nil = rec.queueNilEps(s, moved, { ...y, amounts: { P1: [...Array(11).fill(3000), 0] } }, [], [], true, O) as rec.Queued;
+  assert.equal(nil.submissions.length, 1); // only month 12; months before 8 were the old software's
+  try { execFileSync("xmllint", ["--version"], { stdio: "ignore" }); } catch { return; }
+  const tmp = `${process.env.TMPDIR || "/tmp"}/fps-move-${Date.now()}.xml`;
+  writeFileSync(tmp, String(q.submissions[0].Body));
+  execFileSync("xmllint", ["--noout", "--schema", `${import.meta.dirname}/rti/FullPaymentSubmission-2027-v1-0.xsd`, tmp], { stdio: "pipe" });
+});
