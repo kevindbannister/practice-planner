@@ -908,7 +908,7 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
     return (<>
       <Group title="State Pension"><Money label="State Pension for the year" value={p.state} onChange={(v) => set({ state: v })} /><Money label="State Pension lump sum" value={p.stateLumpSum} onChange={(v) => set({ stateLumpSum: v })} /><Money label="Tax taken off the lump sum" value={p.stateLumpSumTax} onChange={(v) => set({ stateLumpSumTax: v })} /></Group>
       <h3 className="tax-sub">Other UK pensions and annuities</h3>
-      <ListTable<OtherPension> rows={p.others} onChange={(list) => set({ others: list })} blank={() => ({ id: newId(), payer: "", amount: 0, tax: 0 })} cols={[{ label: "Payer", text: "payer" }, { label: "Amount before tax", money: "amount" }, { label: "Tax taken off", money: "tax" }]} />
+      <ListTable<OtherPension> rows={p.others} onChange={(list) => set({ others: list })} blank={() => ({ id: newId(), payer: "", amount: 0, tax: 0 })} cols={[{ label: "Pension", text: "payer" }, { label: "Gross", money: "amount" }, { label: "Tax taken off", money: "tax" }, { label: "Net", money: "net" }]} />
     </>);
   }
   if (k === "benefits") {

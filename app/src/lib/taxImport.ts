@@ -59,6 +59,20 @@ export function expenseBoxFor(label: string): ExpenseBox {
   return "19";
 }
 
+/** The gross, tax and net of a pension line. A row of three figures is taken as gross, tax and net in whichever order
+ * they come, the gross being the one the other two add up to. Anything else is read as the gross alone, flagged. */
+function pensionFigures(a: number[]): { gross: number; tax: number; net?: number; checked: boolean } | undefined {
+  if (!a.length) return undefined;
+  if (a.length >= 3) {
+    const [x, y, z] = a.slice(-3);
+    for (const [g, p, q] of [[x, y, z], [y, x, z], [z, x, y]]) {
+      if (Math.abs(p + q - g) <= 1) return { gross: g, tax: Math.min(p, q), net: Math.max(p, q), checked: true };
+    }
+  }
+  if (a.length === 2) return { gross: Math.max(...a), tax: Math.round((Math.max(...a) - Math.min(...a)) * 100) / 100, net: Math.min(...a), checked: false };
+  return { gross: a[a.length - 1], tax: 0, checked: false };
+}
+
 /** The figure at the end of a capital gains line, in pounds or pence, with brackets or a minus for a negative. */
 const GAIN_FIGURE = /\(?-?£?\s?\d[\d,]*(?:\.\d{1,2})?\)?\s*$/;
 const gainFigure = (s: string): number | undefined => { const m = s.match(/(\()?(-)?£?\s?(\d[\d,]*(?:\.\d{1,2})?)\)?\s*$/); return m ? (m[1] || m[2] ? -1 : 1) * Number(m[3].replace(/,/g, "")) : undefined; };
@@ -169,6 +183,14 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
       let trade: { profit?: number; turnover?: number; items: ExpenseLine[] } | undefined;
       // capital gains: each disposal's proceeds, its costs and any private residence relief, and the gain they give
       let cgtKind: Gain["kind"] = "other", cgtDesc = "", cgt: { desc: string; kind: Gain["kind"]; date?: string; proceeds: number; costs: number; prr: number; subtotal?: number } | undefined;
+      // a pension with its gross, tax and net on separate rows under a "Pension: name" heading
+      let pen: { name: string; gross?: number; tax?: number; net?: number } | undefined;
+      const flushPension = () => {
+        if (pen && pen.gross !== undefined) {
+          (r.pensions ||= { others: [] }).others.push({ id: newId(), payer: pen.name || "Pension", amount: pen.gross, tax: pen.tax ?? 0, net: pen.net });
+        }
+        pen = undefined;
+      };
       const finishGain = () => {
         if (!cgt) return;
         const cost = Math.round((cgt.costs + cgt.prr) * 100) / 100;
@@ -178,7 +200,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
       };
       for (const l of body) {
         const plain = withoutMoney(l);
-        if (/^Capital Gains Tax computation/i.test(plain)) { finishGain(); sec = "gains"; cgtKind = "other"; cgtDesc = ""; continue; }
+        if (/^Capital Gains Tax computation/i.test(plain)) { flushPension(); finishGain(); sec = "gains"; cgtKind = "other"; cgtDesc = ""; continue; }
         if (sec === "gains") {
           // the computation shows whole pounds as well as pence, so its figure is the last number on the line
           const last = gainFigure(l), label = l.replace(GAIN_FIGURE, "").trim();
@@ -205,7 +227,9 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
         // inside a trade, an expense such as "Business travel 120.00" is a line, not a new trade
         const inTrade = head?.[1] === "trade" && sec === "trade" && allMoney(l).length > 0;
         if (head && !/^Total\b/i.test(plain) && !inTrade) {
+          if (sec === "pensions") flushPension();
           sec = head[1]; country = "";
+          if (sec === "pensions") pen = { name: (plain.match(/^Pensions?:\s*(.+)$/i)?.[1] || "").trim() };
           if (sec === "employment") {
             const name = complete(plain.replace(/^Employment income:?\s*/i, ""));
             cur = { id: newId(), name, paye: "", pay: 0, tax: 0, benefits: {}, expenses: {} };
@@ -245,7 +269,16 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
           const acct = words.length >= 2 && /^[0-9][0-9\-\/]{3,}$/.test(words[words.length - 1]) ? words.pop() : undefined;
           r.interest.push({ id: newId(), payer: words.join(" ") || "Interest", accountNumber: acct, untaxed: v });
         } else if (sec === "pensions") {
-          (r.pensions ||= { others: [] }).others.push({ id: newId(), payer: plain || "Pension", amount: v, tax: 0 });
+          if (pen && /^gross/i.test(plain)) pen.gross = v;
+          else if (pen && /^tax/i.test(plain)) pen.tax = Math.abs(v);
+          else if (pen && /^net/i.test(plain)) pen.net = v;
+          else {
+            const f = pensionFigures(amounts);
+            if (f) {
+              (r.pensions ||= { others: [] }).others.push({ id: newId(), payer: plain || "Pension", amount: f.gross, tax: f.tax, net: f.net });
+              if (!f.checked) res.warnings.push(`${plain || "A pension"}: the gross, tax and net did not add up, so only the gross was read: check it.`);
+            }
+          }
         } else if (sec === "statePension") {
           (r.pensions ||= { others: [] }).state = v;
         } else if (sec === "trade" && trade) {
@@ -269,6 +302,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
           r.otherIncome = { amount: (r.otherIncome?.amount || 0) + v, description: r.otherIncome?.description || plain };
         }
       }
+      flushPension();
       finishGain();
     }
     if (!isCalc && !isSummaries && !f.forms?.length && !seenBefore) res.warnings.push(`${f.name} doesn't look like an IRIS tax calculation or detailed summaries, so nothing was read from it.`);
@@ -311,7 +345,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
   for (const p of r.partnerships) res.found.push(`Partnership: ${p.name}, share £${p.profit.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   if (r.property) res.found.push(`UK property profit £${r.property.income.toLocaleString("en-GB", { minimumFractionDigits: 2 })} (entered as rents with no expenses)`);
   if (r.pensions?.state) res.found.push(`State Pension £${r.pensions.state.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
-  for (const o of r.pensions?.others || []) res.found.push(`Pension: ${o.payer} £${o.amount.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
+  for (const o of r.pensions?.others || []) res.found.push(`Pension: ${o.payer}, gross £${o.amount.toLocaleString("en-GB", { minimumFractionDigits: 2 })}, tax £${o.tax.toLocaleString("en-GB", { minimumFractionDigits: 2 })}${o.net !== undefined ? `, net £${o.net.toLocaleString("en-GB", { minimumFractionDigits: 2 })}` : ""}`);
   if (r.otherIncome) res.found.push(`Other income £${r.otherIncome.amount.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   if (r.reliefs.giftAid) res.found.push(`Gift Aid £${r.reliefs.giftAid.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   if (r.reliefs.pensionRas) res.found.push(`Pension contributions £${r.reliefs.pensionRas.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);

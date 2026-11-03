@@ -39,7 +39,8 @@ export const expenseBoxOf = (x: ExpenseLine): ExpenseBox => x.box ?? "19";
 
 export type Interest = { id: string; payer: string; accountNumber?: string; untaxed: number; net?: number; taxTaken?: number; foreign?: boolean; foreignTax?: number };
 export type Dividend = { id: string; company: string; amount: number; foreign?: boolean; foreignTax?: number };
-export type OtherPension = { id: string; payer: string; amount: number; tax: number };
+/** amount is the gross pension; tax is taken off it; net is what was paid (as the summaries show it, when given) */
+export type OtherPension = { id: string; payer: string; amount: number; tax: number; net?: number };
 export type Gain = { id: string; description: string; kind: "residential" | "shares" | "other" | "crypto"; date?: string; proceeds: number; cost: number; badr?: boolean; ir?: boolean };
 
 /** Where a return has got to. Only a submitted return is final for bringing forward. */

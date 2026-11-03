@@ -110,3 +110,21 @@ test("expense lines go to their SA103 boxes", () => {
   ]);
   assert.equal(trade.expenses, 2200);
 });
+
+test("a pension line gives its name, gross, tax and net", () => {
+  const detail = { name: "Detailed summaries.pdf", pages: [[
+    "Mr Sam Example UTR: 1234567890", "Detailed summaries for year ended 5 April 2025",
+    "Pensions (other than state pension)", "Example Teachers Pension Scheme 12,000.00 2,400.00 9,600.00", "Total 12,000.00",
+  ]] };
+  const p = readImport([detail]).ret.pensions!.others;
+  assert.deepEqual(p.map((x) => [x.payer, x.amount, x.tax, x.net]), [["Example Teachers Pension Scheme", 12000, 2400, 9600]]);
+});
+
+test("a named pension with gross, tax and net rows under its heading", () => {
+  const detail = { name: "Detailed summaries.pdf", pages: [[
+    "Mr Sam Example UTR: 1234567890", "Detailed summaries for year ended 5 April 2025",
+    "Pension: Example Personal Pension", "Gross 5,000.00", "Tax 1,000.00", "Net 4,000.00", "Total 5,000.00",
+  ]] };
+  const p = readImport([detail]).ret.pensions!.others;
+  assert.deepEqual(p.map((x) => [x.payer, x.amount, x.tax, x.net]), [["Example Personal Pension", 5000, 1000, 4000]]);
+});
