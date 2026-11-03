@@ -77,3 +77,14 @@ test("without the document's income tax figure, the read says it can't be checke
   const res = readWithAi([file(["Gross pay 12,480.00"])], { ret: { employments: [{ name: "Acme", pay: 12480 }] }, totals: {} });
   assert.ok(res.warnings.some((w) => /can't be checked/.test(w)));
 });
+
+test("a document figure that is after tax deducted at source agrees, with no warning", () => {
+  const files = [file(["Gross pay 50,000.00", "Tax deducted 1,000.00"])];
+  const body = { employments: [{ name: "Acme", pay: 50000, tax: 1000 }] };
+  const first = readWithAi(files, { ret: body, totals: {} });
+  const ours = first.check!.ours;
+  assert.equal(first.check!.deducted, 1000);
+  const res = readWithAi(files, { ret: body, totals: { incomeTaxDue: Math.round((ours - 1000) * 100) / 100 } });
+  assert.equal(res.check!.agrees, "after deduction");
+  assert.ok(!res.warnings.some((w) => /prints income tax/.test(w)), res.warnings.join(" | "));
+});

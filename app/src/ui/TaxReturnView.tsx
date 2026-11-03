@@ -340,7 +340,21 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
               {chk && (chk.theirs !== undefined
                 ? <p className={chk.matches ? "ok-text" : "warn"} style={{ margin: 0 }}>{chk.matches ? `Matches IRIS: total tax ${gbp(chk.ours)}.` : `IRIS worked out ${gbp(chk.theirs)}; this comes to ${gbp(chk.ours)}. Check the figures after bringing it in.`}</p>
                 : <p className="muted" style={{ margin: 0 }}>Total tax from these figures: {gbp(chk.ours)}.</p>)}
-              {res.warnings.map((w) => <p key={w} className="warn" style={{ margin: 0 }}>{w}</p>)}
+              {res.check && (
+                <div style={{ background: "#fde2e2", color: "#111", borderRadius: 6, padding: "8px 10px", fontSize: 13 }}>
+                  <strong>Income tax check against the document</strong>
+                  <table style={{ width: "100%", marginTop: 4, borderCollapse: "collapse" }}>
+                    <tbody>
+                      <tr><td>Income tax worked out from these figures (before tax deducted at source)</td><td className="mono" style={{ textAlign: "right" }}>{gbp(res.check.ours)}</td></tr>
+                      <tr><td>Tax deducted at source (PAYE, interest, pensions and so on)</td><td className="mono" style={{ textAlign: "right" }}>{gbp(res.check.deducted)}</td></tr>
+                      <tr><td><strong>Total income tax due after tax deducted at source</strong></td><td className="mono" style={{ textAlign: "right" }}><strong>{gbp(res.check.ours - res.check.deducted)}</strong></td></tr>
+                      <tr><td>Income tax due printed in the document</td><td className="mono" style={{ textAlign: "right" }}>{res.check.document === undefined ? "not found" : gbp(res.check.document)}</td></tr>
+                      <tr><td>Result</td><td style={{ textAlign: "right" }}>{res.check.agrees === "gross" ? "agrees, before tax deducted" : res.check.agrees === "after deduction" ? "agrees, after tax deducted" : "does not agree"}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {res.warnings.map((w) => <p key={w} style={{ margin: 0, color: "#111", fontSize: 13 }}>{w}</p>)}
               {res.aiRaw && <details><summary className="muted" style={{ fontSize: 13, cursor: "pointer" }}>What the AI returned</summary><pre style={{ fontSize: 12, maxHeight: 260, overflow: "auto", whiteSpace: "pre-wrap", margin: "6px 0 0" }}>{res.aiRaw}</pre></details>}
               <label className="row-wrap" style={{ gap: 8 }}><input type="checkbox" checked={submitted} onChange={(e) => setSubmitted(e.target.checked)} /> This return was submitted to HMRC</label>
               {usedAi && <label className="row-wrap" style={{ gap: 8 }}><input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Keep copies of these PDFs in OneDrive as history (copies only: nothing is sent to HMRC)</label>}

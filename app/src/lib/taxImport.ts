@@ -15,6 +15,8 @@ export type ImportResult = {
   ret: TaxReturn;
   /** the AI's answer as it came back, when the return was read with the AI (for checking what it gave) */
   aiRaw?: string;
+  /** the income tax worked out here against the document's own figure, with the tax deducted at source */
+  check?: { ours: number; deducted: number; document?: number; agrees: "gross" | "after deduction" | false };
   year?: number;
   utr?: string;
   name?: string;

@@ -125,15 +125,23 @@ export function readWithAi(files: ImportFile[], answer: TaxReadAnswer, names: st
   }
   const found = foundLines(ret);
   const docTax = answer.totals.incomeTaxDue;
+  let check: ImportResult["check"];
   if (!local.year) warnings.push("The tax year couldn't be found in the files, so the figures can't be checked.");
-  else if (docTax === undefined) warnings.push("The income tax figure printed in the document wasn't found, so the figures can't be checked against it.");
   else {
-    const ours = compute(ret, local.year).incomeTax;
-    if (Math.abs(ours - docTax) > 0.005) warnings.push(`The document prints income tax of ${gbp(docTax)}, but these figures give ${gbp(ours)}. Check the figures before bringing it in.`);
-    else found.unshift(`Income tax agrees with the document: ${gbp(docTax)}`);
+    const c = compute(ret, local.year);
+    const ours = c.incomeTax, deducted = c.deducted;
+    // the document prints income tax either before or after the tax already deducted at source (PAYE, interest, pensions)
+    const agrees = docTax === undefined ? false
+      : Math.abs(ours - docTax) <= 0.005 ? "gross"
+      : Math.abs(ours - deducted - docTax) <= 0.005 ? "after deduction"
+      : false;
+    check = { ours, deducted, document: docTax, agrees };
+    if (docTax === undefined) warnings.push("The income tax figure printed in the document wasn't found, so the figures can't be checked against it.");
+    else if (!agrees) warnings.push(`The document prints income tax of ${gbp(docTax)}, but these figures give ${gbp(ours)} before tax deducted at source (${gbp(ours - deducted)} after it). Check the figures before bringing it in.`);
+    else found.unshift(agrees === "gross" ? `Income tax agrees with the document: ${gbp(docTax)}` : `Income tax agrees with the document after tax deducted at source: ${gbp(docTax)}`);
   }
   const aiRaw = JSON.stringify({ return: answer.ret, totals: answer.totals }, null, 1).slice(0, 8000);
-  return { ...local, ret, found, aiRaw, warnings: [...warnings, ...local.warnings] };
+  return { ...local, ret, found, aiRaw, check, warnings: [...warnings, ...local.warnings] };
 }
 
 const HISTORY_FOLDER = "Practice Planner Tax History";
