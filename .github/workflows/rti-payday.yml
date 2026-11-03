@@ -1,0 +1,33 @@
+# Files queued payroll submissions (FPS and EPS) with HMRC on the day they are due, and collects HMRC's answers.
+#
+# Azure Static Web Apps' built-in functions can't run on a timer, so this calls a protected address on the
+# site every half hour from 06:07 to 19:37 UK time (UTC shown). Each run sends what is due today and checks
+# anything still waiting for HMRC. Set these repository secrets (Settings > Secrets and variables > Actions):
+#   PORTAL_BASE_URL   the site's address (already set for the portal)
+#   RTI_SWEEP_KEY     the same value as the RTI_SWEEP_KEY setting in Azure (a long random string)
+# Until both are set this does nothing, and Payroll > HMRC says the scheduled filing isn't running.
+name: Payroll filing
+
+on:
+  schedule:
+    - cron: "7,37 5-19 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  file:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send what is due
+        env:
+          PORTAL_BASE_URL: ${{ secrets.PORTAL_BASE_URL }}
+          RTI_SWEEP_KEY: ${{ secrets.RTI_SWEEP_KEY }}
+        run: |
+          if [ -z "$PORTAL_BASE_URL" ] || [ -z "$RTI_SWEEP_KEY" ]; then
+            echo "Not set up yet: add the PORTAL_BASE_URL and RTI_SWEEP_KEY secrets."
+            exit 0
+          fi
+          code=$(curl -sS -o result.json -w "%{http_code}" -X POST "${PORTAL_BASE_URL%/}/api/rti/system/due" -H "x-sweep-key: $RTI_SWEEP_KEY" --max-time 90)
+          cat result.json; echo
+          [ "$code" = "200" ]
