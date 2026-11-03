@@ -125,3 +125,55 @@ test("moving from FreshPay part-way through the year: earlier months stay there,
   writeFileSync(tmp, String(q.submissions[0].Body));
   execFileSync("xmllint", ["--noout", "--schema", `${import.meta.dirname}/rti/FullPaymentSubmission-2027-v1-0.xsd`, tmp], { stdio: "pipe" });
 });
+
+const validFps = (xml: string, xsd = "FullPaymentSubmission-2027-v1-0.xsd") => {
+  try { execFileSync("xmllint", ["--version"], { stdio: "ignore" }); } catch { return; }
+  const tmp = `${process.env.TMPDIR || "/tmp"}/rti-${Date.now()}-${Math.random().toString(36).slice(2)}.xml`;
+  writeFileSync(tmp, xml);
+  execFileSync("xmllint", ["--noout", "--schema", `${import.meta.dirname}/rti/${xsd}`, tmp], { stdio: "pipe" });
+};
+const yearWith = (amounts: Record<string, (number | null)[]>, extras = {}) => ({ ...rec.readYear(undefined, "S1", Y, "M1"), paydays: rec.defaultPaydays(Y, "M1", { kind: "day", day: 28 }), amounts, extras });
+
+test("statutory maternity pay in a period: on the FPS year to date, and claimed back on an EPS", () => {
+  const emp = [rec.readPerson({ ...samRow, Director: "no", PayBasis: "salary", AnnualSalary: 30000, Hours: "D" })];
+  const y = yearWith({}, { P2: { "1": { smp: 1080 } } });
+  const q = rec.approveRun({ ...s, smallEmployer: true }, emp, y, [], [{ SchemeKey: "S1", TaxYear: Y, Kind: "EPS", Summary: "Employment Allowance claim for the year", Status: "queued" }], 1, true, O) as rec.Queued;
+  assert.match(String(q.submissions[0].Body), /<SMPYTD>1080.00<\/SMPYTD>/);
+  const eps = q.submissions.find((x) => String(x.Summary).startsWith("Statutory pay recovery"))!;
+  assert.match(String(eps.Body), /<SMPRecovered>1080.00<\/SMPRecovered><NICCompensationOnSMP>97.20<\/NICCompensationOnSMP>/);
+  validFps(String(q.submissions[0].Body));
+  validFps(String(eps.Body), "EmployerPaymentSummary-2027-v1-0.xsd");
+});
+
+test("benefits taxed through the payroll appear on the FPS", () => {
+  const p1 = [rec.readPerson({ ...alexRow, Benefits: JSON.stringify([{ year: Y, label: "Car", annual: 3600 }]) })];
+  const q = rec.approveRun(s, p1, yearWith({ P1: Array(12).fill(3000) }), [], [], 1, true, O) as rec.Queued;
+  assert.match(String(q.submissions[0].Body), /<BenefitsTaxedViaPayroll>300.00<\/BenefitsTaxedViaPayroll>/);
+  assert.match(String(q.submissions[0].Body), /<BenefitsTaxedViaPayrollYTD>300.00<\/BenefitsTaxedViaPayrollYTD>/);
+  validFps(String(q.submissions[0].Body));
+});
+
+test("auto-enrolment: no pension until enrolled; an opt-out within the month gets the contributions back", () => {
+  const pen = JSON.stringify({ kind: "netpay", eePct: 5, erPct: 3, basis: "qualifying" });
+  const assessing = [rec.readPerson({ ...samRow, Director: "no", PayBasis: "salary", AnnualSalary: 30000, Pension: pen, AeStatus: "assess" })];
+  const v1 = rec.yearView(s, assessing, yearWith({}), []);
+  assert.equal(v1.periods[0].lines[0].line.eePension, 0);
+  const rep = rec.aeReport(s, assessing, v1.periods, Y);
+  assert.equal(rep[0].action, "enrol");
+  const enrolled = [rec.readPerson({ ...samRow, Director: "no", PayBasis: "salary", AnnualSalary: 30000, Pension: pen, AeStatus: "opted-out", AeDate: "2026-04-28", AeOptOut: "2026-05-20" })];
+  const v2 = rec.yearView(s, enrolled, yearWith({}), []);
+  assert.ok(v2.periods[0].lines[0].line.eePension > 0);
+  assert.equal(v2.periods[1].lines[0].line.eePension, -v2.periods[0].lines[0].line.eePension);
+  assert.equal(v2.periods[2].lines[0].line.eePension, 0);
+});
+
+test("an attachment of earnings order comes off net pay, carrying arrears", () => {
+  const orders = JSON.stringify([{ id: "a", kind: "aeo", ref: "K12", normal: 300, protected: 1700, carryArrears: true, fee: true, start: "2026-04-01" }]);
+  const p = [rec.readPerson({ ...samRow, Director: "no", PayBasis: "salary", AnnualSalary: 24000, Orders: orders })];
+  const v = rec.yearView(s, p, yearWith({}, { P2: { "2": { bonus: 1000 } } }), []);
+  const m1 = v.periods[0].lines[0].line, m2 = v.periods[1].lines[0].line;
+  assert.ok(m1.orders![0].amount < 300 && m1.orders![0].shortfall > 0);
+  assert.equal(m2.orders![0].amount, Math.round((300 + m1.orders![0].shortfall) * 100) / 100);
+  assert.equal(m2.orders![0].fee, 1);
+  assert.equal(m1.net, Math.round((m1.payAfterStatDedns - m1.orders![0].amount - m1.orders![0].fee) * 100) / 100);
+});

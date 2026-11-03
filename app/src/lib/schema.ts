@@ -472,11 +472,11 @@ export const LISTS: ListDef[] = [
   {
     key: "PayrollPeople", displayName: "PP Payroll People", description: "Practice Planner: employees and directors on each payroll",
     columns: [t("Key", true), t("PracticeId", true), t("SchemeKey", true), t("PersonClientKey"), t("Title"), t("First"), t("Middle"), t("Last"), t("NINO"), t("DOB"), t("Gender"), note("Address"), t("Postcode"), t("PayId"),
-      t("StartDate"), t("StartDec"), t("LeavingDate"), t("Director"), t("NicMethod"), t("AppointedOn"), t("TaxCode"), t("NiLetter"), t("StudentPlan"), t("Postgrad"), note("Pension"), t("Hours"), t("PayBasis"), n("AnnualSalary"), n("HourlyRate"), n("UsualHours"), note("OpeningYtd"), t("OldPayId"), t("Status", true), t("Created"), t("Updated")],
+      t("StartDate"), t("StartDec"), t("LeavingDate"), t("Director"), t("NicMethod"), t("AppointedOn"), t("TaxCode"), t("NiLetter"), t("StudentPlan"), t("Postgrad"), note("Pension"), t("Hours"), t("PayBasis"), n("AnnualSalary"), n("HourlyRate"), n("UsualHours"), note("OpeningYtd"), t("OldPayId"), t("AeStatus"), t("AeDate"), t("AeOptOut"), t("AePostpone"), t("HasContract"), note("Orders"), note("Benefits"), t("Status", true), t("Created"), t("Updated")],
   },
   {
     key: "PayYears", displayName: "PP Pay Years", description: "Practice Planner: paydays and planned pay for each payroll and tax year",
-    columns: [t("Key", true), t("PracticeId", true), t("SchemeKey", true), n("TaxYear"), note("Paydays"), note("Amounts"), n("StartPeriod"), t("Source"), t("Pattern"), t("Status"), t("Updated"), t("UpdatedBy")],
+    columns: [t("Key", true), t("PracticeId", true), t("SchemeKey", true), n("TaxYear"), note("Paydays"), note("Amounts"), n("StartPeriod"), note("Extras"), t("Source"), t("Pattern"), t("Status"), t("Updated"), t("UpdatedBy")],
   },
   {
     key: "PayRuns", displayName: "PP Pay Runs", description: "Practice Planner: approved pay runs with each person's figures",

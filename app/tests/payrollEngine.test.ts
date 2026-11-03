@@ -140,3 +140,35 @@ test("half pennies round down for NI", () => {
   assert.equal(e.halfDown(1.005), 1);
   assert.equal(e.halfDown(1.0051), 1.01);
 });
+
+test("weekly payroll: 1257L, £500 a week, category A", () => {
+  const w1 = ok(e.payLine(emp(), { basic: 500 }, "W1", 1, e.zeroYtd(), Y));
+  assert.equal(w1.tax, 51.6); // free pay 241.91, taxable 258
+  assert.equal(w1.ee, 20.64);
+  assert.equal(w1.er, 60.6);
+  const w2 = ok(e.payLine(emp(), { basic: 500 }, "W1", 2, w1.ytd, Y));
+  assert.equal(w2.ytd.tax, 103.2); // 516 taxable to date
+  const f = ok(e.payLine(emp(), { basic: 1000 }, "W2", 1, e.zeroYtd(), Y));
+  assert.equal(f.ee, Math.round((1000 - 484) * 0.08 * 100) / 100);
+  const four = ok(e.payLine(emp(), { basic: 2000 }, "W4", 1, e.zeroYtd(), Y));
+  assert.equal(four.er, Math.round((2000 - 384) * 0.15 * 100) / 100);
+});
+
+test("benefits taxed through the payroll: taxable, not cash, no Class 1 NI, and the 50% limit", () => {
+  const l = ok(e.payLine(emp(), { basic: 2500, benefits: 300 }, "M1", 1, e.zeroYtd(), Y));
+  assert.equal(l.taxablePay, 2800);
+  assert.equal(l.tax, 350.2);
+  assert.equal(l.ee, 116.16);
+  assert.equal(l.net, 2500 - 350.2 - 116.16);
+  assert.equal(l.ytd.benefits, 300);
+  const capped = ok(e.payLine(emp({ taxCode: "BR" }), { basic: 200, benefits: 2000 }, "M1", 1, e.zeroYtd(), Y));
+  assert.equal(capped.tax, 100);
+});
+
+test("an opt-out refund of net pay contributions is taxable and reported as a negative contribution", () => {
+  const s = emp({ pension: { kind: "netpay", eePct: 5, erPct: 3, basis: "qualifying" } });
+  const l = ok(e.payLine(s, { basic: 2500, pensionRefund: 99, noPension: true }, "M1", 2, e.zeroYtd(), Y));
+  assert.equal(l.eePension, -99);
+  assert.equal(l.taxablePay, 2599);
+  assert.equal(l.erPension, 0);
+});

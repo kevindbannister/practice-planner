@@ -20,6 +20,8 @@ export type PayrollRates = {
   /** auto-enrolment qualifying earnings */
   qe: { lower: { annual: number; monthly: number; weekly: number }; upper: { annual: number; monthly: number; weekly: number }; trigger: number };
   er: number; ea: number; smallEmployerComp: number;
+  /** statutory pay: SSP weekly rate, the flat weekly rate for maternity, paternity, adoption, shared parental, bereavement and neonatal pay */
+  ssp: number; family: number; largeRecovery: number;
 };
 const RATES: PayrollRates[] = [
   // HMRC "Rates and thresholds for employers 2026 to 2027"; The Pensions Regulator earnings thresholds 2026/27.
@@ -33,6 +35,7 @@ const RATES: PayrollRates[] = [
     slRate: 0.09, pglRate: 0.06,
     qe: { lower: { annual: 6240, monthly: 520, weekly: 120 }, upper: { annual: 50270, monthly: 4189, weekly: 967 }, trigger: 10000 },
     er: 0.15, ea: 10500, smallEmployerComp: 0.09,
+    ssp: 123.25, family: 194.32, largeRecovery: 0.92,
   },
 ];
 export const PAYROLL_YEARS = RATES.map((r) => r.year);
@@ -148,18 +151,24 @@ export type PersonSetup = {
   studentPlan?: "plan1" | "plan2" | "plan4" | "plan5" | ""; postgrad?: boolean;
   pension: Pension;
 };
-export type PayElements = { basic: number; bonus?: number; otherTaxable?: number; statutory?: Partial<Record<StatKind, number>>; nonTaxable?: number; deductions?: number };
+export type PayElements = {
+  basic: number; bonus?: number; otherTaxable?: number; statutory?: Partial<Record<StatKind, number>>; nonTaxable?: number; deductions?: number;
+  /** cash equivalent of benefits taxed through the payroll this period: taxable, not cash, no Class 1 NI */ benefits?: number;
+  /** employee pension contributions handed back (an opt-out within the month): taxable if they were taken under net pay */ pensionRefund?: number;
+  /** leave the pension out this period (not enrolled, or opted out) */ noPension?: boolean;
+};
 export type StatKind = "ssp" | "smp" | "spp" | "sap" | "shpp" | "spbp" | "sncp";
 export type Ytd = {
   gross: number; taxablePay: number; tax: number; niEarnings: number; ee: number; er: number; atLel: number; lelToPt: number; ptToUel: number;
-  sl: number; pgl: number; eePension: number; eePensionRas: number; erPension: number; net: number; stat: Record<StatKind, number>;
+  sl: number; pgl: number; eePension: number; eePensionRas: number; erPension: number; net: number; stat: Record<StatKind, number>; benefits: number;
 };
-export const zeroYtd = (): Ytd => ({ gross: 0, taxablePay: 0, tax: 0, niEarnings: 0, ee: 0, er: 0, atLel: 0, lelToPt: 0, ptToUel: 0, sl: 0, pgl: 0, eePension: 0, eePensionRas: 0, erPension: 0, net: 0, stat: { ssp: 0, smp: 0, spp: 0, sap: 0, shpp: 0, spbp: 0, sncp: 0 } });
+export const zeroYtd = (): Ytd => ({ gross: 0, taxablePay: 0, tax: 0, niEarnings: 0, ee: 0, er: 0, atLel: 0, lelToPt: 0, ptToUel: 0, sl: 0, pgl: 0, eePension: 0, eePensionRas: 0, erPension: 0, net: 0, stat: { ssp: 0, smp: 0, spp: 0, sap: 0, shpp: 0, spbp: 0, sncp: 0 }, benefits: 0 });
 
 export type Line = {
   period: number; gross: number; statutory: number; taxablePay: number; tax: number; ee: number; er: number; niEarnings: number; bands: NiBands;
   sl: number; pgl: number; eePension: number; eePensionRas: number; erPension: number; nonTaxable: number; deductions: number; net: number;
-  payAfterStatDedns: number; code: Code; ytd: Ytd; warnings: string[];
+  payAfterStatDedns: number; code: Code; ytd: Ytd; warnings: string[]; benefits: number;
+  /** court and council orders taken from net pay this period */ orders?: { id: string; label: string; amount: number; fee: number; shortfall: number }[];
 };
 
 export function pensionFor(p: Pension, pay: number, freq: Freq, year: number): { ee: number; er: number } {
@@ -179,11 +188,15 @@ export function payLine(s: PersonSetup, el: PayElements, freq: Freq, period: num
   const stat = el.statutory || {};
   const statutory = r2(Object.values(stat).reduce((a: number, v) => a + (Number(v) || 0), 0));
   const gross = r2((el.basic || 0) + (el.bonus || 0) + (el.otherTaxable || 0) + statutory);
-  const pen = pensionFor(s.pension, gross, freq, year);
-  const netpayEe = s.pension.kind === "netpay" ? pen.ee : 0;
-  const rasEe = s.pension.kind === "ras" ? r2(pen.ee * 0.8) : 0;
-  const taxablePay = r2(gross - netpayEe);
+  const pen = el.noPension ? { ee: 0, er: 0 } : pensionFor(s.pension, gross, freq, year);
+  const refund = r2(el.pensionRefund || 0);
+  const netpayEe = s.pension.kind === "netpay" ? r2(pen.ee - refund) : 0;
+  const rasEe = s.pension.kind === "ras" ? r2(pen.ee * 0.8 - refund) : 0;
+  const benefits = r2(el.benefits || 0);
+  const taxablePay = r2(gross - netpayEe + benefits);
   const t = taxFor(code, freq, period, r2(before.taxablePay + taxablePay), before.tax, taxablePay, year);
+  // with benefits taxed through the payroll, tax can't be more than half the cash pay (the overriding limit)
+  if (benefits > 0 && t.tax > 0) { const cap = floor2(Math.max(0, gross - netpayEe) * 0.5); if (t.tax > cap) { t.tax = cap; warnings.push("Tax limited to half of this period's cash pay (benefits taxed through the payroll)."); } }
 
   // NI: directors on the annual basis work on the year so far; everyone else (and AL directors in-year) per period
   let ni: NiResult, niYtdBands: NiBands;
@@ -210,7 +223,7 @@ export function payLine(s: PersonSetup, el: PayElements, freq: Freq, period: num
   const pgl = s.postgrad ? Math.max(0, Math.floor((niEarnings - R.loans.pgl[loanKey] * loanMult) * R.pglRate)) : 0;
 
   const nonTaxable = r2(el.nonTaxable || 0), deductions = r2(el.deductions || 0);
-  const payAfterStatDedns = r2(taxablePay - t.tax - ni.ee - sl - pgl);
+  const payAfterStatDedns = r2(taxablePay - benefits - t.tax - ni.ee - sl - pgl);
   const net = r2(payAfterStatDedns - rasEe - deductions + nonTaxable);
   if (net < 0) warnings.push("Net pay is negative.");
   if (code.kind === "K" && t.tax > 0 && t.tax === floor2(taxablePay * 0.5)) warnings.push("Tax limited to half of this period's pay (K code).");
@@ -220,8 +233,9 @@ export function payLine(s: PersonSetup, el: PayElements, freq: Freq, period: num
     ee: r2(before.ee + ni.ee), er: r2(before.er + ni.er), atLel: niYtdBands.atLel, lelToPt: niYtdBands.lelToPt, ptToUel: niYtdBands.ptToUel,
     sl: before.sl + sl, pgl: before.pgl + pgl, eePension: r2(before.eePension + netpayEe), eePensionRas: r2(before.eePensionRas + rasEe), erPension: r2(before.erPension + pen.er), net: r2(before.net + net),
     stat: Object.fromEntries((Object.keys(before.stat) as StatKind[]).map((k) => [k, r2(before.stat[k] + (Number(stat[k]) || 0))])) as Record<StatKind, number>,
+    benefits: r2((before.benefits || 0) + benefits),
   };
-  return { period, gross, statutory, taxablePay, tax: t.tax, ee: ni.ee, er: ni.er, niEarnings, bands: ni.bands, sl, pgl, eePension: netpayEe, eePensionRas: rasEe, erPension: pen.er, nonTaxable, deductions, net, payAfterStatDedns, code, ytd, warnings };
+  return { period, gross, statutory, taxablePay, tax: t.tax, ee: ni.ee, er: ni.er, niEarnings, bands: ni.bands, sl, pgl, eePension: netpayEe, eePensionRas: rasEe, erPension: pen.er, nonTaxable, deductions, net, payAfterStatDedns, code, ytd, warnings, benefits };
 }
 
 /** A whole year in advance: each period's pay worked out in turn from the one before. Periods with no pay are skipped (no FPS). */

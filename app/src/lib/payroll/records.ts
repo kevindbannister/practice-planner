@@ -2,7 +2,10 @@
 // amounts, such as a director's salary from an agreed tax plan), pay runs and the HMRC submissions queued for each payday.
 // Pure logic: rows in, rows out. Saving is done by the screens.
 import { Row } from "../schema";
-import { Freq, Letter, Line, PERIODS, PersonSetup, Pension, Ytd, payLine, taxMonth, taxWeek, taxYearOf, zeroYtd } from "./engine";
+import { Freq, Letter, Line, PERIODS, PayElements, PersonSetup, Pension, StatKind, Ytd, payLine, taxMonth, taxWeek, taxYearOf, zeroYtd } from "./engine";
+import { AeStatus, assess, optOutRefundable, pensionApplies } from "./autoEnrol";
+import { Order, OrderState, applyOrders, readOrders } from "./orders";
+import { recovery } from "./statutory";
 import { FpsPerson, Scheme, buildEps, buildFps, personProblems, schemeProblems, taxMonthDates } from "./rti";
 
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v)).trim();
@@ -26,6 +29,9 @@ export type PersonRec = {
   director: boolean; nicMethod: "AN" | "AL"; appointedOn: string; taxCode: string; niLetter: Letter; studentPlan: "" | "plan1" | "plan2" | "plan4" | "plan5"; postgrad: boolean;
   pension: Pension; hours: "A" | "B" | "C" | "D" | "E"; basis: "salary" | "hourly" | "plan"; annualSalary: number; hourlyRate: number; usualHours: number; status: string;
   /** figures for the year so far from the previous payroll software, for the year they belong to */ opening: { year: number; ytd: Ytd } | null; oldPayId: string;
+  /** automatic enrolment */ ae: { status: AeStatus; enrolDate: string; optOutDate: string; postponeUntil: string }; hasContract: boolean;
+  orders: Order[];
+  /** benefits taxed through the payroll: the cash equivalent for a tax year */ benefits: { year: number; label: string; annual: number }[];
 };
 export const readPerson = (r: Row): PersonRec => {
   const p = json<Partial<Pension>>(r.Pension, {});
@@ -42,6 +48,9 @@ export const readPerson = (r: Row): PersonRec => {
     basis: str(r.PayBasis) === "hourly" ? "hourly" : str(r.PayBasis) === "plan" ? "plan" : "salary",
     annualSalary: num(r.AnnualSalary), hourlyRate: num(r.HourlyRate), usualHours: num(r.UsualHours), status: str(r.Status) || "active",
     opening: readOpening(r.OpeningYtd), oldPayId: str(r.OldPayId),
+    ae: { status: (["assess", "postponed", "enrolled", "opted-in", "joined", "opted-out", "exempt"] as const).find((x) => x === str(r.AeStatus)) || "", enrolDate: str(r.AeDate), optOutDate: str(r.AeOptOut), postponeUntil: str(r.AePostpone) },
+    hasContract: yes(r.HasContract), orders: readOrders(r.Orders),
+    benefits: json<{ year: number; label: string; annual: number }[]>(r.Benefits, []).filter((b) => b && num(b.year) && num(b.annual) > 0).map((b) => ({ year: num(b.year), label: str(b.label), annual: num(b.annual) })),
   };
 };
 /** Year-to-date figures brought in from the previous software (FreshPay or other). */
@@ -82,7 +91,11 @@ export function personMissing(p: PersonRec, year: number): string[] {
 // ------------------------------------------------------------------ the pay year: paydays and amounts
 
 export type PayYear = { key: string; schemeKey: string; year: number; paydays: string[]; amounts: Record<string, (number | null)[]>; source: string; pattern: string; status: string;
-  /** the first period run here; earlier periods were run and reported by the previous software */ startPeriod: number };
+  /** the first period run here; earlier periods were run and reported by the previous software */ startPeriod: number;
+  /** one-off pay for a period: bonus, statutory pay, expenses, deductions */ extras: Record<string, Record<string, Extra>> };
+export type Extra = Partial<Record<StatKind, number>> & { bonus?: number; otherTaxable?: number; nonTaxable?: number; deductions?: number; note?: string };
+export const EXTRA_FIELDS: [keyof Extra, string][] = [["bonus", "Bonus or commission"], ["otherTaxable", "Other taxable pay"], ["ssp", "Statutory Sick Pay"], ["smp", "Statutory Maternity Pay"], ["spp", "Statutory Paternity Pay"], ["sap", "Statutory Adoption Pay"], ["shpp", "Shared Parental Pay"], ["spbp", "Parental Bereavement Pay"], ["sncp", "Neonatal Care Pay"], ["nonTaxable", "Expenses (not taxed)"], ["deductions", "Deductions from net pay"]];
+const extraTotal = (e?: Extra) => (e ? EXTRA_FIELDS.reduce((a, [k]) => a + (k === "note" ? 0 : Math.abs(Number(e[k]) || 0)), 0) : 0);
 export const readYear = (r: Row | undefined, schemeKey: string, year: number, freq: Freq): PayYear => {
   const n = PERIODS[freq];
   const paydays = json<string[]>(r?.Paydays, []);
@@ -90,6 +103,7 @@ export const readYear = (r: Row | undefined, schemeKey: string, year: number, fr
     key: str(r?.Key), schemeKey, year, paydays: Array.from({ length: n }, (_, i) => (isDate(str(paydays[i])) ? str(paydays[i]) : "")),
     amounts: json<Record<string, (number | null)[]>>(r?.Amounts, {}), source: str(r?.Source), pattern: str(r?.Pattern), status: str(r?.Status),
     startPeriod: Math.min(n, Math.max(1, num(r?.StartPeriod) || 1)),
+    extras: json<Record<string, Record<string, Extra>>>(r?.Extras, {}),
   };
 };
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -160,6 +174,8 @@ export function yearView(s: SchemeRec, people: PersonRec[], y: PayYear, runs: Ru
   const mine = runs.filter((r) => r.schemeKey === s.key && r.year === y.year && liveRun(r));
   const active = people.filter((p) => isActive(p, y.year));
   const ytd = new Map<string, Ytd>(active.map((p) => [p.key, openingFor(p, y.year)]));
+  const refunded = new Set<string>();
+  const orderState = new Map<string, Record<string, OrderState>>();
   const amounts = new Map(active.map((p) => [p.key, amountsFor(p, y, s.freq)]));
   const periods: PeriodView[] = [];
   for (let i = 1; i <= n; i++) {
@@ -168,14 +184,46 @@ export function yearView(s: SchemeRec, people: PersonRec[], y: PayYear, runs: Ru
     if (run) lines = run.lines;
     else {
       for (const p of active) {
-        const a = amounts.get(p.key)![i - 1];
-        if (!a) continue;
-        const l = payLine(setupOf(p, y.year), { basic: a }, s.freq, i, ytd.get(p.key) || zeroYtd(), y.year);
+        const payday = y.paydays[i - 1];
+        if (!payday || i < y.startPeriod) continue;
+        const a = amounts.get(p.key)![i - 1] || 0;
+        const ex = y.extras[p.key]?.[String(i)];
+        if (!a && !extraTotal(ex)) continue;
+        const before = ytd.get(p.key) || zeroYtd();
+        const el: PayElements = { basic: a, bonus: num(ex?.bonus), otherTaxable: num(ex?.otherTaxable), nonTaxable: num(ex?.nonTaxable), deductions: num(ex?.deductions),
+          statutory: Object.fromEntries((["ssp", "smp", "spp", "sap", "shpp", "spbp", "sncp"] as StatKind[]).map((k) => [k, num(ex?.[k])])) };
+        const ben = p.benefits.filter((b) => b.year === y.year).reduce((x, b) => x + b.annual, 0);
+        if (ben) el.benefits = Math.round(ben / n * 100) / 100;
+        if (p.pension.kind !== "none") {
+          el.noPension = !pensionApplies(p.ae.status, p.ae.enrolDate, p.ae.optOutDate, payday);
+          if (p.ae.status === "opted-out" && optOutRefundable(p.ae.enrolDate, p.ae.optOutDate) && payday >= p.ae.optOutDate && !refunded.has(p.key)) {
+            const back = Math.round((before.eePension + before.eePensionRas) * 100) / 100;
+            if (back > 0) el.pensionRefund = back;
+            refunded.add(p.key);
+          }
+        }
+        const l = payLine(setupOf(p, y.year), el, s.freq, i, before, y.year);
         if ("error" in l) { if (!errors.includes(`${fullName(p)}: ${l.error}`)) errors.push(`${fullName(p)}: ${l.error}`); continue; }
+        if (p.orders.length) {
+          const st = orderState.get(p.key) || {};
+          const taken = applyOrders(p.orders, l.payAfterStatDedns - Math.max(0, l.eePensionRas), s.freq, payday, st);
+          if (taken.length) {
+            const total = Math.round(taken.reduce((x, o) => x + o.amount + o.fee, 0) * 100) / 100;
+            l.orders = taken; l.deductions = Math.round((l.deductions + total) * 100) / 100; l.net = Math.round((l.net - total) * 100) / 100; l.ytd = { ...l.ytd, net: Math.round((l.ytd.net - total) * 100) / 100 };
+          }
+        }
         lines.push({ personKey: p.key, name: fullName(p), line: l });
       }
     }
-    for (const l of lines) ytd.set(l.personKey, l.line.ytd);
+    for (const l of lines) {
+      ytd.set(l.personKey, l.line.ytd);
+      if (l.line.ytd.eePension < 0 || (l.line.eePension < 0)) refunded.add(l.personKey);
+      if (l.line.orders?.length) {
+        const st = { ...(orderState.get(l.personKey) || {}) };
+        for (const o of l.line.orders) { const prev = st[o.id] || { arrears: 0, collected: 0 }; st[o.id] = { arrears: Math.round(o.shortfall * 100) / 100, collected: Math.round((prev.collected + o.amount) * 100) / 100 }; }
+        orderState.set(l.personKey, st);
+      }
+    }
     const t = lines.reduce((a, { line: l }) => ({ gross: a.gross + l.gross, tax: a.tax + l.tax, ee: a.ee + l.ee, er: a.er + l.er, net: a.net + l.net, sl: a.sl + l.sl + l.pgl, pension: a.pension + l.eePension + l.eePensionRas + l.erPension }), { gross: 0, tax: 0, ee: 0, er: 0, net: 0, sl: 0, pension: 0 });
     const totals = { gross: r2(t.gross), tax: r2(t.tax), ee: r2(t.ee), er: r2(t.er), net: r2(t.net), sl: r2(t.sl), pension: r2(t.pension), due: r2(t.tax + t.ee + t.er + t.sl) };
     const elsewhere = i < y.startPeriod && !run;
@@ -230,6 +278,16 @@ export function approveRun(s: SchemeRec, people: PersonRec[], y: PayYear, runs: 
   if (firstPaid && s.claimEA && !subs.some((x) => str(x.SchemeKey) === s.key && num(x.TaxYear) === y.year && str(x.Kind) === "EPS" && str(x.Summary).startsWith("Employment Allowance") && str(x.Status) !== "cancelled")) {
     out.push(submission(s, o, "EPS", y.year, period, pv.payday, buildEps({ scheme: s, year: y.year, employmentAllowance: true }), "Employment Allowance claim for the year"));
   }
+  // statutory family pay this period: claim it back on an EPS for the tax month (year to date)
+  const famThis = pv.lines.some(({ line: l }) => ["smp", "spp", "sap", "shpp", "spbp", "sncp"].some((k) => (l.ytd.stat as Record<string, number>)[k] > 0) && l.statutory > 0);
+  if (famThis) {
+    const latest = new Map<string, Ytd>();
+    for (const p2 of view.periods.filter((x) => x.period <= period)) for (const l of p2.lines) latest.set(l.personKey, l.line.ytd);
+    const tot: Partial<Record<StatKind, number>> = {};
+    for (const yy of latest.values()) for (const k of ["smp", "spp", "sap", "shpp", "spbp", "sncp"] as StatKind[]) tot[k] = Math.round(((tot[k] || 0) + yy.stat[k]) * 100) / 100;
+    const month = s.freq === "M1" ? period : taxMonth(pv.payday);
+    out.push(submission(s, o, "EPS", y.year, period, pv.payday, buildEps({ scheme: s, year: y.year, recoverable: { month, ...recovery(y.year, tot, s.smallEmployer) } }), `Statutory pay recovery to tax month ${month}`));
+  }
   return {
     runRow: { Key: runKey, PracticeId: o.pid, SchemeKey: s.key, TaxYear: y.year, Period: period, Payday: pv.payday, Status: "approved", Lines: JSON.stringify(pv.lines), Totals: JSON.stringify(pv.totals), SubmissionKey: fps.Key, ApprovedBy: o.actor, ApprovedAt: o.now, Created: o.now, Updated: o.now },
     submissions: out,
@@ -278,4 +336,15 @@ export function planAmounts(salaries: { personKey: string; annual: number }[], y
     out[s.personKey] = arr;
   }
   return out;
+}
+
+/** Automatic enrolment for the next period to run: what each person is, and anything to do. */
+export function aeReport(s: SchemeRec, people: PersonRec[], view: PeriodView[], year: number) {
+  const next = view.find((p) => !p.run && !p.nil && !p.elsewhere) || view.find((p) => !p.run && !p.elsewhere);
+  const contracts = people.filter((p) => !p.director || p.hasContract).length;
+  return people.map((p) => {
+    const line = next?.lines.find((l) => l.personKey === p.key)?.line;
+    const r = assess({ dob: p.dob, payday: next?.payday || "", earnings: line ? line.gross : 0, freq: s.freq, year, director: p.director, hasContract: p.hasContract, otherContracts: contracts > 1, status: p.ae.status, postponeUntil: p.ae.postponeUntil });
+    return { person: p, period: next?.period || 0, payday: next?.payday || "", ...r };
+  });
 }

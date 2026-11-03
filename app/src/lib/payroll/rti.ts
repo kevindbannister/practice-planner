@@ -110,6 +110,7 @@ export function buildFps(i: FpsInput): string {
       raw("FiguresToDate", [
         el("TaxablePay", money(y.taxablePay)), el("TotalTax", money(y.tax)),
         plan ? el("StudentLoansTD", whole(y.sl)) : null, p.postgrad ? el("PostgradLoansTD", whole(y.pgl)) : null,
+        opt("BenefitsTaxedViaPayrollYTD", y.benefits),
         opt("EmpeePenContribnsPaidYTD", y.eePension), opt("EmpeePenContribnsNotPaidYTD", y.eePensionRas),
       ]),
       raw("Payment", [
@@ -123,6 +124,7 @@ export function buildFps(i: FpsInput): string {
         opt("NonTaxOrNICPmt", l.nonTaxable),
         opt("DednsFromNetPay", l.eePensionRas + l.deductions),
         el("PayAfterStatDedns", money(l.payAfterStatDedns)),
+        opt("BenefitsTaxedViaPayroll", l.benefits),
         opt("EmpeePenContribnsPaid", l.eePension),
         opt("EmpeePenContribnsNotPaid", l.eePensionRas),
         plan && l.sl ? el("StudentLoanRecovered", whole(l.sl), { PlanType: plan }) : null,

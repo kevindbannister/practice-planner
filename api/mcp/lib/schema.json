@@ -5242,6 +5242,34 @@
      "type": "text"
     },
     {
+     "name": "AeStatus",
+     "type": "text"
+    },
+    {
+     "name": "AeDate",
+     "type": "text"
+    },
+    {
+     "name": "AeOptOut",
+     "type": "text"
+    },
+    {
+     "name": "AePostpone",
+     "type": "text"
+    },
+    {
+     "name": "HasContract",
+     "type": "text"
+    },
+    {
+     "name": "Orders",
+     "type": "note"
+    },
+    {
+     "name": "Benefits",
+     "type": "note"
+    },
+    {
      "name": "Status",
      "type": "text"
     },
@@ -5287,6 +5315,10 @@
     {
      "name": "StartPeriod",
      "type": "number"
+    },
+    {
+     "name": "Extras",
+     "type": "note"
     },
     {
      "name": "Source",

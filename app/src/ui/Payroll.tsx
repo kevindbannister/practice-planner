@@ -18,6 +18,13 @@ import { href, useRoute } from "./bits";
 import { useData, useIndex } from "./data";
 import { useSales } from "./salesKit";
 import { TAX_ITEM } from "./TaxPage";
+import { AE_LABEL, AeStatus } from "../lib/payroll/autoEnrol";
+import { ORDER_LABEL, Order, OrderKind, readOrders } from "../lib/payroll/orders";
+import { FAMILY, FamilyKind, averageWeekly, familyFor, sspFor } from "../lib/payroll/statutory";
+import { p45, p60 } from "../lib/payroll/forms";
+import { taxMonthDates } from "../lib/payroll/rti";
+import { DEFAULT_LAYOUT, DocContent } from "../lib/docModel";
+import { makePdf, useDocs } from "./docsKit";
 
 let demo = false;
 export const setPayrollDemo = (v: boolean) => { demo = v; };
@@ -109,7 +116,7 @@ function PayrollList() {
 
 // ------------------------------------------------------------------ one payroll
 
-const TABS: [string, string][] = [["year", "The year"], ["runs", "Pay runs"], ["people", "People"], ["hmrc", "HMRC"], ["settings", "Settings"]];
+const TABS: [string, string][] = [["year", "The year"], ["runs", "Pay runs"], ["people", "People"], ["pensions", "Pensions"], ["hmrc", "HMRC"], ["settings", "Settings"]];
 
 function SchemePage({ schemeKey, tab }: { schemeKey: string; tab: string }) {
   const P = usePayroll();
@@ -138,6 +145,7 @@ function SchemePage({ schemeKey, tab }: { schemeKey: string; tab: string }) {
       {t === "people" && <PeopleTab P={P} scheme={scheme} people={people} year={year} />}
       {t === "hmrc" && <HmrcTab P={P} scheme={scheme} people={people} y={y} runs={runs} subs={subs} />}
       {t === "settings" && <SettingsTab P={P} row={row} scheme={scheme} />}
+      {t === "pensions" && <PensionsTab P={P} scheme={scheme} people={people} view={view} year={year} />}
     </div>
   );
 }
@@ -153,17 +161,18 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
   const [msg, setMsg] = useState("");
   const [pattern, setPattern] = useState<"spread" | "yearEnd">("spread");
   const [startPeriod, setStartPeriod] = useState(y.startPeriod);
-  useEffect(() => { setPaydays(y.paydays); setAmounts(y.amounts); setStartPeriod(y.startPeriod); /* eslint-disable-next-line */ }, [yearRow?.Key, yearRow?.Updated, y.year]);
+  const [extras, setExtras] = useState<Record<string, Record<string, rec.Extra>>>(y.extras);
+  useEffect(() => { setPaydays(y.paydays); setAmounts(y.amounts); setStartPeriod(y.startPeriod); setExtras(y.extras); /* eslint-disable-next-line */ }, [yearRow?.Key, yearRow?.Updated, y.year]);
   const n = PERIODS[scheme.freq];
   const locked = new Set(view.periods.filter((p) => p.run).map((p) => p.period));
-  const dirty = JSON.stringify(paydays) !== JSON.stringify(y.paydays) || JSON.stringify(amounts) !== JSON.stringify(y.amounts) || startPeriod !== y.startPeriod;
+  const dirty = JSON.stringify(paydays) !== JSON.stringify(y.paydays) || JSON.stringify(amounts) !== JSON.stringify(y.amounts) || startPeriod !== y.startPeriod || JSON.stringify(extras) !== JSON.stringify(y.extras);
   const problems = rec.paydayProblems(y.year, scheme.freq, paydays);
-  const draft = { ...y, paydays, amounts, startPeriod };
+  const draft = { ...y, paydays, amounts, startPeriod, extras };
   const preview = rec.yearView(scheme, people, draft, data.payRuns.filter((r) => r.SchemeKey === scheme.key).map(rec.readRun).filter((r) => r.year === y.year));
   const save = async (extra: Row = {}) => {
     if (problems.length) { setMsg(problems[0]); return; }
     const o = ctx();
-    const fields = { Paydays: JSON.stringify(paydays), Amounts: JSON.stringify(amounts), StartPeriod: startPeriod, Updated: o.now, UpdatedBy: o.actor, ...extra };
+    const fields = { Paydays: JSON.stringify(paydays), Amounts: JSON.stringify(amounts), StartPeriod: startPeriod, Extras: JSON.stringify(extras), Updated: o.now, UpdatedBy: o.actor, ...extra };
     try {
       if (yearRow) await update("PayYears", yearRow, fields);
       else await create("PayYears", { Key: o.newKey("PY"), PracticeId: o.pid, SchemeKey: scheme.key, TaxYear: y.year, Source: "", Pattern: "", Status: "", ...fields });
@@ -252,6 +261,9 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
         {can && <div className="row-wrap" style={{ gap: 8 }}><button className="btn primary" type="button" disabled={!dirty} onClick={() => save()}>Save the year</button><span role="status" className="muted">{msg}</span></div>}
       </section>
 
+      <ExtrasCard can={can} scheme={scheme} people={people} paydays={paydays} locked={locked} extras={extras} setExtras={setExtras} year={y.year} view={preview} />
+      {can && dirty && <div className="row-wrap" style={{ gap: 8 }}><button className="btn primary" type="button" onClick={() => save()}>Save the year</button><span className="muted">Unsaved changes</span></div>}
+
       <section className="card pad stack" aria-label="The year ahead">
         <h2 style={{ margin: 0, fontSize: 16 }}>The year ahead</h2>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Every period worked out now from the paydays and pay above, carrying the year to date from one to the next. Approved periods show what was approved.</p>
@@ -269,6 +281,123 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
         <p className="muted" style={{ margin: 0, fontSize: 12 }}>The client pays HMRC by the 22nd after each tax month (the 19th by post). Employer NI shown before any Employment Allowance.</p>
       </section>
     </div>
+  );
+}
+
+// ------------------------------------------------------------------ one-off pay, statutory pay
+
+function periodDates(scheme: rec.SchemeRec, year: number, paydays: string[], i: number): { from: string; to: string } {
+  if (scheme.freq === "M1") return taxMonthDates(year, i + 1);
+  const days = scheme.freq === "W1" ? 7 : scheme.freq === "W2" ? 14 : 28;
+  const start = new Date(Date.UTC(year - 1, 3, 6) + i * days * 86400000);
+  return { from: start.toISOString().slice(0, 10), to: new Date(start.getTime() + (days - 1) * 86400000).toISOString().slice(0, 10) };
+}
+function ExtrasCard({ can, scheme, people, paydays, locked, extras, setExtras, year, view }: { can: boolean; scheme: rec.SchemeRec; people: rec.PersonRec[]; paydays: string[]; locked: Set<number>; extras: Record<string, Record<string, rec.Extra>>; setExtras: (e: Record<string, Record<string, rec.Extra>>) => void; year: number; view: ReturnType<typeof rec.yearView> }) {
+  const [pk, setPk] = useState(people[0]?.key || "");
+  const [period, setPeriod] = useState(() => { const i = paydays.findIndex((d, j) => d && !locked.has(j + 1)); return i >= 0 ? i + 1 : 1; });
+  const [ssp, setSsp] = useState({ awe: "", qd: "5", days: "" });
+  const [fam, setFam] = useState({ kind: "smp" as FamilyKind, awe: "", start: "", weeks: "" });
+  const [msg, setMsg] = useState("");
+  const ex = extras[pk]?.[String(period)] || {};
+  const setField = (k: keyof rec.Extra, v: string) => setExtras({ ...extras, [pk]: { ...(extras[pk] || {}), [String(period)]: { ...ex, [k]: k === "note" ? v : v === "" ? undefined : Number(v.replace(/[£,\s]/g, "")) || 0 } } });
+  // average weekly earnings from the two pay periods (months) or eight weeks before, where the payroll has them
+  const aweGuess = () => {
+    const back = scheme.freq === "M1" ? 2 : scheme.freq === "W1" ? 8 : scheme.freq === "W2" ? 4 : 2;
+    const prior = view.periods.filter((p) => p.period < period && !p.nil).slice(-back);
+    const total = prior.reduce((a, p) => a + (p.lines.find((l) => l.personKey === pk)?.line.gross || 0), 0);
+    return prior.length ? averageWeekly(total, scheme.freq, prior.length) : 0;
+  };
+  const workSsp = () => {
+    const awe = Number(ssp.awe) || aweGuess();
+    const r = sspFor(year, awe, Number(ssp.qd) || 5, Number(ssp.days) || 0);
+    setField("ssp", String(r.amount));
+    setMsg(`SSP for ${r.days} day${r.days === 1 ? "" : "s"} at £${r.weekly.toFixed(2)} a week: £${r.amount.toFixed(2)} (average weekly earnings £${awe.toFixed(2)}).${r.warning ? ` ${r.warning}` : ""}`);
+  };
+  const workFamily = () => {
+    const awe = Number(fam.awe) || aweGuess();
+    if (!fam.start) { setMsg("Give the date the leave starts."); return; }
+    const next = { ...extras, [pk]: { ...(extras[pk] || {}) } };
+    let count = 0;
+    paydays.forEach((d, i) => {
+      if (!d || locked.has(i + 1)) return;
+      const { from, to } = periodDates(scheme, year, paydays, i);
+      const amt = familyFor(year, fam.kind, awe, fam.start, Number(fam.weeks) || FAMILY[fam.kind].weeks, from, to);
+      const cur = { ...(next[pk][String(i + 1)] || {}) };
+      if (amt > 0) { cur[fam.kind] = amt; count++; } else delete cur[fam.kind];
+      next[pk][String(i + 1)] = cur;
+    });
+    setExtras(next);
+    setMsg(count ? `${FAMILY[fam.kind].label} filled into ${count} period${count === 1 ? "" : "s"} of this year (average weekly earnings £${awe.toFixed(2)}). Reduce their salary for the leave on Planned pay if it stops.` : `Nothing to pay: average weekly earnings of £${awe.toFixed(2)} may be under the lower earnings limit, or the leave falls outside this year.`);
+  };
+  if (!people.length) return null;
+  return (
+    <section className="card pad stack" aria-label="One-off and statutory pay">
+      <h2 style={{ margin: 0, fontSize: 16 }}>One-off and statutory pay</h2>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Bonuses, expenses, deductions and statutory pay for one period, on top of the usual pay. Family payments are claimed back on an EPS automatically when the period is approved; SSP can't be claimed back.</p>
+      <div className="row-wrap" style={{ gap: 8 }}>
+        <label className="field"><span>Person</span><select className="input" value={pk} onChange={(e) => setPk(e.target.value)}>{people.map((p) => <option key={p.key} value={p.key}>{rec.fullName(p)}</option>)}</select></label>
+        <label className="field"><span>Period</span><select className="input" value={period} onChange={(e) => setPeriod(Number(e.target.value))}>{paydays.map((d, i) => <option key={i} value={i + 1} disabled={!d}>{i + 1}{d ? ` (paid ${fmt(d)})` : " (no payday)"}{locked.has(i + 1) ? ", approved" : ""}</option>)}</select></label>
+      </div>
+      <div className="cf-grid">
+        {rec.EXTRA_FIELDS.map(([k, label]) => <label key={k} className="field"><span>{label} (£)</span><input className="input" inputMode="decimal" disabled={!can || locked.has(period)} value={ex[k] === undefined ? "" : String(ex[k])} onChange={(e) => setField(k, e.target.value)} /></label>)}
+      </div>
+      {can && !locked.has(period) && (
+        <div className="row-wrap" style={{ gap: 16, alignItems: "flex-start" }}>
+          <fieldset className="stack" style={{ border: "1px solid var(--line, #ddd)", borderRadius: 8, padding: 10, gap: 6 }}>
+            <legend style={{ fontSize: 13 }}>Work out SSP for this period</legend>
+            <div className="row-wrap" style={{ gap: 6 }}>
+              <label className="field" style={{ width: 150 }}><span>Average weekly earnings</span><input className="input" placeholder={aweGuess() ? aweGuess().toFixed(2) : "£"} value={ssp.awe} onChange={(e) => setSsp({ ...ssp, awe: e.target.value })} /></label>
+              <label className="field" style={{ width: 120 }}><span>Days worked a week</span><input className="input" value={ssp.qd} onChange={(e) => setSsp({ ...ssp, qd: e.target.value })} /></label>
+              <label className="field" style={{ width: 120 }}><span>Days sick this period</span><input className="input" value={ssp.days} onChange={(e) => setSsp({ ...ssp, days: e.target.value })} /></label>
+            </div>
+            <div><button className="btn small" type="button" onClick={workSsp}>Fill SSP</button></div>
+          </fieldset>
+          <fieldset className="stack" style={{ border: "1px solid var(--line, #ddd)", borderRadius: 8, padding: 10, gap: 6 }}>
+            <legend style={{ fontSize: 13 }}>Work out family leave pay for the year</legend>
+            <div className="row-wrap" style={{ gap: 6 }}>
+              <label className="field"><span>Kind</span><select className="input" value={fam.kind} onChange={(e) => setFam({ ...fam, kind: e.target.value as FamilyKind })}>{(Object.keys(FAMILY) as FamilyKind[]).map((k) => <option key={k} value={k}>{FAMILY[k].label}</option>)}</select></label>
+              <label className="field" style={{ width: 150 }}><span>Average weekly earnings</span><input className="input" placeholder={aweGuess() ? aweGuess().toFixed(2) : "£"} value={fam.awe} onChange={(e) => setFam({ ...fam, awe: e.target.value })} /></label>
+              <label className="field" style={{ width: 150 }}><span>Leave starts</span><input className="input" type="date" value={fam.start} onChange={(e) => setFam({ ...fam, start: e.target.value })} /></label>
+              <label className="field" style={{ width: 110 }}><span>Weeks</span><input className="input" placeholder={String(FAMILY[fam.kind].weeks)} value={fam.weeks} onChange={(e) => setFam({ ...fam, weeks: e.target.value })} /></label>
+            </div>
+            <div><button className="btn small" type="button" onClick={workFamily}>Fill each period</button></div>
+          </fieldset>
+        </div>
+      )}
+      <span role="status" className="muted">{msg}</span>
+    </section>
+  );
+}
+
+// ------------------------------------------------------------------ automatic enrolment
+
+function PensionsTab({ P, scheme, people, view, year }: { P: PP; scheme: rec.SchemeRec; people: rec.PersonRec[]; view: ReturnType<typeof rec.yearView>; year: number }) {
+  const { data, update, can } = P;
+  const report = rec.aeReport(scheme, people, view.periods, year);
+  const set = async (p: rec.PersonRec, patch: Row) => { const r = data.payrollPeople.find((x) => x.Key === p.key); if (r) await update("PayrollPeople", r, { ...patch, Updated: new Date().toISOString() }); };
+  const addMonths = (iso: string, n: number) => { const d = new Date(`${iso}T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 10); };
+  return (
+    <section className="card pad stack" aria-label="Workplace pensions">
+      <h2 style={{ margin: 0, fontSize: 16 }}>Workplace pensions (automatic enrolment)</h2>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Assessed on {report[0]?.period ? `period ${report[0].period}${report[0].payday ? ` (paid ${fmt(report[0].payday)})` : ""}` : "the next period"}. Pension is only taken once someone is enrolled; people marked "not tracked" have their pension taken as set on People. Writing to staff, the declaration of compliance and re-enrolment every three years are done with the pension provider.</p>
+      <div className="table-wrap"><table className="grid">
+        <thead><tr><th>Person</th><th>Status</th><th>Assessment</th><th /></tr></thead>
+        <tbody>{report.map((r) => (
+          <tr key={r.person.key}>
+            <td>{rec.fullName(r.person)}{r.person.pension.kind === "none" && <div className="muted" style={{ fontSize: 12 }}>No pension scheme set on People</div>}</td>
+            <td>{AE_LABEL[r.person.ae.status]}{r.person.ae.enrolDate ? <div className="muted" style={{ fontSize: 12 }}>from {fmt(r.person.ae.enrolDate)}</div> : null}{r.person.ae.optOutDate ? <div className="muted" style={{ fontSize: 12 }}>opted out {fmt(r.person.ae.optOutDate)}</div> : null}</td>
+            <td><span className={`chip ${r.action === "enrol" ? "amber" : r.category === "exempt" || r.action === "none" ? "" : ""}`}>{r.category}</span> <span style={{ fontSize: 12 }}>{r.text}</span></td>
+            <td style={{ whiteSpace: "nowrap" }}>{can && <>
+              {r.action === "enrol" && r.payday && <button className="linkbtn" type="button" onClick={() => set(r.person, { AeStatus: "enrolled", AeDate: r.payday })}>Enrol from {fmt(r.payday)}</button>}
+              {r.action === "enrol" && r.payday && <> <button className="linkbtn" type="button" onClick={() => set(r.person, { AeStatus: "postponed", AePostpone: addMonths(r.payday, 3) })}>Postpone 3 months</button></>}
+              {r.action === "tell-optin" && r.payday && <button className="linkbtn" type="button" onClick={() => set(r.person, { AeStatus: "opted-in", AeDate: r.payday })}>They opted in</button>}
+              {["enrolled", "opted-in", "joined"].includes(r.person.ae.status) && <> <button className="linkbtn" type="button" onClick={() => { const d = prompt("Date of the opt-out notice (YYYY-MM-DD)", todayIso()); if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) set(r.person, { AeStatus: "opted-out", AeOptOut: d }); }}>Record opt-out</button></>}
+              {r.person.ae.status === "" && <> <button className="linkbtn" type="button" onClick={() => set(r.person, { AeStatus: "assess" })}>Track for auto-enrolment</button></>}
+            </>}</td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+    </section>
   );
 }
 
@@ -296,6 +425,16 @@ function RunsTab({ P, scheme, people, y, runs, subs, view }: { P: PP; scheme: re
     setMsg("Approval undone. Nothing was sent to HMRC.");
   };
   const subOf = (run?: rec.RunRec) => (run ? data.rtiSubmissions.find((x) => x.Key === run.submissionKey) : undefined);
+  const docs = useDocs();
+  const lastLine = (pk: string) => { for (const p of [...view.periods].reverse()) { const l = p.run?.lines.find((x) => x.personKey === pk); if (l) return l.line; } return undefined; };
+  const finalDone = view.periods.filter((p) => !p.nil && !p.elsewhere).every((p) => p.run);
+  const makeDoc = async (title: string, content: DocContent, who: string) => {
+    try {
+      const made = await makePdf({ content, layout: DEFAULT_LAYOUT, branding: docs.brand(), title, reference: "", docType: "adhoc", client: scheme.name, date: todayIso() });
+      const url = URL.createObjectURL(new Blob([made.bytes as BlobPart], { type: "application/pdf" }));
+      const a = document.createElement("a"); a.href = url; a.download = `${title} ${who}.pdf`; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch { setMsg("Couldn't make the document. Try again."); }
+  };
   return (
     <div className="stack">
       <section className="card pad stack" aria-label="Pay runs">
@@ -318,6 +457,14 @@ function RunsTab({ P, scheme, people, y, runs, subs, view }: { P: PP; scheme: re
           })}</tbody>
         </table></div>
       </section>
+      <section className="card pad stack" aria-label="P60 and P45">
+        <h2 style={{ margin: 0, fontSize: 16 }}>P60 and P45</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>P60s go to everyone employed on 5 April, by 31 May. A leaver's P45 details are made from their last approved run (the leaving date goes to HMRC on that FPS). A P45 on plain paper needs HMRC's approval as a substitute form.</p>
+        <div className="table-wrap"><table className="grid"><tbody>{people.map((p) => { const l = lastLine(p.key); return (
+          <tr key={p.key}><td>{rec.fullName(p)}</td>
+            <td>{l ? <button className="linkbtn" type="button" disabled={!finalDone && !p.leavingDate} title={finalDone ? "" : "Approve the last period of the year first"} onClick={() => makeDoc(`P60 ${yearLabel(y.year)}`, p60(scheme, p, l, y.year), rec.fullName(p))}>P60{finalDone ? "" : " (after the last run)"}</button> : <span className="muted">No approved runs</span>}</td>
+            <td>{p.leavingDate && l ? <button className="linkbtn" type="button" onClick={() => makeDoc(`P45 ${yearLabel(y.year)}`, p45(scheme, p, l, y.year, p.leavingDate, scheme.freq), rec.fullName(p))}>P45 (left {fmt(p.leavingDate)})</button> : ""}</td></tr>); })}</tbody></table></div>
+      </section>
       {slip && <Payslip scheme={scheme} period={slip.period} line={slip.period.lines.find((l) => l.personKey === slip.personKey)!} person={people.find((x) => x.key === slip.personKey)} year={y.year} onClose={() => setSlip(null)} />}
     </div>
   );
@@ -325,12 +472,13 @@ function RunsTab({ P, scheme, people, y, runs, subs, view }: { P: PP; scheme: re
 
 function Payslip({ scheme, period, line, person, year, onClose }: { scheme: rec.SchemeRec; period: rec.PeriodView; line: rec.RunLine; person?: rec.PersonRec; year: number; onClose: () => void }) {
   const l = line.line;
-  const rows: [string, number][] = [["Pay", l.gross - l.statutory], ...(l.statutory ? [["Statutory pay", l.statutory] as [string, number]] : []), ["Income tax", -l.tax], ["National Insurance", -l.ee], ...(l.sl ? [["Student loan", -l.sl] as [string, number]] : []), ...(l.pgl ? [["Postgraduate loan", -l.pgl] as [string, number]] : []), ...(l.eePension ? [["Pension (net pay)", -l.eePension] as [string, number]] : []), ...(l.eePensionRas ? [["Pension", -l.eePensionRas] as [string, number]] : []), ...(l.deductions ? [["Other deductions", -l.deductions] as [string, number]] : []), ...(l.nonTaxable ? [["Expenses and other", l.nonTaxable] as [string, number]] : [])];
+  const rows: [string, number][] = [["Pay", l.gross - l.statutory], ...(l.statutory ? [["Statutory pay", l.statutory] as [string, number]] : []), ["Income tax", -l.tax], ["National Insurance", -l.ee], ...(l.sl ? [["Student loan", -l.sl] as [string, number]] : []), ...(l.pgl ? [["Postgraduate loan", -l.pgl] as [string, number]] : []), ...(l.eePension ? [["Pension (net pay)", -l.eePension] as [string, number]] : []), ...(l.eePensionRas ? [["Pension", -l.eePensionRas] as [string, number]] : []), ...(l.orders || []).flatMap((o) => [[o.label, -o.amount] as [string, number], ...(o.fee ? [["Order admin fee", -o.fee] as [string, number]] : [])]), ...(l.deductions - (l.orders || []).reduce((a, o) => a + o.amount + o.fee, 0) > 0.004 ? [["Other deductions", -(l.deductions - (l.orders || []).reduce((a, o) => a + o.amount + o.fee, 0))] as [string, number]] : []), ...(l.nonTaxable ? [["Expenses and other", l.nonTaxable] as [string, number]] : [])];
   return (
     <section className="card pad stack payslip" aria-label="Payslip" style={{ maxWidth: 620 }}>
       <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Payslip</h2><div className="row-wrap" style={{ gap: 6 }}><button className="btn small" type="button" onClick={() => window.print()}>Print</button><button className="btn small" type="button" onClick={onClose}>Close</button></div></div>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}><div><strong>{scheme.name}</strong><div className="muted" style={{ fontSize: 12 }}>PAYE {scheme.officeNo}/{scheme.payeRef}</div></div><div style={{ textAlign: "right" }}><strong>{line.name}</strong><div className="muted" style={{ fontSize: 12 }}>{person?.nino || ""} · Tax code {l.code.regime}{l.code.fps}{l.code.nonCum ? " M1" : ""} · NI {person?.niLetter || "A"}</div></div></div>
       <div className="muted" style={{ fontSize: 13 }}>Paid {fmt(period.payday)} · {yearLabel(year)} period {period.period}</div>
+      {l.benefits ? <p className="muted" style={{ margin: 0, fontSize: 12 }}>Includes £{l.benefits.toFixed(2)} of benefits taxed through the payroll (not paid in cash).</p> : null}
       <table className="grid"><tbody>{rows.map(([k, v]) => <tr key={k}><td>{k}</td><td className="num">{gbp(v)}</td></tr>)}<tr><td><strong>Net pay</strong></td><td className="num"><strong>{gbp(l.net)}</strong></td></tr></tbody></table>
       <table className="grid"><thead><tr><th>Year to date</th><th className="num" /></tr></thead><tbody>
         <tr><td>Taxable pay</td><td className="num">{gbp(l.ytd.taxablePay)}</td></tr><tr><td>Tax</td><td className="num">{gbp(l.ytd.tax)}</td></tr><tr><td>Employee NI</td><td className="num">{gbp(l.ytd.ee)}</td></tr>
@@ -425,6 +573,24 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
               <label className="field"><span>Employer %</span><input className="input" type="number" value={pension.erPct ?? 3} onChange={(e) => setEdit({ ...edit, Pension: JSON.stringify({ ...pension, erPct: Number(e.target.value) || 0 }) })} /></label>
               <label className="field"><span>On</span><select className="input" value={pension.basis || "qualifying"} onChange={(e) => setEdit({ ...edit, Pension: JSON.stringify({ ...pension, basis: e.target.value }) })}><option value="qualifying">Qualifying earnings</option><option value="total">All pay</option></select></label></>}
           </div>
+          <div className="cf-grid">
+            <label className="field"><span>Automatic enrolment</span><select className="input" value={s(edit.AeStatus)} onChange={(e) => setEdit({ ...edit, AeStatus: e.target.value })}>{(Object.keys(AE_LABEL) as AeStatus[]).map((k) => <option key={k} value={k}>{AE_LABEL[k]}</option>)}</select></label>
+            {["enrolled", "opted-in", "joined", "opted-out"].includes(s(edit.AeStatus)) && field("AeDate", "Enrolled from", "date")}
+            {s(edit.AeStatus) === "opted-out" && field("AeOptOut", "Opt-out notice date", "date")}
+            {s(edit.AeStatus) === "postponed" && field("AePostpone", "Postponed until", "date")}
+            {edit.Director === "yes" && <label className="field"><span>Contract of employment</span><select className="input" value={s(edit.HasContract) || "no"} onChange={(e) => setEdit({ ...edit, HasContract: e.target.value })}><option value="no">No</option><option value="yes">Yes</option></select></label>}
+          </div>
+          <details open={!!s(edit.Benefits) && s(edit.Benefits) !== "[]"}><summary style={{ fontSize: 13 }}>Benefits taxed through the payroll</summary>
+            {(() => { const list: { year: number; label: string; annual: number }[] = (() => { try { return JSON.parse(s(edit.Benefits) || "[]"); } catch { return []; } })(); const mine = list.find((b) => b.year === year);
+              return <div className="cf-grid" style={{ marginTop: 6 }}>
+                <label className="field"><span>What (for example, company car)</span><input className="input" value={mine?.label || ""} onChange={(e) => setEdit({ ...edit, Benefits: JSON.stringify([...list.filter((b) => b.year !== year), { year, label: e.target.value, annual: mine?.annual || 0 }]) })} /></label>
+                <label className="field"><span>Cash equivalent for {yearLabel(year)} (£)</span><input className="input" inputMode="decimal" value={mine?.annual || ""} onChange={(e) => setEdit({ ...edit, Benefits: JSON.stringify([...list.filter((b) => b.year !== year), { year, label: mine?.label || "", annual: Number(e.target.value.replace(/[£,\s]/g, "")) || 0 }]) })} /></label>
+              </div>; })()}
+            <p className="muted" style={{ fontSize: 12, margin: "4px 0" }}>Spread evenly over the year's pay periods. Register with HMRC to payroll benefits before the tax year starts; Class 1A for 2026-27 is still paid with the P11D(b).</p>
+          </details>
+          <details open={readOrders(edit.Orders).length > 0}><summary style={{ fontSize: 13 }}>Court and council orders</summary>
+            <OrdersEditor value={readOrders(edit.Orders)} onChange={(v) => setEdit({ ...edit, Orders: JSON.stringify(v) })} />
+          </details>
           <details open={!!s(edit.OpeningYtd)}><summary style={{ fontSize: 13 }}>Brought forward from FreshPay (moving part-way through the year)</summary>
             <p className="muted" style={{ fontSize: 12, margin: "6px 0" }}>The year-to-date figures from the person's last FreshPay payslip or the FreshPay year-to-date report, for {yearLabel(year)}. The old payroll ID is sent once on the first FPS from here so HMRC doesn't think it is a new job.</p>
             <div className="cf-grid">
@@ -531,5 +697,30 @@ function SettingsTab({ P, row, scheme }: { P: PP; row: Row; scheme: rec.SchemeRe
       <label className="row-wrap"><input type="checkbox" disabled={!can} checked={f.small} onChange={(e) => setF({ ...f, small: e.target.checked })} /> Small employer for statutory pay recovery (Class 1 NI of £45,000 or less last year)</label>
       {can && <div className="row-wrap" style={{ gap: 8 }}><button className="btn primary" type="button" onClick={save}>Save</button><span role="status" className="muted">{msg}</span></div>}
     </section>
+  );
+}
+
+function OrdersEditor({ value, onChange }: { value: Order[]; onChange: (v: Order[]) => void }) {
+  const set = (i: number, p: Partial<Order>) => onChange(value.map((o, j) => (j === i ? { ...o, ...p } : o)));
+  const num = (v: string) => Number(v.replace(/[£,\s]/g, "")) || 0;
+  return (
+    <div className="stack" style={{ gap: 8, marginTop: 6 }}>
+      {value.map((o, i) => (
+        <div key={o.id} className="cf-grid" style={{ borderTop: "1px solid var(--line, #ddd)", paddingTop: 6 }}>
+          <label className="field"><span>Kind</span><select className="input" value={o.kind} onChange={(e) => set(i, { kind: e.target.value as OrderKind, carryArrears: e.target.value === "cms" || o.carryArrears })}>{(Object.keys(ORDER_LABEL) as OrderKind[]).map((k) => <option key={k} value={k}>{ORDER_LABEL[k]}</option>)}</select></label>
+          <label className="field"><span>Reference</span><input className="input" value={o.ref} onChange={(e) => set(i, { ref: e.target.value })} /></label>
+          {o.kind !== "council-tax" && <label className="field"><span>Normal deduction each pay day (£)</span><input className="input" inputMode="decimal" value={o.normal || ""} onChange={(e) => set(i, { normal: num(e.target.value) })} /></label>}
+          {o.kind !== "council-tax" && <label className="field"><span>Protected earnings each pay day (£)</span><input className="input" inputMode="decimal" value={o.protected || ""} onChange={(e) => set(i, { protected: num(e.target.value) })} /></label>}
+          <label className="field"><span>Total to collect (£, if stated)</span><input className="input" inputMode="decimal" value={o.cap || ""} onChange={(e) => set(i, { cap: num(e.target.value) })} /></label>
+          <label className="field"><span>From</span><input className="input" type="date" value={o.start} onChange={(e) => set(i, { start: e.target.value })} /></label>
+          <label className="field"><span>Until (optional)</span><input className="input" type="date" value={o.end} onChange={(e) => set(i, { end: e.target.value })} /></label>
+          {o.kind !== "council-tax" && <label className="row-wrap"><input type="checkbox" checked={o.carryArrears} onChange={(e) => set(i, { carryArrears: e.target.checked })} /> Carry any shortfall forward (priority order)</label>}
+          <label className="row-wrap"><input type="checkbox" checked={o.fee} onChange={(e) => set(i, { fee: e.target.checked })} /> Take the £1 admin fee</label>
+          <button className="linkbtn" type="button" onClick={() => onChange(value.filter((_, j) => j !== i))}>Remove order</button>
+        </div>
+      ))}
+      <div><button className="btn small" type="button" onClick={() => onChange([...value, { id: `o${Date.now().toString(36)}`, kind: "aeo", ref: "", normal: 0, protected: 0, carryArrears: false, fee: true, start: todayIso(), end: "", cap: 0 }])}>Add an order</button></div>
+      <p className="muted" style={{ fontSize: 12, margin: 0 }}>Taken from pay after tax, NI and pension. Council tax orders use the England table of percentages. Always follow the order's own wording.</p>
+    </div>
   );
 }
