@@ -140,7 +140,11 @@ export function readWithAi(files: ImportFile[], answer: TaxReadAnswer, names: st
     else if (!agrees) warnings.push(`The document prints income tax of ${gbp(docTax)}, but these figures give ${gbp(ours)} before tax deducted at source (${gbp(ours - deducted)} after it). Check the figures before bringing it in.`);
     else found.unshift(agrees === "gross" ? `Income tax agrees with the document: ${gbp(docTax)}` : `Income tax agrees with the document after tax deducted at source: ${gbp(docTax)}`);
   }
-  const aiRaw = JSON.stringify({ return: answer.ret, totals: answer.totals }, null, 1).slice(0, 8000);
+  // show every amount to 2 decimal places, as the rest of the import does; whole-number fields stay whole
+  const WHOLE = new Set(["year", "weeks", "children", "count"]);
+  const aiRaw = JSON.stringify({ return: answer.ret, totals: answer.totals }, null, 1)
+    .replace(/"(\w+)": (-?\d+(?:\.\d+)?)(?=,?\n)/g, (m, k: string, v: string) => (WHOLE.has(k) ? m : `"${k}": ${Number(v).toFixed(2)}`))
+    .slice(0, 8000);
   return { ...local, ret, found, aiRaw, check, warnings: [...warnings, ...local.warnings] };
 }
 

@@ -611,7 +611,7 @@ function AddSection({ ret, onAdd, onClose }: { ret: TaxReturn; onAdd: (k: Sectio
 
 // ------------------------------------------------------------------ inputs
 
-const blank = (v: number | undefined) => (v === undefined || Math.abs(v) < 0.001 ? "" : String(v));
+const blank = (v: number | undefined) => (v === undefined || Math.abs(v) < 0.001 ? "" : v.toFixed(2));
 /** The payments to and from HMRC for the year: the two payments on account (unticked until paid), any others added, and what is still to pay. */
 function PaymentLines({ ret, year, update }: { ret: TaxReturn; year: number; update: (f: (r: TaxReturn) => TaxReturn) => void }) {
   const lines = paymentLines(ret, year);
