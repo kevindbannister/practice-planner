@@ -63,7 +63,12 @@ export type TaxReturn = {
   notes?: Record<string, string>;
   /** sections added by hand that may have nothing in them yet */
   added?: SectionKey[];
-  payments: { poa1?: number; poa2?: number; priorLiability?: number; earlierYearInCode?: number; nextYearInCode?: number; propertyReturnTax?: number };
+  payments: {
+    poa1?: number; poa2?: number; priorLiability?: number; earlierYearInCode?: number; nextYearInCode?: number; propertyReturnTax?: number;
+    /** the payments on account expected for this year, rolled forward from last year's return (or typed in) */ expectedPoa1?: number; expectedPoa2?: number;
+    /** where the expected figures came from, e.g. "the 2024-25 return" */ expectedFrom?: string;
+    /** different amounts were paid: poa1 and poa2 are what was actually paid */ paidDifferent?: boolean;
+  };
 };
 
 export const emptyReturn = (): TaxReturn => ({
@@ -141,7 +146,7 @@ export function hasSection(r: TaxReturn, k: SectionKey): boolean {
     case "studentLoan": return r.studentLoan.plans.length > 0 || !!r.studentLoan.postgrad;
     case "childBenefit": return !!r.childBenefit;
     case "winterFuel": return !!r.winterFuel;
-    case "payments": return !!(r.payments.poa1 || r.payments.poa2 || r.payments.priorLiability || r.payments.earlierYearInCode || r.payments.propertyReturnTax);
+    case "payments": return !!(r.payments.poa1 || r.payments.poa2 || r.payments.expectedPoa1 || r.payments.expectedPoa2 || r.payments.priorLiability || r.payments.earlierYearInCode || r.payments.propertyReturnTax);
   }
 }
 
@@ -445,14 +450,16 @@ export function compute(r: TaxReturn, year: number): Computation {
     + sum(r.pensions?.others.map((o) => n(o.tax)) || []) + n(r.pensions?.stateLumpSumTax) + n(r.benefits?.incapacityTax) + n(r.otherIncome?.taxTaken) + n(r.property?.taxTaken) - n(r.payments.earlierYearInCode));
   const propertyReturn = n(r.payments.propertyReturnTax);
   const totalLiability = p2(incomeTax + class2 + class4 + studentLoan + cgt);
-  const poaPaid = p2(n(r.payments.poa1) + n(r.payments.poa2));
+  const poaPaid = poaMade(r.payments);
+  const poaExpected = p2(n(r.payments.expectedPoa1) + n(r.payments.expectedPoa2));
+  if (r.payments.paidDifferent && poaExpected && Math.abs(poaPaid - poaExpected) > 0.004) warnings.push(`Payments on account paid (£${poaPaid.toLocaleString("en-GB", { minimumFractionDigits: 2 })}) differ from those expected (£${poaExpected.toLocaleString("en-GB", { minimumFractionDigits: 2 })}). Check HMRC's statement.`);
   const balancing = p2(totalLiability - atSource - poaPaid - propertyReturn);
   const sumRows: Row[] = [
     { label: "Income tax", amount: incomeTax }, ...(class2 + class4 ? [{ label: "Class 2 and Class 4 NIC", amount: p2(class2 + class4) }] : []),
     ...(studentLoan ? [{ label: "Student loan", amount: studentLoan }] : []), ...(cgt ? [{ label: "Capital Gains Tax", amount: cgt }] : []),
     { label: "Total tax due", amount: totalLiability, strong: true },
     ...(atSource ? [{ label: "Tax deducted at source (PAYE, CIS, interest, pensions)", amount: -atSource }] : []),
-    ...(poaPaid ? [{ label: "Payments on account made", amount: -poaPaid }] : []),
+    ...(poaPaid ? [{ label: r.payments.paidDifferent || !poaExpected ? "Payments on account made" : `Payments on account made (as expected${r.payments.expectedFrom ? ` from ${r.payments.expectedFrom}` : ""})`, amount: -poaPaid }] : []),
     ...(propertyReturn ? [{ label: "Paid on UK property disposal returns", amount: -propertyReturn }] : []),
     ...(n(r.payments.nextYearInCode) ? [{ label: `To be collected through next year's tax code: £${n(r.payments.nextYearInCode).toLocaleString("en-GB")}`, note: "Not taken off the balance" }] : []),
   ];
@@ -489,6 +496,18 @@ export function compute(r: TaxReturn, year: number): Computation {
 }
 
 // ------------------------------------------------------------------ reading saved data
+
+/** The payments on account made for the year: the expected ones, unless different amounts were paid (or only actual amounts were entered). */
+export function poaMade(p: TaxReturn["payments"]): number {
+  const expected = (Number(p.expectedPoa1) || 0) + (Number(p.expectedPoa2) || 0);
+  const actual = (Number(p.poa1) || 0) + (Number(p.poa2) || 0);
+  return Math.round((p.paidDifferent || (!expected && actual) ? actual : expected) * 100) / 100;
+}
+/** Next year's expected payments on account from this year's return, ready to roll forward. */
+export function rollForward(prev: TaxReturn, prevYear: number): { expectedPoa1: number; expectedPoa2: number; liability: number } {
+  const c = compute(prev, prevYear);
+  return { expectedPoa1: c.poaNext, expectedPoa2: c.poaNext, liability: Math.round((c.incomeTax + c.class4 - c.deducted) * 100) / 100 };
+}
 
 export function readReturn(raw: unknown): TaxReturn {
   const o = raw && typeof raw === "object" ? (raw as Partial<TaxReturn>) : {};

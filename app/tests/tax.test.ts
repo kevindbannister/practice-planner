@@ -108,3 +108,23 @@ test("Winter Fuel Payment charge from 2025-26, gifts of shares, and tax collecte
   assert.equal(coded.balancing, 0); // the extra £400 PAYE was last year's tax, not a repayment
   assert.equal(compute(ret((r) => { r.employments.push(job(30000, 3886)); }), 2026).balancing, -400);
 });
+
+test("payments on account: rolled forward from last year, the expected amounts used unless different amounts were paid", async () => {
+  const { emptyReturn, compute, poaMade, rollForward } = await import("../src/lib/tax.ts");
+  const last = emptyReturn();
+  last.selfEmployments.push({ id: "s", name: "Shop", turnover: 60000, expenses: 20000 });
+  const rf = rollForward(last, 2026);
+  const c = compute(last, 2026);
+  assert.equal(rf.expectedPoa1, c.poaNext); assert.ok(rf.expectedPoa1 > 0);
+  const now = emptyReturn();
+  now.selfEmployments.push({ id: "s", name: "Shop", turnover: 60000, expenses: 20000 });
+  now.payments = { expectedPoa1: rf.expectedPoa1, expectedPoa2: rf.expectedPoa2, expectedFrom: "the 2025-26 return" };
+  assert.equal(poaMade(now.payments), rf.expectedPoa1 * 2);
+  assert.equal(compute(now, 2027).poaPaid, rf.expectedPoa1 * 2);
+  now.payments = { ...now.payments, paidDifferent: true, poa1: 1000, poa2: 0 };
+  const paid = compute(now, 2027);
+  assert.equal(paid.poaPaid, 1000);
+  assert.ok(paid.warnings.some((w) => /differ from those expected/.test(w)));
+  // old returns with only the amounts paid still work
+  assert.equal(poaMade({ poa1: 300, poa2: 200 }), 500);
+});

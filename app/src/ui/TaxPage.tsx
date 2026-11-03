@@ -7,7 +7,7 @@ import { Client, fmtDate, todayIso } from "../lib/domain";
 import { PaperStatus, STATUS_LABEL, readSetup, setupRow, stateOf } from "../lib/papers";
 import {
   Computation, Dividend, Employment, Gain, Interest, NOT_YET, OtherPension, Partnership, SECTIONS, SectionDef, SectionKey, SelfEmployment, TaxReturn,
-  compute, emptyReturn, hasSection, newId, propertyProfit, readReturn, tradeProfit, employmentIncome,
+  compute, emptyReturn, hasSection, newId, poaMade, propertyProfit, readReturn, rollForward, tradeProfit, employmentIncome,
 } from "../lib/tax";
 import { YEARS, ratesFor, yearEnd, yearLabel, yearOf } from "../lib/taxRates";
 import { Icon, href, useRoute } from "./bits";
@@ -165,6 +165,15 @@ function TaxScreen({ client: c, year }: { client: Client; year: number }) {
     if (saved.r) return;
     update((r) => ({ ...r, front: { ...r.front, utr: String(c.UTR || ""), nino: String(c.NINumber || ""), dob: String(c.DateOfBirth || "") || undefined } }));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // payments on account expected for this year: rolled forward from last year's return, kept in step if last year changes
+  const prevRow = setupRow(data.papers, c.Key, yearEnd(year - 1), TAX_ITEM);
+  const rolled = useMemo(() => (prevRow ? rollForward(readReturn(readSetup(prevRow).r), year - 1) : null), [prevRow, year]);
+  useEffect(() => {
+    if (!rolled) return;
+    const p = ret.payments;
+    if (p.expectedPoa1 === rolled.expectedPoa1 && p.expectedPoa2 === rolled.expectedPoa2 && p.expectedFrom === `the ${yearLabel(year - 1)} return`) return;
+    update((r) => ({ ...r, payments: { ...r.payments, expectedPoa1: rolled.expectedPoa1, expectedPoa2: rolled.expectedPoa2, expectedFrom: `the ${yearLabel(year - 1)} return`, priorLiability: r.payments.priorLiability ?? rolled.liability } }));
+  }, [rolled?.expectedPoa1, rolled?.expectedPoa2]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const comp = useMemo(() => compute(ret, year), [ret, year]);
   const items = navItems(ret);
@@ -635,7 +644,15 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
   if (k === "payments") {
     const p = ret.payments, set = (x: Partial<TaxReturn["payments"]>) => update((r) => ({ ...r, payments: { ...r.payments, ...x } }));
     return (<>
-      <Group title="Payments on account made for this year"><Money label="First payment (31 January)" value={p.poa1} onChange={(v) => set({ poa1: v })} /><Money label="Second payment (31 July)" value={p.poa2} onChange={(v) => set({ poa2: v })} /></Group>
+      <Group title="Payments on account for this year">
+        {p.expectedFrom
+          ? <p className="muted" style={{ margin: 0, fontSize: 13 }}>Expected from {p.expectedFrom}: £{(p.expectedPoa1 || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })} on 31 January and £{(p.expectedPoa2 || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })} on 31 July. These change if last year's return changes.</p>
+          : <><Money label="Expected first payment (31 January)" value={p.expectedPoa1} onChange={(v) => set({ expectedPoa1: v })} hint="from last year's return or HMRC's statement" /><Money label="Expected second payment (31 July)" value={p.expectedPoa2} onChange={(v) => set({ expectedPoa2: v })} /></>}
+        <label className="row-wrap" style={{ gap: 8 }}><input type="checkbox" checked={!!p.paidDifferent || (!(p.expectedPoa1 || p.expectedPoa2) && !!(p.poa1 || p.poa2))}
+          onChange={(e) => set(e.target.checked ? { paidDifferent: true, poa1: p.poa1 ?? p.expectedPoa1, poa2: p.poa2 ?? p.expectedPoa2 } : { paidDifferent: false })} /> Different amounts were paid</label>
+        {(p.paidDifferent || (!(p.expectedPoa1 || p.expectedPoa2) && !!(p.poa1 || p.poa2))) && <><Money label="First payment actually paid" value={p.poa1} onChange={(v) => set({ poa1: v })} /><Money label="Second payment actually paid" value={p.poa2} onChange={(v) => set({ poa2: v })} /></>}
+        <p className="muted" style={{ margin: 0, fontSize: 12 }}>Taken off this year's tax: £{poaMade(p).toLocaleString("en-GB", { minimumFractionDigits: 2 })}{p.paidDifferent ? " (as actually paid)" : (p.expectedPoa1 || p.expectedPoa2) ? " (as expected)" : ""}.</p>
+      </Group>
       <Group title="PAYE coding"><Money label="Earlier years' tax collected in this year's code" value={p.earlierYearInCode} onChange={(v) => set({ earlierYearInCode: v })} /><Money label="To be collected through next year's code" value={p.nextYearInCode} onChange={(v) => set({ nextYearInCode: v })} /></Group>
       <Group title="Other"><Money label="Tax paid on UK property disposal returns" value={p.propertyReturnTax} onChange={(v) => set({ propertyReturnTax: v })} /></Group>
     </>);
