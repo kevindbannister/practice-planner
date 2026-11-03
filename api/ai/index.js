@@ -151,6 +151,78 @@ function emailsMessage(b) {
 }
 
 
+// Reading a past Self Assessment return: the PDFs' text in, the return's figures out. The figures must be printed in the text
+// (the planner checks that), and the document's own income tax total is returned so the planner can check its calculation.
+const TAX_READ_LIMIT = 150000;
+const TAX_READ_SYSTEM = [
+  "You read the text of a UK Self Assessment return printed by IRIS Elements (the tax calculation, the detailed summaries, the capital gains computation and the return pages) and fill in the figures for an accountant's planner.",
+  "Use only figures printed in the text. Never calculate, estimate or invent a figure: if a figure isn't printed, leave it out. Give amounts as plain numbers (pounds and pence, no £ or commas). Give an amount in brackets as a positive number, unless the field below says it can be negative.",
+  "Dates are YYYY-MM-DD. Names, UTRs and PAYE references are text, copied exactly.",
+  "Reply with a JSON object only: {\"return\": {...}, \"totals\": {...}}. Every field is optional; leave out what the text doesn't give.",
+  "return fields:",
+  "front: {region: \"england\"|\"scotland\"|\"wales\", utr, nino, dob}",
+  "employments: [{name, paye, pay, tax, tips, director, closeCompany, studentLoanDeducted, postgradDeducted, benefits: {car, fuel, van, vanFuel, medical, loans, accommodation, mileage, other}, expenses: {travel, fixed, professional, other}}]",
+  "selfEmployments: [{name, description, start, end, turnover, otherIncome, expenses, disallowable, capitalAllowances, balancingCharges, tradingAllowance (true or false), transitionProfit, lossesBf, lossSideways, cis, taxDeducted, expenseItems: [{label, amount, box: \"11\"..\"19\"}]}]. Box 11 cost of goods, 12 motor and travel, 13 wages, 14 rent, rates, power and insurance, 15 repairs, 16 accountancy, legal and professional, 17 interest and financial charges, 18 telephone, stationery and office, 19 other.",
+  "partnerships: [{name, utr, profit, lossesBf, transitionProfit, savings, dividends, taxDeducted, cis}]",
+  "nic: {exempt, voluntaryClass2, class1Earnings}",
+  "interest: [{payer, accountNumber, untaxed (gross), net, taxTaken, foreign (true or false), foreignTax}] - one entry per account, not a total",
+  "dividends: [{company, amount, foreign, foreignTax}]; otherDividends: {stock, bonus, loansWrittenOff}",
+  "property: {income, otherIncome, premiums, rates, repairs, finance, legal, services, travel, other, replacingItems, capitalAllowances, privateUse, balancingCharges, propertyAllowance (true or false), rentARoom, lossesBf, financeBf, taxTaken}",
+  "pensions: {state, stateLumpSum, stateLumpSumTax, others: [{payer, amount (gross), tax (taken off), net}]}",
+  "benefits: {jsa, esa, incapacity, incapacityTax, carers, bereavement, other}; otherIncome: {amount, taxTaken, description}; foreign: {property, pensions, other, foreignTax}",
+  "gains: [{description, kind: \"residential\"|\"shares\"|\"other\"|\"crypto\", date, proceeds, cost (allowable costs, after any relief), badr (true or false), ir (true or false)}]; gainsLossesBf",
+  "reliefs: {pensionRas (relief at source paid in), pensionGross, giftAid, giftAidCarriedBack, eis, seis, vct, loanInterest, maintenance}; charityGifts",
+  "allowances: {marriage: \"none\"|\"transfer\"|\"receive\", blind (true or false)}; studentLoan: {plans: [\"plan1\"|\"plan2\"|\"plan4\"|\"plan5\"], postgrad (true or false)}",
+  "childBenefit: {amount, children, weeks}; winterFuel: {amount}",
+  "payments: {poa1 (first payment on account made), poa2 (second made), priorLiability, earlierYearInCode, propertyReturnTax, credits: [{date, description, amount}]}",
+  "totals: the figures the document itself gives for the tax, to check the planner's calculation: {incomeTaxDue (\"Income Tax due after allowances and reliefs\"), balancing (\"Balancing payment due\", positive when to pay), poaNext1 and poaNext2 (the payments on account due next year)}. Only figures printed in the text.",
+].join("\n");
+
+const TAX_READ_STRINGS = new Set(["utr", "nino", "paye", "accountNumber", "name", "payer", "company", "description", "label", "dob", "start", "end", "date", "region", "marriage", "kind", "box", "plans", "from", "key"]);
+
+/** The return and totals the AI gave, kept to plain values: only the numbers, texts and lists the planner's fields hold. */
+function parseTaxRead(text) {
+  let obj = null;
+  try {
+    obj = JSON.parse(text);
+  } catch {
+    const m = typeof text === "string" && text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try {
+        obj = JSON.parse(m[0]);
+      } catch {
+        obj = null;
+      }
+    }
+  }
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+  const clean = (v, key, depth) => {
+    if (depth > 6 || v === null || v === undefined) return undefined;
+    if (typeof v === "string") {
+      const t = v.trim().slice(0, 300);
+      if (!t) return undefined;
+      if (!TAX_READ_STRINGS.has(key) && /^\(?-?£?\s?[\d,]+(\.\d+)?\)?$/.test(t)) return Number(t.replace(/[(),£\s]/g, "")) * (/^\(|^-/.test(t) ? -1 : 1);
+      return t;
+    }
+    if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
+    if (typeof v === "boolean") return v;
+    if (Array.isArray(v)) return v.slice(0, 200).map((x) => clean(x, key, depth + 1)).filter((x) => x !== undefined);
+    if (typeof v === "object") {
+      const out = {};
+      for (const [k, x] of Object.entries(v).slice(0, 80)) {
+        const c = clean(x, k, depth + 1);
+        if (c !== undefined) out[k] = c;
+      }
+      return Object.keys(out).length ? out : undefined;
+    }
+    return undefined;
+  };
+  const ret = clean(obj.return || {}, "", 0) || {};
+  const totals = {};
+  for (const [k, v] of Object.entries(clean(obj.totals || {}, "", 0) || {})) if (typeof v === "number") totals[k] = v;
+  return { ret, totals };
+}
+
 const SYSTEM_BANK = [
   "You sort the transactions on a UK limited company's bank statement into accounting categories, for an accountant preparing working papers from manual records.",
   "You are given the categories (key, name, what it means) and a list of transactions: an id, the description, the bank's own type and category label, and the amount (positive is money in, negative is money out).",
@@ -355,22 +427,27 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
 
     if (action === "status" && (req.method || "GET").toUpperCase() === "GET") {
+      const taxRead = env.TAX_AI_IMPORT === "on";
       if (!key) {
-        context.res = reply(200, { configured: false });
+        context.res = reply(200, { configured: false, taxRead });
         return;
       }
       const models = await listModels(key);
       const asked = req.query && typeof req.query.model === "string" ? req.query.model : "";
-      context.res = reply(200, { configured: true, keyAccepted: models !== null, model: pickModel(models, asked, env), models: models || [] });
+      context.res = reply(200, { configured: true, taxRead, keyAccepted: models !== null, model: pickModel(models, asked, env), models: models || [] });
       return;
     }
 
-    if (action !== "write" && action !== "assist" && action !== "emails" && action !== "bank") {
+    if (action !== "write" && action !== "assist" && action !== "emails" && action !== "bank" && action !== "taxread") {
       context.res = reply(400, { error: "bad-request", message: "That isn't something this app asks for." });
       return;
     }
     if ((req.method || "").toUpperCase() !== "POST") {
       context.res = reply(400, { error: "bad-request", message: "That isn't something this app asks for." });
+      return;
+    }
+    if (action === "taxread" && env.TAX_AI_IMPORT !== "on") {
+      context.res = reply(503, { error: "disabled", message: "The AI reading of past returns isn't switched on (setting TAX_AI_IMPORT)." });
       return;
     }
     if (!key) {
@@ -379,6 +456,47 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
 
     const b = typeof req.body === "string" ? safeJson(req.body) : req.body || {};
+    if (action === "taxread") {
+      const files = Array.isArray(b && b.files) ? b.files.slice(0, 12) : [];
+      let text = "";
+      for (const f of files) {
+        if (!f || typeof f.name !== "string" || !Array.isArray(f.pages)) continue;
+        text += `\n=== FILE ${clip(f.name, 200)}\n`;
+        f.pages.forEach((page, i) => {
+          if (!Array.isArray(page) || !page.length) return;
+          text += `--- page ${i + 1}\n${page.map((l) => clip(l, 400)).join("\n")}\n`;
+        });
+      }
+      if (!text.trim()) {
+        context.res = reply(400, { error: "bad-request", message: "No return text to read." });
+        return;
+      }
+      if (text.length > TAX_READ_LIMIT) {
+        context.res = reply(413, { error: "too-long", message: "The return is too long to read in one go. Bring in the calculation and summaries separately." });
+        return;
+      }
+      const model = pickModel(await listModels(key), typeof b.model === "string" && /^[a-z0-9.\-:_]{1,64}$/i.test(b.model) ? b.model : "", env);
+      let r;
+      try {
+        r = await complete(key, model, text, TAX_READ_SYSTEM, undefined, "medium");
+      } catch (e) {
+        const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
+        context.res = reply(timeout ? 504 : 502, { error: timeout ? "timeout" : "unreachable", message: timeout ? "The AI took too long to read the return. Try again." : "The AI didn't answer. Try again shortly." });
+        return;
+      }
+      if (!r.ok) {
+        context.res = reply(502, { error: "upstream", status: r.status, message: `The AI returned an error (${r.status}).` });
+        return;
+      }
+      const j = await r.json();
+      const read = parseTaxRead(j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content);
+      if (!read) {
+        context.res = reply(502, { error: "bad-answer", message: "The AI's answer couldn't be read. Try again." });
+        return;
+      }
+      context.res = reply(200, { ...read, model, chars: text.length });
+      return;
+    }
     const effort = b && EFFORTS.includes(b.effort) ? b.effort : "low";
     const assist = action === "assist";
     if (action === "bank") {
@@ -525,4 +643,5 @@ module.exports.parseMeeting = parseMeeting;
 module.exports.parseAssist = parseAssist;
 module.exports.parseEmails = parseEmails;
 module.exports.parseBank = parseBank;
+module.exports.parseTaxRead = parseTaxRead;
 module.exports.assistMessages = assistMessages;

@@ -45,7 +45,7 @@ test("needs your sign-in", async () => {
 
 test("status says whether it's set up and which model it'll use", async () => {
   const off = await call({ action: "status", method: "GET", env: {} });
-  assert.deepEqual(off.body, { configured: false });
+  assert.deepEqual(off.body, { configured: false, taxRead: false });
   const on = await call({ action: "status", method: "GET" });
   assert.equal(on.body.configured, true);
   assert.equal(on.body.model, "gpt-5-mini");
@@ -199,4 +199,35 @@ test("effort: passed to reasoning models, and a bad value falls back to low", as
   };
   assert.equal(await sent("high"), "high");
   assert.equal(await sent("sideways"), "low");
+});
+
+// ---- reading past returns (the tax read): off unless TAX_AI_IMPORT is on, and only printed figures come back
+const { parseTaxRead } = require("../ai/index.js");
+
+test("the tax read is switched off until TAX_AI_IMPORT is on", async () => {
+  const r = await call({ action: "taxread", body: { files: [{ name: "a.pdf", pages: [["Pay 12,480.00"]] }] } });
+  assert.equal(r.status, 503);
+  assert.equal(r.body.error, "disabled");
+  const s = await call({ action: "status", method: "GET" });
+  assert.equal(s.body.taxRead, false);
+});
+
+test("the tax read sends the return text and returns the figures and totals", async () => {
+  const answer = { return: { employments: [{ name: "Acme", pay: 12480 }] }, totals: { incomeTaxDue: 0 } };
+  const f = fakeFetch({ answers: [res(200, { choices: [{ message: { content: JSON.stringify(answer) } }] })] });
+  const r = await call({ action: "taxread", body: { files: [{ name: "a.pdf", pages: [["Gross pay 12,480.00"]] }] }, env: { OPENAI_API_KEY: "sk-test", TAX_AI_IMPORT: "on" }, fetch: f });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.ret.employments[0].pay, 12480);
+  assert.equal(r.body.totals.incomeTaxDue, 0);
+  const sent = f.calls.find((c) => c.url.endsWith("/chat/completions")).body;
+  assert.match(sent.messages[1].content, /Gross pay 12,480\.00/);
+});
+
+test("parseTaxRead keeps only plain values and turns printed text amounts into numbers", () => {
+  const out = parseTaxRead(JSON.stringify({ return: { utr: "1234567890", interest: [{ payer: "Bank", untaxed: "1,200.50", foreign: true }], bad: "£x" }, totals: { incomeTaxDue: "5,040.71", note: "text" } }));
+  assert.equal(out.ret.utr, "1234567890");
+  assert.equal(out.ret.interest[0].untaxed, 1200.5);
+  assert.equal(out.ret.interest[0].foreign, true);
+  assert.equal(out.totals.incomeTaxDue, 5040.71);
+  assert.equal(out.totals.note, undefined);
 });

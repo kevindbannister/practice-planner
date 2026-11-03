@@ -13,7 +13,11 @@ export type AiRequest = {
   model?: string;
 };
 export type AiAnswer = { subject: string; body: string; model?: string };
-export type AiStatus = { configured: boolean; keyAccepted?: boolean; model?: string; models?: string[] };
+export type AiStatus = { configured: boolean; taxRead?: boolean; keyAccepted?: boolean; model?: string; models?: string[] };
+
+/** A past return's PDFs as text, page by page, and what the AI read from them. */
+export type TaxReadFile = { name: string; pages: string[][] };
+export type TaxReadAnswer = { ret: Record<string, unknown>; totals: Record<string, number>; model?: string; chars?: number };
 
 export type MeetingAction = { text: string; who: string; due: string };
 export type MeetingTidy = { summary: string; decisions: string[]; actions: MeetingAction[] };
@@ -50,6 +54,7 @@ export interface AiApi {
   assist(req: AssistRequest): Promise<AssistAnswer>;
   emails(req: { today: string; emails: Record<string, unknown>[]; model?: string }): Promise<{ emails: EmailVerdict[] }>;
   bank(req: BankRequest): Promise<{ items: BankVerdict[] }>;
+  taxRead(req: { files: TaxReadFile[]; model?: string }): Promise<TaxReadAnswer>;
 }
 
 export class HttpAi implements AiApi {
@@ -100,6 +105,9 @@ export class HttpAi implements AiApi {
   bank(req: BankRequest): Promise<{ items: BankVerdict[] }> {
     return this.call("bank", { method: "POST", body: JSON.stringify(req) });
   }
+  taxRead(req: { files: TaxReadFile[]; model?: string }): Promise<TaxReadAnswer> {
+    return this.call("taxread", { method: "POST", body: JSON.stringify(req) });
+  }
   assist(req: AssistRequest): Promise<AssistAnswer> {
     return this.call("assist", { method: "POST", body: JSON.stringify(req) });
   }
@@ -110,6 +118,10 @@ export class HttpAi implements AiApi {
 
 /** Demo stand-in: writes plausible text from the brief, and applies a few simple changes. */
 export class FakeAi implements AiApi {
+  /** The demo has no AI behind it, so past returns are read by the local reader only. */
+  async taxRead(): Promise<TaxReadAnswer> {
+    throw new AiError("demo", "Reading past returns with the AI isn't available in the demo.");
+  }
   /** Demo stand-in: money in is sales, everything else is sundry. */
   async bank(req: BankRequest): Promise<{ items: BankVerdict[] }> {
     await new Promise((r) => setTimeout(r, 300));

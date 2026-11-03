@@ -1,3 +1,6 @@
+import { useAi } from "./commsKit";
+import { useData } from "./data";
+import { keepTaxHistory, readWithAi } from "../lib/taxRead";
 // The tax return as HMRC prints it (SA100), filled in from the return being worked on, shown beside the computation. Each
 // box with something to say is a hotspot: hovering highlights it, clicking opens the section of the return it comes from.
 // Also here: starting a return for another tax year, bringing in a past return from IRIS's PDFs, and a confirm box.
@@ -250,16 +253,28 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
   const [reading, setReading] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(true);
+  // reading with the AI: the files as text for the AI, their bytes for the history copies, and whether the AI read them
+  const ai = useAi();
+  const { store } = useData();
+  const [parsed, setParsed] = useState<ImportFile[]>([]);
+  const [raw, setRaw] = useState<{ name: string; bytes: Uint8Array }[]>([]);
+  const [aiOn, setAiOn] = useState(false);
+  const [usedAi, setUsedAi] = useState(false);
+  const [keep, setKeep] = useState(true);
+  useEffect(() => { let live = true; ai.status().then((st) => { if (live) setAiOn(!!st.taxRead); }).catch(() => undefined); return () => { live = false; }; }, [ai]);
   useEffect(() => { const k = (e: KeyboardEvent) => e.key === "Escape" && onClose(); document.addEventListener("keydown", k); return () => document.removeEventListener("keydown", k); }, [onClose]);
   const read = async (list: FileList | null) => {
     if (!list?.length) return;
     setReading(true); setError(""); setRes(undefined);
     try {
-      const got: ImportFile[] = [];
+      const got: ImportFile[] = [], kept: { name: string; bytes: Uint8Array }[] = [];
       for (const f of Array.from(list)) {
         if (!/\.pdf$/i.test(f.name) && f.type !== "application/pdf") { setError(`${f.name} isn't a PDF.`); continue; }
-        got.push(await readIrisPdf(f.name, new Uint8Array(await f.arrayBuffer())));
+        const bytes = new Uint8Array(await f.arrayBuffer());
+        kept.push({ name: f.name, bytes });
+        got.push(await readIrisPdf(f.name, bytes));
       }
+      setParsed(got); setRaw(kept); setUsedAi(false);
       setFiles(got.map((g) => g.name));
       if (got.length) setRes(readImport(got, names));
     } catch {
@@ -268,6 +283,26 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
   };
   const chk = res ? checkImport(res) : undefined;
   const y = res?.year || year;
+  const readWithTheAi = async () => {
+    setReading(true); setError("");
+    try {
+      const answer = await ai.taxRead({ files: parsed.map((f) => ({ name: f.name, pages: f.pages })) });
+      setRes(readWithAi(parsed, answer, names)); setUsedAi(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The AI couldn't read the return. Try again.");
+    } finally { setReading(false); }
+  };
+  // copies of the PDFs are kept first (if asked), so a failed save stops the return being brought in without them
+  const bringIn = async () => {
+    if (!res) return;
+    if (usedAi && keep && raw.length) {
+      setReading(true); setError("");
+      try { await keepTaxHistory(store.graph, String(client.Title || ""), y, raw); }
+      catch { setError("The copies of the PDFs couldn't be saved to OneDrive, so the return hasn't been brought in. Try again, or untick keeping copies."); return; }
+      finally { setReading(false); }
+    }
+    onUse(res, y, submitted);
+  };
   const utrClash = res?.utr && client.UTR && String(client.UTR).replace(/\s/g, "") !== res.utr;
   return (
     <div className="tax-add-sheet" role="presentation" onClick={onClose}>
@@ -283,6 +318,14 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
             <input type="file" accept="application/pdf,.pdf" multiple onChange={(e) => void read(e.target.files)} aria-label="Choose the PDFs" />
             <span><Icon name="download" size={16} /> {reading ? "Reading…" : files.length ? files.join(", ") : "Choose PDFs, or drop them here"}</span>
           </label>
+          {aiOn && parsed.length > 0 && (
+            <div className="stack" style={{ gap: 4 }}>
+              <div className="row-wrap" style={{ gap: 8 }}>
+                <button type="button" className="btn" disabled={reading} onClick={() => void readWithTheAi()}>Read with AI</button>
+                <span className="muted" style={{ fontSize: 13 }}>Every figure must be printed in the PDFs, and the income tax must match the document's own figure.</span>
+              </div>
+            </div>
+          )}
           {error && <p className="error-text" role="alert">{error}</p>}
           {res && (
             <div className="stack" style={{ gap: 8 }}>
@@ -299,13 +342,14 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
                 : <p className="muted" style={{ margin: 0 }}>Total tax from these figures: {gbp(chk.ours)}.</p>)}
               {res.warnings.map((w) => <p key={w} className="warn" style={{ margin: 0 }}>{w}</p>)}
               <label className="row-wrap" style={{ gap: 8 }}><input type="checkbox" checked={submitted} onChange={(e) => setSubmitted(e.target.checked)} /> This return was submitted to HMRC</label>
+              {usedAi && <label className="row-wrap" style={{ gap: 8 }}><input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Keep copies of these PDFs in OneDrive as history (copies only: nothing is sent to HMRC)</label>}
               {y !== year && <p className="muted" style={{ margin: 0 }}>This is the {yearLabel(y)} return, so it goes on that year.</p>}
             </div>
           )}
         </div>
         <div className="row-wrap" style={{ gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn primary" disabled={!res || !res.found.length || !YEARS.some((r) => r.year === y)} onClick={() => res && onUse(res, y, submitted)}>Bring in to {yearLabel(y)}</button>
+          <button type="button" className="btn primary" disabled={!res || !res.found.length || !YEARS.some((r) => r.year === y)} onClick={() => void bringIn()}>Bring in to {yearLabel(y)}</button>
         </div>
       </div>
     </div>
