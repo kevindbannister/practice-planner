@@ -7,7 +7,7 @@ import { Client, fmtDate, todayIso } from "../lib/domain";
 import { PaperStatus, STATUS_LABEL, readSetup, setupRow, stateOf } from "../lib/papers";
 import {
   Computation, Dividend, Employment, Gain, Interest, NOT_YET, OtherPension, Partnership, ReturnState, SECTIONS, STATE_LABEL, SectionDef, SectionKey, SelfEmployment, TaxReturn,
-  bringForward, compute, emptyReturn, hasSection, newId, poaMade, propertyProfit, readReturn, rollForward, tradeProfit, employmentIncome,
+  bringForward, compute, emptyReturn, hasSection, newId, outstandingPayments, paymentLines, PaymentLine, propertyProfit, readReturn, rollForward, tradeProfit, employmentIncome,
 } from "../lib/tax";
 import { ImportResult } from "../lib/taxImport";
 import { brandOf, readBranding, displayName } from "../lib/docBranding";
@@ -45,7 +45,7 @@ function TaxList() {
   const [starting, setStarting] = useState(false);
   const [bulk, setBulk] = useState(false);
   const rows = useMemo(() => {
-    const out: { c: Client; job?: { Title: string; Deadline?: string; Status?: string }; comp?: Computation; state?: ReturnState; imported?: boolean }[] = [];
+    const out: { c: Client; job?: { Title: string; Deadline?: string; Status?: string }; comp?: Computation; state?: ReturnState; imported?: boolean; owed?: number; late?: boolean }[] = [];
     for (const c of data.clients as Client[]) {
       if (isCompany(c)) continue;
       const jobs = (idx.jobsByClient.get(c.Key) || []).filter((j) => j.ServiceKey === "SA100");
@@ -54,7 +54,8 @@ function TaxList() {
       const job = jobs.find((j) => j.PeriodEnd === yearEnd(year)) || undefined;
       const sr = saved ? readReturn(readSetup(saved).r) : undefined;
       const comp = sr ? compute(sr, year) : undefined;
-      out.push({ c, job: job as never, comp, state: sr ? sr.status?.state || "draft" : undefined, imported: !!sr?.imported });
+      const due = sr ? outstandingPayments(sr, year) : undefined;
+      out.push({ c, job: job as never, comp, state: sr ? sr.status?.state || "draft" : undefined, imported: !!sr?.imported, owed: due?.lines.length ? due.total : undefined, late: due?.lines.some((l) => l.overdue) });
     }
     return out.filter((x) => !q || String(x.c.Title).toLowerCase().includes(q.toLowerCase())).sort((a, b) => String(a.c.Title).localeCompare(String(b.c.Title)));
   }, [data.clients, data.papers, idx, year, q]);
@@ -75,19 +76,20 @@ function TaxList() {
       <div className="row-wrap" style={{ gap: 8 }}><input className="input" style={{ maxWidth: 360 }} placeholder="Find a client" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a client" /><span className="muted" style={{ marginLeft: "auto" }}>{rows.length} client{rows.length === 1 ? "" : "s"}</span></div>
       <div className="card table-wrap">
         <table className="grid">
-          <thead><tr><th>Client</th><th>Return</th><th className="num">Total tax</th><th className="num">To pay / repay</th><th className="num">Payments on account</th><th>Filing deadline</th></tr></thead>
+          <thead><tr><th>Client</th><th>Return</th><th className="num">Total tax</th><th className="num">To pay / repay</th><th className="num">Payments on account</th><th className="num">Still to pay</th><th>Filing deadline</th></tr></thead>
           <tbody>
-            {rows.map(({ c, job, comp, state, imported }) => (
+            {rows.map(({ c, job, comp, state, imported, owed, late }) => (
               <tr key={c.Key} className="clickable" onClick={() => (window.location.hash = href("tax", String(c.Key), String(year)))}>
                 <td><a href={href("tax", String(c.Key), String(year))} onClick={(e) => e.stopPropagation()}>{c.Title}</a>{c.UTR ? <div className="muted mono" style={{ fontSize: 12 }}>{String(c.UTR)}</div> : null}</td>
                 <td>{state ? <span className={`chip${state === "submitted" ? " green" : state === "final" ? " blue" : ""}`}>{STATE_LABEL[state]}</span> : <span className="muted">Not started</span>}{imported && <span className="muted" style={{ fontSize: 12, marginLeft: 6 }}>from IRIS</span>}</td>
                 <td className="num mono">{comp ? gbp(comp.totalLiability) : "-"}</td>
                 <td className="num mono">{comp ? (comp.balancing >= 0 ? gbp(comp.balancing) : `${gbp(-comp.balancing)} back`) : "-"}</td>
                 <td className="num mono">{comp?.poaNext ? `2 × ${gbp(comp.poaNext)}` : "-"}</td>
+                <td className={`num mono${late ? " red-ink" : ""}`}>{owed ? gbp(owed) : state ? "Nothing" : "-"}{late ? <div style={{ fontSize: 12 }}>overdue</div> : null}</td>
                 <td>{job?.Deadline ? fmtDate(job.Deadline) : fmtDate(`${year + 1}-01-31`)}</td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={6} className="muted" style={{ textAlign: "center", padding: 24 }}>No clients with a Self Assessment return{q ? " match" : ""}.</td></tr>}
+            {!rows.length && <tr><td colSpan={7} className="muted" style={{ textAlign: "center", padding: 24 }}>No clients with a Self Assessment return{q ? " match" : ""}.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -215,13 +217,16 @@ function TaxScreen({ client: c, year, view, setView, start, frozen }: { client: 
     if (!rolled) return;
     const p = ret.payments;
     if (p.expectedPoa1 === rolled.expectedPoa1 && p.expectedPoa2 === rolled.expectedPoa2 && p.expectedFrom === `the ${yearLabel(year - 1)} return`) return;
-    update((r) => ({ ...r, payments: { ...r.payments, expectedPoa1: rolled.expectedPoa1, expectedPoa2: rolled.expectedPoa2, expectedFrom: `the ${yearLabel(year - 1)} return`, priorLiability: r.payments.priorLiability ?? rolled.liability } }));
+    // the payments still to pay follow the new amounts; a payment already ticked as paid keeps what was paid
+    update((r) => ({ ...r, payments: { ...r.payments, expectedPoa1: rolled.expectedPoa1, expectedPoa2: rolled.expectedPoa2, expectedFrom: `the ${yearLabel(year - 1)} return`, priorLiability: r.payments.priorLiability ?? rolled.liability,
+      ...(r.payments.lines ? { lines: r.payments.lines.map((l) => (l.paid || l.kind === "other" ? l : { ...l, amount: l.kind === "poa1" ? rolled.expectedPoa1 : rolled.expectedPoa2 })) } : {}) } }));
   }, [rolled?.expectedPoa1, rolled?.expectedPoa2]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const comp = useMemo(() => compute(ret, year), [ret, year]);
   const prevRet = useMemo(() => (prevRow ? readReturn(readSetup(prevRow).r) : null), [prevRow]);
   // figures typed in (the payments on account rolled forward from last year don't count)
-  const hasContent = (r: TaxReturn) => SECTIONS.some((s) => s.key !== "front" && s.key !== "payments" && hasSection(r, s.key)) || !!(r.payments.poa1 || r.payments.poa2 || r.payments.earlierYearInCode || r.payments.nextYearInCode || r.payments.propertyReturnTax);
+  const hasContent = (r: TaxReturn) => SECTIONS.some((s) => s.key !== "front" && s.key !== "payments" && hasSection(r, s.key)) || !!(r.payments.poa1 || r.payments.poa2 || r.payments.earlierYearInCode || r.payments.nextYearInCode || r.payments.propertyReturnTax)
+    || (r.payments.lines || []).some((l) => l.paid || l.kind === "other" || !!l.late);
   const keepRolled = (r: TaxReturn): TaxReturn => (rolled ? { ...r, payments: { ...r.payments, expectedPoa1: rolled.expectedPoa1, expectedPoa2: rolled.expectedPoa2, expectedFrom: `the ${yearLabel(year - 1)} return`, priorLiability: r.payments.priorLiability ?? rolled.liability } } : r);
   const sectionRows = () => (data.papers as Row[]).filter((r) => r.ClientKey === c.Key && r.PeriodEnd === yearEnd(year) && String(r.ItemKey || "").startsWith("tax/"));
   const clearSections = () => { const rows = sectionRows(); return rows.length ? updateMany("WorkingPapers", rows.map((row) => ({ row, patch: { Status: "todo", Note: "", Setup: "{}" } }))) : Promise.resolve(); };
@@ -559,6 +564,47 @@ function AddSection({ ret, onAdd, onClose }: { ret: TaxReturn; onAdd: (k: Sectio
 // ------------------------------------------------------------------ inputs
 
 const blank = (v: number | undefined) => (v === undefined || Math.abs(v) < 0.001 ? "" : String(v));
+/** The payments to and from HMRC for the year: the two payments on account (unticked until paid), any others added, and what is still to pay. */
+function PaymentLines({ ret, year, update }: { ret: TaxReturn; year: number; update: (f: (r: TaxReturn) => TaxReturn) => void }) {
+  const lines = paymentLines(ret, year);
+  const today = todayIso();
+  const out = outstandingPayments(ret, year, today);
+  const setLines = (f: (ls: PaymentLine[]) => PaymentLine[]) => update((r) => ({ ...r, payments: { ...r.payments, lines: f(paymentLines(r, year)) } }));
+  const edit = (id: string, patch: Partial<PaymentLine>) => setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const money = (v: number | undefined) => gbp(v ?? 0);
+  return (
+    <div className="tax-group tax-pay-group"><h3>Payments on account and other payments</h3><div className="tax-pay-stack">
+      {ret.payments.expectedFrom && <p className="muted" style={{ margin: 0, fontSize: 13 }}>The payments on account are expected from {ret.payments.expectedFrom}. Each one counts against the tax once it is ticked as paid.</p>}
+      <div className={`tax-outstanding${out.lines.some((l) => l.overdue) ? " late" : ""}`} aria-live="polite">
+        <strong>{out.lines.length ? `Still to pay: ${money(out.total)}` : "Nothing outstanding"}</strong>
+        {out.lines.map((l) => (
+          <div key={l.id} className="tax-outstanding-row">
+            <span>{l.label || "Payment"}</span>
+            <span className="muted">{fmtDate(l.date)}{l.overdue && <b className="red-ink"> · overdue</b>}</span>
+            <span className="mono">{money(l.owed)}{l.late ? <small className="muted"> incl. {money(l.late)} late</small> : null}</span>
+          </div>
+        ))}
+      </div>
+      {lines.map((l) => (
+        <div key={l.id} className={`tax-pay-line${l.paid ? " paid" : ""}`}>
+          <label className="tax-pay-tick"><input type="checkbox" checked={!!l.paid} onChange={(e) => edit(l.id, { paid: e.target.checked })} /> Paid</label>
+          {l.kind === "other"
+            ? <input className="input" aria-label="Payment" value={l.label} placeholder="What it is" onChange={(e) => edit(l.id, { label: e.target.value })} />
+            : <span className="tax-pay-name">{l.label}</span>}
+          <label className="tax-pay-date"><span>{l.paid ? "Paid on" : "Due"}</span><input className="input" type="date" value={l.date} onChange={(e) => e.target.value && edit(l.id, { date: e.target.value })} /></label>
+          <Money label={l.paid ? "Amount paid" : "Amount"} value={l.amount} onChange={(v) => edit(l.id, { amount: v })} />
+          <Money label="Late payment increase" hint="(interest or penalty)" value={l.late} onChange={(v) => edit(l.id, { late: v })} />
+          {l.kind === "other" && <button type="button" className="btn small" onClick={() => setLines((ls) => ls.filter((x) => x.id !== l.id))} aria-label={`Remove ${l.label || "this payment"}`}>Remove</button>}
+        </div>
+      ))}
+      <div className="row-wrap" style={{ gap: 8 }}>
+        <button type="button" className="btn small" onClick={() => setLines((ls) => [...ls, { id: newId(), kind: "other", label: "", date: today, amount: undefined, paid: false }])}><Icon name="plus" size={14} /> Add a payment</button>
+      </div>
+      <p className="muted" style={{ margin: 0, fontSize: 12 }}>Ticked payments come off the tax on the summary. Change the date to the day it was paid. If it was paid late, enter the interest or penalty under late payment increase.</p>
+    </div></div>
+  );
+}
+
 function Money({ label, value, onChange, hint }: { label: string; value: number | undefined; onChange: (v: number | undefined) => void; hint?: string }) {
   const [t, setT] = useState(blank(value));
   useEffect(() => { if (Number(t.replace(/[£,\s]/g, "") || 0) !== (value || 0)) setT(blank(value)); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -816,15 +862,7 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
   if (k === "payments") {
     const p = ret.payments, set = (x: Partial<TaxReturn["payments"]>) => update((r) => ({ ...r, payments: { ...r.payments, ...x } }));
     return (<>
-      <Group title="Payments on account for this year">
-        {p.expectedFrom
-          ? <p className="muted" style={{ margin: 0, fontSize: 13 }}>Expected from {p.expectedFrom}: £{(p.expectedPoa1 || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })} on 31 January and £{(p.expectedPoa2 || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })} on 31 July. These change if last year's return changes.</p>
-          : <><Money label="Expected first payment (31 January)" value={p.expectedPoa1} onChange={(v) => set({ expectedPoa1: v })} hint="from last year's return or HMRC's statement" /><Money label="Expected second payment (31 July)" value={p.expectedPoa2} onChange={(v) => set({ expectedPoa2: v })} /></>}
-        <label className="row-wrap" style={{ gap: 8 }}><input type="checkbox" checked={!!p.paidDifferent || (!(p.expectedPoa1 || p.expectedPoa2) && !!(p.poa1 || p.poa2))}
-          onChange={(e) => set(e.target.checked ? { paidDifferent: true, poa1: p.poa1 ?? p.expectedPoa1, poa2: p.poa2 ?? p.expectedPoa2 } : { paidDifferent: false })} /> Different amounts were paid</label>
-        {(p.paidDifferent || (!(p.expectedPoa1 || p.expectedPoa2) && !!(p.poa1 || p.poa2))) && <><Money label="First payment actually paid" value={p.poa1} onChange={(v) => set({ poa1: v })} /><Money label="Second payment actually paid" value={p.poa2} onChange={(v) => set({ poa2: v })} /></>}
-        <p className="muted" style={{ margin: 0, fontSize: 12 }}>Taken off this year's tax: £{poaMade(p).toLocaleString("en-GB", { minimumFractionDigits: 2 })}{p.paidDifferent ? " (as actually paid)" : (p.expectedPoa1 || p.expectedPoa2) ? " (as expected)" : ""}.</p>
-      </Group>
+      <PaymentLines ret={ret} year={year} update={update} />
       <Group title="PAYE coding"><Money label="Earlier years' tax collected in this year's code" value={p.earlierYearInCode} onChange={(v) => set({ earlierYearInCode: v })} /><Money label="To be collected through next year's code" value={p.nextYearInCode} onChange={(v) => set({ nextYearInCode: v })} /></Group>
       <Group title="Other"><Money label="Tax paid on UK property disposal returns" value={p.propertyReturnTax} onChange={(v) => set({ propertyReturnTax: v })} /></Group>
     </>);

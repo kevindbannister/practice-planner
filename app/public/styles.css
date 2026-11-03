@@ -3095,3 +3095,21 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .tax-bulk-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 @media (max-width: 640px) { .tax-bulk-row { grid-template-columns: 1fr; } .tax-bulk-row > div:last-child { flex-direction: row; align-items: center !important; } }
 .version-badge { position: fixed; top: 4px; left: 6px; z-index: 1000; font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--muted); background: var(--surface); border-radius: 6px; padding: 2px 6px; pointer-events: none; opacity: .85; font-variant-numeric: tabular-nums; }
+.tax-outstanding { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--blue-soft); font-size: 14px; }
+.tax-outstanding.late { border-color: color-mix(in srgb, var(--red-ink) 45%, transparent); }
+.tax-outstanding-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 8px; font-size: 13px; }
+.tax-pay-line { display: grid; grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; background: var(--surface); }
+.tax-pay-line.paid { background: color-mix(in srgb, var(--green) 8%, var(--surface)); }
+.tax-pay-tick { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; align-self: center; }
+.tax-pay-name { font-size: 14px; align-self: center; }
+.tax-pay-date { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.tax-pay-date input { width: 100%; }
+.red-ink { color: var(--red-ink); }
+@media (max-width: 760px) { .tax-pay-line { grid-template-columns: 1fr 1fr; } .tax-pay-tick { grid-column: 1 / -1; } .tax-pay-name { grid-column: 1 / -1; } }
+.tax-pay-group { grid-column: 1 / -1; }
+.tax-pay-stack { display: flex; flex-direction: column; gap: 10px; }
+.tax-pay-line { grid-template-columns: auto minmax(120px, 1.5fr) minmax(130px, 1fr) minmax(90px, 0.8fr) minmax(90px, 0.8fr) auto; }
+.tax-pay-line .tax-field { min-width: 0; }
+.tax-pay-line .tax-field input, .tax-pay-line .input { min-width: 0; width: 100%; }
+.tax-pay-line .tax-field > span { font-size: 12px; }
+.tax-pay-date input { min-height: 36px; }

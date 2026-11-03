@@ -109,8 +109,8 @@ test("Winter Fuel Payment charge from 2025-26, gifts of shares, and tax collecte
   assert.equal(compute(ret((r) => { r.employments.push(job(30000, 3886)); }), 2026).balancing, -400);
 });
 
-test("payments on account: rolled forward from last year, the expected amounts used unless different amounts were paid", async () => {
-  const { emptyReturn, compute, poaMade, rollForward } = await import("../src/lib/tax.ts");
+test("payments on account: rolled forward from last year, and only ticked payments count against the tax", async () => {
+  const { emptyReturn, compute, rollForward, paymentLines, outstandingPayments } = await import("../src/lib/tax.ts");
   const last = emptyReturn();
   last.selfEmployments.push({ id: "s", name: "Shop", turnover: 60000, expenses: 20000 });
   const rf = rollForward(last, 2026);
@@ -119,12 +119,25 @@ test("payments on account: rolled forward from last year, the expected amounts u
   const now = emptyReturn();
   now.selfEmployments.push({ id: "s", name: "Shop", turnover: 60000, expenses: 20000 });
   now.payments = { expectedPoa1: rf.expectedPoa1, expectedPoa2: rf.expectedPoa2, expectedFrom: "the 2025-26 return" };
-  assert.equal(poaMade(now.payments), rf.expectedPoa1 * 2);
-  assert.equal(compute(now, 2027).poaPaid, rf.expectedPoa1 * 2);
-  now.payments = { ...now.payments, paidDifferent: true, poa1: 1000, poa2: 0 };
-  const paid = compute(now, 2027);
-  assert.equal(paid.poaPaid, 1000);
-  assert.ok(paid.warnings.some((w) => /differ from those expected/.test(w)));
-  // old returns with only the amounts paid still work
-  assert.equal(poaMade({ poa1: 300, poa2: 200 }), 500);
+  // the two payments are there to be paid, but nothing is taken off until they're ticked
+  const lines = paymentLines(now, 2027);
+  assert.deepEqual(lines.map((l) => [l.kind, l.date, l.paid, l.amount]), [["poa1", "2027-01-31", false, rf.expectedPoa1], ["poa2", "2027-07-31", false, rf.expectedPoa2]]);
+  assert.equal(compute(now, 2027).poaPaid, 0);
+  assert.equal(outstandingPayments(now, 2027, "2027-02-10").total, rf.expectedPoa1 + rf.expectedPoa2);
+  assert.equal(outstandingPayments(now, 2027, "2027-02-10").lines[0].overdue, true);
+  // tick the first, paid on a different day: it counts, and the second is still outstanding
+  now.payments.lines = lines.map((l) => (l.kind === "poa1" ? { ...l, paid: true, date: "2027-02-03" } : l));
+  const part = compute(now, 2027);
+  assert.equal(part.poaPaid, rf.expectedPoa1);
+  assert.equal(outstandingPayments(now, 2027, "2027-02-10").total, rf.expectedPoa2);
+  assert.ok(part.blocks.find((b) => b.title === "Summary")!.rows.some((r) => /paid 3 Feb 2027/.test(r.label)));
+  // a late payment's increase is paid to HMRC but isn't tax
+  now.payments.lines = now.payments.lines!.map((l) => (l.kind === "poa2" ? { ...l, paid: true, late: 75 } : l));
+  const late = compute(now, 2027);
+  assert.equal(late.lateInterest, 75);
+  assert.equal(late.balancing, p2(part.balancing - rf.expectedPoa2));
+  // old returns with only the amounts paid: the amounts are read as paid
+  assert.deepEqual(paymentLines({ ...emptyReturn(), payments: { poa1: 300, poa2: 200 } }, 2027).map((l) => [l.paid, l.amount]), [[true, 300], [true, 200]]);
 });
+const p2 = (v: number) => Math.round(v * 100) / 100;
+

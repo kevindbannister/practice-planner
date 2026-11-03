@@ -7,6 +7,7 @@
 // It is a working computation for the accountant: it handles the common cases and says what it does not handle; the
 // figures to file come from the return software.
 import { Region, YearRates, ratesFor } from "./taxRates";
+import { todayIso } from "./domain";
 
 // ------------------------------------------------------------------ the return
 
@@ -72,11 +73,28 @@ export type TaxReturn = {
   /** sections added by hand that may have nothing in them yet */
   added?: SectionKey[];
   payments: {
+    /** the payments made to HMRC for this year, each with its date, amount and whether it has been paid. Until this is set, the
+     * two payments on account are read from the fields below (see paymentLines). */
+    lines?: PaymentLine[];
     poa1?: number; poa2?: number; priorLiability?: number; earlierYearInCode?: number; nextYearInCode?: number; propertyReturnTax?: number;
     /** the payments on account expected for this year, rolled forward from last year's return (or typed in) */ expectedPoa1?: number; expectedPoa2?: number;
     /** where the expected figures came from, e.g. "the 2024-25 return" */ expectedFrom?: string;
     /** different amounts were paid: poa1 and poa2 are what was actually paid */ paidDifferent?: boolean;
   };
+};
+
+/** A payment to or from HMRC on this year's return. Only a payment that has been ticked as paid counts against the tax. */
+export type PaymentLine = {
+  id: string;
+  kind: "poa1" | "poa2" | "other";
+  label: string;
+  /** the date it is due, or the date it was paid once ticked (change it if it was paid on another day) */
+  date: string;
+  /** the amount due (or paid) */
+  amount?: number;
+  paid?: boolean;
+  /** late payment interest or penalty on this payment: paid to HMRC, but not part of the tax */
+  late?: number;
 };
 
 export const emptyReturn = (): TaxReturn => ({
@@ -154,7 +172,7 @@ export function hasSection(r: TaxReturn, k: SectionKey): boolean {
     case "studentLoan": return r.studentLoan.plans.length > 0 || !!r.studentLoan.postgrad;
     case "childBenefit": return !!r.childBenefit;
     case "winterFuel": return !!r.winterFuel;
-    case "payments": return !!(r.payments.poa1 || r.payments.poa2 || r.payments.expectedPoa1 || r.payments.expectedPoa2 || r.payments.priorLiability || r.payments.earlierYearInCode || r.payments.propertyReturnTax);
+    case "payments": return !!(r.payments.lines?.length || r.payments.poa1 || r.payments.poa2 || r.payments.expectedPoa1 || r.payments.expectedPoa2 || r.payments.priorLiability || r.payments.earlierYearInCode || r.payments.propertyReturnTax);
   }
 }
 
@@ -168,7 +186,7 @@ export type Computation = {
   personalAllowance: number; taxable: number;
   incomeTax: number; class2: number; class4: number; studentLoan: number; hicbc: number; cgt: number;
   /** carried to next year: unused capital losses and unused residential finance costs */ carried: { capitalLosses: number; financeCosts: number };
-  totalLiability: number; deducted: number; poaPaid: number; balancing: number;
+  totalLiability: number; deducted: number; poaPaid: number; lateInterest: number; balancing: number;
   poaNext: number; due: { date: string; label: string; amount: number }[];
 };
 
@@ -462,17 +480,20 @@ export function compute(r: TaxReturn, year: number): Computation {
     + sum(r.pensions?.others.map((o) => n(o.tax)) || []) + n(r.pensions?.stateLumpSumTax) + n(r.benefits?.incapacityTax) + n(r.otherIncome?.taxTaken) + n(r.property?.taxTaken) - n(r.payments.earlierYearInCode));
   const propertyReturn = n(r.payments.propertyReturnTax);
   const totalLiability = p2(incomeTax + class2 + class4 + studentLoan + cgt);
-  const poaPaid = poaMade(r.payments);
-  const poaExpected = p2(n(r.payments.expectedPoa1) + n(r.payments.expectedPoa2));
-  if (r.payments.paidDifferent && poaExpected && Math.abs(poaPaid - poaExpected) > 0.004) warnings.push(`Payments on account paid (£${poaPaid.toLocaleString("en-GB", { minimumFractionDigits: 2 })}) differ from those expected (£${poaExpected.toLocaleString("en-GB", { minimumFractionDigits: 2 })}). Check HMRC's statement.`);
+  // only the payments ticked as paid count: the summary is what has actually been paid
+  const lines = paymentLines(r, year);
+  const madeLines = lines.filter((l) => l.paid);
+  const poaPaid = p2(sum(madeLines.map((l) => n(l.amount))));
+  const latePaid = p2(sum(madeLines.map((l) => n(l.late))));
   const balancing = p2(totalLiability - atSource - poaPaid - propertyReturn);
   const sumRows: Row[] = [
     { label: "Income tax", amount: incomeTax }, ...(class2 + class4 ? [{ label: "Class 2 and Class 4 NIC", amount: p2(class2 + class4) }] : []),
     ...(studentLoan ? [{ label: "Student loan", amount: studentLoan }] : []), ...(cgt ? [{ label: "Capital Gains Tax", amount: cgt }] : []),
     { label: "Total tax due", amount: totalLiability, strong: true },
     ...(atSource ? [{ label: "Tax deducted at source (PAYE, CIS, interest, pensions)", amount: -atSource }] : []),
-    ...(poaPaid ? [{ label: r.payments.paidDifferent || !poaExpected ? "Payments on account made" : `Payments on account made (as expected${r.payments.expectedFrom ? ` from ${r.payments.expectedFrom}` : ""})`, amount: -poaPaid }] : []),
+    ...madeLines.filter((l) => n(l.amount)).map((l) => ({ label: `${l.label} · paid ${fmtPaidDate(l.date)}`, amount: -n(l.amount) })),
     ...(propertyReturn ? [{ label: "Paid on UK property disposal returns", amount: -propertyReturn }] : []),
+    ...(latePaid ? [{ label: "Late payment interest and penalties paid (not part of the tax)", amount: latePaid, note: "Paid to HMRC with the payments above; not taken off the balance" }] : []),
     ...(n(r.payments.nextYearInCode) ? [{ label: `To be collected through next year's tax code: £${n(r.payments.nextYearInCode).toLocaleString("en-GB")}`, note: "Not taken off the balance" }] : []),
   ];
   blocks.push({ title: "Summary", rows: sumRows, total: { label: balancing >= 0 ? "Balance to pay" : "Repayment due", amount: Math.abs(balancing) } });
@@ -503,19 +524,48 @@ export function compute(r: TaxReturn, year: number): Computation {
   return {
     year, blocks, warnings,
     income: { nonSavings, savings, dividends, total, net, adjustedNet: p2(adjustedNet) },
-    personalAllowance: allowances, taxable, incomeTax, class2, class4, studentLoan, hicbc, cgt, totalLiability, deducted: atSource, poaPaid, balancing, poaNext, due,
+    personalAllowance: allowances, taxable, incomeTax, class2, class4, studentLoan, hicbc, cgt, totalLiability, deducted: atSource, poaPaid, lateInterest: latePaid, balancing, poaNext, due,
     carried: { capitalLosses: p2(capitalLossCf), financeCosts: financeCf },
   };
 }
 
 // ------------------------------------------------------------------ reading saved data
 
-/** The payments on account made for the year: the expected ones, unless different amounts were paid (or only actual amounts were entered). */
-export function poaMade(p: TaxReturn["payments"]): number {
-  const expected = (Number(p.expectedPoa1) || 0) + (Number(p.expectedPoa2) || 0);
-  const actual = (Number(p.poa1) || 0) + (Number(p.poa2) || 0);
-  return Math.round((p.paidDifferent || (!expected && actual) ? actual : expected) * 100) / 100;
+/** The payments for a year's return. Returns saved before the list existed have their two payments on account read from the old
+ * fields: paid when different amounts were paid (as on an imported return) or the return was submitted, otherwise still to pay. */
+export function paymentLines(r: TaxReturn, year: number): PaymentLine[] {
+  const p = r.payments;
+  if (p.lines) return p.lines;
+  const expected = n(p.expectedPoa1) + n(p.expectedPoa2);
+  const actual = n(p.poa1) + n(p.poa2);
+  const paid = p.paidDifferent || (!expected && actual > 0) || r.status?.state === "submitted";
+  const pick = (exp: number | undefined, act: number | undefined) => (paid && (p.paidDifferent || !expected) ? act : exp);
+  return [
+    { id: "poa1", kind: "poa1", label: "First payment on account", date: `${year}-01-31`, amount: pick(p.expectedPoa1, p.poa1), paid: !!paid && (!!p.paidDifferent || !!expected || actual > 0) },
+    { id: "poa2", kind: "poa2", label: "Second payment on account", date: `${year}-07-31`, amount: pick(p.expectedPoa2, p.poa2), paid: !!paid && (!!p.paidDifferent || !!expected || actual > 0) },
+  ];
 }
+/** The payment lines as they stand when first opened: the two payments on account, to be paid (the rolled-forward amounts). */
+export function defaultPaymentLines(year: number, expectedPoa1?: number, expectedPoa2?: number): PaymentLine[] {
+  return [
+    { id: "poa1", kind: "poa1", label: "First payment on account", date: `${year}-01-31`, amount: expectedPoa1, paid: false },
+    { id: "poa2", kind: "poa2", label: "Second payment on account", date: `${year}-07-31`, amount: expectedPoa2, paid: false },
+  ];
+}
+/** The amount of the payments ticked as paid, and the late payment increases paid with them. */
+export function paidTotals(lines: PaymentLine[]): { paid: number; late: number } {
+  const made = lines.filter((l) => l.paid);
+  return { paid: p2(sum(made.map((l) => n(l.amount)))), late: p2(sum(made.map((l) => n(l.late)))) };
+}
+/** What is still to pay on this year's return: each unticked line with any late increase, and whether it is past its date. */
+export function outstandingPayments(r: TaxReturn, year: number, today = todayIso()): { lines: (PaymentLine & { overdue: boolean; owed: number })[]; total: number } {
+  const lines = paymentLines(r, year).filter((l) => !l.paid).map((l) => ({ ...l, overdue: l.date < today, owed: p2(n(l.amount) + n(l.late)) }));
+  lines.sort((a, b) => a.date.localeCompare(b.date));
+  return { lines, total: p2(sum(lines.map((l) => l.owed))) };
+}
+
+const fmtPaidDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
 /** Next year's expected payments on account from this year's return, ready to roll forward. */
 export function rollForward(prev: TaxReturn, prevYear: number): { expectedPoa1: number; expectedPoa2: number; liability: number } {
   const c = compute(prev, prevYear);
