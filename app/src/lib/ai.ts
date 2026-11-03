@@ -89,6 +89,8 @@ export class HttpAi implements AiApi {
       /* not JSON: the bridge isn't deployed yet */
     }
     if (res.ok && body) return body;
+    // the Azure gateway answers in HTML when a request runs past its 45 seconds
+    if (!body && (res.status === 504 || res.status === 502)) throw new AiError("timeout", "The server took too long to answer (its limit is 45 seconds). Try again, or bring in the calculation and the summaries as separate files.");
     if (!body || !body.error) throw new AiError("no-bridge", "The AI connection isn't on the server yet. It arrives with the next deployment.");
     throw new AiError(body.error, body.message || "The AI couldn't write that. Try again.");
   }

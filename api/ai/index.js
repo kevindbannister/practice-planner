@@ -478,7 +478,8 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       const model = pickModel(await listModels(key), typeof b.model === "string" && /^[a-z0-9.\-:_]{1,64}$/i.test(b.model) ? b.model : "", env);
       let r;
       try {
-        r = await complete(key, model, text, TAX_READ_SYSTEM, undefined, "medium");
+        // minimal effort keeps the answer inside the 45-second limit Azure puts on the API (the model is cut off at 40 seconds first)
+        r = await complete(key, model, text, TAX_READ_SYSTEM, undefined, "minimal");
       } catch (e) {
         const timeout = e && (e.name === "TimeoutError" || e.name === "AbortError");
         context.res = reply(timeout ? 504 : 502, { error: timeout ? "timeout" : "unreachable", message: timeout ? "The AI took too long to read the return. Try again." : "The AI didn't answer. Try again shortly." });
