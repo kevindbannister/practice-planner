@@ -22,6 +22,8 @@ export type SelfEmployment = {
   id: string; name: string; description?: string; start?: string; end?: string;
   turnover: number; otherIncome?: number; expenses: number; disallowable?: number; capitalAllowances?: number; balancingCharges?: number;
   tradingAllowance?: boolean; transitionProfit?: number; lossesBf?: number; lossSideways?: number; cis?: number; taxDeducted?: number;
+  /** each expense as the accounts show it (from IRIS's detailed summaries); `expenses` is their total */
+  expenseItems?: { id: string; label: string; amount: number }[];
 };
 export type Partnership = { id: string; name: string; utr?: string; profit: number; lossesBf?: number; transitionProfit?: number; savings?: number; dividends?: number; taxDeducted?: number; cis?: number };
 export type Interest = { id: string; payer: string; untaxed: number; net?: number; taxTaken?: number; foreign?: boolean; foreignTax?: number };

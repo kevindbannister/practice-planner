@@ -56,3 +56,21 @@ test("other files are reported, not guessed at", () => {
   const res = readImport([{ name: "bank.pdf", pages: [["Statement", "Balance £100.00"]] }]);
   assert.equal(res.warnings.length, 3);
 });
+
+test("the summaries give each bank account's interest, foreign interest and self-employment breakdown", () => {
+  const detail = { name: "Detailed summaries.pdf", pages: [[
+    "Mr Sam Example UTR: 1234567890", "Detailed summaries for year ended 5 April 2025",
+    "Untaxed UK Interest etc", "Example Bank Ltd £1,200.00", "Sample Savings plc £300.50", "£1,500.50 Total",
+    "Foreign savings interest", "Example Country", "Overseas Bank £400.00 £40.00",
+    "Self-employment Sole trader - year ended 5 April 2025", "Turnover £50,000.00", "Cost of goods £10,000.00",
+    "Business travel £1,000.00", "Business insurance £500.00", "Total expenses £11,500.00", "Transitional profit carried forward £0.00",
+    "Net profit £38,500.00", "Reconciliation", "Taxable profit £38,500.00",
+  ]] };
+  const res = readImport([detail]);
+  assert.deepEqual(res.ret.interest.map((i) => [i.payer, i.untaxed]), [["Example Bank Ltd", 1200], ["Sample Savings plc", 300.5], ["Overseas Bank (Example Country)", 400]]);
+  const trade = res.ret.selfEmployments[0];
+  assert.equal(trade.name, "Sole trader");
+  assert.equal(trade.turnover, 50000);
+  assert.equal(trade.expenses, 11500);
+  assert.deepEqual(trade.expenseItems?.map((x) => [x.label, x.amount]), [["Cost of goods", 10000], ["Business travel", 1000], ["Business insurance", 500]]);
+});

@@ -780,6 +780,9 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
     if (!s) return null;
     const set = (p: Partial<SelfEmployment>) => patchList("selfEmployments", s.id, p);
     const t = tradeProfit(s);
+    const items = s.expenseItems || [];
+    // each expense line as the accounts show it; the total is their sum, so the lines and the total can't disagree
+    const setItems = (next: { id: string; label: string; amount: number }[]) => set({ expenseItems: next.length ? next : undefined, expenses: Math.round(next.reduce((a, x) => a + x.amount, 0) * 100) / 100 });
     return (<>
       <Group title="Business">
         <Text label="Business name" value={s.name} onChange={(v) => set({ name: v })} /><Text label="Description" value={s.description} onChange={(v) => set({ description: v })} />
@@ -790,8 +793,19 @@ function SectionForm({ item, ret, update, year }: { item: NavItem; ret: TaxRetur
       </Group>
       <Tick label={`Claim the £${R.tradingAllowance.toLocaleString("en-GB")} trading allowance instead of expenses`} value={s.tradingAllowance} onChange={(v) => set({ tradingAllowance: v })} />
       {!s.tradingAllowance && <Group title="Expenses and adjustments">
-        <Money label="Allowable expenses (total)" value={s.expenses} onChange={(v) => set({ expenses: v || 0 })} /><Money label="Disallowable expenses added back" value={s.disallowable} onChange={(v) => set({ disallowable: v })} />
+        {items.length
+          ? <Readout label="Allowable expenses (total of the lines below)" value={s.expenses} />
+          : <Money label="Allowable expenses (total)" value={s.expenses} onChange={(v) => set({ expenses: v || 0 })} />}
+        <Money label="Disallowable expenses added back" value={s.disallowable} onChange={(v) => set({ disallowable: v })} />
         <Money label="Capital allowances" value={s.capitalAllowances} onChange={(v) => set({ capitalAllowances: v })} /><Money label="Balancing charges" value={s.balancingCharges} onChange={(v) => set({ balancingCharges: v })} />
+      </Group>}
+      {!s.tradingAllowance && <Group title="Expense breakdown">
+        {items.map((x, i) => <div key={x.id} className="tax-expense-row">
+          <Text label="Expense" value={x.label} onChange={(v) => setItems(items.map((y, j) => (j === i ? { ...y, label: v || "" } : y)))} />
+          <Money label="Amount" value={x.amount} onChange={(v) => setItems(items.map((y, j) => (j === i ? { ...y, amount: v || 0 } : y)))} />
+          <button type="button" className="btn small" onClick={() => setItems(items.filter((_, j) => j !== i))}>Remove</button>
+        </div>)}
+        <button type="button" className="btn small" onClick={() => setItems([...items, { id: newId(), label: "New expense", amount: 0 }])}><Icon name="plus" size={14} /> Add an expense line</button>
       </Group>}
       <Group title="Profits and losses">
         {year >= 2025 && year <= 2028 && <Money label="Transition profit taxable this year" hint="(basis period reform)" value={s.transitionProfit} onChange={(v) => set({ transitionProfit: v })} />}

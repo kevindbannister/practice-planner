@@ -63,7 +63,8 @@ export function yearIn(lines: string[]): number | undefined {
 }
 
 const HEADINGS: [RegExp, string][] = [
-  [/^UK Dividends/i, "dividends"], [/^Foreign dividends/i, "foreignDividends"], [/^(UK )?(Bank|Building society|Savings)?\s*interest/i, "interest"], [/^Interest from UK/i, "interest"],
+  [/^UK Dividends/i, "dividends"], [/^Foreign dividends/i, "foreignDividends"], [/^(Untaxed|Taxed) UK interest/i, "interest"], [/^Foreign (savings )?interest/i, "foreignInterest"], [/^(UK )?(Bank|Building society|Savings)?\s*interest/i, "interest"], [/^Interest from UK/i, "interest"],
+  [/^Reconciliation/i, "skip"],
   [/^Employment income:?/i, "employment"], [/^Pension contributions|^Payments to registered pension/i, "pensionPaid"], [/^State Pension/i, "statePension"], [/^Pensions?\b|^UK pensions/i, "pensions"],
   [/^(Self[- ]employment|Trading income|Business)\b/i, "trade"], [/^Partnership/i, "partnership"], [/^(UK )?(land and )?property/i, "property"],
   [/^Gift Aid/i, "giftAid"], [/^Other income/i, "otherIncome"],
@@ -147,18 +148,21 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
     }
     if (isSummaries) {
       res.kinds.push("summaries");
-      let sec = "", cur: Employment | undefined, tradeName = "", trade: { profit?: number } | undefined;
+      let sec = "", cur: Employment | undefined, tradeName = "", country = "";
+      let trade: { profit?: number; turnover?: number; items: { id: string; label: string; amount: number }[] } | undefined;
       for (const l of body) {
         const plain = withoutMoney(l);
         const head = HEADINGS.find(([re]) => re.test(plain));
-        if (head && !/^Total\b/i.test(plain)) {
-          sec = head[1];
+        // inside a trade, an expense such as "Business travel 120.00" is a line, not a new trade
+        const inTrade = head?.[1] === "trade" && sec === "trade" && allMoney(l).length > 0;
+        if (head && !/^Total\b/i.test(plain) && !inTrade) {
+          sec = head[1]; country = "";
           if (sec === "employment") {
             const name = complete(plain.replace(/^Employment income:?\s*/i, ""));
             cur = { id: newId(), name, paye: "", pay: 0, tax: 0, benefits: {}, expenses: {} };
             r.employments.push(cur);
           }
-          if (sec === "trade") { tradeName = plain.replace(/^(Self[- ]employment|Trading income|Business):?\s*/i, "") || "Trade"; trade = {}; }
+          if (sec === "trade") { tradeName = plain.replace(/^(Self[- ]employment|Trading income|Business):?\s*/i, "").replace(/\s+-\s+year ended.*$/i, "").trim() || "Trade"; trade = { items: [] }; }
           continue;
         }
         if (/^Shares Date|^held paid|^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/.test(plain) || /Detailed summaries|UTR:/.test(l)) continue;
@@ -176,6 +180,12 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
           else if (/expense/i.test(plain) && !isTotal) cur.expenses.other = (cur.expenses.other || 0) + Math.abs(v);
           continue;
         }
+        if (sec === "foreignInterest") {
+          // a country heading has no figures; each account under it has its gross amount and any foreign tax paid
+          if (v === undefined) { if (plain && !/tax paid|taxable|^gross|^amount/i.test(plain)) country = plain; continue; }
+          if (plain && !isTotal) r.interest.push({ id: newId(), payer: country ? `${plain} (${country})` : plain, untaxed: amounts[0], foreign: true, foreignTax: amounts.length >= 3 ? amounts[1] : undefined });
+          continue;
+        }
         if (v === undefined || isTotal) continue;
         if (sec === "dividends" || sec === "foreignDividends") {
           const company = plain.replace(/\s+\d[\d,]*$/, "").replace(/\s+\d{2}\/\d{2}\/\d{4}$/, "").replace(/\s+\d[\d,]*$/, "").trim();
@@ -187,8 +197,16 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
         } else if (sec === "statePension") {
           (r.pensions ||= { others: [] }).state = v;
         } else if (sec === "trade" && trade) {
-          if (/profit|net/i.test(plain)) trade.profit = v;
-          if (trade.profit !== undefined && !r.selfEmployments.some((s) => s.name === tradeName)) r.selfEmployments.push({ id: newId(), name: tradeName, turnover: trade.profit, expenses: 0 });
+          // turnover, each expense, then the net profit; the transitional profit and reconciliation lines are not this year's trade
+          if (/^turnover\b/i.test(plain)) trade.turnover = v;
+          else if (/^net profit/i.test(plain)) trade.profit = v;
+          else if (plain && !/transition|profit|loss|taxable|^net\b/i.test(plain)) trade.items.push({ id: newId(), label: plain, amount: v });
+          if (trade.profit !== undefined && !r.selfEmployments.some((s) => s.name === tradeName)) {
+            const sum = Math.round(trade.items.reduce((a, x) => a + x.amount, 0) * 100) / 100;
+            const turnover = trade.turnover ?? Math.round((trade.profit + sum) * 100) / 100;
+            if (trade.items.length && Math.abs(turnover - trade.profit - sum) > 1) res.warnings.push(`${tradeName}: the expenses add up to £${sum.toLocaleString("en-GB", { minimumFractionDigits: 2 })}, but turnover less profit is £${(turnover - trade.profit).toLocaleString("en-GB", { minimumFractionDigits: 2 })}: check the summaries.`);
+            r.selfEmployments.push({ id: newId(), name: tradeName, turnover, expenses: trade.items.length ? sum : Math.round((turnover - trade.profit) * 100) / 100, expenseItems: trade.items.length ? trade.items : undefined });
+          }
         } else if (sec === "property") {
           if (/profit|net/i.test(plain)) r.property = { income: v, finance: 0 };
         } else if (sec === "giftAid") {
@@ -235,7 +253,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
   for (const e of r.employments) res.found.push(`Employment: ${e.name}${e.paye ? ` (${e.paye})` : ""}, pay £${e.pay.toLocaleString("en-GB", { minimumFractionDigits: 2 })}${e.tax ? `, tax £${e.tax.toLocaleString("en-GB", { minimumFractionDigits: 2 })}` : ""}`);
   for (const d of r.dividends) res.found.push(`Dividends: ${d.company} £${d.amount.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   for (const i of r.interest) res.found.push(`Interest: ${i.payer} £${i.untaxed.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
-  for (const s of r.selfEmployments) res.found.push(`Self-employment: ${s.name}, profit £${s.turnover.toLocaleString("en-GB", { minimumFractionDigits: 2 })} (entered as turnover with no expenses)`);
+  for (const s of r.selfEmployments) res.found.push(`Self-employment: ${s.name}, turnover £${s.turnover.toLocaleString("en-GB", { minimumFractionDigits: 2 })}, expenses £${s.expenses.toLocaleString("en-GB", { minimumFractionDigits: 2 })}${s.expenseItems?.length ? ` (${s.expenseItems.length} lines)` : " (no breakdown)"}`);
   for (const p of r.partnerships) res.found.push(`Partnership: ${p.name}, share £${p.profit.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   if (r.property) res.found.push(`UK property profit £${r.property.income.toLocaleString("en-GB", { minimumFractionDigits: 2 })} (entered as rents with no expenses)`);
   if (r.pensions?.state) res.found.push(`State Pension £${r.pensions.state.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
@@ -273,6 +291,10 @@ function mergeDetail(base: TaxReturn, s: TaxReturn): TaxReturn {
   if (intBox && intS.length && near(sumOf(intS.map((i) => i.untaxed)), intBox.untaxed)) out.interest = [...intS, ...base.interest.filter((i) => i !== intBox)];
   else if (!intBox && intS.length) out.interest = [...intS, ...base.interest];
   // the schedules list every kind of income, so whatever the form pages couldn't give comes from them
+  // the account's own foreign interest, with each account and country, when the form's total for it agrees
+  const fBox = base.interest.find((i) => i.payer.startsWith("Foreign interest")), fS = s.interest.filter((i) => i.foreign);
+  if (fBox && fS.length && near(sumOf(fS.map((i) => i.untaxed)), fBox.untaxed)) out.interest = [...out.interest.filter((i) => i !== fBox), ...fS];
+  else if (!fBox && fS.length) out.interest = [...out.interest, ...fS];
   if (!out.selfEmployments.length && s.selfEmployments.length) out.selfEmployments = s.selfEmployments;
   if (!out.partnerships.length && s.partnerships.length) out.partnerships = s.partnerships;
   if (!out.property && s.property) out.property = s.property;
