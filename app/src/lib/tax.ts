@@ -523,10 +523,12 @@ export function compute(r: TaxReturn, year: number): Computation {
   const latePaid = p2(sum(madeLines.map((l) => n(l.late))));
   const balancing = p2(totalLiability - atSource - poaPaid - propertyReturn);
   const sumRows: Row[] = [
-    { label: "Income tax", amount: incomeTax }, ...(class2 + class4 ? [{ label: "Class 2 and Class 4 NIC", amount: p2(class2 + class4) }] : []),
+    { label: "Income Tax charged after allowances and reliefs", amount: incomeTax },
+    ...(atSource ? [{ label: "Less tax deducted at source (PAYE, CIS, interest, pensions)", amount: -atSource }] : []),
+    { label: "Total Income Tax due", amount: p2(incomeTax - atSource), strong: true },
+    ...(class2 + class4 ? [{ label: "Class 2 and Class 4 NIC", amount: p2(class2 + class4) }] : []),
     ...(studentLoan ? [{ label: "Student loan", amount: studentLoan }] : []), ...(cgt ? [{ label: "Capital Gains Tax", amount: cgt }] : []),
     { label: "Total tax due", amount: totalLiability, strong: true },
-    ...(atSource ? [{ label: "Tax deducted at source (PAYE, CIS, interest, pensions)", amount: -atSource }] : []),
     ...madeLines.filter((l) => n(l.amount)).map((l) => ({ label: `${l.label} · paid ${fmtPaidDate(l.date)}`, amount: -n(l.amount) })),
     ...(propertyReturn ? [{ label: "Paid on UK property disposal returns", amount: -propertyReturn }] : []),
     ...(latePaid ? [{ label: "Late payment interest and penalties paid (not part of the tax)", amount: latePaid, note: "Paid to HMRC with the payments above; not taken off the balance" }] : []),
