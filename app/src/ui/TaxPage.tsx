@@ -7,7 +7,7 @@ import { Client, fmtDate, todayIso } from "../lib/domain";
 import { PaperStatus, STATUS_LABEL, readSetup, setupRow, stateOf } from "../lib/papers";
 import {
   Computation, Dividend, Employment, Gain, Interest, NOT_YET, OtherPension, Partnership, ReturnState, SECTIONS, STATE_LABEL, SectionDef, SectionKey, SelfEmployment, TaxReturn,
-  bringForward, compute, emptyReturn, hasSection, newId, outstandingPayments, paymentLines, PaymentLine, propertyProfit, readReturn, rollForward, tradeProfit, employmentIncome,
+  bringForward, compute, defaultPaymentLines, emptyReturn, hasSection, newId, outstandingPayments, paymentLines, PaymentLine, propertyProfit, readReturn, rollForward, tradeProfit, employmentIncome,
 } from "../lib/tax";
 import { ImportResult } from "../lib/taxImport";
 import { brandOf, readBranding, displayName } from "../lib/docBranding";
@@ -969,6 +969,12 @@ type YearLine = { y: number; r?: TaxReturn; cc?: Computation; due?: ReturnType<t
 /** The computation for the year beside every year held for the client: what was due, paid, still to pay and received back. */
 function SummaryView({ client: c, year, ret, comp, update }: { client: Client; year: number; ret: TaxReturn; comp: Computation; update: (f: (r: TaxReturn) => TaxReturn) => void }) {
   const { data } = useData();
+  const [ask, setAsk] = useState<Ask | null>(null);
+  // puts the year's payments back to the two payments on account still to pay, and forgets what was brought in for it
+  const resetPayments = () => update((r) => ({
+    ...r,
+    payments: { ...r.payments, lines: defaultPaymentLines(year, r.payments.expectedPoa1, r.payments.expectedPoa2), imported: [], credits: [], paidDifferent: undefined },
+  }));
   const years = useMemo((): YearLine[] => [...YEARS].reverse().map(({ year: y }) => {
     if (y === year) return { y, r: ret, cc: comp, due: outstandingPayments(ret, y) };
     const row = setupRow(data.papers, c.Key, yearEnd(y), TAX_ITEM);
@@ -976,7 +982,6 @@ function SummaryView({ client: c, year, ret, comp, update }: { client: Client; y
     const r = readReturn(readSetup(row).r);
     return { y, r, cc: compute(r, y), due: outstandingPayments(r, y) };
   }), [data.papers, c.Key, year, ret, comp]);
-  const lines = paymentLines(ret, year);
   const credits = ret.payments.credits || [];
   return (
     <div className="tax-split tax-split-return">
@@ -1001,20 +1006,16 @@ function SummaryView({ client: c, year, ret, comp, update }: { client: Client; y
           </table>
         </section>
         <section className="card" style={{ padding: 16 }}>
-          <h3 style={{ margin: "0 0 8px" }}>Payments for {yearLabel(year)}</h3>
-          {lines.length === 0 && <p className="muted" style={{ margin: 0 }}>No payments entered.</p>}
-          <table className="grid">
-            <tbody>
-              {lines.map((l) => (
-                <tr key={l.id}>
-                  <td>{l.label}</td>
-                  <td className="mono">{fmtDate(l.date)}</td>
-                  <td className="num mono">{l.amount ? gbp(l.amount) : ""}</td>
-                  <td>{l.paid ? <span className="chip green">Paid</span> : <span className={`chip${l.date < todayIso() ? " red" : ""}`}>{l.date < todayIso() ? "Overdue" : "To pay"}</span>}{l.late ? <div className="muted" style={{ fontSize: 12 }}>late {gbp(l.late)}</div> : null}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="row-wrap" style={{ gap: 8, justifyContent: "space-between", marginBottom: 8 }}>
+            <h3 style={{ margin: 0 }}>Payments for {yearLabel(year)}</h3>
+            <button type="button" className="btn small danger" onClick={() => setAsk({
+              title: `Reset the ${yearLabel(year)} payments?`, danger: true, yes: "Reset payments",
+              body: ["This removes every payment, credit and late increase for this year, including any brought in from the HMRC account.", "The two payments on account are put back as still to pay."],
+              onYes: resetPayments,
+            })}>Reset payments</button>
+          </div>
+          <PaymentLines ret={ret} year={year} update={update} />
+          {ask && <ConfirmBox ask={ask} onClose={() => setAsk(null)} />}
         </section>
         {credits.length > 0 && (
           <section className="card" style={{ padding: 16 }}>
