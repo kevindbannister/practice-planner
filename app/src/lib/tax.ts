@@ -101,6 +101,9 @@ export type PaymentLine = {
   late?: number;
   /** the HMRC account line this came from (so removing it lets that line be brought in again) */
   hmrcKey?: string;
+  /** the whole payment this line is part of: when and how much HMRC received. A payment can be allocated across years, so this
+   * line may be only part of it. */
+  source?: { date: string; amount: number };
 };
 
 export const emptyReturn = (): TaxReturn => ({

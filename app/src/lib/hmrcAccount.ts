@@ -208,6 +208,8 @@ export function applyAccount(plan: PlanRow[], returns: Map<number, TaxReturn>): 
     } else {
       lines.push({ id: newId(), kind: "other", label: `${LABEL[role.kind]} (from the HMRC account)`, date: row.date, amount: row.amount, paid: true, hmrcKey: row.key });
     }
+    // the whole payment a line came from, so the return shows how much of it went to this year
+    lines = lines.map((l) => (l.hmrcKey === row.key && !l.source ? { ...l, source: { date: row.date, amount: row.kind === "allocation" ? (row.from ?? row.amount) : row.amount } } : l));
     r.payments.lines = lines;
     r.payments.imported = [...imported, row.key];
   }

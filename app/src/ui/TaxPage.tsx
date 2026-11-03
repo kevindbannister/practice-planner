@@ -597,7 +597,7 @@ function PaymentLines({ ret, year, update }: { ret: TaxReturn; year: number; upd
           <label className="tax-pay-tick"><input type="checkbox" checked={!!l.paid} onChange={(e) => edit(l.id, { paid: e.target.checked })} /> Paid</label>
           {l.kind === "other"
             ? <input className="input" aria-label="Payment" value={l.label} placeholder="What it is" onChange={(e) => edit(l.id, { label: e.target.value })} />
-            : <span className="tax-pay-name">{l.label}</span>}
+            : <span className="tax-pay-name">{l.label}{l.source ? <small className="muted"> · part of the {gbp(l.source.amount)} paid {fmtDate(l.source.date)}</small> : null}</span>}
           <label className="tax-pay-date"><span>{l.paid ? "Paid on" : "Due"}</span><input className="input" type="date" value={l.date} onChange={(e) => e.target.value && edit(l.id, { date: e.target.value })} /></label>
           <Money label={l.paid ? "Amount paid" : "Amount"} value={l.amount} onChange={(v) => edit(l.id, { amount: v })} />
           <Money label="Late payment increase" hint="(interest or penalty)" value={l.late} onChange={(v) => edit(l.id, { late: v })} />
@@ -609,6 +609,48 @@ function PaymentLines({ ret, year, update }: { ret: TaxReturn; year: number; upd
       </div>
       <p className="muted" style={{ margin: 0, fontSize: 12 }}>Ticked payments come off the tax on the summary. Change the date to the day it was paid. If it was paid late, enter the interest or penalty under late payment increase.</p>
     </div></div>
+  );
+}
+
+/** Each payment HMRC received, with what it was allocated to this year, and any part that went to another year. */
+function PaymentSources({ lines, year }: { lines: PaymentLine[]; year: number }) {
+  const groups = new Map<string, { date: string; amount: number; lines: PaymentLine[] }>();
+  const loose: PaymentLine[] = [];
+  for (const l of lines) {
+    if (!l.source) { if (l.amount) loose.push(l); continue; }
+    const k = `${l.source.date}|${l.source.amount}`;
+    const g = groups.get(k) ?? { date: l.source.date, amount: l.source.amount, lines: [] };
+    g.lines.push(l);
+    groups.set(k, g);
+  }
+  if (!groups.size && !loose.length) return null;
+  const total = (xs: PaymentLine[]) => Math.round(xs.reduce((a, l) => a + (l.amount || 0), 0) * 100) / 100;
+  return (
+    <section className="card" style={{ padding: 16 }}>
+      <h3 style={{ margin: "0 0 4px" }}>How each payment was allocated</h3>
+      <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>HMRC's payment comes first. Part of it is allocated to {yearLabel(year)}; any rest went to another year.</p>
+      <div className="stack" style={{ gap: 12 }}>
+        {[...groups.values()].map((g) => {
+          const here = total(g.lines);
+          const rest = Math.round((g.amount - here) * 100) / 100;
+          return (
+            <div key={`${g.date}|${g.amount}`} className="stack" style={{ gap: 4 }}>
+              <div className="row-wrap" style={{ justifyContent: "space-between", gap: 8 }}>
+                <strong>Payment of {gbp(g.amount)} on {fmtDate(g.date)}</strong>
+                <span className="mono">{gbp(here)} to {yearLabel(year)}{rest > 0.004 ? `, ${gbp(rest)} to another year` : ""}</span>
+              </div>
+              <table className="grid"><tbody>{g.lines.map((l) => <tr key={l.id}><td>{l.label}</td><td className="num mono">{gbp(l.amount)}</td></tr>)}</tbody></table>
+              {rest > 0.004 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>{gbp(rest)} of this payment was allocated to another tax year. Paste that year's breakdown to see which.</p>}
+            </div>
+          );
+        })}
+        {loose.map((l) => (
+          <div key={l.id} className="row-wrap" style={{ justifyContent: "space-between", gap: 8 }}>
+            <span>{l.label} (entered by hand)</span><span className="mono">{gbp(l.amount)} on {fmtDate(l.date)}</span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -983,6 +1025,7 @@ function SummaryView({ client: c, year, ret, comp, update }: { client: Client; y
     return { y, r, cc: compute(r, y), due: outstandingPayments(r, y) };
   }), [data.papers, c.Key, year, ret, comp]);
   const credits = ret.payments.credits || [];
+  const lines = paymentLines(ret, year);
   return (
     <div className="tax-split tax-split-return">
       <aside className="tax-comp hero-wash" aria-label="Tax computation"><CompPanel comp={comp} year={year} client={c} /></aside>
@@ -1014,6 +1057,7 @@ function SummaryView({ client: c, year, ret, comp, update }: { client: Client; y
               onYes: resetPayments,
             })}>Reset payments</button>
           </div>
+          <PaymentSources lines={lines} year={year} />
           <PaymentLines ret={ret} year={year} update={update} />
           {ask && <ConfirmBox ask={ask} onClose={() => setAsk(null)} />}
         </section>

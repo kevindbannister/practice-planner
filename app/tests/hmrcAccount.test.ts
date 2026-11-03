@@ -219,3 +219,12 @@ test("a placeholder that was paid, or came from the account, is not listed", () 
   r.payments.lines = [{ id: "x", kind: "poa1", label: "First payment on account", date: "2021-01-30", amount: 800, paid: true }, { id: "y", kind: "poa2", label: "Second", date: "2021-07-31", amount: 800, hmrcKey: "k" }];
   assert.deepEqual(placeholdersFor(b, new Map([[2021, r]]), "2026-11-03"), []);
 });
+
+test("each line from a breakdown remembers the whole payment it came from, so the part for this year is clear", () => {
+  const returns = new Map<number, TaxReturn>([[2020, withPoas(2020, 600, 1500)]]);
+  const out = applyAccount(planBreakdown(parseBreakdown(BREAKDOWN).rows, returns, new Set()), returns).get(2020)!;
+  const first = out.payments.lines!.find((l) => l.kind === "poa1" && l.paid)!;
+  assert.deepEqual(first.source, { date: "2020-01-27", amount: 1000 });
+  const fromTwentyOne = out.payments.lines!.filter((l) => l.source?.amount === 2000).reduce((a, l) => a + (l.amount || 0), 0);
+  assert.equal(fromTwentyOne, 2000);
+});
