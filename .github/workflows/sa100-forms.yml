@@ -1,0 +1,72 @@
+# Keeps HMRC's blank SA100 tax return forms in the app (app/public/forms/sa100/SA100-<year>.pdf), so the
+# tax return screen can show the return beside the computation. <year> is the year the tax year ends:
+# SA100-2026 is the 2025-26 return.
+#
+# HMRC's site isn't reachable from where the app is built, so this downloads the forms and commits any that
+# are new. It runs when this file changes, on the 3rd of each month (to pick up a new year's form, which HMRC
+# usually publishes in April), and on demand.
+name: SA100 forms
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/sa100-forms.yml"]
+  schedule:
+    - cron: "17 6 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the forms
+        run: |
+          set -u
+          dir=app/public/forms/sa100
+          mkdir -p "$dir"
+          A=https://assets.publishing.service.gov.uk
+          W=https://webarchive.nationalarchives.gov.uk/ukgwa
+          get() { # year, then the addresses to try in order
+            y=$1; shift
+            [ -s "$dir/SA100-$y.pdf" ] && { echo "SA100-$y already here"; return; }
+            for u in "$@"; do
+              if curl -fsSL --retry 2 --max-time 120 -A "xproflow-forms/1.0" -o /tmp/f.pdf "$u" && head -c 5 /tmp/f.pdf | grep -q "%PDF"; then
+                mv /tmp/f.pdf "$dir/SA100-$y.pdf"; echo "SA100-$y from $u"; return
+              fi
+            done
+            echo "::warning::SA100-$y could not be downloaded"
+          }
+          get 2020 "$A/government/uploads/system/uploads/attachment_data/file/1148669/SA100_tax_return_English_2020.pdf" \
+                   "$W/20230531141839id_/$A/government/uploads/system/uploads/attachment_data/file/1148669/SA100_tax_return_English_2020.pdf" \
+                   "$W/20220531181922id_/$A/government/uploads/system/uploads/attachment_data/file/874083/sa100_English_Form.pdf"
+          get 2021 "$A/media/642c0990ddf8ad000cac0d0a/SA100_tax_return_English_2021.pdf" \
+                   "$W/20240531155015id_/$A/media/642c0990ddf8ad000cac0d0a/SA100_tax_return_English_2021.pdf" \
+                   "$W/20220531181922id_/$A/government/uploads/system/uploads/attachment_data/file/975548/sa100-2021.pdf"
+          get 2022 "$A/media/642c09637de82b000c313559/SA100_tax_return__English_2022.pdf" \
+                   "$W/20250530153722id_/$A/media/642c09637de82b000c313559/SA100_tax_return__English_2022.pdf" \
+                   "$W/20220531181922id_/$A/government/uploads/system/uploads/attachment_data/file/1062331/SA100_tax_return__2022_.pdf"
+          get 2023 "$A/media/642c0ac77de82b000c31355c/SA100_tax_return_English_2023.pdf" \
+                   "$W/20250530153722id_/$A/media/642c0ac77de82b000c31355c/SA100_tax_return_English_2023.pdf"
+          get 2024 "$A/media/6613fc8a213873b991031b88/SA100_2024.pdf" \
+                   "$W/20250530153722id_/$A/media/6613fc8a213873b991031b88/SA100_2024.pdf"
+          get 2025 "$A/media/68da63f1ef1c2f72bc1e4b6d/SA100-2025.pdf" \
+                   "$A/media/67dab05391e6e0492302840e/SA100-2025.pdf" \
+                   "$W/20250530153722id_/$A/media/67dab05391e6e0492302840e/SA100-2025.pdf"
+          get 2026 "$A/media/69c14d07cfa346b9d4704a8d/SA100-2026.pdf"
+          # Any newer year listed on HMRC's page (the 2027 form appears around April 2027).
+          page=$(curl -fsSL --max-time 60 https://www.gov.uk/government/publications/self-assessment-tax-return-sa100 || true)
+          for y in 2027 2028 2029; do
+            u=$(printf '%s' "$page" | grep -oE "$A/[^\"' ]*SA100[-_]$y[^\"' ]*\.pdf" | head -1)
+            [ -n "$u" ] && get "$y" "$u"
+          done
+          ls -la "$dir"
+      - name: Commit new forms
+        run: |
+          git add app/public/forms/sa100
+          if git diff --cached --quiet; then echo "Nothing new"; exit 0; fi
+          git -c user.name="xproflow forms" -c user.email="actions@users.noreply.github.com" commit -m "SA100 forms: add the blank returns from HMRC"
+          git push
