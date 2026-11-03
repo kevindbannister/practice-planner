@@ -36,6 +36,8 @@ export function HmrcAccountDialog({ client, onClose }: { client: Client; onClose
   const { data, create, update } = useData();
   const [text, setText] = useState("");
   const [choose, setChoose] = useState<Record<number, Role | null>>({});
+  /** the person's own ticks: a line is approved by default only when it matches the return */
+  const [approved, setApproved] = useState<Record<number, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ saved: number[]; failed: number[] } | null>(null);
 
@@ -51,14 +53,22 @@ export function HmrcAccountDialog({ client, onClose }: { client: Client; onClose
 
   const parsed = useMemo(() => parseAccount(text), [text]);
   const plan = useMemo(() => planAccount(parsed.rows, returns, importedKeys(returns), choose), [parsed.rows, returns, choose]);
-  const changed = useMemo(() => applyAccount(plan, returns), [plan, returns]);
-  const applying = plan.filter((p) => p.role && p.status !== "already").length;
-  const counts = (s: PlanRow["status"]) => plan.filter((p) => p.status === s).length;
+
+  const canApprove = (p: PlanRow) => !!p.role && (p.status === "match" || p.status === "check");
+  const isApproved = (p: PlanRow, i: number) => canApprove(p) && (i in approved ? approved[i] : p.status === "match");
+  // only the approved lines are brought in
+  const toApply = useMemo(() => plan.map((p, i): PlanRow => (isApproved(p, i) ? p : { ...p, role: undefined })), [plan, approved]);
+  const changed = useMemo(() => applyAccount(toApply, returns), [toApply, returns]);
+  const approvedCount = toApply.filter((p) => p.role).length;
+  const counts = (st: PlanRow["status"]) => plan.filter((p) => p.status === st).length;
   const newYears = [...changed.keys()].filter((y) => !returns.has(y)).sort((a, b) => a - b);
 
   const setRow = (i: number, kind: Role["kind"] | "skip", year: number) => {
     setChoose((prev) => ({ ...prev, [i]: kind === "skip" ? null : { kind, year } }));
+    if (kind !== "skip") setApproved((prev) => ({ ...prev, [i]: true }));
   };
+  const deleteRow = (i: number) => setChoose((prev) => ({ ...prev, [i]: null }));
+  const putBack = (i: number) => setChoose((prev) => { const next = { ...prev }; delete next[i]; return next; });
 
   const save = async () => {
     if (!changed.size) return;
@@ -108,12 +118,12 @@ export function HmrcAccountDialog({ client, onClose }: { client: Client; onClose
             <div className="stack" style={{ gap: 12 }}>
               <label className="field">
                 <span>Paste the lines from the HMRC account</span>
-                <textarea className="input" rows={6} value={text} onChange={(e) => { setText(e.target.value); setChoose({}); }} placeholder={"30 Jul 2026    Payment    1,673.84\n31 Jan 2023    Repayment supplement (interest)    .08"} aria-label="Lines from the HMRC account" style={{ fontFamily: "var(--mono, monospace)", fontSize: 13 }} />
+                <textarea className="input" rows={5} value={text} onChange={(e) => { setText(e.target.value); setChoose({}); setApproved({}); }} placeholder={"30 Jul 2026    Payment    1,673.84\n31 Jan 2023    Repayment supplement (interest)    .08"} aria-label="Lines from the HMRC account" style={{ fontFamily: "var(--mono, monospace)", fontSize: 13 }} />
               </label>
 
               {parsed.rows.length > 0 && (
                 <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                  {parsed.rows.length} line{parsed.rows.length === 1 ? "" : "s"} read: {counts("match")} matched, {counts("check")} to check, {counts("already")} already in, {counts("outside")} for years not held, {counts("skip")} left out.
+                  {parsed.rows.length} line{parsed.rows.length === 1 ? "" : "s"} read: {counts("match")} match the return, {counts("check")} to check, {counts("system")} already in the return, {counts("already")} brought in before, {counts("outside")} for years not held, {counts("skip")} left out. Approve the lines to bring in, and delete any that aren't wanted.
                 </p>
               )}
               {parsed.skipped.length > 0 && <p className="warn" style={{ margin: 0, fontSize: 13 }}>Not read (not a date, description and amount): {parsed.skipped.slice(0, 3).join(" · ")}{parsed.skipped.length > 3 ? ` and ${parsed.skipped.length - 3} more` : ""}</p>}
@@ -121,28 +131,38 @@ export function HmrcAccountDialog({ client, onClose }: { client: Client; onClose
               {plan.length > 0 && (
                 <div className="table-wrap">
                   <table className="grid">
-                    <thead><tr><th>Date</th><th>On the account</th><th className="num">Amount</th><th>Goes to</th><th>Tax year</th><th>Check</th></tr></thead>
+                    <thead><tr><th>Approve</th><th>Date</th><th>HMRC account</th><th>In the return</th><th>Goes to</th><th>Tax year</th><th>Check</th><th></th></tr></thead>
                     <tbody>
                       {plan.map((p, i) => {
+                        const deleted = choose[i] === null;
                         const kind = p.role ? p.role.kind : "skip";
                         const year = p.role?.year ?? yearOf(p.row.date);
                         const st = STATUS[p.status];
                         return (
-                          <tr key={p.row.key + i}>
-                            <td className="mono" style={{ whiteSpace: "nowrap" }}>{p.row.date}</td>
-                            <td>{p.row.description}</td>
-                            <td className="num mono">{gbp(p.row.amount)}</td>
+                          <tr key={p.row.key + i} style={deleted ? { opacity: 0.55 } : undefined}>
                             <td>
-                              <select className="input" value={kind} aria-label={`What ${p.row.description} on ${p.row.date} is`} onChange={(e) => setRow(i, e.target.value as Role["kind"] | "skip", year)} style={{ minWidth: 220 }}>
-                                {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+                              <input type="checkbox" aria-label={`Approve ${p.row.description} on ${p.row.date}`} disabled={!canApprove(p) || deleted} checked={isApproved(p, i)} onChange={(e) => setApproved((prev) => ({ ...prev, [i]: e.target.checked }))} />
+                            </td>
+                            <td className="mono" style={{ whiteSpace: "nowrap" }}>{p.row.date}</td>
+                            <td><div>{p.row.description}</div><div className="mono">{gbp(p.row.amount)}</div></td>
+                            <td><div className="tax-note">{p.system ?? (p.role && (p.role.kind === "poa1" || p.role.kind === "poa2") ? "Nothing paid yet" : "Not in the return")}</div></td>
+                            <td>
+                              <select className="input" value={kind} disabled={deleted} aria-label={`What ${p.row.description} on ${p.row.date} is`} onChange={(e) => setRow(i, e.target.value as Role["kind"] | "skip", year)} style={{ minWidth: 230 }}>
+                                {KINDS.filter((k) => k.value !== "skip").map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+                                <option value="skip">Leave out</option>
                               </select>
                             </td>
                             <td>
-                              <select className="input" value={year} disabled={kind === "skip"} aria-label={`Tax year for ${p.row.description} on ${p.row.date}`} onChange={(e) => setRow(i, kind, Number(e.target.value))} style={{ minWidth: 100 }}>
+                              <select className="input" value={year} disabled={kind === "skip" || deleted} aria-label={`Tax year for ${p.row.description} on ${p.row.date}`} onChange={(e) => setRow(i, kind, Number(e.target.value))} style={{ minWidth: 100 }}>
                                 {[...YEARS].reverse().map((y) => <option key={y.year} value={y.year}>{y.label}</option>)}
                               </select>
                             </td>
                             <td><span className={st.cls}>{st.label}</span><div className="tax-note">{p.note}</div></td>
+                            <td>
+                              {deleted
+                                ? <button type="button" className="btn small" onClick={() => putBack(i)}>Put back</button>
+                                : <button type="button" className="btn small" onClick={() => deleteRow(i)} aria-label={`Delete ${p.row.description} on ${p.row.date} from this import`}>Delete</button>}
+                            </td>
                           </tr>
                         );
                       })}
@@ -152,11 +172,12 @@ export function HmrcAccountDialog({ client, onClose }: { client: Client; onClose
               )}
 
               {newYears.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>A blank return is started for {newYears.map(yearLabel).join(", ")}, where there isn't one yet.</p>}
+              <p className="muted" style={{ margin: 0, fontSize: 12 }}>Lines already in a return aren't added again. To remove a payment that is already in a return, use its Remove button on the return's payments.</p>
             </div>
             <div className="row-wrap" style={{ gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
               <button type="button" className="btn" onClick={onClose} disabled={saving}>Cancel</button>
-              <button type="button" className="btn primary" disabled={!applying || saving} onClick={() => void save()}>
-                {applying ? `Bring in ${applying} line${applying === 1 ? "" : "s"}` : "Bring in"}
+              <button type="button" className="btn primary" disabled={!approvedCount || saving} onClick={() => void save()}>
+                {approvedCount ? `Bring in ${approvedCount} approved line${approvedCount === 1 ? "" : "s"}` : "Approve lines to bring in"}
               </button>
             </div>
           </>

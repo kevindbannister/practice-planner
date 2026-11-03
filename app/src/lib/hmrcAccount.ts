@@ -13,7 +13,10 @@ export type PlanRow = {
   row: AccountRow;
   /** undefined: not applied (already imported, outside the years held, or skipped by the person) */
   role?: Role;
-  status: "match" | "check" | "already" | "outside" | "skip";
+  /** system: the same payment is already in the return, so it is not added again */
+  status: "match" | "check" | "already" | "system" | "outside" | "skip";
+  /** what the return already has for this line: a payment entered, or a payment on account still to pay */
+  system?: string;
   note: string;
 };
 
@@ -97,10 +100,37 @@ const LABEL: Record<Role["kind"], string> = {
   poa1: "First payment on account", poa2: "Second payment on account", balancing: "Balancing payment", payment: "Payment", charge: "Late payment interest or penalty", credit: "Interest or repayment received",
 };
 
+/** The figures in the return that a line from the account is (or might be the same as). `same` is false when the return has a payment
+ * on account of that kind with a different amount, which needs checking rather than skipping. */
+function systemMatch(returns: Map<number, TaxReturn>, role: Role, row: AccountRow): { text: string; same: boolean } | undefined {
+  const r = returns.get(role.year);
+  if (!r) return undefined;
+  const near = (a: number | undefined, b: number) => a !== undefined && Math.abs(a - b) < 0.005;
+  if (role.kind === "credit") {
+    const c = (r.payments.credits || []).find((x) => x.key === row.key || (x.date === row.date && near(x.amount, row.amount)));
+    return c ? { text: `interest or repayment of ${money(c.amount)} on ${c.date}`, same: true } : undefined;
+  }
+  const lines = paymentLines(r, role.year);
+  if (role.kind === "charge") {
+    const l = lines.find((x) => x.late !== undefined && near(x.late, row.amount) && x.date === row.date);
+    return l ? { text: `${l.label} of ${money(l.late)} on ${l.date}`, same: true } : undefined;
+  }
+  if (role.kind === "poa1" || role.kind === "poa2") {
+    const made = lines.find((x) => x.kind === role.kind && x.paid);
+    if (!made) return undefined;
+    return { text: `${made.label}, paid ${made.date} for ${money(made.amount)}`, same: near(made.amount, row.amount) };
+  }
+  const l = lines.find((x) => x.kind === "other" && x.paid && near(x.amount, row.amount) && x.date === row.date);
+  return l ? { text: `${l.label}, paid ${l.date} for ${money(l.amount)}`, same: true } : undefined;
+}
+
+const money = (v: number | undefined) => `£${(v ?? 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 /** The role of each line: the first tax year it could belong to that the app holds and whose figures it matches, otherwise the
- * most likely one flagged to check. `choose` replaces the role for a line (by its index); null skips it. */
+ * most likely one flagged to check. `choose` replaces the role for a line (by its index); null skips it. A line whose payment is
+ * already in the return is marked system and is not applied again. */
 export function planAccount(rows: AccountRow[], returns: Map<number, TaxReturn>, imported: Set<string>, choose: Record<number, Role | null> = {}): PlanRow[] {
-  return rows.map((row, i): PlanRow => {
+  const base = (row: AccountRow, i: number): PlanRow => {
     if (i in choose) {
       const role = choose[i];
       if (!role) return { row, status: "skip", note: "Left out" };
@@ -119,15 +149,29 @@ export function planAccount(rows: AccountRow[], returns: Map<number, TaxReturn>,
     if (pick.kind === "credit" || pick.kind === "charge") return { row, role: pick, status: "match", note: pick.kind === "credit" ? "Interest or repayment: not part of the tax" : "Paid to HMRC on top of the tax" };
     const e = expectedFor(returns, pick);
     const note = e !== undefined
-      ? `Not the ${LABEL[pick.kind].toLowerCase()} the return expects (£${e.toLocaleString("en-GB", { minimumFractionDigits: 2 })}): check it`
+      ? `Not the ${LABEL[pick.kind].toLowerCase()} the return expects (${money(e)}): check it`
       : `${LABEL[pick.kind]} for ${yearLabel(pick.year)}: no figures to check against`;
     return { row, role: pick, status: "check", note };
+  };
+  return rows.map((row, i): PlanRow => {
+    const p = base(row, i);
+    if (!p.role || !heldYear(p.role.year) || p.status === "already") return p;
+    const sys = systemMatch(returns, p.role, row);
+    if (!sys) {
+      // nothing paid yet: a payment on account still to pay is what this line will tick
+      const open = p.role.kind === "poa1" || p.role.kind === "poa2" ? paymentLines(returns.get(p.role.year) || emptyReturn(), p.role.year).find((l) => l.kind === p.role!.kind && !l.paid) : undefined;
+      return open ? { ...p, system: `${open.label}, due ${open.date}${open.amount !== undefined ? ` for ${money(open.amount)}` : ""}` } : p;
+    }
+    return sys.same
+      ? { ...p, status: "system", system: sys.text, note: `Already in the return: ${sys.text}` }
+      : { ...p, status: "check", system: sys.text, note: `The return already has ${sys.text}. Approve only if this is a further payment` };
   });
 }
 
-/** Puts the applied lines onto the returns: a payment ticks the matching payment on account (or adds the payment), a balance or
- * other payment adds a paid line, a late charge adds a late increase, interest and repayments go to the credits. Years with no
- * return yet get a blank one. Returns only the returns that changed; the inputs are not changed. */
+/** Puts the approved lines onto the returns: a payment ticks the matching payment on account that is still to pay (or adds the
+ * payment), a balance or other payment adds a paid line, a late charge adds a late increase, interest and repayments go to the
+ * credits. A line already in the return (status system), already brought in, or without a role is not applied. Years with no return
+ * yet get a blank one. Returns only the returns that changed; the inputs are not changed. */
 export function applyAccount(plan: PlanRow[], returns: Map<number, TaxReturn>): Map<number, TaxReturn> {
   const out = new Map<number, TaxReturn>();
   const get = (y: number): TaxReturn => {
@@ -135,8 +179,8 @@ export function applyAccount(plan: PlanRow[], returns: Map<number, TaxReturn>): 
     if (!r) { r = structuredClone(returns.get(y) ?? emptyReturn()); out.set(y, r); }
     return r;
   };
-  for (const { row, role } of plan) {
-    if (!role || !heldYear(role.year)) continue;
+  for (const { row, role, status } of plan) {
+    if (!role || !heldYear(role.year) || status === "system" || status === "already") continue;
     const r = get(role.year);
     const imported = r.payments.imported || [];
     if (imported.includes(row.key)) continue;
@@ -144,13 +188,13 @@ export function applyAccount(plan: PlanRow[], returns: Map<number, TaxReturn>): 
     if (role.kind === "credit") {
       r.payments.credits = [...(r.payments.credits || []), { date: row.date, description: row.description, amount: row.amount, key: row.key }];
     } else if (role.kind === "charge") {
-      lines.push({ id: newId(), kind: "other", label: `${row.description} (from the HMRC account)`, date: row.date, late: row.amount, paid: true });
+      lines.push({ id: newId(), kind: "other", label: `${row.description} (from the HMRC account)`, date: row.date, late: row.amount, paid: true, hmrcKey: row.key });
     } else if (role.kind === "poa1" || role.kind === "poa2") {
       const open = lines.find((l) => l.kind === role.kind && !l.paid);
-      if (open) Object.assign(open, { paid: true, date: row.date, amount: row.amount });
-      else lines.push({ id: newId(), kind: role.kind, label: LABEL[role.kind], date: row.date, amount: row.amount, paid: true });
+      if (open) Object.assign(open, { paid: true, date: row.date, amount: row.amount, hmrcKey: row.key });
+      else lines.push({ id: newId(), kind: role.kind, label: LABEL[role.kind], date: row.date, amount: row.amount, paid: true, hmrcKey: row.key });
     } else {
-      lines.push({ id: newId(), kind: "other", label: `${LABEL[role.kind]} (from the HMRC account)`, date: row.date, amount: row.amount, paid: true });
+      lines.push({ id: newId(), kind: "other", label: `${LABEL[role.kind]} (from the HMRC account)`, date: row.date, amount: row.amount, paid: true, hmrcKey: row.key });
     }
     r.payments.lines = lines;
     r.payments.imported = [...imported, row.key];

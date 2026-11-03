@@ -99,6 +99,8 @@ export type PaymentLine = {
   paid?: boolean;
   /** late payment interest or penalty on this payment: paid to HMRC, but not part of the tax */
   late?: number;
+  /** the HMRC account line this came from (so removing it lets that line be brought in again) */
+  hmrcKey?: string;
 };
 
 export const emptyReturn = (): TaxReturn => ({

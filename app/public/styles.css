@@ -3093,6 +3093,9 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 @media (max-width: 640px) { .tax-page .paper-tools { margin-left: 0; width: 100%; justify-content: flex-start; } .tax-views button { padding-left: 10px; padding-right: 10px; } }
 
 .tax-bulk { width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; }
+.tax-account { width: min(1320px, calc(100vw - 32px)); }
+.tax-account .table-wrap { overflow-x: auto; }
+.tax-account td, .tax-account th { vertical-align: top; }
 .tax-bulk-row { display: grid; grid-template-columns: 78px minmax(0, 1fr) auto; gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: var(--surface); color: var(--ink); }
 .tax-bulk-row.empty { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px dashed rgba(255, 255, 255, 0.6); align-items: center; }
 .tax-bulk-row.empty .muted { color: rgba(255, 255, 255, 0.92); }

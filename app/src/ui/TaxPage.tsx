@@ -328,7 +328,7 @@ function TaxScreen({ client: c, year, view, setView, start, frozen }: { client: 
     setAdding(false);
   };
 
-  if (view === "summary") return <SummaryView client={c} year={year} ret={ret} comp={comp} />;
+  if (view === "summary") return <SummaryView client={c} year={year} ret={ret} comp={comp} update={update} />;
 
   if (view === "return") {
     const eItems = editing ? items.filter((x) => x.section.key === editing.section) : [];
@@ -601,7 +601,7 @@ function PaymentLines({ ret, year, update }: { ret: TaxReturn; year: number; upd
           <label className="tax-pay-date"><span>{l.paid ? "Paid on" : "Due"}</span><input className="input" type="date" value={l.date} onChange={(e) => e.target.value && edit(l.id, { date: e.target.value })} /></label>
           <Money label={l.paid ? "Amount paid" : "Amount"} value={l.amount} onChange={(v) => edit(l.id, { amount: v })} />
           <Money label="Late payment increase" hint="(interest or penalty)" value={l.late} onChange={(v) => edit(l.id, { late: v })} />
-          {l.kind === "other" && <button type="button" className="btn small" onClick={() => setLines((ls) => ls.filter((x) => x.id !== l.id))} aria-label={`Remove ${l.label || "this payment"}`}>Remove</button>}
+          <button type="button" className="btn small" onClick={() => update((r) => ({ ...r, payments: { ...r.payments, lines: paymentLines(r, year).filter((x) => x.id !== l.id), imported: l.hmrcKey ? (r.payments.imported || []).filter((k) => k !== l.hmrcKey) : r.payments.imported } }))} aria-label={`Remove ${l.label || "this payment"}`}>Remove</button>
         </div>
       ))}
       <div className="row-wrap" style={{ gap: 8 }}>
@@ -967,7 +967,7 @@ function CompPanel({ comp, year, client }: { comp: Computation; year: number; cl
 type YearLine = { y: number; r?: TaxReturn; cc?: Computation; due?: ReturnType<typeof outstandingPayments> };
 
 /** The computation for the year beside every year held for the client: what was due, paid, still to pay and received back. */
-function SummaryView({ client: c, year, ret, comp }: { client: Client; year: number; ret: TaxReturn; comp: Computation }) {
+function SummaryView({ client: c, year, ret, comp, update }: { client: Client; year: number; ret: TaxReturn; comp: Computation; update: (f: (r: TaxReturn) => TaxReturn) => void }) {
   const { data } = useData();
   const years = useMemo((): YearLine[] => [...YEARS].reverse().map(({ year: y }) => {
     if (y === year) return { y, r: ret, cc: comp, due: outstandingPayments(ret, y) };
@@ -1021,7 +1021,14 @@ function SummaryView({ client: c, year, ret, comp }: { client: Client; year: num
             <h3 style={{ margin: "0 0 8px" }}>Received from HMRC for {yearLabel(year)}</h3>
             <table className="grid">
               <tbody>
-                {credits.map((x) => <tr key={x.key}><td>{x.description}</td><td className="mono">{fmtDate(x.date)}</td><td className="num mono">{gbp(x.amount)}</td></tr>)}
+                {credits.map((x) => (
+                  <tr key={x.key}>
+                    <td>{x.description}</td>
+                    <td className="mono">{fmtDate(x.date)}</td>
+                    <td className="num mono">{gbp(x.amount)}</td>
+                    <td><button type="button" className="btn small" aria-label={`Remove ${x.description} on ${fmtDate(x.date)}`} onClick={() => update((r) => ({ ...r, payments: { ...r.payments, credits: (r.payments.credits || []).filter((c2) => c2.key !== x.key), imported: (r.payments.imported || []).filter((k) => k !== x.key) } }))}>Remove</button></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
             <p className="muted" style={{ margin: "8px 0 0", fontSize: 12 }}>Interest and repayments are not part of the tax.</p>

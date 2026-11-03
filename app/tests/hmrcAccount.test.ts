@@ -113,3 +113,38 @@ test("a line the person sets to a year, or skips, is applied or left out", () =>
   assert.equal(applyAccount(skipped, new Map()).size, 0);
 });
 
+
+test("a payment already in the return is not added again, even though it was entered by hand", () => {
+  const r = withPoas(2026, 1222.22, 1111.11);
+  // the first payment on account was ticked by hand, with the same amount and date as the account shows
+  r.payments.lines = [{ id: "poa1", kind: "poa1", label: "First payment on account", date: "2026-01-30", amount: 1222.22, paid: true }];
+  const returns = new Map([[2026, r]]);
+  const { rows } = parseAccount("30 Jan 2026\tPayment\t1,222.22");
+  const plan = planAccount(rows, returns, new Set());
+  assert.equal(plan[0].status, "system");
+  assert.equal(applyAccount(plan, returns).size, 0);
+});
+
+test("a paid payment on account with a different amount is flagged, not skipped", () => {
+  const r = withPoas(2026, 1222.22, 1111.11);
+  r.payments.lines = [{ id: "poa1", kind: "poa1", label: "First payment on account", date: "2026-01-30", amount: 1000, paid: true }];
+  const plan = planAccount(parseAccount("30 Jan 2026\tPayment\t1,222.22").rows, new Map([[2026, r]]), new Set());
+  assert.equal(plan[0].status, "check");
+});
+
+test("an unpaid payment on account is ticked by the HMRC line, and the line remembers where it came from", () => {
+  const returns = new Map([[2026, withPoas(2026, 1222.22, 1111.11)]]);
+  const { rows } = parseAccount("30 Jan 2026\tPayment\t1,222.22");
+  const out = applyAccount(planAccount(rows, returns, new Set()), returns).get(2026)!;
+  const lines = out.payments.lines!.filter((l) => l.kind === "poa1");
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].paid, true);
+  assert.equal(lines[0].hmrcKey, rows[0].key);
+});
+
+test("a line left out of the approved plan is not applied", () => {
+  const returns = new Map([[2026, withPoas(2026, 1222.22, 1111.11)]]);
+  const { rows } = parseAccount("30 Jan 2026\tPayment\t1,222.22");
+  const plan = planAccount(rows, returns, new Set()).map((p) => ({ ...p, role: undefined }));
+  assert.equal(applyAccount(plan, returns).size, 0);
+});
