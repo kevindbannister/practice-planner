@@ -14,7 +14,7 @@ import { ProposalDetail, ProposalLinks, ProposalsList } from "./ProposalsPage";
 import { EngagementDetail, EngagementsList } from "./EngagementsPage";
 import { OnboardingDetail, OnboardingList } from "./OnboardingPage";
 import { RevenuePage } from "./FeesPanel";
-import { BillingPage } from "./Billing";
+import { BillingPage } from "./Collections";
 import { ReportsPage } from "./ReportsPage";
 import { TYPE_INFO, ActivityType } from "../lib/timeline";
 

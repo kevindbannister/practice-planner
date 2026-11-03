@@ -2976,6 +2976,38 @@
     {
      "name": "CreatedBy",
      "type": "text"
+    },
+    {
+     "name": "BillId",
+     "type": "text"
+    },
+    {
+     "name": "BillNo",
+     "type": "text"
+    },
+    {
+     "name": "BillUrl",
+     "type": "text"
+    },
+    {
+     "name": "BillStatus",
+     "type": "text"
+    },
+    {
+     "name": "BilledOn",
+     "type": "text"
+    },
+    {
+     "name": "PaidOn",
+     "type": "text"
+    },
+    {
+     "name": "BillAmount",
+     "type": "number"
+    },
+    {
+     "name": "BillCustomer",
+     "type": "text"
     }
    ]
   },
@@ -4749,6 +4781,61 @@
     },
     {
      "name": "Notes",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "BillingChases",
+   "displayName": "PP Billing Chases",
+   "description": "chasers, promises to pay and disputes on overdue invoices",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "InvoiceNos",
+     "type": "text"
+    },
+    {
+     "name": "Level",
+     "type": "number"
+    },
+    {
+     "name": "Amount",
+     "type": "number"
+    },
+    {
+     "name": "At",
+     "type": "text"
+    },
+    {
+     "name": "Actor",
+     "type": "text"
+    },
+    {
+     "name": "PromiseOn",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Note",
      "type": "note"
     }
    ]

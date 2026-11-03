@@ -13,6 +13,7 @@ import { useData } from "./data";
 import { useSales } from "./salesKit";
 import { CatchUp, ClientPricingCheck, PricingCheckList } from "./Pricing";
 import { ClientBilling } from "./Billing";
+import { ChargeBilling } from "./Collections";
 
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const msgOf = (e: unknown) => (e instanceof Error && e.message ? e.message : "That didn't work. Try again.");
@@ -102,7 +103,7 @@ export function ClientFees({ client }: { client: Row }) {
         <strong>One-off charges</strong>
         {charges.length ? <table className="tbl"><tbody>{charges.map(({ row, c }) => (
           <tr key={c.key}><td>{c.label}</td><td>{gbp(c.amount)}</td><td>{c.agreedOn ? fmtDate(c.agreedOn) : ""}</td><td>{c.vat ? vatLabel(c.vat) : ""}</td><td><span className={`chip ${c.status === "agreed" ? "green" : c.status === "proposed" ? "amber" : ""}`}>{c.status === "agreed" ? "Agreed" : c.status === "proposed" ? "Proposed" : "Cancelled"}</span></td>
-            <td>{f.can && c.status !== "cancelled" && <CancelCharge disabled={busy} onCancel={(why) => doW(cancelCharge(row, client, why, s.pcan, s.ctx()))} />}</td></tr>
+            <td><ChargeBilling client={client} row={row} busy={busy} doW={doW} />{f.can && c.status !== "cancelled" && !["unpaid", "paid", "draft"].includes(str(row.BillStatus)) && <CancelCharge disabled={busy} onCancel={(why) => doW(cancelCharge(row, client, why, s.pcan, s.ctx()))} />}</td></tr>
         ))}</tbody></table> : <span className="muted">None.</span>}
         <CatchUp client={client} lines={lines} charges={data.feeCharges.filter((x) => str(x.ClientKey) === ck)} can={f.can} busy={busy} doW={doW} />
         {f.can && <AddCharge disabled={busy} onAdd={(c) => doW(addCharge(client, c, s.pcan, s.ctx()), "Charge added.")} />}

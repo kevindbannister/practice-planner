@@ -354,8 +354,8 @@ export class FakeXero implements XeroApi {
         return { Contacts: PRACTICE_CONTACTS.filter((c) => c.name.toLowerCase().includes(term.split(" ")[0] || "")).map((c) => ({ ContactID: c.id, Name: c.name, EmailAddress: c.email, IsCustomer: true })) } as T;
       }
       if (path === "Invoices") {
-        const ids = ([] as string[]).concat((query.ContactIDs as any) || []).join(",").split(",");
-        return { Invoices: Number(query.page || 1) === 1 ? practiceInvoices().filter((i) => ids.includes(i.Contact.ContactID)) : [] } as T;
+        const ids = ([] as string[]).concat((query.ContactIDs as any) || []).join(",").split(",").filter(Boolean);
+        return { Invoices: Number(query.page || 1) === 1 ? practiceInvoices().filter((i) => !ids.length || ids.includes(i.Contact.ContactID)) : [] } as T;
       }
       throw new XeroError("not-found", "Xero returned an error (404).");
     }

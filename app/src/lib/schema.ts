@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -304,7 +304,9 @@ export const LISTS: ListDef[] = [
   {
     // One-off agreed charges (set-up fees and the like), kept apart from recurring fees.
     key: "FeeCharges", displayName: "PP Fee Charges", description: "Practice Planner: one-off agreed charges",
-    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("ServiceKey"), t("Label"), n("Amount"), t("Vat"), t("AgreedOn"), t("Status", true), t("ProposalKey"), note("Notes"), t("Created"), t("CreatedBy")],
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("ServiceKey"), t("Label"), n("Amount"), t("Vat"), t("AgreedOn"), t("Status", true), t("ProposalKey"), note("Notes"), t("Created"), t("CreatedBy"),
+      // set when the charge is invoiced through Adfin (a payment request): see lib/collections.ts
+      t("BillId"), t("BillNo"), t("BillUrl"), t("BillStatus"), t("BilledOn"), t("PaidOn"), n("BillAmount"), t("BillCustomer")],
   },
   {
     // Direct costs entered by hand, to estimate contribution. Not time recording.
@@ -439,6 +441,11 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("ServiceKey"), t("FeeKey", true), t("CustomerId"), t("CustomerName"), t("ScheduleId"), t("ScheduleNo"), t("Status", true), t("Method"),
       n("Amount"), n("VatRate"), t("Period"), t("StartDate"), t("Description"), t("NextDate"), t("Created"), t("CreatedBy"), t("Updated"), t("SyncedAt"), note("Notes"),
     ],
+  },
+  {
+    // Chasing overdue invoices: each chaser drafted, each promise to pay, each dispute. Invoices live in Xero; this is only the practice's record of chasing them. See lib/collections.ts.
+    key: "BillingChases", displayName: "PP Billing Chases", description: "Practice Planner: chasers, promises to pay and disputes on overdue invoices",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Kind", true), t("InvoiceNos"), n("Level"), n("Amount"), t("At", true), t("Actor"), t("PromiseOn"), t("Status"), note("Note")],
   },
   ...portalLists(),
 ];

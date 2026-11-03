@@ -94,6 +94,9 @@ export class FakeAdfin implements AdfinApi {
     { id: "00000000-0000-4000-8000-0000000000c2", name: "Demo Customer Without Mandate", people: [{ name: "Sam", email: "sam@example.com" }], directDebitMandate: null },
   ];
   private schedules: AdfinSchedule[] = [];
+  private requests: { id: string; status: string; reference?: string; totalAmount?: number; paymentLink: { url: string } }[] = [];
+  /** Demo and tests only: the client pays a payment link. */
+  pay(id: string) { const r = this.requests.find((x) => x.id === id); if (r) r.status = "PAID"; }
   private n = 0;
   constructor(private store: SealedStore) {}
   async status(): Promise<AdfinStatus> { return { configured: true, environment: "staging", redirectUri: location.origin + "/api/adfin/callback" }; }
@@ -124,6 +127,19 @@ export class FakeAdfin implements AdfinApi {
       const s: AdfinSchedule = { id: `00000000-0000-4000-9000-${String(++this.n).padStart(12, "0")}`, recurringInvoiceNo: `SCH-${1000 + this.n}`, status: "DRAFT", nextIssueDate: String(b.cadence.startDate).slice(0, 10), amount: items.reduce((a, i) => a + i.unitAmount, 0), cadence: b.cadence, invoiceDetails: b.invoiceDetails };
       this.schedules.push(s);
       return s as T;
+    }
+    if (method === "POST" && path === "payment_requests") {
+      if (!b.customer?.id || !(b.totalAmount > 0)) throw new AdfinError("invalid", "Adfin didn't accept that: a customer and a total are needed.", 422);
+      const id = `00000000-0000-4000-a000-${String(++this.n).padStart(12, "0")}`;
+      const r = { id, status: "UNPAID", reference: b.reference, totalAmount: b.totalAmount, paymentLink: { url: `https://staging.adfin.com/pay/demo-${this.n}` } };
+      this.requests.push(r);
+      return r as T;
+    }
+    const pr = /^payment_requests\/([^/]+)$/.exec(path);
+    if (pr && method === "GET") {
+      const r = this.requests.find((x) => x.id === pr[1]);
+      if (!r) throw new AdfinError("not-found", "Adfin has no record of that.", 404);
+      return r as T;
     }
     const m = /^schedules\/invoices\/([^/:]+)(?::(activate|cancel))?$/.exec(path);
     if (m) {

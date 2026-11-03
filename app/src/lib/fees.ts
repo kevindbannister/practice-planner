@@ -240,6 +240,7 @@ export function cancelCharge(charge: Row, client: Row, reason: string, can: (x: 
   if (!can("send")) return { error: "Only a manager or partner can cancel a charge." };
   if (!reason.trim()) return { error: "Say why." };
   if (str(charge.Status) === "cancelled") return { error: "Already cancelled." };
+  if (str(charge.BillId) && str(charge.BillStatus) !== "void") return { error: "This charge has been invoiced through Adfin. Void the invoice in Adfin first." };
   return { patches: [{ list: "FeeCharges", row: charge, patch: { Status: "cancelled" } }], creates: [{ list: "FeeHistory", row: historyRow(o, str(client.Key), str(charge.ServiceKey), "charge-cancelled", { label: charge.Label, amount: charge.Amount }, null, reason.trim(), "Manual") }], log: [], activities: [] };
 }
 
