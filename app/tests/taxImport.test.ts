@@ -128,3 +128,15 @@ test("a named pension with gross, tax and net rows under its heading", () => {
   const p = readImport([detail]).ret.pensions!.others;
   assert.deepEqual(p.map((x) => [x.payer, x.amount, x.tax, x.net]), [["Example Personal Pension", 5000, 1000, 4000]]);
 });
+
+test("import check: IRIS's total tax is compared with the tax still due after tax deducted at source", async () => {
+  const { compute, emptyReturn, newId } = await import("../src/lib/tax");
+  const ret = emptyReturn();
+  ret.employments.push({ id: newId(), name: "Employer", pay: 50000, tax: 6000 } as any);
+  const c = compute(ret, 2025);
+  const due = Math.round((c.totalLiability - c.deducted) * 100) / 100;
+  assert.ok(c.deducted > 0 && due < c.totalLiability);
+  const chk = checkImport({ ret, year: 2025, theirs: { totalTax: due }, warnings: [] } as any);
+  assert.equal(chk.ours, due); assert.equal(chk.matches, true);
+  assert.equal(checkImport({ ret, year: 2025, theirs: { totalTax: c.totalLiability } } as any).matches, false);
+});

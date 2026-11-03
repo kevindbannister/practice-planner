@@ -401,5 +401,7 @@ function mergeDetail(base: TaxReturn, s: TaxReturn): TaxReturn {
 export function checkImport(res: ImportResult): { ours: number; theirs?: number; matches?: boolean; poaOurs: number } {
   const c = compute(res.ret, res.year || 2026);
   const theirs = res.theirs.totalTax;
-  return { ours: c.totalLiability, theirs, matches: theirs === undefined ? undefined : Math.abs(theirs - c.totalLiability) < 0.01, poaOurs: c.poaNext };
+  // IRIS's total tax is what is still due after the tax deducted at source, the same as the Summary's "Total tax due"
+  const ours = Math.round((c.totalLiability - c.deducted) * 100) / 100;
+  return { ours, theirs, matches: theirs === undefined ? undefined : Math.abs(theirs - ours) < 0.01, poaOurs: c.poaNext };
 }
