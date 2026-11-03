@@ -1,4 +1,5 @@
 // App shell: top bar, save indicator, and routing between pages.
+import { VERSION } from "../version";
 import { ChecklistsPage } from "./Checklists";
 import { PortalPage } from "./PortalAdmin";
 import { PortalProvider, usePortal } from "./portalKit";
@@ -145,6 +146,7 @@ export function App({ demo }: { demo: boolean }) {
               <PortalProvider>
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
                 {!((section === "advisory" || section === "papers" || section === "tax") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
+                <span className="version-badge" title={`Prototype, version ${VERSION}`}>P V{VERSION}</span>
                 {status === "ready" && <ActionSync />}
                 {status === "ready" && <CoSecSync />}
                 {status === "ready" && <TimerChip />}
