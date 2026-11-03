@@ -341,6 +341,7 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
                 ? <p className={chk.matches ? "ok-text" : "warn"} style={{ margin: 0 }}>{chk.matches ? `Matches IRIS: total tax ${gbp(chk.ours)}.` : `IRIS worked out ${gbp(chk.theirs)}; this comes to ${gbp(chk.ours)}. Check the figures after bringing it in.`}</p>
                 : <p className="muted" style={{ margin: 0 }}>Total tax from these figures: {gbp(chk.ours)}.</p>)}
               {res.warnings.map((w) => <p key={w} className="warn" style={{ margin: 0 }}>{w}</p>)}
+              {res.aiRaw && <details><summary className="muted" style={{ fontSize: 13, cursor: "pointer" }}>What the AI returned</summary><pre style={{ fontSize: 12, maxHeight: 260, overflow: "auto", whiteSpace: "pre-wrap", margin: "6px 0 0" }}>{res.aiRaw}</pre></details>}
               <label className="row-wrap" style={{ gap: 8 }}><input type="checkbox" checked={submitted} onChange={(e) => setSubmitted(e.target.checked)} /> This return was submitted to HMRC</label>
               {usedAi && <label className="row-wrap" style={{ gap: 8 }}><input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Keep copies of these PDFs in OneDrive as history (copies only: nothing is sent to HMRC)</label>}
               {y !== year && <p className="muted" style={{ margin: 0 }}>This is the {yearLabel(y)} return, so it goes on that year.</p>}

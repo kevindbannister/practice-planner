@@ -13,6 +13,8 @@ import { ReadPage, readFormPages } from "./taxReturnRead";
 export type ImportFile = { name: string; pages: string[][]; forms?: ReadPage[] };
 export type ImportResult = {
   ret: TaxReturn;
+  /** the AI's answer as it came back, when the return was read with the AI (for checking what it gave) */
+  aiRaw?: string;
   year?: number;
   utr?: string;
   name?: string;

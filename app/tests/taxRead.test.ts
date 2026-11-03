@@ -55,6 +55,17 @@ test("when the document's income tax doesn't match, the read warns and says both
   assert.ok(res.warnings.some((w) => /prints income tax of £500\.00, but these figures give £0\.00/.test(w)), res.warnings.join(" | "));
 });
 
+test("when the AI gives figures none of which are printed, the read says so and keeps what it returned", () => {
+  const res = readWithAi([file(["Gross pay 12,480.00"])], { ret: { interest: [{ untaxed: 99999 }] }, totals: {} });
+  assert.ok(res.warnings.some((w) => /none of them could be matched/.test(w)), res.warnings.join(" | "));
+  assert.ok(res.aiRaw?.includes("99999"));
+});
+
+test("when the AI gives nothing, the read says so", () => {
+  const res = readWithAi([file(["Gross pay 12,480.00"])], { ret: {}, totals: {} });
+  assert.ok(res.warnings.some((w) => /gave no figures/.test(w)), res.warnings.join(" | "));
+});
+
 test("without the document's income tax figure, the read says it can't be checked", () => {
   const res = readWithAi([file(["Gross pay 12,480.00"])], { ret: { employments: [{ name: "Acme", pay: 12480 }] }, totals: {} });
   assert.ok(res.warnings.some((w) => /can't be checked/.test(w)));

@@ -101,11 +101,21 @@ function foundLines(ret: TaxReturn): string[] {
   return out;
 }
 
+/** How many values (numbers, texts, true or false) a piece of the AI's answer holds. */
+function countLeaves(v: unknown): number {
+  if (Array.isArray(v)) return v.reduce<number>((a, x) => a + countLeaves(x), 0);
+  if (v && typeof v === "object") return Object.values(v).reduce<number>((a, x) => a + countLeaves(x), 0);
+  return v === undefined || v === null || v === "" ? 0 : 1;
+}
+
 /** The planner's reading of the PDFs with the AI's figures in place of the local reader's, and the checks on them. */
 export function readWithAi(files: ImportFile[], answer: TaxReadAnswer, names: string[] = []): ImportResult {
   const local = readImport(files, names);
   const { ret, dropped } = sanitiseRead(answer.ret as Record<string, unknown>, printedNumbers(files));
   const warnings: string[] = [];
+  const given = countLeaves(answer.ret), kept = countLeaves(ret);
+  if (given === 0) warnings.push("The AI gave no figures for this return. Try Read with AI again.");
+  else if (kept === 0) warnings.push(`The AI gave ${given} figures, but none of them could be matched to the PDFs' text. Open 'What the AI returned' to see them.`);
   if (dropped.length) {
     const shown = dropped.slice(0, 6).join(", ");
     warnings.push(`${dropped.length} figure${dropped.length === 1 ? " the AI gave isn't" : "s the AI gave aren't"} printed in the PDFs, so ${dropped.length === 1 ? "it was" : "they were"} left out: ${shown}${dropped.length > 6 ? " and more" : ""}.`);
@@ -119,7 +129,8 @@ export function readWithAi(files: ImportFile[], answer: TaxReadAnswer, names: st
     if (Math.abs(ours - docTax) > 0.005) warnings.push(`The document prints income tax of ${gbp(docTax)}, but these figures give ${gbp(ours)}. Check the figures before bringing it in.`);
     else found.unshift(`Income tax agrees with the document: ${gbp(docTax)}`);
   }
-  return { ...local, ret, found, warnings: [...warnings, ...local.warnings] };
+  const aiRaw = JSON.stringify({ return: answer.ret, totals: answer.totals }, null, 1).slice(0, 8000);
+  return { ...local, ret, found, aiRaw, warnings: [...warnings, ...local.warnings] };
 }
 
 const HISTORY_FOLDER = "Practice Planner Tax History";
