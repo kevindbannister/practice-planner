@@ -3137,3 +3137,7 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .tax-expense-row>*{flex:1 1 160px;min-width:0}
 .tax-expense-box{display:flex;flex-direction:column;gap:4px;flex:1 1 220px;min-width:0;font-size:13px}
 .tax-expense-box select{padding:6px;border:1px solid #c9ced8;border-radius:6px;font:inherit}
+.tax-box-group{border-top:1px solid #e3e7ee;padding-top:8px;margin-top:8px}
+.tax-box-head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.tax-box-head>span:first-of-type{margin-left:auto}
+.tax-expense-totals{border-top:1px solid #c9ced8;margin-top:10px;padding-top:6px}
