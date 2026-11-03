@@ -216,6 +216,8 @@ export type Computation = {
 const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Number(v) || 0);
 const pounds = (v: number) => Math.floor(Math.max(0, v)); // HMRC rounds income down to whole pounds
 const p2 = (v: number) => Math.round(v * 100) / 100;
+/** Clears floating-point noise (913.1 + 0.2 = 913.3000000000001) without rounding the amount itself. */
+const noise = (v: number) => Math.round(v * 1e9) / 1e9;
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 /** Tax rounded down to the penny (HMRC's calculation rounds each band's tax down). */
 const down = (v: number) => Math.floor(Math.round(v * 1000) / 10) / 100;
@@ -512,7 +514,7 @@ export function compute(r: TaxReturn, year: number): Computation {
 
   // ---- tax already paid
   const paye = sum(r.employments.map((e) => n(e.tax)));
-  const atSource = p2(paye + sum(r.interest.map((i) => n(i.taxTaken))) + sum(r.selfEmployments.map((s) => n(s.cis) + n(s.taxDeducted))) + sum(r.partnerships.map((x) => n(x.taxDeducted) + n(x.cis)))
+  const atSource = noise(paye + sum(r.interest.map((i) => n(i.taxTaken))) + sum(r.selfEmployments.map((s) => n(s.cis) + n(s.taxDeducted))) + sum(r.partnerships.map((x) => n(x.taxDeducted) + n(x.cis)))
     + sum(r.pensions?.others.map((o) => n(o.tax)) || []) + n(r.pensions?.stateLumpSumTax) + n(r.benefits?.incapacityTax) + n(r.otherIncome?.taxTaken) + n(r.property?.taxTaken) - n(r.payments.earlierYearInCode));
   const propertyReturn = n(r.payments.propertyReturnTax);
   const totalLiability = p2(incomeTax + class2 + class4 + studentLoan + cgt);
