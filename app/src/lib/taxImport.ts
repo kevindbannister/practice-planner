@@ -74,6 +74,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
   const r = emptyReturn();
   const res: ImportResult = { ret: r, theirs: {}, found: [], warnings: [], kinds: [], notRead: [] };
   let fr: ReturnType<typeof readFormPages> | undefined;
+  let readCalc = "", readSummaries = "";
   const complete = (cut: string) => {
     const t = cut.trim();
     const hit = [...names, ...r.dividends.map((d) => d.company)].find((n) => n.toUpperCase().startsWith(t.toUpperCase()) && n.length >= t.length);
@@ -98,11 +99,20 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
       if (ni) r.front.nino ||= ni[1].replace(/\s/g, "");
     }
     if (f.forms?.length && !fr) { fr = readFormPages(f.forms); res.kinds.push("return"); }
-    const isCalc = lines.some((l) => /Tax calculation for|SA302|How I have worked out your Income Tax/i.test(l));
-    const isSummaries = lines.some((l) => /Detailed summaries/i.test(l));
+    // the calculation and schedules are IRIS's own pages: the pages of HMRC's form in the same PDF (printed words like "Taxed UK
+    // interest", and the figures already read from their boxes) must not be read as schedule lines
+    const body = f.pages.filter((pg) => !pg.some((l) => /^SA1\d\d\b|^IRmark:/.test(l.trim()))).flat().map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+    let isCalc = body.some((l) => /Tax calculation for|SA302|How I have worked out your Income Tax/i.test(l));
+    let isSummaries = body.some((l) => /Detailed summaries/i.test(l));
+    // the same pages given twice (the whole pack and then its calculation again) would double every figure: the first is kept
+    if (isCalc && readCalc) { res.warnings.push(`${f.name} repeats the tax calculation already read from ${readCalc}, so it was ignored.`); isCalc = false; }
+    if (isSummaries && readSummaries) { res.warnings.push(`${f.name} repeats the detailed summaries already read from ${readSummaries}, so they were ignored.`); isSummaries = false; }
+    if (isCalc) readCalc = f.name;
+    if (isSummaries) readSummaries = f.name;
+    const seenBefore = !isCalc && !isSummaries && body.length > 0 && !!(readCalc || readSummaries) && body.some((l) => /Tax calculation for|Detailed summaries/i.test(l));
     if (isCalc) {
       res.kinds.push("calculation");
-      for (const l of lines) {
+      for (const l of body) {
         // the "Summary of tax payable" page has no £ signs
         const tl = l.replace(/\s*\(?-?[\d,]+\.\d{2}\)?\s*$/, "").trim().toLowerCase(), lv = looseMoney(l);
         if (lv !== undefined) {
@@ -138,7 +148,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
     if (isSummaries) {
       res.kinds.push("summaries");
       let sec = "", cur: Employment | undefined, tradeName = "", trade: { profit?: number } | undefined;
-      for (const l of lines) {
+      for (const l of body) {
         const plain = withoutMoney(l);
         const head = HEADINGS.find(([re]) => re.test(plain));
         if (head && !/^Total\b/i.test(plain)) {
@@ -190,7 +200,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
         }
       }
     }
-    if (!isCalc && !isSummaries && !f.forms?.length) res.warnings.push(`${f.name} doesn't look like an IRIS tax calculation or detailed summaries, so nothing was read from it.`);
+    if (!isCalc && !isSummaries && !f.forms?.length && !seenBefore) res.warnings.push(`${f.name} doesn't look like an IRIS tax calculation or detailed summaries, so nothing was read from it.`);
   }
 
   // a full return is the base: its figures are what was filed. The summaries give the names and the pence where they agree

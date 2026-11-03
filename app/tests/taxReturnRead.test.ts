@@ -102,3 +102,20 @@ test("income the form pages can't give comes from the schedules at the end of th
   assert.deepEqual(res.notRead, []);
   assert.ok(res.warnings.some((w) => /profit only/.test(w)));
 });
+
+// A full return: the pages of HMRC's form (their printed words must not be read as schedule lines), then IRIS's own pages.
+const formPage = ["IRmark: ABCDEFGHIJKLMNOPQRSTUVWXYZ123456. Page 4 of 9", "Interest and dividends from UK banks and building societies", "Taxed UK interest – the net amount after tax has been", "Untaxed UK interest", "Employment", "Pension contributions", "Gift Aid", "SA100 2022 Page TR 3"];
+const schedules = [["Mr Sam Example UTR: 1234567890", "Tax calculation for 2021-22 (year ended 5 April 2022)", "Pay from all employments £9,480", "Income Tax charged £100.00"], ["Mr Sam Example UTR: 1234567890", "Detailed summaries for year ended 5 April 2022", "Employment income: Example Ltd £ £", "PAYE reference: 577/X1234", "Gross pay 9,480.00", "Net taxable income 9,480.00"]];
+test("the form pages' printed words aren't read as schedule lines", () => {
+  const res = readImport([{ name: "pack.pdf", pages: [formPage, ...schedules] }]);
+  assert.equal(res.ret.interest.length, 0); assert.equal(res.ret.employments.length, 1);
+  assert.equal(res.ret.employments[0].name, "Example Ltd"); assert.equal(res.ret.employments[0].pay, 9480);
+  assert.equal(res.ret.reliefs.giftAid, undefined); assert.ok(!res.ret.pensions);
+});
+test("the same calculation and schedules given twice are read once", () => {
+  const res = readImport([{ name: "pack.pdf", pages: [formPage, ...schedules] }, { name: "again.pdf", pages: schedules }]);
+  assert.equal(res.ret.employments.length, 1);
+  assert.equal(res.warnings.filter((w) => /repeats/.test(w)).length, 2);
+  const two = readImport([{ name: "a.pdf", pages: schedules }, { name: "b.pdf", pages: schedules }]);
+  assert.equal(two.ret.employments.length, 1); assert.equal(two.ret.employments[0].pay, 9480);
+});
