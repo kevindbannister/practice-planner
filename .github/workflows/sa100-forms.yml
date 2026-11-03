@@ -34,13 +34,15 @@ jobs:
             y=$1; shift
             [ -s "$dir/SA100-$y.pdf" ] && { echo "SA100-$y already here"; return; }
             for u in "$@"; do
-              if curl -fsSL --retry 2 --max-time 120 -A "xproflow-forms/1.0" -o /tmp/f.pdf "$u" && head -c 5 /tmp/f.pdf | grep -q "%PDF"; then
+              if curl -fsSL --retry 2 --max-time 120 -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36" -o /tmp/f.pdf "$u" && head -c 5 /tmp/f.pdf | grep -q "%PDF"; then
                 mv /tmp/f.pdf "$dir/SA100-$y.pdf"; echo "SA100-$y from $u"; return
               fi
             done
             echo "::warning::SA100-$y could not be downloaded"
           }
-          get 2020 "$A/government/uploads/system/uploads/attachment_data/file/1148669/SA100_tax_return_English_2020.pdf" \
+          get 2020 "$W/20210430071701id_/$A/government/uploads/system/uploads/attachment_data/file/874083/sa100_English_Form.pdf" \
+                   "$W/20230531212038id_/$A/government/uploads/system/uploads/attachment_data/file/1148669/SA100_tax_return_English_2020.pdf" \
+                   "$A/government/uploads/system/uploads/attachment_data/file/1148669/SA100_tax_return_English_2020.pdf" \
                    "$W/20230531141839id_/$A/government/uploads/system/uploads/attachment_data/file/1148669/SA100_tax_return_English_2020.pdf" \
                    "$W/20220531181922id_/$A/government/uploads/system/uploads/attachment_data/file/874083/sa100_English_Form.pdf"
           get 2021 "$A/media/642c0990ddf8ad000cac0d0a/SA100_tax_return_English_2021.pdf" \
