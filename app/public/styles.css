@@ -3054,6 +3054,11 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .tax-views button { display: inline-flex; align-items: center; gap: 6px; }
 .tax-split-return { grid-template-columns: minmax(340px, 30%) minmax(0, 1fr); }
 .tax-split-return > .tax-comp { order: 0; }
+.tax-summary { min-width: 0; display: grid; gap: 16px; align-content: start; }
+.tax-account select.input { color: #1b1f2a; background: #fff; }
+.tax-account .muted, .tax-account .tax-note { color: rgba(255,255,255,.9); }
+.tax-account .tax-note { font-size: 12px; margin-top: 2px; }
+.tax-summary tr.selected td { background: var(--tint, rgba(120,140,255,.08)); }
 .sa-view { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .sa-view-bar { position: sticky; top: 84px; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-radius: 16px; background: var(--surface); box-shadow: 0 6px 20px rgba(20, 90, 150, 0.08); }
 .sa-view-bar .btn { margin-left: auto; }

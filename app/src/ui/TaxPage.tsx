@@ -13,6 +13,7 @@ import { ImportResult } from "../lib/taxImport";
 import { brandOf, readBranding, displayName } from "../lib/docBranding";
 import { Ask, ConfirmBox, ImportDialog, NewReturnDialog, ReturnViewer, Start, sendImport, takeImport } from "./TaxReturnView";
 import { BulkImportDialog } from "./TaxBulkImport";
+import { HmrcAccountDialog } from "./HmrcAccountImport";
 import { YEARS, ratesFor, yearEnd, yearLabel, yearOf } from "../lib/taxRates";
 import { Icon, href, useRoute } from "./bits";
 import { TaxPlanView, TaxPlanningList } from "./TaxPlanning";
@@ -103,8 +104,8 @@ function TaxList() {
 
 // ------------------------------------------------------------------ one client and year
 
-type View = "inputs" | "return";
-const readView = (): View => { try { return localStorage.getItem("pp.tax.view") === "return" ? "return" : "inputs"; } catch { return "inputs"; } };
+type View = "inputs" | "return" | "summary";
+const readView = (): View => { try { const v = localStorage.getItem("pp.tax.view"); return v === "return" || v === "summary" ? v : "inputs"; } catch { return "inputs"; } };
 
 function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; year?: number; start?: Start }) {
   const idx = useIndex();
@@ -113,6 +114,7 @@ function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; yea
   const setView = (v: View) => { setView0(v); try { localStorage.setItem("pp.tax.view", v); } catch { /* this visit only */ } };
   const [starting, setStarting] = useState(false);
   const [bulk, setBulk] = useState(false);
+  const [account, setAccount] = useState(false);
   const [rev, setRev] = useState(0); // bumped after an import so the page reloads what was saved
   const editor = useEditor();
   const c = idx.clientByKey.get(clientKey) as Client | undefined;
@@ -136,9 +138,11 @@ function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; yea
           <div className="seg tax-views" role="group" aria-label="What to show">
             <button type="button" aria-pressed={view === "inputs"} title="Enter the figures, with the computation" onClick={() => setView("inputs")}><Icon name="edit" size={15} /> Inputs</button>
             <button type="button" aria-pressed={view === "return"} title="The computation beside the SA100 return" onClick={() => setView("return")}><Icon name="form" size={15} /> Return</button>
+            <button type="button" aria-pressed={view === "summary"} title="The tax due for this year beside every year's position" onClick={() => setView("summary")}><Icon name="book" size={15} /> Summary</button>
           </div>
           <button type="button" className="btn small" title="Start a return for another tax year, or bring in a past one" onClick={() => setStarting(true)}><Icon name="plus" size={14} /> New return</button>
           <button type="button" className="btn small" title="Bring in this client's past returns from IRIS Elements, one PDF for each year" onClick={() => setBulk(true)}><Icon name="download" size={14} /> Import past returns</button>
+          <button type="button" className="btn small" title="Paste the payments, interest and penalties from this client's HMRC account" onClick={() => setAccount(true)}><Icon name="download" size={14} /> HMRC account</button>
           <label className="row-wrap paper-year" style={{ gap: 6, fontSize: 13 }}>
             <span>Tax year</span>
             <select className="input" value={year} style={{ width: "auto", minHeight: 32, padding: "2px 8px" }} onChange={(e) => (window.location.hash = href("tax", c.Key, e.target.value))}>
@@ -149,9 +153,10 @@ function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; yea
         </div>
       </header>
       <PaperWriter key={year} client={c} period={yearEnd(year)}>
-        <TaxScreen key={`${year}-${start || ""}-${rev}`} client={c} year={year} view={view} setView={setView} start={start} frozen={bulk} />
+        <TaxScreen key={`${year}-${start || ""}-${rev}`} client={c} year={year} view={view} setView={setView} start={start} frozen={bulk || account} />
       </PaperWriter>
       {bulk && <BulkImportDialog clients={[c]} clientKey={c.Key} onClose={() => { setBulk(false); setRev((n) => n + 1); }} />}
+      {account && <HmrcAccountDialog client={c} onClose={() => { setAccount(false); setRev((n) => n + 1); }} />}
       {starting && <NewReturnDialog clientKey={c.Key} year={year} has={(ck, y) => !!setupRow(data.papers, ck, yearEnd(y), TAX_ITEM)} onClose={() => setStarting(false)}
         onGo={(ck, y, s) => { setStarting(false); window.location.hash = href("tax", ck, String(y), s); }} />}
     </div>
@@ -322,6 +327,8 @@ function TaxScreen({ client: c, year, view, setView, start, frozen }: { client: 
     setPick(SECTIONS.find((s) => s.key === k)?.multi ? `${k}:${id}` : k);
     setAdding(false);
   };
+
+  if (view === "summary") return <SummaryView client={c} year={year} ret={ret} comp={comp} />;
 
   if (view === "return") {
     const eItems = editing ? items.filter((x) => x.section.key === editing.section) : [];
@@ -951,6 +958,76 @@ function CompPanel({ comp, year, client }: { comp: Computation; year: number; cl
       })}
       {comp.warnings.length > 0 && <ul className="tax-warn">{comp.warnings.map((x) => <li key={x}>{x}</li>)}</ul>}
       <p className="muted" style={{ fontSize: 11, margin: "8px 4px 0" }}>A working computation from the figures entered, using the {R.label} rates. File from IRIS Elements and compare the two.</p>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------------ the summary: the tax due for the year, and every year's position
+
+type YearLine = { y: number; r?: TaxReturn; cc?: Computation; due?: ReturnType<typeof outstandingPayments> };
+
+/** The computation for the year beside every year held for the client: what was due, paid, still to pay and received back. */
+function SummaryView({ client: c, year, ret, comp }: { client: Client; year: number; ret: TaxReturn; comp: Computation }) {
+  const { data } = useData();
+  const years = useMemo((): YearLine[] => [...YEARS].reverse().map(({ year: y }) => {
+    if (y === year) return { y, r: ret, cc: comp, due: outstandingPayments(ret, y) };
+    const row = setupRow(data.papers, c.Key, yearEnd(y), TAX_ITEM);
+    if (!row) return { y };
+    const r = readReturn(readSetup(row).r);
+    return { y, r, cc: compute(r, y), due: outstandingPayments(r, y) };
+  }), [data.papers, c.Key, year, ret, comp]);
+  const lines = paymentLines(ret, year);
+  const credits = ret.payments.credits || [];
+  return (
+    <div className="tax-split tax-split-return">
+      <aside className="tax-comp hero-wash" aria-label="Tax computation"><CompPanel comp={comp} year={year} client={c} /></aside>
+      <div className="tax-summary">
+        <section className="card table-wrap">
+          <table className="grid">
+            <thead><tr><th>Tax year</th><th>Return</th><th className="num">Total tax</th><th className="num">Payments made</th><th className="num">To pay / repay</th><th className="num">Still to pay</th><th className="num">Late interest</th></tr></thead>
+            <tbody>
+              {years.map(({ y, r, cc, due }) => (
+                <tr key={y} className={`clickable${y === year ? " selected" : ""}`} onClick={() => (window.location.hash = href("tax", c.Key, String(y)))}>
+                  <td>{yearLabel(y)}</td>
+                  <td>{r ? <span className={`chip${r.status?.state === "submitted" ? " green" : r.status?.state === "final" ? " blue" : ""}`}>{STATE_LABEL[r.status?.state || "draft"]}</span> : <span className="muted">Not started</span>}</td>
+                  <td className="num mono">{cc ? gbp(cc.totalLiability) : "-"}</td>
+                  <td className="num mono">{cc ? gbp(cc.poaPaid) : "-"}</td>
+                  <td className="num mono">{cc ? (cc.balancing >= 0 ? gbp(cc.balancing) : `${gbp(-cc.balancing)} back`) : "-"}</td>
+                  <td className={`num mono${due?.lines.some((l) => l.overdue) ? " red-ink" : ""}`}>{due?.lines.length ? gbp(due.total) : r ? "Nothing" : "-"}</td>
+                  <td className="num mono">{cc?.lateInterest ? gbp(cc.lateInterest) : "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        <section className="card" style={{ padding: 16 }}>
+          <h3 style={{ margin: "0 0 8px" }}>Payments for {yearLabel(year)}</h3>
+          {lines.length === 0 && <p className="muted" style={{ margin: 0 }}>No payments entered.</p>}
+          <table className="grid">
+            <tbody>
+              {lines.map((l) => (
+                <tr key={l.id}>
+                  <td>{l.label}</td>
+                  <td className="mono">{fmtDate(l.date)}</td>
+                  <td className="num mono">{l.amount ? gbp(l.amount) : ""}</td>
+                  <td>{l.paid ? <span className="chip green">Paid</span> : <span className={`chip${l.date < todayIso() ? " red" : ""}`}>{l.date < todayIso() ? "Overdue" : "To pay"}</span>}{l.late ? <div className="muted" style={{ fontSize: 12 }}>late {gbp(l.late)}</div> : null}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+        {credits.length > 0 && (
+          <section className="card" style={{ padding: 16 }}>
+            <h3 style={{ margin: "0 0 8px" }}>Received from HMRC for {yearLabel(year)}</h3>
+            <table className="grid">
+              <tbody>
+                {credits.map((x) => <tr key={x.key}><td>{x.description}</td><td className="mono">{fmtDate(x.date)}</td><td className="num mono">{gbp(x.amount)}</td></tr>)}
+              </tbody>
+            </table>
+            <p className="muted" style={{ margin: "8px 0 0", fontSize: 12 }}>Interest and repayments are not part of the tax.</p>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

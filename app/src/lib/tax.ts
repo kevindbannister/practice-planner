@@ -76,6 +76,10 @@ export type TaxReturn = {
     /** the payments made to HMRC for this year, each with its date, amount and whether it has been paid. Until this is set, the
      * two payments on account are read from the fields below (see paymentLines). */
     lines?: PaymentLine[];
+    /** HMRC account entries already brought in (so pasting the same account twice adds nothing) */
+    imported?: string[];
+    /** money HMRC has paid back or added as interest (repayment supplement): received, not part of the tax */
+    credits?: { date: string; description: string; amount: number; key: string }[];
     poa1?: number; poa2?: number; priorLiability?: number; earlierYearInCode?: number; nextYearInCode?: number; propertyReturnTax?: number;
     /** the payments on account expected for this year, rolled forward from last year's return (or typed in) */ expectedPoa1?: number; expectedPoa2?: number;
     /** where the expected figures came from, e.g. "the 2024-25 return" */ expectedFrom?: string;
@@ -559,7 +563,8 @@ export function paidTotals(lines: PaymentLine[]): { paid: number; late: number }
 }
 /** What is still to pay on this year's return: each unticked line with any late increase, and whether it is past its date. */
 export function outstandingPayments(r: TaxReturn, year: number, today = todayIso()): { lines: (PaymentLine & { overdue: boolean; owed: number })[]; total: number } {
-  const lines = paymentLines(r, year).filter((l) => !l.paid).map((l) => ({ ...l, overdue: l.date < today, owed: p2(n(l.amount) + n(l.late)) }));
+  // a payment with no amount yet (an expected payment not entered, say) isn't counted as owed
+  const lines = paymentLines(r, year).filter((l) => !l.paid && (n(l.amount) || n(l.late))).map((l) => ({ ...l, overdue: l.date < today, owed: p2(n(l.amount) + n(l.late)) }));
   lines.sort((a, b) => a.date.localeCompare(b.date));
   return { lines, total: p2(sum(lines.map((l) => l.owed))) };
 }
