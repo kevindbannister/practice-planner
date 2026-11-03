@@ -344,25 +344,29 @@ function AddSection({ ret, onAdd, onClose }: { ret: TaxReturn; onAdd: (k: Sectio
   const list = SECTIONS.filter((s) => s.tab === tab && !s.always);
   const groups = [...new Set(list.map((s) => s.group))];
   return (
-    <div className="tax-modal-back" role="presentation" onClick={onClose}>
-      <div className="card pad stack tax-add" role="dialog" aria-label="Choose a section to add" onClick={(e) => e.stopPropagation()}>
-        <div className="row-wrap"><h2 style={{ margin: 0 }}>Choose a section to add</h2><button type="button" className="btn small" style={{ marginLeft: "auto" }} onClick={onClose}>Close</button></div>
-        <nav className="tabs" aria-label="Kinds of section">{TABS.map((t) => <button key={t} type="button" className="linkbtn" aria-current={tab === t ? "page" : undefined} onClick={() => setTab(t)}>{t}</button>)}</nav>
+    <div className="tax-add-sheet" role="presentation" onClick={onClose}>
+      <div className="tax-add-card" role="dialog" aria-label="Choose a section to add" onClick={(e) => e.stopPropagation()}>
+        <div className="quick-journal-head">
+          <strong><Icon name="plus" size={16} /> Add a section</strong>
+          <span className="quick-journal-note">Choose what goes on this return</span>
+          <button type="button" className="quick-journal-x" onClick={onClose} aria-label="Close"><Icon name="close" size={16} /></button>
+        </div>
+        <nav className="tax-add-tabs" aria-label="Kinds of section">{TABS.map((t) => <button key={t} type="button" aria-current={tab === t ? "page" : undefined} onClick={() => setTab(t)}>{t}</button>)}</nav>
         <div className="tax-add-cols">
           {groups.map((g) => (
-            <div key={g} className="stack" style={{ gap: 4 }}>
+            <div key={g} className="stack" style={{ gap: 6 }}>
               <h3>{g}</h3>
               {list.filter((s) => s.group === g).map((s) => {
                 const added = hasSection(ret, s.key) && !s.multi;
-                return <button key={s.key} type="button" className="linkbtn tax-add-item" disabled={added} title={added ? "Already on this return" : undefined} onClick={() => onAdd(s.key)}>{added ? <s>{s.title}</s> : s.title}{s.multi && hasSection(ret, s.key) ? " (add another)" : ""}</button>;
+                return <button key={s.key} type="button" className="tax-add-item" disabled={added} title={added ? "Already on this return" : undefined} onClick={() => onAdd(s.key)}>{added ? <s>{s.title}</s> : s.title}{s.multi && hasSection(ret, s.key) ? " (add another)" : ""}</button>;
               })}
             </div>
           ))}
           {NOT_YET.some((x) => x.tab === tab) && (
-            <div className="stack" style={{ gap: 4 }}>
+            <div className="stack" style={{ gap: 6 }}>
               <h3>Not worked out here yet</h3>
-              {NOT_YET.filter((x) => x.tab === tab).map((x) => <span key={x.title} className="muted" style={{ fontSize: 13 }}>{x.title}</span>)}
-              <span className="muted" style={{ fontSize: 12 }}>Enter these in IRIS Elements for now.</span>
+              {NOT_YET.filter((x) => x.tab === tab).map((x) => <span key={x.title} className="tax-add-later">{x.title}</span>)}
+              <span className="quick-journal-note">Enter these in IRIS Elements for now.</span>
             </div>
           )}
         </div>
