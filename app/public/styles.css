@@ -2935,9 +2935,6 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 :is(.page:not(.paper-page), .split-main) {
   --sec-pad: 14px 16px;
 }
-/* the page's first card is its header: blue top edge, blue title, compact */
-:is(.page:not(.paper-page), .split-main):not(:has(> .page-head)) > .card:first-of-type:not(.empty) { border-top: 4px solid var(--blue); }
-:is(.page:not(.paper-page), .split-main):not(:has(> .page-head)) > .card:first-of-type h2 { color: var(--blue-ink); }
 
 /* sections: tighter cards, same heading weight as the working papers */
 @media (min-width: 721px) {
@@ -2945,10 +2942,6 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
   :is(.page:not(.paper-page), .split-main) .card-head { padding: 10px 16px; }
   :is(.page:not(.paper-page), .split-main) .card.pad.stack, :is(.page:not(.paper-page), .split-main) .card.stack { gap: 10px; }
 }
-:is(.page:not(.paper-page), .split-main) .card > h2:first-child, :is(.page:not(.paper-page), .split-main) .card-head h2, :is(.page:not(.paper-page), .split-main) .card-title-row h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
-/* sub-headings inside a section read like the working papers' group names: small blue capitals over a blue rule */
-:is(.page:not(.paper-page), .split-main) .card h3:not(.plain) { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); border-bottom: 1px solid var(--blue-line); padding-bottom: 3px; margin: 4px 0 2px; }
-:is(.page:not(.paper-page), .split-main) .eyebrow { color: var(--blue); }
 
 /* tables: blue header band with small capitals, compact rows, blue totals */
 :is(.page:not(.paper-page), .split-main) table.grid:not(.ledger-table), :is(.page:not(.paper-page), .split-main) table.tbl, :is(.page:not(.paper-page), .split-main) table.table, :is(.page:not(.paper-page), .split-main) table.bank-table { font-size: 13px; line-height: 1.3; }
@@ -2971,23 +2964,11 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
   :is(.page:not(.paper-page), .split-main) .seg { border-radius: 8px; }
 }
 
-/* the page header: a card with the blue top edge, small capitals above, a solid blue title: as the working papers' header */
-:is(.page:not(.paper-page):not(.client-page):not(.home), .split-main) > .page-head {
-  background: var(--surface); border-radius: var(--radius); box-shadow: var(--elev-1); border-top: 4px solid var(--blue); padding: 12px 16px; align-items: center;
-}
-:is(.page:not(.paper-page):not(.client-page):not(.home), .split-main) > .page-head h1 { font-size: 24px; background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--blue-ink); line-height: 1.2; }
-:is(.page:not(.paper-page):not(.client-page):not(.home), .split-main) > .page-head .muted { font-size: 13px; }
 /* figures set out inline (a plain card with a label over a number) take the same blue edge */
 :is(.page:not(.paper-page), .split-main) .grid-stats > .card { border-left: 4px solid var(--blue); } :is(.page:not(.paper-page), .split-main) .grid-stats > .card > div:last-child { color: var(--blue-ink); }
 /* a table with no heading row (a list of figures): the same rows, ruled and compact */
 :is(.page:not(.paper-page), .split-main) table.table:not(:has(thead)) td { border-bottom: 1px solid var(--line-2); } :is(.page:not(.paper-page), .split-main) table.table:not(:has(thead)) tr:last-child td { border-bottom: 0; }
 :is(.page:not(.paper-page), .split-main) table.table:not(:has(thead)) td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
-/* pages whose header carries its own tabs (Plan, Sales, Co Sec, Action Centre) get the same header card */
-.page:not(.paper-page):not(.home) > .plan-title { background: var(--surface); border-radius: var(--radius); box-shadow: var(--elev-1); border-top: 4px solid var(--blue); padding: 10px 16px 0; }
-.page:not(.paper-page):not(.home) > .plan-title h1 { font-size: 24px; background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--blue-ink); line-height: 1.2; margin-bottom: 6px; }
-.page:not(.paper-page):not(.home) > .plan-title .subtabs { border-bottom: 0; margin-bottom: 0; }
-.page:not(.paper-page):not(.home) > .plan-title { overflow: hidden; min-width: 0; }
-.page:not(.paper-page):not(.home) > .plan-title .subtabs { overflow-x: auto; scrollbar-width: thin; }
 :is(.page:not(.paper-page), .split-main) table.table:not(:has(thead)) { width: 100%; max-width: 520px; }
 
 /* personal tax: the working papers layout with the computation on the right */
