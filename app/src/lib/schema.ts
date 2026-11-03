@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -462,6 +462,29 @@ export const LISTS: ListDef[] = [
     // Tax planning: one assessment per company and tax year, the inputs as JSON and the option chosen. See lib/taxPlanning.ts.
     key: "TaxPlans", displayName: "PP Tax Plans", description: "Practice Planner: salary and dividend planning for owner-managed companies",
     columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), n("TaxYear"), note("Inputs"), t("Chosen"), t("Status", true), t("AgreedBy"), t("AgreedOn"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"), t("UpdatedBy")],
+  },
+  // Payroll: one PAYE scheme per employer client, its people, the pay year (paydays and planned amounts), runs, and what goes to HMRC.
+  // See lib/payroll/*. RtiSubmissions is also read and written by the server's scheduled filing (api/rti), so keep the names in step.
+  {
+    key: "PayrollSchemes", displayName: "PP Payroll Schemes", description: "Practice Planner: PAYE schemes run as agent",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Name"), t("OfficeNo"), t("PayeRef"), t("AORef"), t("COTAXRef"), t("Freq"), t("ClaimEA"), t("SmallEmployer"), t("Status", true), t("Created"), t("CreatedBy"), t("Updated")],
+  },
+  {
+    key: "PayrollPeople", displayName: "PP Payroll People", description: "Practice Planner: employees and directors on each payroll",
+    columns: [t("Key", true), t("PracticeId", true), t("SchemeKey", true), t("PersonClientKey"), t("Title"), t("First"), t("Middle"), t("Last"), t("NINO"), t("DOB"), t("Gender"), note("Address"), t("Postcode"), t("PayId"),
+      t("StartDate"), t("StartDec"), t("LeavingDate"), t("Director"), t("NicMethod"), t("AppointedOn"), t("TaxCode"), t("NiLetter"), t("StudentPlan"), t("Postgrad"), note("Pension"), t("Hours"), t("PayBasis"), n("AnnualSalary"), n("HourlyRate"), n("UsualHours"), t("Status", true), t("Created"), t("Updated")],
+  },
+  {
+    key: "PayYears", displayName: "PP Pay Years", description: "Practice Planner: paydays and planned pay for each payroll and tax year",
+    columns: [t("Key", true), t("PracticeId", true), t("SchemeKey", true), n("TaxYear"), note("Paydays"), note("Amounts"), t("Source"), t("Pattern"), t("Status"), t("Updated"), t("UpdatedBy")],
+  },
+  {
+    key: "PayRuns", displayName: "PP Pay Runs", description: "Practice Planner: approved pay runs with each person's figures",
+    columns: [t("Key", true), t("PracticeId", true), t("SchemeKey", true), n("TaxYear"), n("Period"), t("Payday"), t("Status", true), note("Lines"), note("Totals"), t("SubmissionKey"), t("ApprovedBy"), t("ApprovedAt"), t("Created"), t("Updated")],
+  },
+  {
+    key: "RtiSubmissions", displayName: "PP RTI Submissions", description: "Practice Planner: FPS and EPS queued for HMRC and what HMRC said",
+    columns: [t("Key", true), t("PracticeId", true), t("SchemeKey", true), t("ClientKey"), t("Kind"), n("TaxYear"), n("Period"), t("SendOn", true), t("Status", true), t("OfficeNo"), t("PayeRef"), note("Body"), note("Summary"), t("IRmark"), t("CorrelationID"), t("PollUrl"), note("Response"), note("Errors"), n("Attempts"), t("SubmittedAt"), t("AnsweredAt"), t("Live"), t("RunKey"), t("Created"), t("CreatedBy")],
   },
   ...portalLists(),
 ];

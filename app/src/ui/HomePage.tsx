@@ -157,6 +157,7 @@ export function HomePage() {
             )}
             <div className="row-wrap">
               <a className="btn" href="#/practice">Practice view</a>
+              <a className="btn" href="#/payroll">Payroll</a>
               <a className="btn" href="#/plan/deadlines">Deadlines</a>
               <a className="btn primary" href="#/plan">Open the plan</a>
             </div>

@@ -293,3 +293,13 @@ export function startingPeople(directors: { name: string; clientKey: string }[],
   }
   return people;
 }
+
+/** The salaries in an agreed plan, person by person, for setting up the payroll. */
+export function chosenSalaries(inputs: unknown, chosen: string, year: number, saved: (person: Person) => import("./tax").TaxReturn | undefined): { person: Person; salary: number }[] {
+  const p = readPlan(inputs, year);
+  if (planProblems(p).length) return [];
+  const opts = assess(p, context(p, saved));
+  const pick = opts.find((o) => o.key === chosen) || recommended(opts);
+  if (!pick) return [];
+  return p.people.filter((x) => x.salaried).map((x) => ({ person: x, salary: pick.salaries[x.id] || 0 }));
+}

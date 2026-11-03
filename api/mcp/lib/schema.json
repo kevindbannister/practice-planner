@@ -5042,6 +5042,433 @@
    ]
   },
   {
+   "key": "PayrollSchemes",
+   "displayName": "PP Payroll Schemes",
+   "description": "PAYE schemes run as agent",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Name",
+     "type": "text"
+    },
+    {
+     "name": "OfficeNo",
+     "type": "text"
+    },
+    {
+     "name": "PayeRef",
+     "type": "text"
+    },
+    {
+     "name": "AORef",
+     "type": "text"
+    },
+    {
+     "name": "COTAXRef",
+     "type": "text"
+    },
+    {
+     "name": "Freq",
+     "type": "text"
+    },
+    {
+     "name": "ClaimEA",
+     "type": "text"
+    },
+    {
+     "name": "SmallEmployer",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "PayrollPeople",
+   "displayName": "PP Payroll People",
+   "description": "employees and directors on each payroll",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "SchemeKey",
+     "type": "text"
+    },
+    {
+     "name": "PersonClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "First",
+     "type": "text"
+    },
+    {
+     "name": "Middle",
+     "type": "text"
+    },
+    {
+     "name": "Last",
+     "type": "text"
+    },
+    {
+     "name": "NINO",
+     "type": "text"
+    },
+    {
+     "name": "DOB",
+     "type": "text"
+    },
+    {
+     "name": "Gender",
+     "type": "text"
+    },
+    {
+     "name": "Address",
+     "type": "note"
+    },
+    {
+     "name": "Postcode",
+     "type": "text"
+    },
+    {
+     "name": "PayId",
+     "type": "text"
+    },
+    {
+     "name": "StartDate",
+     "type": "text"
+    },
+    {
+     "name": "StartDec",
+     "type": "text"
+    },
+    {
+     "name": "LeavingDate",
+     "type": "text"
+    },
+    {
+     "name": "Director",
+     "type": "text"
+    },
+    {
+     "name": "NicMethod",
+     "type": "text"
+    },
+    {
+     "name": "AppointedOn",
+     "type": "text"
+    },
+    {
+     "name": "TaxCode",
+     "type": "text"
+    },
+    {
+     "name": "NiLetter",
+     "type": "text"
+    },
+    {
+     "name": "StudentPlan",
+     "type": "text"
+    },
+    {
+     "name": "Postgrad",
+     "type": "text"
+    },
+    {
+     "name": "Pension",
+     "type": "note"
+    },
+    {
+     "name": "Hours",
+     "type": "text"
+    },
+    {
+     "name": "PayBasis",
+     "type": "text"
+    },
+    {
+     "name": "AnnualSalary",
+     "type": "number"
+    },
+    {
+     "name": "HourlyRate",
+     "type": "number"
+    },
+    {
+     "name": "UsualHours",
+     "type": "number"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "PayYears",
+   "displayName": "PP Pay Years",
+   "description": "paydays and planned pay for each payroll and tax year",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "SchemeKey",
+     "type": "text"
+    },
+    {
+     "name": "TaxYear",
+     "type": "number"
+    },
+    {
+     "name": "Paydays",
+     "type": "note"
+    },
+    {
+     "name": "Amounts",
+     "type": "note"
+    },
+    {
+     "name": "Source",
+     "type": "text"
+    },
+    {
+     "name": "Pattern",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "UpdatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "PayRuns",
+   "displayName": "PP Pay Runs",
+   "description": "approved pay runs with each person's figures",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "SchemeKey",
+     "type": "text"
+    },
+    {
+     "name": "TaxYear",
+     "type": "number"
+    },
+    {
+     "name": "Period",
+     "type": "number"
+    },
+    {
+     "name": "Payday",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Lines",
+     "type": "note"
+    },
+    {
+     "name": "Totals",
+     "type": "note"
+    },
+    {
+     "name": "SubmissionKey",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedAt",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "RtiSubmissions",
+   "displayName": "PP RTI Submissions",
+   "description": "FPS and EPS queued for HMRC and what HMRC said",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "SchemeKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "TaxYear",
+     "type": "number"
+    },
+    {
+     "name": "Period",
+     "type": "number"
+    },
+    {
+     "name": "SendOn",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "OfficeNo",
+     "type": "text"
+    },
+    {
+     "name": "PayeRef",
+     "type": "text"
+    },
+    {
+     "name": "Body",
+     "type": "note"
+    },
+    {
+     "name": "Summary",
+     "type": "note"
+    },
+    {
+     "name": "IRmark",
+     "type": "text"
+    },
+    {
+     "name": "CorrelationID",
+     "type": "text"
+    },
+    {
+     "name": "PollUrl",
+     "type": "text"
+    },
+    {
+     "name": "Response",
+     "type": "note"
+    },
+    {
+     "name": "Errors",
+     "type": "note"
+    },
+    {
+     "name": "Attempts",
+     "type": "number"
+    },
+    {
+     "name": "SubmittedAt",
+     "type": "text"
+    },
+    {
+     "name": "AnsweredAt",
+     "type": "text"
+    },
+    {
+     "name": "Live",
+     "type": "text"
+    },
+    {
+     "name": "RunKey",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
    "key": "PortalUsers",
    "displayName": "PP Portal Users",
    "description": "Practice Planner client portal: portal logins. Written only by the portal server.",

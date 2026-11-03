@@ -28,6 +28,7 @@ import { PapersPage } from "./PapersPage";
 import { TaxPage } from "./TaxPage";
 import { PracticePage } from "./PracticePage";
 import { CompliancePage } from "./CompliancePage";
+import { PayrollPage, setPayrollDemo } from "./Payroll";
 import { SalesPage } from "./SalesPage";
 import { CoSecPage } from "./CoSecPage";
 import { AdvisoryPage } from "./AdvisoryPage";
@@ -56,6 +57,7 @@ export function App({ demo }: { demo: boolean }) {
     return () => window.removeEventListener("scroll", on);
   }, []);
   setCoSecDemo(demo);
+  setPayrollDemo(demo);
   const { status, error, reload, saveSetting, data } = useData();
   const { parts } = useRoute();
   // the model and effort chosen in Settings go with every AI request
@@ -124,6 +126,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <PracticePage />;
   } else if (section === "compliance") {
     body = <CompliancePage />;
+  } else if (section === "payroll") {
+    body = <PayrollPage />;
   } else if (section === "checklists") {
     body = <><SettingsTabs current="checklists" /><ChecklistsPage /></>;
   } else if (section === "portal") {
