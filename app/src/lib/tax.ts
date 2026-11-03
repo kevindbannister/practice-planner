@@ -255,6 +255,19 @@ export function propertyProfit(r: TaxReturn) {
 }
 
 /** Taking reliefs or allowances off income in the order non-savings, savings, dividends. */
+/** Personal allowance is deducted in the way that gives the greatest reduction in tax (ITA 2007 s.25): after non-savings
+ * income, it comes off savings above the starting-rate band, then dividends, and zero-rate savings last. */
+function takeOffAllowance(amount: number, pots: { ns: number; sv: number; dv: number }, startingBand: number) {
+  let left = amount;
+  const out = { ...pots };
+  const fromNs = Math.min(out.ns, left); out.ns -= fromNs; left -= fromNs;
+  const zeroRate = Math.min(out.sv, Math.max(0, startingBand - out.ns));
+  const fromSavings = Math.min(out.sv - zeroRate, left); out.sv -= fromSavings; left -= fromSavings;
+  const fromDividends = Math.min(out.dv, left); out.dv -= fromDividends; left -= fromDividends;
+  const fromZero = Math.min(out.sv, left); out.sv -= fromZero; left -= fromZero;
+  return { pots: out, used: amount - left };
+}
+
 function takeOff(amount: number, pots: { ns: number; sv: number; dv: number }) {
   let left = amount;
   const out = { ...pots };
@@ -324,7 +337,7 @@ export function compute(r: TaxReturn, year: number): Computation {
   if (r.allowances.marriage === "transfer") pa = Math.max(0, pa - R.marriageAllowance);
   const blind = r.allowances.blind ? R.blindAllowance : 0;
   const allowances = pa + blind;
-  ({ pots } = takeOff(allowances, pots));
+  ({ pots } = takeOffAllowance(allowances, pots, R.savingsStartingBand));
   const taxable = pots.ns + pots.sv + pots.dv;
   const paRows: Row[] = [{ label: "Personal Allowance", amount: R.personalAllowance }];
   if (taper) paRows.push({ label: "Reduced: income over £100,000", amount: -Math.min(taper, R.personalAllowance), sub: true });

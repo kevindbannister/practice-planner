@@ -141,3 +141,15 @@ test("payments on account: rolled forward from last year, and only ticked paymen
 });
 const p2 = (v: number) => Math.round(v * 100) / 100;
 
+
+test("the personal allowance left over after salary comes off dividends, not zero-rate savings (2023-24, IRIS figure)", () => {
+  // salary £12,480 (under the allowance), savings £4,075 (within the 0% starting band), dividends £44,081, pension relief at source £4,200
+  const c = compute(ret((r) => {
+    r.employments.push(job(12480));
+    r.interest.push({ id: "i", payer: "Bank", untaxed: 4075 });
+    r.dividends.push({ id: "d", company: "Co", amount: 44081 });
+    r.reliefs.pensionRas = 4200;
+  }), 2024);
+  // IRIS: 4,075 at 0%, 1,000 at 0%, 37,875 at 8.75% = 3,314.06, 5,116 at 33.75% = 1,726.65
+  assert.equal(c.incomeTax, 5040.71);
+});
