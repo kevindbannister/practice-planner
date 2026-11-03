@@ -153,3 +153,14 @@ test("the personal allowance left over after salary comes off dividends, not zer
   // IRIS: 4,075 at 0%, 1,000 at 0%, 37,875 at 8.75% = 3,314.06, 5,116 at 33.75% = 1,726.65
   assert.equal(c.incomeTax, 5040.71);
 });
+
+test("summary: Total tax due is after tax deducted at source, not the gross figure", () => {
+  const r = emptyReturn();
+  r.employments.push({ id: newId(), payer: "Employer", pay: 50000, tax: 6000 } as any);
+  const c = compute(r, 2025);
+  const sum = c.blocks.find((b) => b.title === "Summary")!.rows;
+  const tax = sum.find((x) => x.label === "Total Income Tax due")!.amount;
+  const due = sum.find((x) => x.label === "Total tax due")!.amount;
+  assert.equal(due, tax);
+  assert.ok(Math.abs(due - (c.totalLiability - c.deducted)) < 0.005);
+});

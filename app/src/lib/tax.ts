@@ -528,7 +528,7 @@ export function compute(r: TaxReturn, year: number): Computation {
     { label: "Total Income Tax due", amount: p2(incomeTax - atSource), strong: true },
     ...(class2 + class4 ? [{ label: "Class 2 and Class 4 NIC", amount: p2(class2 + class4) }] : []),
     ...(studentLoan ? [{ label: "Student loan", amount: studentLoan }] : []), ...(cgt ? [{ label: "Capital Gains Tax", amount: cgt }] : []),
-    { label: "Total tax due", amount: totalLiability, strong: true },
+    { label: "Total tax due", amount: p2(totalLiability - atSource), strong: true },
     ...madeLines.filter((l) => n(l.amount)).map((l) => ({ label: `${l.label} · paid ${fmtPaidDate(l.date)}`, amount: -n(l.amount) })),
     ...(propertyReturn ? [{ label: "Paid on UK property disposal returns", amount: -propertyReturn }] : []),
     ...(latePaid ? [{ label: "Late payment interest and penalties paid (not part of the tax)", amount: latePaid, note: "Paid to HMRC with the payments above; not taken off the balance" }] : []),
