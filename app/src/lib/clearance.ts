@@ -14,15 +14,36 @@ export const asStatus = (v: unknown): ClearanceStatus => (v === "requested" || v
 /** One point in the clearance request. `services` is where it applies: empty means every client, otherwise only clients with one of those services. */
 export type ItemDef = { key: string; label: string; for: "all" | "company" | "individual"; services?: string[] };
 export const STANDARD_ITEMS: ItemDef[] = [
+  // the client and the relationship
+  { key: "fees", label: "Confirmation that no fees are outstanding, or the position if there are", for: "all" },
+  { key: "lien", label: "Whether you are exercising a lien over any of the client's books or papers", for: "all" },
+  { key: "hmrcauth", label: "The date you will remove your HMRC agent authorisation, so that ours can take effect", for: "all" },
+  { key: "enquiries", label: "Details of any open HMRC enquiries, investigations, penalties or time-to-pay arrangements", for: "all" },
+  { key: "late", label: "Any returns, accounts or payments that are overdue, or that you know will be late", for: "all" },
+  { key: "aml", label: "A copy of the client's identity and AML checks, where you are able to share them", for: "all" },
+  // identifiers
+  { key: "utr", label: "Unique Taxpayer Reference and, for a company, the Companies House authentication code", for: "all" },
+  { key: "chnum", label: "The company's registered office address, year end and confirmation statement due date", for: "company" },
+  // company year end work
   { key: "accounts", label: "Last filed accounts and the working papers behind them", for: "company" },
   { key: "ct600", label: "Last Corporation Tax return (CT600) and computations", for: "company" },
-  { key: "sa", label: "Last Self Assessment returns and tax calculations", for: "individual" },
+  { key: "ctpay", label: "Corporation Tax payments made and any amount still due", for: "company" },
+  { key: "fixedassets", label: "The fixed asset register and capital allowances computations", for: "company" },
   { key: "ledgers", label: "Debtors and creditors listings at the last year end", for: "company" },
+  { key: "loans", label: "The directors' loan account and any other loan balances at the last year end", for: "company" },
+  { key: "registers", label: "Statutory registers (members, directors, people with significant control) and minute book, if you hold them", for: "company" },
   { key: "tb", label: "Trial balance and nominal ledger for the current year to date", for: "all" },
-  { key: "utr", label: "Unique Taxpayer Reference and, for a company, the Companies House authentication code", for: "all" },
-  { key: "vat", label: "VAT registration details and the last VAT returns", for: "all" },
-  { key: "paye", label: "PAYE references and payroll records for the year to date", for: "all" },
-  { key: "fees", label: "Confirmation that no fees are outstanding, or the position", for: "all" },
+  // individuals
+  { key: "sa", label: "Last Self Assessment returns and tax calculations", for: "individual" },
+  { key: "sapay", label: "Payments on account made and the balance, if any, still due", for: "individual" },
+  { key: "sa800", label: "Partnership returns and the partners' profit shares, where the client is a partner", for: "individual", services: ["SA800"] },
+  { key: "cgt", label: "Capital gains and property computations, including base costs and any losses carried forward", for: "individual" },
+  // services
+  { key: "vat", label: "VAT registration details, the VAT scheme and the last VAT returns", for: "all", services: ["VAT"] },
+  { key: "vatrecon", label: "VAT working papers and any outstanding VAT queries or assessments", for: "all", services: ["VAT"] },
+  { key: "paye", label: "PAYE and employer references and payroll records for the year to date", for: "all", services: ["PAYE", "PAYROLL"] },
+  { key: "pension", label: "Auto-enrolment details: the pension provider, staging date and latest declaration of compliance", for: "all", services: ["PAYE", "PAYROLL"] },
+  { key: "cis", label: "CIS registration, the verification and monthly returns for the current tax year", for: "all", services: ["CIS"] },
 ];
 export type Item = { key: string; label: string; asked: boolean; got: boolean };
 
@@ -66,14 +87,22 @@ export function clearanceLetter(i: LetterInput): Letter {
   const who = i.clientName || String(i.client.Title);
   const asked = i.items.filter((x) => x.asked);
   const lines = [
-    `We have been asked by ${who}${company && i.client.CompanyNumber ? ` (company number ${i.client.CompanyNumber})` : ""} to act as their accountants in place of your firm.`,
+    `${who}${company && i.client.CompanyNumber ? ` (company number ${i.client.CompanyNumber})` : ""} has asked us to act as their accountants in place of your firm, and has given us authority to contact you. A copy of that authority is available on request.`,
     "",
-    "Before we accept the appointment, please would you tell us whether there is any professional or other reason why we should not do so. If there is a matter we ought to know about, please let us know so we can consider it. We have the client's authority to make this request and a copy is available on request.",
+    "Before we accept the appointment, please would you tell us whether there is any professional or other reason why we should not do so. In particular, please let us know if:",
+    "- you have ceased to act, or been asked to cease to act, and why;",
+    "- you have any concern about the integrity of the client or the information they have given you;",
+    "- there is any matter that raises a money laundering or tax compliance concern that you are free to tell us about; or",
+    "- there is any other fact we ought to know before we decide.",
+    "",
+    "If there is nothing of that kind, a short reply to say so will do. If there is a matter you feel unable to disclose without the client's permission, please tell us that you are unable to give clearance, and we will take it up with the client.",
     "",
     "To allow a smooth handover, please would you also let us have the following, where you hold them:",
     ...asked.map((x) => `- ${x.label}`),
     "",
-    "We would be grateful for your reply within 14 days. If there are fees outstanding, please tell us the position so that we can discuss it with the client.",
+    "Please send these to us in your usual format, and tell us if you will charge for copying the records.",
+    "",
+    "We would be grateful for your reply within 14 days. We will not start work for the client until we have heard from you or the client has told us why a reply is not coming.",
     "",
     "Thank you for your help.",
   ];

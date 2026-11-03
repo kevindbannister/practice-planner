@@ -18,7 +18,7 @@ test("no contact falls back to Sir/Madam and Yours faithfully", () => {
 });
 
 test("the letter names the client and lists only what is asked for", () => {
-  const items = defaultItems(company).map((x, i) => ({ ...x, asked: i !== 0 }));
+  const items = defaultItems(company).map((x) => ({ ...x, asked: x.key !== "accounts" }));
   const l = clearanceLetter({ client: company, clientName: "Bck Interior Ltd", previous: { firm: "Old & Co", contact: "", email: "", address: "1 High St, Leeds" }, items, practice: "Us LLP", person: "Kevin", date: "27 October 2026" });
   assert.equal(l.salutation, "Dear Sir/Madam,");
   assert.match(l.body, /company number 01234567/);
@@ -52,4 +52,23 @@ test("clearance points come from settings and can be limited to services", async
   assert.deepEqual(itemsFor(company, pts, ["PAYROLL"]).map((i) => i.key), ["a", "b"]);
   assert.deepEqual(itemsFor(person, pts, ["PAYROLL"]).map((i) => i.key), ["a"]);
   assert.equal(itemsFor(company, pts).length, 2);
+});
+
+test("the standard list is a full one, and service points only show for those services", async () => {
+  const { STANDARD_ITEMS } = await import("../src/lib/clearance.ts");
+  assert.equal(STANDARD_ITEMS.length, 25);
+  assert.equal(new Set(STANDARD_ITEMS.map((i) => i.key)).size, 25);
+  assert.deepEqual(itemsFor(company, STANDARD_ITEMS, ["VAT"]).filter((i) => i.services?.length).map((i) => i.key), ["vat", "vatrecon"]);
+  assert.ok(!itemsFor(company, STANDARD_ITEMS, []).some((i) => i.key === "cis"));
+  assert.ok(!itemsFor(person, STANDARD_ITEMS, []).some((i) => i.key === "ctpay"));
+  assert.ok(itemsFor(person, STANDARD_ITEMS, ["SA800"]).some((i) => i.key === "sa800"));
+});
+
+test("the letter asks the professional clearance questions and says when we will start", () => {
+  const l = clearanceLetter({ client: company, clientName: "Bck Interior Ltd", previous: { firm: "Old & Co", contact: "Mr Smith", email: "", address: "1 High St" }, items: defaultItems(company), practice: "Us LLP", person: "Kevin", date: "27 October 2026" });
+  assert.match(l.body, /any professional or other reason why we should not/);
+  assert.match(l.body, /ceased to act/);
+  assert.match(l.body, /within 14 days/);
+  assert.match(l.body, /will not start work/);
+  assert.equal(l.signOff, "Yours sincerely,");
 });
