@@ -6,15 +6,19 @@ import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { Client, fmtDate, todayIso } from "../lib/domain";
 import { PaperStatus, STATUS_LABEL, readSetup, setupRow, stateOf } from "../lib/papers";
 import {
-  Computation, Dividend, Employment, Gain, Interest, NOT_YET, OtherPension, Partnership, SECTIONS, SectionDef, SectionKey, SelfEmployment, TaxReturn,
-  compute, emptyReturn, hasSection, newId, poaMade, propertyProfit, readReturn, rollForward, tradeProfit, employmentIncome,
+  Computation, Dividend, Employment, Gain, Interest, NOT_YET, OtherPension, Partnership, ReturnState, SECTIONS, STATE_LABEL, SectionDef, SectionKey, SelfEmployment, TaxReturn,
+  bringForward, compute, emptyReturn, hasSection, newId, poaMade, propertyProfit, readReturn, rollForward, tradeProfit, employmentIncome,
 } from "../lib/tax";
+import { ImportResult } from "../lib/taxImport";
+import { brandOf, readBranding, displayName } from "../lib/docBranding";
+import { Ask, ConfirmBox, ImportDialog, NewReturnDialog, ReturnViewer, Start, sendImport, takeImport } from "./TaxReturnView";
 import { YEARS, ratesFor, yearEnd, yearLabel, yearOf } from "../lib/taxRates";
 import { Icon, href, useRoute } from "./bits";
 import { TaxPlanView, TaxPlanningList } from "./TaxPlanning";
 import { BannerMenu } from "./BannerMenu";
 import { useEditor } from "./Editors";
 import { useData, useIndex } from "./data";
+import type { Row } from "../lib/schema";
 import { PaperWriter, useWriterState } from "./PaperSchedules";
 
 export const TAX_ITEM = "_tax";
@@ -26,7 +30,7 @@ const latestYear = (today: string) => { const y = yearOf(today); return Math.max
 export function TaxPage() {
   const { parts } = useRoute();
   if (parts[1] === "planning") return parts[2] ? <TaxPlanView clientKey={parts[2]} year={Number(parts[3]) || undefined} /> : <TaxPlanningList />;
-  return parts[1] ? <TaxView clientKey={parts[1]} year={Number(parts[2]) || undefined} /> : <TaxList />;
+  return parts[1] ? <TaxView clientKey={parts[1]} year={Number(parts[2]) || undefined} start={parts[3] as Start | undefined} /> : <TaxList />;
 }
 
 // ------------------------------------------------------------------ the list
@@ -37,16 +41,18 @@ function TaxList() {
   const today = todayIso();
   const [year, setYear] = useState(latestYear(today));
   const [q, setQ] = useState("");
+  const [starting, setStarting] = useState(false);
   const rows = useMemo(() => {
-    const out: { c: Client; job?: { Title: string; Deadline?: string; Status?: string }; comp?: Computation }[] = [];
+    const out: { c: Client; job?: { Title: string; Deadline?: string; Status?: string }; comp?: Computation; state?: ReturnState; imported?: boolean }[] = [];
     for (const c of data.clients as Client[]) {
       if (isCompany(c)) continue;
       const jobs = (idx.jobsByClient.get(c.Key) || []).filter((j) => j.ServiceKey === "SA100");
       const saved = setupRow(data.papers, c.Key, yearEnd(year), TAX_ITEM);
       if (!jobs.length && !saved) continue;
       const job = jobs.find((j) => j.PeriodEnd === yearEnd(year)) || undefined;
-      const comp = saved ? compute(readReturn(readSetup(saved).r), year) : undefined;
-      out.push({ c, job: job as never, comp });
+      const sr = saved ? readReturn(readSetup(saved).r) : undefined;
+      const comp = sr ? compute(sr, year) : undefined;
+      out.push({ c, job: job as never, comp, state: sr ? sr.status?.state || "draft" : undefined, imported: !!sr?.imported });
     }
     return out.filter((x) => !q || String(x.c.Title).toLowerCase().includes(q.toLowerCase())).sort((a, b) => String(a.c.Title).localeCompare(String(b.c.Title)));
   }, [data.clients, data.papers, idx, year, q]);
@@ -58,6 +64,7 @@ function TaxList() {
           <p className="muted" style={{ margin: "4px 0 0" }}>Self Assessment returns and tax computations for each client and tax year.</p>
         </div>
         <a className="btn" href="#/tax/planning">Tax planning</a>
+        <button type="button" className="btn primary" onClick={() => setStarting(true)}><Icon name="plus" size={15} /> New tax return</button>
         <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Tax year
           <select className="input" value={year} style={{ width: "auto" }} onChange={(e) => setYear(Number(e.target.value))}>{[...YEARS].reverse().map((y) => <option key={y.year} value={y.year}>{y.label}</option>)}</select>
         </label>
@@ -67,10 +74,10 @@ function TaxList() {
         <table className="grid">
           <thead><tr><th>Client</th><th>Return</th><th className="num">Total tax</th><th className="num">To pay / repay</th><th className="num">Payments on account</th><th>Filing deadline</th></tr></thead>
           <tbody>
-            {rows.map(({ c, job, comp }) => (
+            {rows.map(({ c, job, comp, state, imported }) => (
               <tr key={c.Key} className="clickable" onClick={() => (window.location.hash = href("tax", String(c.Key), String(year)))}>
                 <td><a href={href("tax", String(c.Key), String(year))} onClick={(e) => e.stopPropagation()}>{c.Title}</a>{c.UTR ? <div className="muted mono" style={{ fontSize: 12 }}>{String(c.UTR)}</div> : null}</td>
-                <td>{comp ? "Started" : <span className="muted">Not started</span>}</td>
+                <td>{state ? <span className={`chip${state === "submitted" ? " green" : state === "final" ? " blue" : ""}`}>{STATE_LABEL[state]}</span> : <span className="muted">Not started</span>}{imported && <span className="muted" style={{ fontSize: 12, marginLeft: 6 }}>from IRIS</span>}</td>
                 <td className="num mono">{comp ? gbp(comp.totalLiability) : "-"}</td>
                 <td className="num mono">{comp ? (comp.balancing >= 0 ? gbp(comp.balancing) : `${gbp(-comp.balancing)} back`) : "-"}</td>
                 <td className="num mono">{comp?.poaNext ? `2 × ${gbp(comp.poaNext)}` : "-"}</td>
@@ -81,30 +88,48 @@ function TaxList() {
           </tbody>
         </table>
       </div>
+      {starting && <NewReturnDialog clients={(data.clients as Client[]).filter((c) => !isCompany(c)).sort((a, b) => String(a.Title).localeCompare(String(b.Title)))} year={year}
+        has={(ck, y) => !!setupRow(data.papers, ck, yearEnd(y), TAX_ITEM)} onClose={() => setStarting(false)}
+        onGo={(ck, y, start) => { setStarting(false); window.location.hash = href("tax", ck, String(y), start); }} />}
     </div>
   );
 }
 
 // ------------------------------------------------------------------ one client and year
 
-function TaxView({ clientKey, year: yearParam }: { clientKey: string; year?: number }) {
+type View = "inputs" | "return";
+const readView = (): View => { try { return localStorage.getItem("pp.tax.view") === "return" ? "return" : "inputs"; } catch { return "inputs"; } };
+
+function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; year?: number; start?: Start }) {
   const idx = useIndex();
+  const { data } = useData();
+  const [view, setView0] = useState<View>(readView);
+  const setView = (v: View) => { setView0(v); try { localStorage.setItem("pp.tax.view", v); } catch { /* this visit only */ } };
+  const [starting, setStarting] = useState(false);
   const editor = useEditor();
   const c = idx.clientByKey.get(clientKey) as Client | undefined;
   const today = todayIso();
   const year = yearParam || latestYear(today);
   if (!c) return <div className="page"><a className="crumb" href="#/tax">Personal tax</a><div className="card empty">That client couldn't be found.</div></div>;
   const jobs = (idx.jobsByClient.get(c.Key) || []).filter((j) => j.ServiceKey === "SA100" && j.PeriodEnd === yearEnd(year));
+  const savedRow = setupRow(data.papers, c.Key, yearEnd(year), TAX_ITEM);
+  const state = savedRow ? readReturn(readSetup(savedRow).r).status?.state || "draft" : undefined;
   return (
     <div className="page paper-page tax-page">
       <header className="paper-top">
         <a className="paper-top-icon" href="#/tax" title="Back to all tax returns" aria-label="Back to all tax returns"><Icon name="book" size={20} /></a>
         <h1>{c.Title}</h1>
-        <span className="chip">SA100 {year}</span>
+        <span className="chip">SA100 {yearLabel(year)}</span>
+        {state && <span className={`chip${state === "submitted" ? " green" : state === "final" ? " blue" : ""}`}>{STATE_LABEL[state]}</span>}
         {c.UTR && <span className="chip mono" title="Self Assessment UTR">{String(c.UTR)}</span>}
         <a className="chip blue chip-fixed" href={href("clients", c.Key)}>Client page</a>
         {jobs.map((j) => <button key={j.Key} type="button" className="chip blue" style={{ cursor: "pointer" }} onClick={() => editor.open({ kind: "job", key: j.Key as string })}>{j.Title}{j.Deadline ? ` · due ${fmtDate(j.Deadline as string, { year: false })}` : ""}</button>)}
         <div className="paper-tools">
+          <div className="seg tax-views" role="group" aria-label="What to show">
+            <button type="button" aria-pressed={view === "inputs"} title="Enter the figures, with the computation" onClick={() => setView("inputs")}><Icon name="edit" size={15} /> Inputs</button>
+            <button type="button" aria-pressed={view === "return"} title="The computation beside the SA100 return" onClick={() => setView("return")}><Icon name="form" size={15} /> Return</button>
+          </div>
+          <button type="button" className="btn small" title="Start a return for another tax year, or bring in a past one" onClick={() => setStarting(true)}><Icon name="plus" size={14} /> New return</button>
           <label className="row-wrap paper-year" style={{ gap: 6, fontSize: 13 }}>
             <span>Tax year</span>
             <select className="input" value={year} style={{ width: "auto", minHeight: 32, padding: "2px 8px" }} onChange={(e) => (window.location.hash = href("tax", c.Key, e.target.value))}>
@@ -115,8 +140,10 @@ function TaxView({ clientKey, year: yearParam }: { clientKey: string; year?: num
         </div>
       </header>
       <PaperWriter key={year} client={c} period={yearEnd(year)}>
-        <TaxScreen client={c} year={year} />
+        <TaxScreen key={`${year}-${start || ""}`} client={c} year={year} view={view} setView={setView} start={start} />
       </PaperWriter>
+      {starting && <NewReturnDialog clientKey={c.Key} year={year} has={(ck, y) => !!setupRow(data.papers, ck, yearEnd(y), TAX_ITEM)} onClose={() => setStarting(false)}
+        onGo={(ck, y, s) => { setStarting(false); window.location.hash = href("tax", ck, String(y), s); }} />}
     </div>
   );
 }
@@ -136,8 +163,11 @@ function navItems(r: TaxReturn): NavItem[] {
   return out;
 }
 
-function TaxScreen({ client: c, year }: { client: Client; year: number }) {
-  const { data } = useData();
+function TaxScreen({ client: c, year, view, setView, start }: { client: Client; year: number; view: View; setView: (v: View) => void; start?: Start }) {
+  const { data, updateMany } = useData();
+  const [ask, setAsk] = useState<Ask | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [editing, setEditing] = useState<{ section: SectionKey; title: string } | null>(null);
   const w = useWriterState();
   const saved = w.setup(TAX_ITEM) as { r?: unknown };
   const [ret, setRet] = useState<TaxReturn>(() => readReturn(saved.r));
@@ -160,10 +190,11 @@ function TaxScreen({ client: c, year }: { client: Client; year: number }) {
     });
   }, [flush]);
   useEffect(() => () => flush(), [flush]);
+  const fromClient = useCallback((r: TaxReturn): TaxReturn => ({ ...r, front: { ...r.front, utr: r.front.utr || String(c.UTR || ""), nino: r.front.nino || String(c.NINumber || ""), dob: r.front.dob || String(c.DateOfBirth || "") || undefined } }), [c]);
   // first open: front page from the client record
   useEffect(() => {
     if (saved.r) return;
-    update((r) => ({ ...r, front: { ...r.front, utr: String(c.UTR || ""), nino: String(c.NINumber || ""), dob: String(c.DateOfBirth || "") || undefined } }));
+    update((r) => ({ ...fromClient(r), status: r.status || { state: "draft" } }));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // payments on account expected for this year: rolled forward from last year's return, kept in step if last year changes
   const prevRow = setupRow(data.papers, c.Key, yearEnd(year - 1), TAX_ITEM);
@@ -176,6 +207,61 @@ function TaxScreen({ client: c, year }: { client: Client; year: number }) {
   }, [rolled?.expectedPoa1, rolled?.expectedPoa2]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const comp = useMemo(() => compute(ret, year), [ret, year]);
+  const prevRet = useMemo(() => (prevRow ? readReturn(readSetup(prevRow).r) : null), [prevRow]);
+  // figures typed in (the payments on account rolled forward from last year don't count)
+  const hasContent = (r: TaxReturn) => SECTIONS.some((s) => s.key !== "front" && s.key !== "payments" && hasSection(r, s.key)) || !!(r.payments.poa1 || r.payments.poa2 || r.payments.earlierYearInCode || r.payments.nextYearInCode || r.payments.propertyReturnTax);
+  const keepRolled = (r: TaxReturn): TaxReturn => (rolled ? { ...r, payments: { ...r.payments, expectedPoa1: rolled.expectedPoa1, expectedPoa2: rolled.expectedPoa2, expectedFrom: `the ${yearLabel(year - 1)} return`, priorLiability: r.payments.priorLiability ?? rolled.liability } } : r);
+  const sectionRows = () => (data.papers as Row[]).filter((r) => r.ClientKey === c.Key && r.PeriodEnd === yearEnd(year) && String(r.ItemKey || "").startsWith("tax/"));
+  const clearSections = () => { const rows = sectionRows(); return rows.length ? updateMany("WorkingPapers", rows.map((row) => ({ row, patch: { Status: "todo", Note: "", Setup: "{}" } }))) : Promise.resolve(); };
+
+  /** Start again: everything on this year's return cleared, with the client's details and the payments on account rolled forward. */
+  const resetAll = () => setAsk({
+    title: `Reset the ${yearLabel(year)} return?`, danger: true, yes: "Reset everything",
+    body: ["Every section and figure on this return is cleared, with the section statuses and notes. The front page is filled again from the client record.", "This can't be undone."],
+    onYes: () => { update(() => keepRolled(fromClient({ ...emptyReturn(), status: { state: "draft" } }))); void clearSections(); setPick("front"); },
+  });
+  /** Start from last year's return. Warn when last year isn't marked as submitted, and when this year already has figures. */
+  const broughtForward = () => {
+    if (!prevRet) return;
+    const st = prevRet.status?.state || "draft";
+    const body: string[] = [`The people, employers, businesses, payers and claims on the ${yearLabel(year - 1)} return come across with their figures cleared. Losses, unused finance costs and capital losses carry forward, and the payments on account roll forward.`];
+    if (st !== "submitted") body.unshift(`The ${yearLabel(year - 1)} return isn't marked as submitted (it's ${STATE_LABEL[st].toLowerCase()}). Anything carried forward from it may still change.`);
+    if (hasContent(ret)) body.push(`Everything already on the ${yearLabel(year)} return is replaced.`);
+    setAsk({
+      title: st !== "submitted" ? `${yearLabel(year - 1)} isn't submitted yet` : `Bring forward from ${yearLabel(year - 1)}?`, danger: st !== "submitted" || hasContent(ret), yes: st !== "submitted" ? "Bring forward anyway" : "Bring forward",
+      body, onYes: () => { update(() => keepRolled(fromClient(bringForward(prevRet, year - 1, todayIso())))); void clearSections(); setPick("front"); },
+    });
+  };
+  /** A past return read from IRIS's PDFs. */
+  const applyImport = (res: ImportResult, submitted: boolean) => {
+    const apply = () => {
+      update(() => {
+        const r = fromClient({ ...res.ret, front: { ...res.ret.front, region: ret.front.region, overSpa: ret.front.overSpa } });
+        return { ...(r.payments.paidDifferent ? r : keepRolled(r)), status: submitted ? { state: "submitted" } : { state: "draft" }, imported: { from: "IRIS Elements", on: todayIso(), files: [] } };
+      });
+      void clearSections();
+      setPick("front");
+    };
+    if (hasContent(ret)) setAsk({ title: `Replace the ${yearLabel(year)} return?`, danger: true, yes: "Replace it", body: [`There are already figures on the ${yearLabel(year)} return. Bringing in the IRIS return replaces all of them.`], onYes: apply });
+    else apply();
+  };
+  // arriving from "New tax return" or an import for this year
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    const handed = takeImport(c.Key, year);
+    if (handed) applyImport(handed.res, handed.submitted);
+    else if (start === "bf") { if (prevRet) broughtForward(); }
+    else if (start === "import") setImporting(true);
+    if (start) window.history.replaceState(null, "", href("tax", c.Key, String(year)));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const branding = useMemo(() => brandOf(readBranding(data.settings)), [data.settings]);
+  const ctx = useMemo(() => ({
+    name: String(c.Title || ""), address: String(c.CorrespondenceAddress || c.HomeAddress || ""), phone: String(c.Phone || c.Mobile || "") || undefined,
+    agent: { name: displayName(branding) || undefined, phone: branding.phone || undefined, address: (branding.correspondenceAddress || branding.registeredAddress || "").split(/\n|,/)[0]?.trim() || undefined, ref: String(c.Code || c.Key || "") || undefined },
+  }), [c, branding]);
+  const companyNames = useMemo(() => (data.clients as Client[]).filter(isCompany).map((x) => String(x.Title || "")), [data.clients]);
   const items = navItems(ret);
   const [pick, setPick] = useState<string>("front");
   const [adding, setAdding] = useState(false);
@@ -220,6 +306,43 @@ function TaxScreen({ client: c, year }: { client: Client; year: number }) {
     setAdding(false);
   };
 
+  if (view === "return") {
+    const eItems = editing ? items.filter((x) => x.section.key === editing.section) : [];
+    return (
+      <div className="tax-split tax-split-return">
+        <aside className="tax-comp hero-wash" aria-label="Tax computation"><CompPanel comp={comp} year={year} client={c} /></aside>
+        <ReturnViewer year={year} ret={ret} comp={comp} ctx={ctx} onPick={(section, title) => setEditing({ section, title })} />
+        {editing && (
+          <div className="tax-edit-sheet" role="presentation" onClick={() => setEditing(null)}>
+            <div className="tax-edit-card" role="dialog" aria-modal="true" aria-label={`Change: ${editing.title}`} onClick={(e) => e.stopPropagation()}>
+              <div className="quick-journal-head">
+                <strong><Icon name="edit" size={16} /> {editing.title}</strong>
+                <button type="button" className="quick-journal-x" onClick={() => setEditing(null)} aria-label="Close"><Icon name="close" size={16} /></button>
+              </div>
+              {eItems.length === 0 ? (
+                <div className="stack" style={{ gap: 10 }}>
+                  <p className="muted" style={{ margin: 0 }}>{SECTIONS.find((x) => x.key === editing.section)?.title} isn't on this return yet.</p>
+                  <button type="button" className="btn primary" style={{ alignSelf: "flex-start" }} onClick={() => add(editing.section)}><Icon name="plus" size={15} /> Add {SECTIONS.find((x) => x.key === editing.section)?.title}</button>
+                </div>
+              ) : eItems.map((it) => (
+                <div key={it.key} className="stack tax-form" style={{ gap: 10 }}>
+                  {eItems.length > 1 && <h3 className="tax-sub">{it.title}</h3>}
+                  {it.section.key === "front" && <FrontStatus ret={ret} update={update} />}
+                  <SectionForm item={it} ret={ret} update={update} year={year} />
+                </div>
+              ))}
+              <div className="row-wrap" style={{ gap: 8, marginTop: 12 }}>
+                <button type="button" className="btn primary" onClick={() => setEditing(null)}><Icon name="check" size={15} /> Done</button>
+                {eItems[0] && <button type="button" className="btn" onClick={() => { setPick(eItems[0].key); setEditing(null); setView("inputs"); }}>Open in the inputs</button>}
+              </div>
+            </div>
+          </div>
+        )}
+        {ask && <ConfirmBox ask={ask} onClose={() => setAsk(null)} />}
+      </div>
+    );
+  }
+
   return (
     <div className="tax-split">
       <div className="paper">
@@ -257,6 +380,20 @@ function TaxScreen({ client: c, year }: { client: Client; year: number }) {
         </nav>
         <section className="paper-main stack" aria-labelledby="tax-h">
           <SectionHead item={cur} clientKey={c.Key} period={period} onRemove={cur.section.always ? undefined : () => { remove(cur); setPick("front"); }} />
+          {cur.section.key === "front" && (
+            <div className="card pad stack">
+              <FrontStatus ret={ret} update={update} />
+              <div className="row-wrap" style={{ gap: 8 }}>
+                <button type="button" className="btn" disabled={!prevRet} title={prevRet ? `Start from the ${yearLabel(year - 1)} return` : `There's no ${yearLabel(year - 1)} return here to bring forward`} onClick={broughtForward}><Icon name="refresh" size={15} /> Bring forward from {yearLabel(year - 1)}</button>
+                <button type="button" className="btn" onClick={() => setImporting(true)}><Icon name="download" size={15} /> Bring in from IRIS</button>
+                <button type="button" className="btn danger" style={{ marginLeft: "auto" }} onClick={resetAll}><Icon name="refresh" size={15} /> Reset</button>
+              </div>
+              {!prevRet && <p className="muted" style={{ margin: 0, fontSize: 12 }}>No {yearLabel(year - 1)} return here to bring forward. Start one with New return (it can be brought in from IRIS).</p>}
+              {prevRet && prevRet.status?.state !== "submitted" && <p className="warn" style={{ margin: 0, fontSize: 12 }}>The {yearLabel(year - 1)} return isn't marked as submitted yet.</p>}
+              {ret.broughtForward && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Brought forward from {yearLabel(ret.broughtForward.from)} on {fmtDate(ret.broughtForward.on)}.</p>}
+              {ret.imported && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Brought in from {ret.imported.from} on {fmtDate(ret.imported.on)}.</p>}
+            </div>
+          )}
           <div className="card pad stack tax-form">
             <SectionForm item={cur} ret={ret} update={update} year={year} />
           </div>
@@ -266,6 +403,9 @@ function TaxScreen({ client: c, year }: { client: Client; year: number }) {
       </div>
       <aside className="tax-comp hero-wash" aria-label="Tax computation"><CompPanel comp={comp} year={year} client={c} /></aside>
       {adding && <AddSection ret={ret} onAdd={add} onClose={() => setAdding(false)} />}
+      {ask && <ConfirmBox ask={ask} onClose={() => setAsk(null)} />}
+      {importing && <ImportDialog client={c} year={year} names={companyNames} onClose={() => setImporting(false)}
+        onUse={(res, y, submitted) => { setImporting(false); if (y === year) applyImport(res, submitted); else sendImport(c.Key, y, res, submitted, () => { window.location.hash = href("tax", c.Key, String(y)); }); }} />}
     </div>
   );
 
@@ -301,6 +441,26 @@ function TaxScreen({ client: c, year }: { client: Client; year: number }) {
       }
     });
   }
+}
+
+// ------------------------------------------------------------------ where the return has got to
+
+function FrontStatus({ ret, update }: { ret: TaxReturn; update: (f: (r: TaxReturn) => TaxReturn) => void }) {
+  const st = ret.status || { state: "draft" as ReturnState };
+  const set = (p: Partial<NonNullable<TaxReturn["status"]>>) => update((r) => ({ ...r, status: { ...(r.status || { state: "draft" }), ...p } }));
+  return (
+    <div className="tax-grid">
+      <label className="tax-field"><span>Return status</span>
+        <select className="input" value={st.state} onChange={(e) => set({ state: e.target.value as ReturnState, date: e.target.value === "submitted" ? st.date || todayIso() : st.date })}>
+          {(Object.keys(STATE_LABEL) as ReturnState[]).map((k) => <option key={k} value={k}>{STATE_LABEL[k]}</option>)}
+        </select>
+      </label>
+      {st.state === "submitted" && <>
+        <label className="tax-field"><span>Submitted on</span><input className="input" type="date" value={st.date || ""} onChange={(e) => set({ date: e.target.value || undefined })} /></label>
+        <label className="tax-field"><span>IRmark (HMRC receipt)</span><input className="input mono" value={st.irmark || ""} placeholder="Optional" onChange={(e) => set({ irmark: e.target.value || undefined })} /></label>
+      </>}
+    </div>
+  );
 }
 
 // ------------------------------------------------------------------ the head and foot of a section (status, notes, next)

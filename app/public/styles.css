@@ -3049,3 +3049,40 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 @keyframes tax-add-rise { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes tax-add-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .tax-add-sheet, .tax-add-card { animation: none; } }
+
+/* ---- tax return: the SA100 beside the computation */
+.tax-views button { display: inline-flex; align-items: center; gap: 6px; }
+.tax-split-return { grid-template-columns: minmax(340px, 30%) minmax(0, 1fr); }
+.tax-split-return > .tax-comp { order: 0; }
+.sa-view { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.sa-view-bar { position: sticky; top: 84px; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-radius: 16px; background: var(--surface); box-shadow: 0 6px 20px rgba(20, 90, 150, 0.08); }
+.sa-view-bar .btn { margin-left: auto; }
+.sa-pages { display: flex; flex-wrap: wrap; gap: 4px; }
+.sa-pages button { border: 1px solid var(--line); background: var(--surface); color: var(--blue-ink); border-radius: 999px; padding: 2px 9px; font-size: 12px; cursor: pointer; }
+.sa-pages button:hover { background: var(--blue-soft); }
+.sa-note { margin: 0; font-size: 12px; color: var(--muted); background: var(--blue-soft); border-radius: 10px; padding: 6px 10px; }
+.sa-scroll { display: flex; flex-direction: column; gap: 14px; }
+.sa-page { position: relative; width: 100%; max-width: 900px; margin: 0 auto; background: #fff; box-shadow: 0 2px 14px rgba(15, 40, 70, 0.14); border-radius: 4px; overflow: hidden; scroll-margin-top: 140px; }
+.sa-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sa-hot { position: absolute; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; border-radius: 2px; color: #1a3a99; font: inherit; }
+.sa-hot:hover, .sa-hot.on, .sa-hot:focus-visible { background: rgba(98, 112, 255, 0.28); outline: 2px solid rgba(70, 86, 230, 0.7); outline-offset: 1px; }
+.sa-ink { position: absolute; display: flex; align-items: center; font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 600; color: #1a3a99; pointer-events: none; white-space: nowrap; }
+.sa-ink.free { display: block; white-space: pre-line; align-items: flex-start; }
+.tax-edit-sheet { position: fixed; inset: 0; z-index: 60; background: rgba(10, 30, 60, 0.18); display: flex; justify-content: flex-start; }
+.tax-edit-card { width: min(720px, 100vw); height: 100%; overflow-y: auto; background: var(--surface); padding: 16px 18px 24px; box-shadow: 12px 0 40px rgba(10, 30, 60, 0.18); display: flex; flex-direction: column; gap: 10px; }
+.tax-confirm { width: min(520px, calc(100vw - 32px)); }
+.tax-import { width: min(640px, calc(100vw - 32px)); }
+.tax-start { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.tax-start legend { font-size: 13px; font-weight: 600; padding: 0 4px; }
+.tax-start label { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.tax-drop { position: relative; display: flex; align-items: center; justify-content: center; min-height: 72px; border: 2px dashed var(--line); border-radius: 14px; background: var(--blue-soft); color: var(--blue-ink); cursor: pointer; text-align: center; padding: 10px; }
+.tax-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.tax-drop span { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.tax-found { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
+.ok-text { color: var(--green); font-weight: 600; }
+@media (max-width: 1200px) { .tax-split-return { grid-template-columns: 1fr; } .sa-view-bar { top: 64px; } }
+.btn.danger { color: var(--red-ink); border-color: color-mix(in srgb, var(--red-ink) 35%, transparent); }
+.btn.danger:hover { background: var(--red-soft, #fdecec); }
+.tax-confirm .btn.danger, .tax-add-card .btn.danger { background: var(--red-ink); color: #fff; border-color: var(--red-ink); }
+.tax-page .paper-tools { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; }
+@media (max-width: 640px) { .tax-page .paper-tools { margin-left: 0; width: 100%; justify-content: flex-start; } .tax-views button { padding-left: 10px; padding-right: 10px; } }

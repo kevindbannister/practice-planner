@@ -15,6 +15,8 @@ function polyfill() {
     if (!proto.getOrInsert) proto.getOrInsert = function (this: typeof proto, k: unknown, v: unknown) { if (!this.has(k)) this.set(k, v); return this.get(k); };
     if (!proto.getOrInsertComputed) proto.getOrInsertComputed = function (this: typeof proto, k: unknown, f: (k: unknown) => unknown) { if (!this.has(k)) this.set(k, f(k)); return this.get(k); };
   }
+  const M = Math as unknown as { sumPrecise?: (xs: Iterable<number>) => number };
+  if (!M.sumPrecise) M.sumPrecise = (xs) => { let t = 0; for (const x of xs) t += x; return t; };
 }
 
 let loaded: Promise<PdfJs> | undefined;
@@ -23,7 +25,7 @@ export function loadPdfJs(): Promise<PdfJs> {
     polyfill();
     const url = "/pdf/pdf.min.mjs";
     const mod = (await import(/* webpackIgnore: true */ url)) as PdfJs;
-    mod.GlobalWorkerOptions.workerSrc = "/pdf/pdf.worker.min.mjs";
+    mod.GlobalWorkerOptions.workerSrc = "/pdf/pdf.worker.shim.mjs"; // starts pdf.worker.min.mjs with the same patches (build.mjs)
     return mod;
   })();
   return loaded;

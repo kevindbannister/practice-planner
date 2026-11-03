@@ -3,7 +3,7 @@
 //   node build.mjs --serve   local server on http://localhost:5173 with rebuilds
 //   node build.mjs --demo    build that talks to an in-browser fake SharePoint (for testing)
 import { build, context } from "esbuild";
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 const cp = cpSync;
 
 const serve = process.argv.includes("--serve");
@@ -15,6 +15,16 @@ cpSync("public", "dist", { recursive: true });
 // pdf.js, for reading PDF bank statements: served from the site itself (the security policy allows nothing else)
 mkdirSync("dist/pdf", { recursive: true });
 for (const f of ["pdf.min.mjs", "pdf.worker.min.mjs"]) cpSync(`node_modules/pdfjs-dist/build/${f}`, `dist/pdf/${f}`);
+// pdf.js 6 uses Map.getOrInsertComputed and Math.sumPrecise, which some browsers don't have yet; the page patches them in
+// lib/pdfText.ts, and this starts the worker with the same patches (without them pages with form fields fail to draw)
+writeFileSync("dist/pdf/pdf.worker.shim.mjs", `for (const C of [Map, WeakMap]) {
+  const p = C.prototype;
+  if (!p.getOrInsert) p.getOrInsert = function (k, v) { if (!this.has(k)) this.set(k, v); return this.get(k); };
+  if (!p.getOrInsertComputed) p.getOrInsertComputed = function (k, f) { if (!this.has(k)) this.set(k, f(k)); return this.get(k); };
+}
+if (!Math.sumPrecise) Math.sumPrecise = (xs) => { let s = 0, c = 0; for (const x of xs) { const y = x - c, t = s + y; c = (t - s) - y; s = t; } return s; };
+await import("./pdf.worker.min.mjs");
+`);
 // pdf-lib, for making PDF documents (letters and other documents): also served from the site
 cpSync("node_modules/pdf-lib/dist/pdf-lib.esm.min.js", "dist/pdf/pdf-lib.esm.min.js");
 
