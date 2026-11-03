@@ -28,8 +28,16 @@ export type Dividend = { id: string; company: string; amount: number; foreign?: 
 export type OtherPension = { id: string; payer: string; amount: number; tax: number };
 export type Gain = { id: string; description: string; kind: "residential" | "shares" | "other" | "crypto"; date?: string; proceeds: number; cost: number; badr?: boolean; ir?: boolean };
 
+/** Where a return has got to. Only a submitted return is final for bringing forward. */
+export type ReturnState = "draft" | "final" | "submitted";
+export const STATE_LABEL: Record<ReturnState, string> = { draft: "In progress", final: "Finalised, not submitted", submitted: "Submitted to HMRC" };
+export type ReturnStatus = { state: ReturnState; date?: string; irmark?: string };
+
 export type TaxReturn = {
   v: 1;
+  status?: ReturnStatus;
+  /** set when the return was brought in from another system (the files it came from) */ imported?: { from: string; on: string; files: string[] };
+  /** set when the return was started from last year's */ broughtForward?: { from: number; on: string };
   front: { region: Region; dob?: string; overSpa?: boolean; utr?: string; nino?: string };
   employments: Employment[];
   selfEmployments: SelfEmployment[];
@@ -159,6 +167,7 @@ export type Computation = {
   income: { nonSavings: number; savings: number; dividends: number; total: number; net: number; adjustedNet: number };
   personalAllowance: number; taxable: number;
   incomeTax: number; class2: number; class4: number; studentLoan: number; hicbc: number; cgt: number;
+  /** carried to next year: unused capital losses and unused residential finance costs */ carried: { capitalLosses: number; financeCosts: number };
   totalLiability: number; deducted: number; poaPaid: number; balancing: number;
   poaNext: number; due: { date: string; label: string; amount: number }[];
 };
@@ -327,6 +336,8 @@ export function compute(r: TaxReturn, year: number): Computation {
   const financeAll = prop.finance + n(r.property?.financeBf);
   const adjTotal = pots.ns; // adjusted total income: income other than savings and dividends, above the allowances
   const financeBase = Math.min(financeAll, prop.profit, adjTotal);
+  const financeCf = p2(Math.max(0, financeAll - Math.max(0, financeBase)));
+  let capitalLossCf = n(r.gainsLossesBf);
   reduce("Residential finance costs relief (20%)", financeBase * 0.2);
   if (r.allowances.marriage === "receive") reduce("Marriage Allowance received", R.marriageAllowance * 0.2);
   const incomeTax0 = taxLeft;
@@ -368,10 +379,10 @@ export function compute(r: TaxReturn, year: number): Computation {
       if (n(r.nic.class1Earnings) > 0 && class4) warnings.push("Also employed: the annual maximum for Class 1 and Class 4 together may cap Class 4. Check it if earnings are high.");
     }
     if (R.class2Compulsory) {
-      if (nicProfits >= R.class4Lower) class2 = p2(R.class2Weekly * 52);
+      if (nicProfits >= (R.class2From ?? R.class4Lower)) class2 = p2(R.class2Weekly * 52);
       else if (r.nic.voluntaryClass2) class2 = p2(R.class2Weekly * 52);
     } else if (nicProfits < R.smallProfitsThreshold && r.nic.voluntaryClass2) class2 = p2(R.class2Weekly * 52);
-    if (class2) nicRows.push({ label: `Class 2 at £${R.class2Weekly.toFixed(2)} a week${R.class2Compulsory && nicProfits >= R.class4Lower ? "" : " (voluntary)"}`, amount: class2 });
+    if (class2) nicRows.push({ label: `Class 2 at £${R.class2Weekly.toFixed(2)} a week${R.class2Compulsory && nicProfits >= (R.class2From ?? R.class4Lower) ? "" : " (voluntary)"}`, amount: class2 });
     else if (nicProfits >= R.smallProfitsThreshold && !R.class2Compulsory) nicRows.push({ label: "Class 2: profits over the Small Profits Threshold, so treated as paid", amount: 0 });
     blocks.push({ title: "National Insurance", rows: nicRows, total: { label: "Class 2 and Class 4", amount: p2(class2 + class4) } });
   } else if (r.nic.voluntaryClass2) {
@@ -439,6 +450,7 @@ export function compute(r: TaxReturn, year: number): Computation {
     }
     cgt = p2(cgt);
     const lossCf = lossesBf - bfUsed + Math.max(0, losses - gainsTotal);
+    capitalLossCf = lossCf;
     if (lossCf) rows.push({ label: `Losses to carry forward: £${pounds(lossCf).toLocaleString("en-GB")}`, note: "" });
     if (r.gains.some((x) => x.kind === "residential") && !n(r.payments.propertyReturnTax)) warnings.push("UK residential property: enter any tax paid on a 60-day property return under Payments.");
     blocks.push({ title: "Capital Gains Tax", rows, total: { label: "Capital Gains Tax due", amount: cgt } });
@@ -492,6 +504,7 @@ export function compute(r: TaxReturn, year: number): Computation {
     year, blocks, warnings,
     income: { nonSavings, savings, dividends, total, net, adjustedNet: p2(adjustedNet) },
     personalAllowance: allowances, taxable, incomeTax, class2, class4, studentLoan, hicbc, cgt, totalLiability, deducted: atSource, poaPaid, balancing, poaNext, due,
+    carried: { capitalLosses: p2(capitalLossCf), financeCosts: financeCf },
   };
 }
 
@@ -507,6 +520,47 @@ export function poaMade(p: TaxReturn["payments"]): number {
 export function rollForward(prev: TaxReturn, prevYear: number): { expectedPoa1: number; expectedPoa2: number; liability: number } {
   const c = compute(prev, prevYear);
   return { expectedPoa1: c.poaNext, expectedPoa2: c.poaNext, liability: Math.round((c.incomeTax + c.class4 - c.deducted) * 100) / 100 };
+}
+
+/** A new return started from last year's: the same people, employers, businesses, payers and claims, with every figure cleared,
+ * and the losses and reliefs that carry forward worked out from last year (trading and property losses, unused finance costs,
+ * capital losses). Payments on account roll forward separately (rollForward). Businesses that ceased last year are left out. */
+export function bringForward(prev: TaxReturn, prevYear: number, on = new Date().toISOString().slice(0, 10)): TaxReturn {
+  const c = compute(prev, prevYear);
+  const r = emptyReturn();
+  const fresh = <T extends { id: string }>(x: T, keep: Partial<T>) => ({ ...keep, id: newId() } as T);
+  r.front = { ...prev.front };
+  r.employments = prev.employments.map((e) => fresh(e, { name: e.name, paye: e.paye, director: e.director, closeCompany: e.closeCompany, pay: 0, tax: 0, benefits: {}, expenses: {} }));
+  r.selfEmployments = prev.selfEmployments.filter((s) => !s.end).map((s) => {
+    const t = tradeProfit(s);
+    return fresh(s, { name: s.name, description: s.description, turnover: 0, expenses: 0, tradingAllowance: s.tradingAllowance, lossesBf: t.lossCf > 0 ? t.lossCf : undefined });
+  });
+  r.partnerships = prev.partnerships.map((x) => {
+    const left = n(x.lossesBf) - Math.min(n(x.lossesBf), Math.max(0, x.profit)) + (x.profit < 0 ? -x.profit : 0);
+    return fresh(x, { name: x.name, utr: x.utr, profit: 0, lossesBf: left > 0 ? left : undefined });
+  });
+  r.nic = { exempt: prev.nic.exempt, voluntaryClass2: prev.nic.voluntaryClass2 };
+  r.interest = prev.interest.map((i) => fresh(i, { payer: i.payer, untaxed: 0, foreign: i.foreign }));
+  r.dividends = prev.dividends.map((d) => fresh(d, { company: d.company, amount: 0, foreign: d.foreign }));
+  if (prev.otherDividends) r.otherDividends = {};
+  if (prev.property) {
+    const pp = propertyProfit(prev);
+    r.property = { income: 0, finance: 0, propertyAllowance: prev.property.propertyAllowance, lossesBf: pp.lossCf > 0 ? pp.lossCf : undefined, financeBf: c.carried.financeCosts > 0 ? c.carried.financeCosts : undefined };
+  }
+  if (prev.pensions) r.pensions = { others: prev.pensions.others.map((o) => fresh(o, { payer: o.payer, amount: 0, tax: 0 })) };
+  if (prev.benefits) r.benefits = {};
+  if (prev.otherIncome) r.otherIncome = { amount: 0, description: prev.otherIncome.description };
+  if (prev.foreign) r.foreign = {};
+  if (c.carried.capitalLosses > 0) r.gainsLossesBf = c.carried.capitalLosses;
+  r.allowances = { ...prev.allowances };
+  r.studentLoan = { plans: [...prev.studentLoan.plans], postgrad: prev.studentLoan.postgrad };
+  if (prev.childBenefit) r.childBenefit = { children: prev.childBenefit.children };
+  if (prev.winterFuel) r.winterFuel = {};
+  // sections that were on last year's return stay on, even with nothing in them yet
+  r.added = [...new Set([...(prev.added || []), ...SECTIONS.filter((s) => !s.multi && s.key !== "front" && s.key !== "payments" && hasSection(prev, s.key)).map((s) => s.key)])];
+  r.status = { state: "draft" };
+  r.broughtForward = { from: prevYear, on };
+  return r;
 }
 
 export function readReturn(raw: unknown): TaxReturn {

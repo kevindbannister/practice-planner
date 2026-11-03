@@ -66,6 +66,14 @@ jobs:
             [ -n "$u" ] && get "$y" "$u"
           done
           ls -la "$dir"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Map the boxes on any new form
+        run: |
+          cd app
+          new=$(for f in public/forms/sa100/SA100-*.pdf; do y=$(basename "$f" .pdf | cut -d- -f2); [ -s "public/forms/sa100/SA100-$y.json" ] || echo "$y"; done)
+          if [ -n "$new" ]; then npm ci --no-audit --no-fund && node tools/sa100-map.mjs $new; else echo "All forms mapped"; fi
       - name: Commit new forms
         run: |
           git add app/public/forms/sa100
