@@ -7,7 +7,7 @@ import {
   fillTemplate, groupByClient, mailtoLink, receivedStage,
 } from "../lib/chase";
 import { Client, Job, contactName, fmtDate, todayIso } from "../lib/domain";
-import { ClientBadge, href } from "./bits";
+import { ClientBadge, href, PlanTabs } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
 import { useEditor } from "./Editors";
 import { svcClass } from "../lib/serviceColour";
@@ -65,9 +65,10 @@ export function ChasePage() {
 
   return (
     <div className="page">
+      <PlanTabs current="chase" />
       <div className="page-head">
         <div>
-          <h1>Chase records</h1>
+          <h2 style={{ margin: 0 }}>Chase records</h2>
           <p className="muted" style={{ margin: "4px 0 0" }}>
             {groups.length ? `${groups.length - recent.length} client${groups.length - recent.length === 1 ? "" : "s"} to chase · ${lateCount} late` : "Nobody to chase"}
             {recent.length ? ` · ${recent.length} chased in the last ${RECENT_DAYS} days` : ""}

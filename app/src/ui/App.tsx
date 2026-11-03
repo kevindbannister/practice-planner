@@ -171,7 +171,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
   const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"], ["advisory", "Advisory", "flag"], ["chase", "Chase", "clock"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["settings", "Settings", "settings"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"], ["advisory", "Advisory", "flag"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["tax", "Tax", "calc"], ["payroll", "Payroll", "coins"], ["practice", "Practice", "layout"], ["settings", "Settings", "settings"],
   ];
   return (
     <header className="topbar">
@@ -179,10 +179,10 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
         <Brand />
         <nav className="nav" aria-label="Main">
           {nav.map(([k, label, icon]) => (
-            <a key={k} href={`#/${k}`} aria-current={section === k || (k === "clients" && section === "groups") || (k === "settings" && (section === "checklists" || section === "portal")) ? "page" : undefined}>
+            <a key={k} href={`#/${k}`} aria-current={section === k || (k === "clients" && section === "groups") || (k === "settings" && (section === "checklists" || section === "portal")) || (k === "practice" && section === "compliance") || (k === "plan" && section === "chase") ? "page" : undefined}>
               <Icon name={icon} size={22} />
               {label}
-              {k === "chase" && ready && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
+              {k === "plan" && ready && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
               {k === "settings" && ready && portalWaiting > 0 && <span className="nav-count" aria-label={`${portalWaiting} waiting in the portal`}>{portalWaiting}</span>}
             </a>
           ))}

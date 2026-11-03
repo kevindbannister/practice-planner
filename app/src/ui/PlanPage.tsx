@@ -2,6 +2,7 @@
 // work. Drag cards between days (or back to the tray); click a card to edit it.
 // On a phone the week becomes a strip of days: tap one to see it, or drag a card onto it.
 import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChasePage } from "./ChasePage";
 import { Job, Task, fmtDate, fmtHours, holdAlert, holdLabel, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
 import { addDays, mondayOf, weekday } from "../lib/planning";
 import { dayHours, usualTypeKey } from "../lib/dayTypes";
@@ -85,6 +86,7 @@ export function PlanPage() {
   if (parts[1] === "deadlines") return <DeadlinesView />;
   if (parts[1] === "done") return <DoneView />;
   if (parts[1] === "projects") return <ProjectsView />;
+  if (parts[1] === "chase") return <ChasePage />;
   return <WeekView />;
 }
 
