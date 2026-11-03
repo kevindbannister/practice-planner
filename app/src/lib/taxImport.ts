@@ -3,20 +3,31 @@
 // summaries ("Schedules": each employment with its PAYE reference, each dividend-paying company, interest payers and so on).
 // Either can be given alone; with both, the summaries give the detail and the calculation fills gaps and is used to check the
 // result. Reads the text lines of each page (pdfText.pdfPageText).
+// IRIS can also print the whole return in one PDF: the filled-in SA100 and its supplementary pages (read box by box, see
+// taxReturnRead.ts), followed by the calculation and the summaries. The return is then the base, the summaries add the
+// company names and the pence, and the calculation fills what the return's pages can't give yet.
 import { Employment, TaxReturn, compute, emptyReturn, newId } from "./tax";
+import { ReadPage, readFormPages } from "./taxReturnRead";
 
-export type ImportFile = { name: string; pages: string[][] };
+/** `forms` are the pages of HMRC's forms found in the PDF, with what is written in each box (formMap.mjs). */
+export type ImportFile = { name: string; pages: string[][]; forms?: ReadPage[] };
 export type ImportResult = {
   ret: TaxReturn;
   year?: number;
   utr?: string;
   name?: string;
+  /** the IRmark on a return that was prepared for HMRC */
+  irmark?: string;
+  /** set when the files say which tax region the person is in (Scotland, Wales, or England and Northern Ireland) */
+  regionFound?: boolean;
   /** the figures the other system worked out, to compare with ours */
   theirs: { totalTax?: number; balancing?: number; poaNext?: number; incomeTax?: number };
   /** what was read, in words, for the person to check */
   found: string[];
   warnings: string[];
-  kinds: ("calculation" | "summaries")[];
+  kinds: ("calculation" | "summaries" | "return")[];
+  /** parts of a full return that are in the PDF but not read yet (self-employment, property...) */
+  notRead: string[];
 };
 
 const money = (s: string): number | undefined => {
@@ -25,8 +36,15 @@ const money = (s: string): number | undefined => {
   const v = Number(m[1].replace(/,/g, ""));
   return Number.isFinite(v) ? (m[0].startsWith("(") || m[0].includes("-") ? -Math.abs(v) : v) : undefined;
 };
-const allMoney = (s: string) => [...s.matchAll(/\(?-?£\s?[\d,]+(?:\.\d{1,2})?\)?/g)].map((m) => money(m[0])!).filter((v) => v !== undefined);
-const withoutMoney = (s: string) => s.replace(/\(?-?£\s?[\d,]+(?:\.\d{1,2})?\)?/g, " ").replace(/\s+/g, " ").trim();
+// IRIS prints the amounts with a £ sign in some layouts and without in others (2.dp numbers only, so shares held and dates aren't taken)
+const LOOSE = /(?<![\d.,/])\(?-?\d[\d,]*\.\d{2}\)?(?![\d.])/g;
+const looseMoney = (s: string): number | undefined => { const m = s.match(/(\()?(-)?([\d,]+\.\d{2})\)?\s*$/); return m ? (m[1] || m[2] ? -1 : 1) * Number(m[3].replace(/,/g, "")) : undefined; };
+const allMoney = (s: string) => {
+  const a = [...s.matchAll(/\(?-?£\s?[\d,]+(?:\.\d{1,2})?\)?/g)].map((m) => money(m[0])!).filter((v) => v !== undefined);
+  if (a.length) return a;
+  return [...s.matchAll(LOOSE)].map((m) => { const t = m[0]; const v = Number(t.replace(/[(),-]/g, "")); return t.startsWith("(") || t.includes("-") ? -v : v; });
+};
+const withoutMoney = (s: string) => s.replace(/\(?-?£\s?[\d,]+(?:\.\d{1,2})?\)?/g, " ").replace(LOOSE, " ").replace(/(^|\s)£(?=\s|$)/g, " ").replace(/\s+/g, " ").trim();
 const has = (s: string, re: RegExp) => re.test(s);
 
 /** The tax year (as the app names it: the year it ends in) a page is for. */
@@ -54,7 +72,8 @@ const HEADINGS: [RegExp, string][] = [
 /** Read IRIS's calculation and summaries into a return. `names` are known company names, to complete names IRIS cuts short. */
 export function readImport(files: ImportFile[], names: string[] = []): ImportResult {
   const r = emptyReturn();
-  const res: ImportResult = { ret: r, theirs: {}, found: [], warnings: [], kinds: [] };
+  const res: ImportResult = { ret: r, theirs: {}, found: [], warnings: [], kinds: [], notRead: [] };
+  let fr: ReturnType<typeof readFormPages> | undefined;
   const complete = (cut: string) => {
     const t = cut.trim();
     const hit = [...names, ...r.dividends.map((d) => d.company)].find((n) => n.toUpperCase().startsWith(t.toUpperCase()) && n.length >= t.length);
@@ -68,15 +87,30 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
     const y = yearIn(lines);
     if (y && res.year && y !== res.year) res.warnings.push(`${f.name} is for ${y - 1}-${String(y).slice(2)}, not ${res.year - 1}-${String(res.year).slice(2)}: check the files are for the same year.`);
     res.year ||= y;
-    for (const l of lines.slice(0, 4)) {
-      const m = l.match(/^(.*?)\s*UTR:?\s*(\d{5}\s?\d{5})/);
+    for (const l of lines) {
+      const m = l.match(/^(.*?)\s*UTR:?\s*(\d{5}\s?\d{5})\b/);
       if (m) { res.utr ||= m[2].replace(/\s/g, ""); res.name ||= m[1].trim() || undefined; }
+      const ir = l.match(/IRmark:\s*([A-Z0-9]{20,})/);
+      if (ir) res.irmark ||= ir[1];
+      const rg = l.match(/\(UK TAXPAYER\s*-\s*([^)]*)\)/i);
+      if (rg) { r.front.region = /SCOT/i.test(rg[1]) ? "scotland" : /WALES|WELSH/i.test(rg[1]) ? "wales" : "england"; res.regionFound = true; }
+      const ni = l.match(/^NINO\s+([A-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D])\b/);
+      if (ni) r.front.nino ||= ni[1].replace(/\s/g, "");
     }
+    if (f.forms?.length && !fr) { fr = readFormPages(f.forms); res.kinds.push("return"); }
     const isCalc = lines.some((l) => /Tax calculation for|SA302|How I have worked out your Income Tax/i.test(l));
     const isSummaries = lines.some((l) => /Detailed summaries/i.test(l));
     if (isCalc) {
       res.kinds.push("calculation");
       for (const l of lines) {
+        // the "Summary of tax payable" page has no £ signs
+        const tl = l.replace(/\s*\(?-?[\d,]+\.\d{2}\)?\s*$/, "").trim().toLowerCase(), lv = looseMoney(l);
+        if (lv !== undefined) {
+          if (tl === "total tax due" && calc.totalTax === undefined) calc.totalTax = lv;
+          if (/^payment on account made .*\bjanuary\b/.test(tl)) poa1 = Math.abs(lv);
+          if (/^payment on account made .*\bjuly\b/.test(tl)) poa2 = Math.abs(lv);
+          if (/^first payment on account for \d{4}[-–]\d{2}$/.test(tl) && calc.poaNext === undefined) calc.poaNext = lv;
+        }
         const v = money(l);
         if (v === undefined) continue;
         const t = withoutMoney(l).toLowerCase();
@@ -92,7 +126,7 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
         key(/^(pensions \(other than state pension\)|other pensions|pensions)/, "pensions");
         key(/^(other income|other taxable income)/, "otherIncome");
         key(/^(tax taken off pay|minus tax deducted|tax deducted from pay|uk tax taken off pay)/, "payTax");
-        key(/^income tax due after allowances and reliefs/, "incomeTax");
+        key(/^income tax (due after allowances and reliefs|charged)/, "incomeTax");
         key(/^total tax due/, "totalTax");
         key(/^balancing payment due/, "balancing");
         key(/^(repayment due|amount to be repaid)/, "repayment");
@@ -156,9 +190,20 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
         }
       }
     }
-    if (!isCalc && !isSummaries) res.warnings.push(`${f.name} doesn't look like an IRIS tax calculation or detailed summaries, so nothing was read from it.`);
+    if (!isCalc && !isSummaries && !f.forms?.length) res.warnings.push(`${f.name} doesn't look like an IRIS tax calculation or detailed summaries, so nothing was read from it.`);
   }
 
+  // a full return is the base: its figures are what was filed. The summaries give the names and the pence where they agree
+  if (fr) {
+    const front = { ...r.front }, merged = mergeDetail(fr.ret, r);
+    for (const k of Object.keys(r)) delete (r as Record<string, unknown>)[k];
+    Object.assign(r, merged);
+    r.front = { ...fr.ret.front, ...front, dob: fr.ret.front.dob };
+    res.notRead = fr.notRead;
+    res.warnings.push(...fr.warnings);
+    if (fr.theirs.totalTax !== undefined) calc.totalTax = fr.theirs.totalTax;
+    if (fr.theirs.poaNext !== undefined && calc.poaNext === undefined) calc.poaNext = fr.theirs.poaNext;
+  }
   // the calculation fills anything the summaries didn't give
   const fill = (cond: boolean, act: () => void) => { if (cond) act(); };
   fill(calc.pay !== undefined && !r.employments.length, () => r.employments.push({ id: newId(), name: "Employment (from the calculation)", paye: "", pay: calc.pay, tax: calc.payTax || 0, benefits: {}, expenses: {} }));
@@ -189,9 +234,42 @@ export function readImport(files: ImportFile[], names: string[] = []): ImportRes
   if (r.reliefs.giftAid) res.found.push(`Gift Aid £${r.reliefs.giftAid.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   if (r.reliefs.pensionRas) res.found.push(`Pension contributions £${r.reliefs.pensionRas.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
   if (poa1 !== undefined || poa2 !== undefined) res.found.push(`Payments on account made: £${(poa1 || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })} and £${(poa2 || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
+  if (r.benefits) res.found.push(`State benefits: £${sumOf(Object.values(r.benefits).map((v) => v || 0)).toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
+  if (r.childBenefit?.amount) res.found.push(`Child Benefit received £${r.childBenefit.amount.toLocaleString("en-GB", { minimumFractionDigits: 2 })}`);
+  // pages the form reader can't read are covered when the schedules gave that income (as a profit, without the detail)
+  const covered: Record<string, boolean> = { "Self-employment": r.selfEmployments.length > 0, Partnership: r.partnerships.length > 0, "UK property": !!r.property };
+  const open = res.notRead.filter((n) => !covered[n]);
+  res.notRead = open;
+  if (open.length) res.warnings.push(`This return also has ${open.join(", ")} pages, which can't be read yet. Check the figures against IRIS's calculation and add what's missing by hand.`);
+  if (fr && (r.selfEmployments.length || r.partnerships.length || r.property)) res.warnings.push("Self-employment, partnership and property income come from IRIS's schedules as a profit only: the turnover and expenses behind it aren't read yet.");
   if (!res.year) res.warnings.push("The tax year couldn't be found in the files.");
   if (!r.employments.length && !r.dividends.length && !r.interest.length && !r.selfEmployments.length && !r.property && !r.pensions && !r.partnerships.length) res.warnings.push("No income was found in the files.");
   return res;
+}
+
+const sumOf = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+const near = (a: number, b: number) => Math.abs(a - b) < 1;
+/** A return read from the form's boxes (whole pounds) with the summaries' detail: the exact pence and the names of companies,
+ * where the summaries agree with the form to within a pound. Anything the summaries have that the form doesn't is added. */
+function mergeDetail(base: TaxReturn, s: TaxReturn): TaxReturn {
+  const out: TaxReturn = { ...base };
+  const same = (a: Employment, b: Employment) => (a.paye && b.paye ? a.paye === b.paye : a.name.trim().toLowerCase() === b.name.trim().toLowerCase());
+  out.employments = base.employments.map((e) => { const m = s.employments.find((x) => same(e, x)); return m && near(m.pay, e.pay) ? { ...e, pay: m.pay, name: e.name || m.name, paye: e.paye || m.paye } : e; });
+  for (const m of s.employments) if (!out.employments.some((e) => same(e, m))) out.employments.push(m);
+  const ukBox = base.dividends.find((d) => d.company.startsWith("UK dividends")), ukS = s.dividends.filter((d) => !d.foreign);
+  if (ukBox && ukS.length && near(sumOf(ukS.map((d) => d.amount)), ukBox.amount)) out.dividends = [...ukS, ...base.dividends.filter((d) => d !== ukBox)];
+  else if (!ukBox && ukS.length) out.dividends = [...ukS, ...base.dividends];
+  const intBox = base.interest.find((i) => i.payer.startsWith("Untaxed UK interest")), intS = s.interest.filter((i) => !i.foreign);
+  if (intBox && intS.length && near(sumOf(intS.map((i) => i.untaxed)), intBox.untaxed)) out.interest = [...intS, ...base.interest.filter((i) => i !== intBox)];
+  else if (!intBox && intS.length) out.interest = [...intS, ...base.interest];
+  // the schedules list every kind of income, so whatever the form pages couldn't give comes from them
+  if (!out.selfEmployments.length && s.selfEmployments.length) out.selfEmployments = s.selfEmployments;
+  if (!out.partnerships.length && s.partnerships.length) out.partnerships = s.partnerships;
+  if (!out.property && s.property) out.property = s.property;
+  if (!out.pensions && s.pensions) out.pensions = s.pensions;
+  if (!out.otherIncome && s.otherIncome) out.otherIncome = s.otherIncome;
+  out.reliefs = { ...s.reliefs, ...Object.fromEntries(Object.entries(base.reliefs).filter(([, v]) => v)) };
+  return out;
 }
 
 /** Our computation of the imported return against the other system's: matching when the total tax agrees to the penny. */

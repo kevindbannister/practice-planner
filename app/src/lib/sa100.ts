@@ -178,3 +178,32 @@ export function layout(f: BoxField, value: string | undefined): { x: number; tex
   if (cells.length > 1) return value.split("").slice(0, cells.length).map((ch, i) => ({ x: (cells[i].a + cells[i].b) / 2, text: ch, align: "center" }));
   return [{ x: x0 + 3, text: value, align: "left" }];
 }
+
+/** The blank form with each filled box written into it, as a PDF to download. */
+export async function fillPdf(bytes: Uint8Array, map: FormMap, filled: Map<string, Filled>): Promise<Uint8Array> {
+  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+  const src = await PDFDocument.load(bytes.slice(), { ignoreEncryption: true });
+  const out = await PDFDocument.create();
+  const pages = await out.copyPages(src, map.pages.map((p) => p.index - 1));
+  const font = await out.embedFont(StandardFonts.Helvetica);
+  const ink = rgb(0.1, 0.22, 0.6);
+  map.pages.forEach((p, i) => {
+    const page = out.addPage(pages[i]);
+    for (const b of p.boxes) {
+      const f = filled.get(b.id);
+      if (!f) continue;
+      b.fields.forEach((fld, j) => {
+        const h = fld.rect[3] - fld.rect[1];
+        for (const ch of layout(fld, f.values[j])) {
+          if (ch.align === "center") {
+            const size = Math.min(11, h * 0.7);
+            page.drawText(ch.text, { x: ch.x - font.widthOfTextAtSize(ch.text, size) / 2, y: fld.rect[1] + (h - size * 0.72) / 2, size, font, color: ink });
+          } else {
+            ch.text.split("\n").forEach((line, li) => page.drawText(line, { x: ch.x, y: fld.rect[3] - 10 - li * 11, size: 9, font, color: ink }));
+          }
+        }
+      });
+    }
+  });
+  return out.save();
+}

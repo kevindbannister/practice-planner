@@ -3,10 +3,11 @@
 // Also here: starting a return for another tax year, bringing in a past return from IRIS's PDFs, and a confirm box.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Client } from "../lib/domain";
-import { loadPdfJs, pdfPageText } from "../lib/pdfText";
+import { loadPdfJs } from "../lib/pdfText";
+import { readIrisPdf } from "../lib/taxFile";
 import { BoxField, Context, FORM_YEARS, FormMap, Filled, fillForm, formUrl, formYearFor, layout, mapUrl } from "../lib/sa100";
 import { Computation, SectionKey, TaxReturn } from "../lib/tax";
-import { ImportResult, checkImport, readImport } from "../lib/taxImport";
+import { ImportFile, ImportResult, checkImport, readImport } from "../lib/taxImport";
 import { YEARS, yearLabel } from "../lib/taxRates";
 import { Icon } from "./bits";
 
@@ -154,31 +155,7 @@ function FormPageView({ pdf, page, filled, onPick }: { pdf: Pdf; page: FormMap["
 }
 
 async function downloadFilled(form: { map: FormMap; bytes: Uint8Array }, filled: Map<string, Filled>, name: string) {
-  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
-  const src = await PDFDocument.load(form.bytes.slice(), { ignoreEncryption: true });
-  const out = await PDFDocument.create();
-  const pages = await out.copyPages(src, form.map.pages.map((p) => p.index - 1));
-  const font = await out.embedFont(StandardFonts.Helvetica);
-  const ink = rgb(0.1, 0.22, 0.6);
-  form.map.pages.forEach((p, i) => {
-    const page = out.addPage(pages[i]);
-    for (const b of p.boxes) {
-      const f = filled.get(b.id);
-      if (!f) continue;
-      b.fields.forEach((fld, j) => {
-        const h = fld.rect[3] - fld.rect[1];
-        for (const ch of layout(fld, f.values[j])) {
-          if (ch.align === "center") {
-            const size = Math.min(11, h * 0.7);
-            page.drawText(ch.text, { x: ch.x - font.widthOfTextAtSize(ch.text, size) / 2, y: fld.rect[1] + (h - size * 0.72) / 2, size, font, color: ink });
-          } else {
-            ch.text.split("\n").forEach((line, li) => page.drawText(line, { x: ch.x, y: fld.rect[3] - 10 - li * 11, size: 9, font, color: ink }));
-          }
-        }
-      });
-    }
-  });
-  const bytes = await out.save();
+  const bytes = await fillPdf(form.bytes, form.map, filled);
   const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
   const a = document.createElement("a");
   a.href = url; a.download = name.replace(/[\\/:*?"<>|]/g, " ");
@@ -211,6 +188,7 @@ export function ConfirmBox({ ask, onClose }: { ask: Ask; onClose: () => void }) 
 
 // ------------------------------------------------------------------ a return for another tax year
 
+export const KIND_LABEL = { return: "Tax return", calculation: "Tax calculation", summaries: "Detailed summaries" } as const;
 export type Start = "new" | "bf" | "import";
 export function NewReturnDialog({ clients, clientKey, year, has, onGo, onClose }: {
   clients?: Client[]; clientKey?: string; year: number; has: (clientKey: string, year: number) => boolean; onGo: (clientKey: string, year: number, start: Start) => void; onClose: () => void;
@@ -277,10 +255,10 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
     if (!list?.length) return;
     setReading(true); setError(""); setRes(undefined);
     try {
-      const got = [];
+      const got: ImportFile[] = [];
       for (const f of Array.from(list)) {
         if (!/\.pdf$/i.test(f.name) && f.type !== "application/pdf") { setError(`${f.name} isn't a PDF.`); continue; }
-        got.push({ name: f.name, pages: await pdfPageText(new Uint8Array(await f.arrayBuffer())) });
+        got.push(await readIrisPdf(f.name, new Uint8Array(await f.arrayBuffer())));
       }
       setFiles(got.map((g) => g.name));
       if (got.length) setRes(readImport(got, names));
@@ -300,7 +278,7 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
           <button type="button" className="quick-journal-x" onClick={onClose} aria-label="Close"><Icon name="close" size={16} /></button>
         </div>
         <div className="stack" style={{ gap: 10 }}>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Choose the PDFs IRIS Elements prints for the return: the tax calculation (SA302) and the detailed summaries (schedules). Either works alone; both together give the most detail.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Choose the PDF IRIS Elements prints for the year: the full tax return (with its calculation and summaries) is best. The tax calculation (SA302) and the detailed summaries on their own also work. For several years at once, use Import past returns.</p>
           <label className="tax-drop">
             <input type="file" accept="application/pdf,.pdf" multiple onChange={(e) => void read(e.target.files)} aria-label="Choose the PDFs" />
             <span><Icon name="download" size={16} /> {reading ? "Reading…" : files.length ? files.join(", ") : "Choose PDFs, or drop them here"}</span>
@@ -312,7 +290,7 @@ export function ImportDialog({ client, year, names, onUse, onClose }: { client: 
                 <span className="chip">{res.year ? yearLabel(res.year) : "Year not found"}</span>
                 {res.utr && <span className={`chip mono${utrClash ? " red" : ""}`}>UTR {res.utr}</span>}
                 {res.name && <span className="chip">{res.name}</span>}
-                {res.kinds.map((k) => <span key={k} className="chip blue">{k === "calculation" ? "Tax calculation" : "Detailed summaries"}</span>)}
+                {res.kinds.map((k) => <span key={k} className="chip blue">{KIND_LABEL[k]}</span>)}
               </div>
               {utrClash && <p className="warn" style={{ margin: 0 }}>The UTR in the files ({res.utr}) isn't the client's ({String(client.UTR)}). Check these are the right client's files.</p>}
               {res.found.length > 0 && <ul className="tax-found">{res.found.map((f) => <li key={f}>{f}</li>)}</ul>}

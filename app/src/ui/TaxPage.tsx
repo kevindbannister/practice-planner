@@ -12,6 +12,7 @@ import {
 import { ImportResult } from "../lib/taxImport";
 import { brandOf, readBranding, displayName } from "../lib/docBranding";
 import { Ask, ConfirmBox, ImportDialog, NewReturnDialog, ReturnViewer, Start, sendImport, takeImport } from "./TaxReturnView";
+import { BulkImportDialog } from "./TaxBulkImport";
 import { YEARS, ratesFor, yearEnd, yearLabel, yearOf } from "../lib/taxRates";
 import { Icon, href, useRoute } from "./bits";
 import { TaxPlanView, TaxPlanningList } from "./TaxPlanning";
@@ -42,6 +43,7 @@ function TaxList() {
   const [year, setYear] = useState(latestYear(today));
   const [q, setQ] = useState("");
   const [starting, setStarting] = useState(false);
+  const [bulk, setBulk] = useState(false);
   const rows = useMemo(() => {
     const out: { c: Client; job?: { Title: string; Deadline?: string; Status?: string }; comp?: Computation; state?: ReturnState; imported?: boolean }[] = [];
     for (const c of data.clients as Client[]) {
@@ -64,6 +66,7 @@ function TaxList() {
           <p className="muted" style={{ margin: "4px 0 0" }}>Self Assessment returns and tax computations for each client and tax year.</p>
         </div>
         <a className="btn" href="#/tax/planning">Tax planning</a>
+        <button type="button" className="btn" title="Bring in a client's past returns from IRIS Elements, one PDF for each year" onClick={() => setBulk(true)}><Icon name="download" size={15} /> Import past returns</button>
         <button type="button" className="btn primary" onClick={() => setStarting(true)}><Icon name="plus" size={15} /> New tax return</button>
         <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Tax year
           <select className="input" value={year} style={{ width: "auto" }} onChange={(e) => setYear(Number(e.target.value))}>{[...YEARS].reverse().map((y) => <option key={y.year} value={y.year}>{y.label}</option>)}</select>
@@ -88,6 +91,7 @@ function TaxList() {
           </tbody>
         </table>
       </div>
+      {bulk && <BulkImportDialog clients={(data.clients as Client[]).filter((c) => !isCompany(c)).sort((a, b) => String(a.Title).localeCompare(String(b.Title)))} onClose={() => setBulk(false)} />}
       {starting && <NewReturnDialog clients={(data.clients as Client[]).filter((c) => !isCompany(c)).sort((a, b) => String(a.Title).localeCompare(String(b.Title)))} year={year}
         has={(ck, y) => !!setupRow(data.papers, ck, yearEnd(y), TAX_ITEM)} onClose={() => setStarting(false)}
         onGo={(ck, y, start) => { setStarting(false); window.location.hash = href("tax", ck, String(y), start); }} />}
@@ -106,6 +110,8 @@ function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; yea
   const [view, setView0] = useState<View>(readView);
   const setView = (v: View) => { setView0(v); try { localStorage.setItem("pp.tax.view", v); } catch { /* this visit only */ } };
   const [starting, setStarting] = useState(false);
+  const [bulk, setBulk] = useState(false);
+  const [rev, setRev] = useState(0); // bumped after an import so the page reloads what was saved
   const editor = useEditor();
   const c = idx.clientByKey.get(clientKey) as Client | undefined;
   const today = todayIso();
@@ -130,6 +136,7 @@ function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; yea
             <button type="button" aria-pressed={view === "return"} title="The computation beside the SA100 return" onClick={() => setView("return")}><Icon name="form" size={15} /> Return</button>
           </div>
           <button type="button" className="btn small" title="Start a return for another tax year, or bring in a past one" onClick={() => setStarting(true)}><Icon name="plus" size={14} /> New return</button>
+          <button type="button" className="btn small" title="Bring in this client's past returns from IRIS Elements, one PDF for each year" onClick={() => setBulk(true)}><Icon name="download" size={14} /> Import past returns</button>
           <label className="row-wrap paper-year" style={{ gap: 6, fontSize: 13 }}>
             <span>Tax year</span>
             <select className="input" value={year} style={{ width: "auto", minHeight: 32, padding: "2px 8px" }} onChange={(e) => (window.location.hash = href("tax", c.Key, e.target.value))}>
@@ -140,8 +147,9 @@ function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; yea
         </div>
       </header>
       <PaperWriter key={year} client={c} period={yearEnd(year)}>
-        <TaxScreen key={`${year}-${start || ""}`} client={c} year={year} view={view} setView={setView} start={start} />
+        <TaxScreen key={`${year}-${start || ""}-${rev}`} client={c} year={year} view={view} setView={setView} start={start} frozen={bulk} />
       </PaperWriter>
+      {bulk && <BulkImportDialog clients={[c]} clientKey={c.Key} onClose={() => { setBulk(false); setRev((n) => n + 1); }} />}
       {starting && <NewReturnDialog clientKey={c.Key} year={year} has={(ck, y) => !!setupRow(data.papers, ck, yearEnd(y), TAX_ITEM)} onClose={() => setStarting(false)}
         onGo={(ck, y, s) => { setStarting(false); window.location.hash = href("tax", ck, String(y), s); }} />}
     </div>
@@ -163,7 +171,7 @@ function navItems(r: TaxReturn): NavItem[] {
   return out;
 }
 
-function TaxScreen({ client: c, year, view, setView, start }: { client: Client; year: number; view: View; setView: (v: View) => void; start?: Start }) {
+function TaxScreen({ client: c, year, view, setView, start, frozen }: { client: Client; year: number; view: View; setView: (v: View) => void; start?: Start; frozen?: boolean }) {
   const { data, updateMany } = useData();
   const [ask, setAsk] = useState<Ask | null>(null);
   const [importing, setImporting] = useState(false);
@@ -180,7 +188,11 @@ function TaxScreen({ client: c, year, view, setView, start }: { client: Client; 
     pending.current = null;
     if (r) void w.writeSetup(TAX_ITEM, { r }).then(() => setSavedAt(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })));
   }, [w]);
+  // while returns are being imported behind this page it must not save its own copy over them (it is shown again afterwards)
+  const frozenNow = useRef(false);
+  frozenNow.current = !!frozen;
   const update = useCallback((f: (r: TaxReturn) => TaxReturn) => {
+    if (frozenNow.current) return;
     setRet((prev) => {
       const next = f(prev);
       pending.current = next;
@@ -236,8 +248,8 @@ function TaxScreen({ client: c, year, view, setView, start }: { client: Client; 
   const applyImport = (res: ImportResult, submitted: boolean) => {
     const apply = () => {
       update(() => {
-        const r = fromClient({ ...res.ret, front: { ...res.ret.front, region: ret.front.region, overSpa: ret.front.overSpa } });
-        return { ...(r.payments.paidDifferent ? r : keepRolled(r)), status: submitted ? { state: "submitted" } : { state: "draft" }, imported: { from: "IRIS Elements", on: todayIso(), files: [] } };
+        const r = fromClient({ ...res.ret, front: { ...res.ret.front, region: res.regionFound ? res.ret.front.region : ret.front.region, overSpa: ret.front.overSpa } });
+        return { ...(r.payments.paidDifferent ? r : keepRolled(r)), status: submitted ? { state: "submitted", irmark: res.irmark } : { state: "draft" }, imported: { from: "IRIS Elements", on: todayIso(), files: [] } };
       });
       void clearSections();
       setPick("front");

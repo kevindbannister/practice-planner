@@ -3086,3 +3086,11 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .tax-confirm .btn.danger, .tax-add-card .btn.danger { background: var(--red-ink); color: #fff; border-color: var(--red-ink); }
 .tax-page .paper-tools { flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; }
 @media (max-width: 640px) { .tax-page .paper-tools { margin-left: 0; width: 100%; justify-content: flex-start; } .tax-views button { padding-left: 10px; padding-right: 10px; } }
+
+.tax-bulk { width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; }
+.tax-bulk-row { display: grid; grid-template-columns: 78px minmax(0, 1fr) auto; gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: var(--surface); color: var(--ink); }
+.tax-bulk-row.empty { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px dashed rgba(255, 255, 255, 0.6); align-items: center; }
+.tax-bulk-row.empty .muted { color: rgba(255, 255, 255, 0.92); }
+.tax-bulk-pick { position: relative; display: block; cursor: pointer; font-size: 13px; padding: 6px 0; }
+.tax-bulk-pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+@media (max-width: 640px) { .tax-bulk-row { grid-template-columns: 1fr; } .tax-bulk-row > div:last-child { flex-direction: row; align-items: center !important; } }
