@@ -19,6 +19,7 @@ import { Icon, companiesHouseUrl } from "./bits";
 import { readSetting, useData } from "./data";
 import { BookMeta, LedgerExtras, LedgerTable, bookKeyFor, useXeroBook } from "./XeroLedger";
 import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, IRIS_BUILT_IN, Mapping, accountsFigures, controlNote, mapTb, mappedWithout, onSide, paperAccounts, parseChart, savedMaps, tbTotals } from "../lib/tbMap";
+import { DetailOrder } from "../lib/accounts";
 import { DepClass, additionsFromRegisters, softFigures, classShown, disposalsFromRegisters, depreciationJournal, journalSignature, sectionRecon } from "../lib/paperRecon";
 
 // ------------------------------------------------------------------ saving
@@ -207,7 +208,7 @@ function useTbChecks(period?: string): Map<string, number> | undefined {
 }
 
 /** What the statutory accounts are made from: the mapped final trial balance for this year and last, and the fixed asset totals. */
-export function useAccountsData(): { maps?: Mapping[]; priorMaps?: Mapping[]; assets?: AssetTotals; priorAssets?: AssetTotals; ready: boolean } {
+export function useAccountsData(): { maps?: Mapping[]; priorMaps?: Mapping[]; assets?: AssetTotals; priorAssets?: AssetTotals; detailOrder?: DetailOrder; ready: boolean } {
   const { data } = useData();
   const w = useWriter();
   const maps = useTbMaps(w.period), priorMaps = useTbMaps(priorPeriod(w.period));
@@ -226,7 +227,8 @@ export function useAccountsData(): { maps?: Mapping[]; priorMaps?: Mapping[]; as
   };
   const assets = useMemo(() => totals(w.period), [data.papers, data.paperLines, w.client.Key, w.period]); // eslint-disable-line react-hooks/exhaustive-deps
   const priorAssets = useMemo(() => totals(priorPeriod(w.period)), [data.papers, data.paperLines, w.client.Key, w.period]); // eslint-disable-line react-hooks/exhaustive-deps
-  return { maps, priorMaps, assets, priorAssets, ready: true };
+  const detailOrder = readSetting<DetailOrder>(data.settings, "detailedPl");
+  return { maps, priorMaps, assets, priorAssets, detailOrder, ready: true };
 }
 
 /** The sections the trial balance puts balances into (shown even if turned off). */

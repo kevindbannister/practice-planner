@@ -5,7 +5,7 @@
 // against the facts and the standard before relying on it. Nothing here files anything anywhere.
 import { Block, Cell, DocContent, Run } from "./docModel";
 import { AssetTotals } from "./papers";
-import { AccountsFigures, DEST_BY_KEY, Mapping } from "./tbMap";
+import { AccountsFigures, DESTS, DEST_BY_KEY, Mapping } from "./tbMap";
 
 export const ACCOUNTS_SETUP_ITEM = "_acc";
 
@@ -203,8 +203,26 @@ export function balanceSheet(f: F, prior: F | undefined, type: AccountsType, ref
 }
 
 /** The profit and loss detail by account from the mapped final trial balance, grouped as the destinations are. */
-export type DetailGroup = { title: string; section: string; items: { label: string; amount: number }[]; total: number };
-export function detailGroups(maps: Mapping[]): { income: DetailGroup[]; costs: DetailGroup[]; expenses: DetailGroup[]; other: DetailGroup[]; tax: DetailGroup[] } {
+export type DetailItem = { label: string; amount: number; iris: string; code: string };
+export type DetailGroup = { key: string; title: string; section: string; items: DetailItem[]; total: number };
+/** How the detailed profit and loss is ordered (set in Settings › Detailed P&L): the headings, and the accounts under each. */
+export type DetailOrder = { groups?: string[]; items?: "name" | "iris" | "code" };
+
+/** Every heading the detailed profit and loss can have, in the order they show until the user changes it. */
+export const DETAIL_HEADINGS: { key: string; title: string; bucket: string }[] = DESTS
+  .filter((d) => ["income", "expenditure", "taxation"].includes(d.section) && d.key !== "ignore")
+  .map((d) => ({ key: d.key, title: d.label.split("›").pop()?.trim() || d.label, bucket: d.section === "income" ? (["income/sales", "income/fees", "income/reimbursed"].includes(d.key) ? "income" : "other") : d.section === "taxation" ? "tax" : d.key === "expenditure/cos" ? "costs" : "expenses" }));
+
+/** The saved heading order with any heading it doesn't mention (a new one) added at the end in the default order. */
+export function headingOrder(saved?: string[]): string[] {
+  const all = DETAIL_HEADINGS.map((h) => h.key);
+  const known = (saved || []).filter((k) => all.includes(k));
+  return [...known, ...all.filter((k) => !known.includes(k))];
+}
+
+const byCodeThenName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
+
+export function detailGroups(maps: Mapping[], order?: DetailOrder): { income: DetailGroup[]; costs: DetailGroup[]; expenses: DetailGroup[]; other: DetailGroup[]; tax: DetailGroup[] } {
   const by = new Map<string, DetailGroup>();
   const out = { income: [] as DetailGroup[], costs: [] as DetailGroup[], expenses: [] as DetailGroup[], other: [] as DetailGroup[], tax: [] as DetailGroup[] };
   for (const m of maps) {
@@ -215,11 +233,21 @@ export function detailGroups(maps: Mapping[]): { income: DetailGroup[]; costs: D
     const bucket = d.section === "income" ? (["income/sales", "income/fees", "income/reimbursed"].includes(d.key) ? "income" : "other") : d.section === "taxation" ? "tax" : d.key === "expenditure/cos" ? "costs" : "expenses";
     const id = `${bucket}|${d.key}`;
     let g = by.get(id);
-    if (!g) { g = { title: d.label.split("›").pop()?.trim() || d.label, section: d.section, items: [], total: 0 }; by.set(id, g); out[bucket].push(g); }
-    g.items.push({ label: m.acct.account || m.acct.code, amount });
+    if (!g) { g = { key: d.key, title: d.label.split("›").pop()?.trim() || d.label, section: d.section, items: [], total: 0 }; by.set(id, g); out[bucket].push(g); }
+    g.items.push({ label: m.acct.account || m.acct.code, amount, iris: m.iris || "", code: m.acct.code || "" });
     g.total = Math.round((g.total + amount) * 100) / 100;
   }
-  for (const k of Object.keys(out) as (keyof typeof out)[]) for (const g of out[k]) g.items.sort((a, b) => a.label.localeCompare(b.label));
+  const rank = new Map(headingOrder(order?.groups).map((k, i) => [k, i]));
+  const how = order?.items || "name";
+  const cmp = (a: DetailItem, b: DetailItem) => {
+    if (how === "iris") return byCodeThenName(a.iris || "\uffff", b.iris || "\uffff") || a.label.localeCompare(b.label);
+    if (how === "code") return byCodeThenName(a.code || "\uffff", b.code || "\uffff") || a.label.localeCompare(b.label);
+    return a.label.localeCompare(b.label);
+  };
+  for (const k of Object.keys(out) as (keyof typeof out)[]) {
+    out[k].sort((a, b) => (rank.get(a.key) ?? 999) - (rank.get(b.key) ?? 999));
+    for (const g of out[k]) g.items.sort(cmp);
+  }
   return out;
 }
 
@@ -310,7 +338,7 @@ export type Facts = {
   firm: string; firmAddress: string; kind: string;
 };
 export type AccountsInput = {
-  facts: Facts; setup: AccSetup; figures: AccountsFigures; prior?: AccountsFigures; maps?: Mapping[]; priorMaps?: Mapping[]; assets?: AssetTotals; priorAssets?: AssetTotals;
+  facts: Facts; setup: AccSetup; figures: AccountsFigures; prior?: AccountsFigures; maps?: Mapping[]; priorMaps?: Mapping[]; assets?: AssetTotals; priorAssets?: AssetTotals; /** how the detailed profit and loss is ordered */ detailOrder?: DetailOrder;
   /** the web address of a working paper section (the figures in the PDF link to it) */ link?: (section: string) => string | undefined;
 };
 export type Section = { key: string; title: string; blocks: Block[] };
@@ -490,7 +518,7 @@ export function buildSections(i: AccountsInput): Section[] {
   }
 
   if (a.include.detailed && a.type !== "dormant" && i.maps) {
-    const g = detailGroups(i.maps), pg = i.priorMaps ? detailGroups(i.priorMaps) : undefined;
+    const g = detailGroups(i.maps, i.detailOrder), pg = i.priorMaps ? detailGroups(i.priorMaps, i.detailOrder) : undefined;
     const rows: StRow[] = [];
     const priorFor = (list: DetailGroup[] | undefined, title: string, item?: string) => (!comp || !list ? undefined : item === undefined ? list.find((x) => x.title === title)?.total ?? 0 : list.find((x) => x.title === title)?.items.find((y) => y.label === item)?.amount ?? 0);
     const block = (title: string, list: DetailGroup[], plist: DetailGroup[] | undefined, withItems: boolean) => {

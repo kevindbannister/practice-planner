@@ -69,7 +69,7 @@ export function AccountsScreen({ client, period, onPapers }: { client: Client; p
     firm: displayName(branding), firmAddress: (branding.correspondenceAddress || branding.registeredAddress || "").trim(), kind: String(client.Kind || "Ltd"),
   }), [client, period, branding]);
   const link = (section: string) => (SECTIONS.some((x) => x.key === section) ? `${location.origin}${location.pathname}${href("papers", String(client.Key), period)}?section=${encodeURIComponent(section)}` : undefined);
-  const input: AccountsInput = { facts, setup: a, figures, prior, maps: acc.maps, priorMaps: acc.priorMaps, assets: acc.assets, priorAssets: acc.priorAssets, link };
+  const input: AccountsInput = { facts, setup: a, figures, prior, maps: acc.maps, priorMaps: acc.priorMaps, assets: acc.assets, priorAssets: acc.priorAssets, detailOrder: acc.detailOrder, link };
   // the same pages for the on-screen review, with links that stay in the app and bring the person back here
   const reviewLink = (section: string) => (SECTIONS.some((x) => x.key === section) ? `${href("papers", String(client.Key), period)}?section=${encodeURIComponent(section)}&from=accounts` : undefined);
   const sections = useMemo(() => (tab === "review" ? buildSections({ ...input, link: reviewLink }) : []), [tab, a, figures, prior, acc.maps, acc.assets, facts]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -314,8 +314,8 @@ export function AccountsFigures({ client, period }: { client: Client; period: st
   const sections = useMemo(() => {
     const setup: AccSetup = { ...effective, include: { ...effective.include, income: effective.type !== "dormant", balance: true, notes: true, detailed: effective.type !== "dormant" } };
     const keep = ["income", "balance", "notes", "detailed"];
-    return buildSections({ facts, setup, figures, prior, maps: acc.maps, priorMaps: acc.priorMaps, assets: acc.assets, priorAssets: acc.priorAssets, link }).filter((x) => keep.includes(x.key));
-  }, [effective, figures, prior, acc.maps, acc.priorMaps, acc.assets, facts]); // eslint-disable-line react-hooks/exhaustive-deps
+    return buildSections({ facts, setup, figures, prior, maps: acc.maps, priorMaps: acc.priorMaps, assets: acc.assets, priorAssets: acc.priorAssets, detailOrder: acc.detailOrder, link }).filter((x) => keep.includes(x.key));
+  }, [effective, figures, prior, acc.maps, acc.priorMaps, acc.assets, acc.detailOrder, facts]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="stack">
       {!acc.maps && <p className="notice" role="status">There is no trial balance for this year yet. Import or paste it in the working papers (Trial balance) and the figures appear here.</p>}

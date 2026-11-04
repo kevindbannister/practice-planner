@@ -461,10 +461,10 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
 
   const input = useMemo<DeckInput>(() => {
     const f = accountsFigures(acc.maps || []), p = acc.priorMaps ? accountsFigures(acc.priorMaps) : undefined;
-    const g = detailGroups(acc.maps || []), pg = acc.priorMaps ? detailGroups(acc.priorMaps) : undefined;
+    const g = detailGroups(acc.maps || [], acc.detailOrder), pg = acc.priorMaps ? detailGroups(acc.priorMaps, acc.detailOrder) : undefined;
     return { clientName: client.Title, period, f, p, maps: acc.maps || [], priorMaps: acc.priorMaps || undefined, groups: { expenses: g.expenses, costs: g.costs }, priorGroups: pg ? { expenses: pg.expenses, costs: pg.costs } : undefined,
       queries: linesFor(data.paperLines, client.Key, period, "queries", "main").filter((l) => l.Detail.trim()).map((l) => ({ question: l.Detail, answer: l.Remark })) };
-  }, [acc.maps, acc.priorMaps, client, period, data.paperLines]);
+  }, [acc.maps, acc.priorMaps, acc.detailOrder, client, period, data.paperLines]);
 
   const ctx = useMemo(() => ctxOf(input, deck?.custom || []), [input, deck?.custom]);
   // keep every figure that points at the accounts in step with them
