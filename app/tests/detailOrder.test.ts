@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DETAIL_HEADINGS, detailGroups, headingOrder } from "../src/lib/accounts";
+import { DETAIL_HEADINGS, detailGroups } from "../src/lib/accounts";
 
 const m = (code: string, account: string, iris: string, dest: string, balance: number) => ({ acct: { code, account }, iris, irisName: account === "Rent" ? "Other operating leases - rent" : account === "Insurance" ? "Insurance" : account, dest, balance, swBalance: balance, jBalance: 0 }) as any;
 const maps = [
@@ -9,21 +9,20 @@ const maps = [
 ];
 const titles = (o?: any) => detailGroups(maps, o).expenses.map((g) => g.title);
 
-test("headings keep the standard order until one is saved", () => {
-  const std = titles();
-  assert.deepEqual(std, DETAIL_HEADINGS.filter((h) => ["expenditure/employee", "expenditure/premises", "expenditure/accountancy"].includes(h.key)).map((h) => h.title));
+test("expenses are one list in IRIS number order, whatever the headings the accounts were mapped to", () => {
+  const g = detailGroups(maps, undefined, true).expenses;
+  assert.equal(g.length, 1);
+  assert.deepEqual(g[0].items.map((x) => x.iris), ["905/1", "905/2", "905/5", "905/9"]);
+  assert.equal(g[0].total, 44400);
 });
-test("a saved heading order is followed, and a new heading goes to the end", () => {
-  const o = { groups: ["expenditure/accountancy", "expenditure/premises"] };
-  assert.deepEqual(titles(o), ["Accountancy", "Premises costs", "Employee costs"]);
-  assert.equal(headingOrder(["nonsense", "expenditure/premises"])[0], "expenditure/premises");
-  assert.equal(headingOrder().length, DETAIL_HEADINGS.length);
+test("a line is in the list once, however many accounts or headings it came from", () => {
+  const two = [m("1", "Post", "264", "expenditure/office", 11), m("2", "Courier", "264", "expenditure/distribution", 5), m("3", "Phone", "263", "expenditure/office", 3)];
+  const items = detailGroups(two, undefined, true).expenses[0].items;
+  assert.deepEqual(items.map((x) => [x.iris, x.amount]), [["263", 3], ["264", 16]]);
 });
-test("accounts under a heading go by name, IRIS code or the software's code", () => {
-  const premises = (o?: any) => detailGroups(maps, o).expenses.find((g) => g.key === "expenditure/premises")!.items.map((x) => x.label);
-  assert.deepEqual(premises(), ["Insurance", "Other operating leases - rent"]);
-  assert.deepEqual(premises({ items: "iris" }), ["Other operating leases - rent", "Insurance"]);
-  assert.deepEqual(premises({ items: "code" }), ["Other operating leases - rent", "Insurance"]);
+test("A to Z is available", () => {
+  const items = detailGroups(maps, { items: "name" }, true).expenses[0].items.map((x) => x.label);
+  assert.deepEqual(items, [...items].sort((a, b) => a.localeCompare(b)));
 });
 test("the detailed profit and loss is by IRIS line: accounts on one code are added, one with no code says so", () => {
   const two = [m("1", "Rent A", "905/2", "expenditure/premises", 100), m("2", "Rent B", "905/2", "expenditure/premises", 50), m("3", "Odd", "", "expenditure/premises", 5)];

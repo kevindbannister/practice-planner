@@ -223,7 +223,7 @@ export function headingOrder(saved?: string[]): string[] {
 /** Compares two lines by the order dragged in Settings, then (for lines not in it) by name, IRIS code or code as chosen. */
 export function itemCmp(order?: DetailOrder) {
   const idx = new Map((order?.lines || []).map((c, i) => [c, i]));
-  const how = order?.items || "name";
+  const how = order?.items || "iris";
   return (a: { iris: string; label: string; code?: string }, b: { iris: string; label: string; code?: string }): number => {
     const ia = a.iris ? idx.get(a.iris) : undefined, ib = b.iris ? idx.get(b.iris) : undefined;
     if (ia !== undefined && ib !== undefined) return ia - ib;
@@ -248,7 +248,9 @@ export function detailLines(chart: ChartRow[], order?: DetailOrder): { code: str
 
 const byCodeThenName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
 
-export function detailGroups(maps: Mapping[], order?: DetailOrder): { income: DetailGroup[]; costs: DetailGroup[]; expenses: DetailGroup[]; other: DetailGroup[]; tax: DetailGroup[] } {
+const BUCKET_TITLES: Record<string, string> = { income: "Turnover", costs: "Cost of sales", expenses: "Administrative expenses", other: "Other income", tax: "Tax" };
+
+export function detailGroups(maps: Mapping[], order?: DetailOrder, flat = false): { income: DetailGroup[]; costs: DetailGroup[]; expenses: DetailGroup[]; other: DetailGroup[]; tax: DetailGroup[] } {
   const by = new Map<string, DetailGroup>();
   const out = { income: [] as DetailGroup[], costs: [] as DetailGroup[], expenses: [] as DetailGroup[], other: [] as DetailGroup[], tax: [] as DetailGroup[] };
   for (const m of maps) {
@@ -257,9 +259,10 @@ export function detailGroups(maps: Mapping[], order?: DetailOrder): { income: De
     const credit = d.section === "income";
     const amount = Math.round((credit ? -m.balance : m.balance) * 100) / 100;
     const bucket = d.section === "income" ? (["income/sales", "income/fees", "income/reimbursed"].includes(d.key) ? "income" : "other") : d.section === "taxation" ? "tax" : d.key === "expenditure/cos" ? "costs" : "expenses";
-    const id = `${bucket}|${d.key}`;
+    // flat: one list per part of the account (turnover, cost of sales, expenses...), as the detailed profit and loss shows them; otherwise one group per heading
+    const id = flat ? bucket : `${bucket}|${d.key}`;
     let g = by.get(id);
-    if (!g) { g = { key: d.key, title: d.label.split("›").pop()?.trim() || d.label, section: d.section, items: [], total: 0 }; by.set(id, g); out[bucket].push(g); }
+    if (!g) { g = { key: flat ? bucket : d.key, title: flat ? BUCKET_TITLES[bucket] || bucket : d.label.split("›").pop()?.trim() || d.label, section: d.section, items: [], total: 0 }; by.set(id, g); out[bucket].push(g); }
     // the detailed profit and loss is by IRIS line, not by the software's accounts: accounts on the same IRIS code are added together
     const label = m.iris ? (m.irisName || m.iris) : `${m.acct.account || m.acct.code} (no IRIS code)`;
     const same = m.iris ? g.items.find((x) => x.iris === m.iris) : undefined;
@@ -543,7 +546,7 @@ export function buildSections(i: AccountsInput): Section[] {
   }
 
   if (a.include.detailed && a.type !== "dormant" && i.maps) {
-    const g = detailGroups(i.maps, i.detailOrder), pg = i.priorMaps ? detailGroups(i.priorMaps, i.detailOrder) : undefined;
+    const g = detailGroups(i.maps, i.detailOrder, true), pg = i.priorMaps ? detailGroups(i.priorMaps, i.detailOrder, true) : undefined;
     const rows: StRow[] = [];
     const priorFor = (list: DetailGroup[] | undefined, title: string, item?: string) => (!comp || !list ? undefined : item === undefined ? list.find((x) => x.title === title)?.total ?? 0 : list.find((x) => x.title === title)?.items.find((y) => y.label === item)?.amount ?? 0);
     const block = (title: string, list: DetailGroup[], plist: DetailGroup[] | undefined, withItems: boolean) => {
