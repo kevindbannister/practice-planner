@@ -6,7 +6,7 @@ import { irisTrialBalance } from "../lib/irisExport";
 import { downloadFile } from "./commsKit";
 import { AccountsWorkingPapers } from "./AccountsWorkingPapers";
 import { OpeningBalances } from "./OpeningBalances";
-import { Fragment, ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Fragment, ReactNode, createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Client, fmtDate } from "../lib/domain";
 import {
   AssetTotals, Col, DEFAULT_LINES, INFO_FIELDS, KIND_COLS, KIND_NAMES, Kind, Line, Section, Setup, Sub, accountCf, carryLines, carrySetup,
@@ -1308,8 +1308,8 @@ function AdditionsFromRegisters({ section, sb, lines, s }: { section: Section; s
   );
 }
 
-/** The depreciation journal: what the registers charge that the trial balance doesn't have yet, posted so the final trial balance agrees. */
-function DepreciationJournal({ lines }: { lines: Line[] }) {
+/** The depreciation journal worked out from the registers and the trial balance, and how to post it. */
+function useDepJournal(lines: Line[]) {
   const { data } = useData();
   const w = useWriter();
   const chart = useChart();
@@ -1334,19 +1334,25 @@ function DepreciationJournal({ lines }: { lines: Line[] }) {
     const charge = maps.filter((m) => m.dest.startsWith("expenditure/") && /deprec|depn/i.test(m.acct.account)).sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))[0];
     return depreciationJournal(classes, charge ? { code: charge.acct.code, name: charge.acct.account } : undefined, fmtDate(w.period));
   }, [data.paperLines, data.papers, chart, w.client.Key, w.period]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!plan) return <p className="muted" style={{ margin: 0 }}>Once there's a trial balance and the asset registers are filled in, the depreciation journal is worked out here.</p>;
-  const stored = journalSignature(lines.map((l) => ({ Code: l.Code, Detail: l.Detail, dr: Number(l.f.dr) || 0, cr: Number(l.f.cr) || 0 })));
-  const wanted = journalSignature(plan.lines);
+  const stored = !plan ? "" : journalSignature(lines.map((l) => ({ Code: l.Code, Detail: l.Detail, dr: Number(l.f.dr) || 0, cr: Number(l.f.cr) || 0 })));
+  const wanted = plan ? journalSignature(plan.lines) : "";
   const upToDate = stored === wanted;
   const post = async () => {
     const others = ["obd", "main", "review", "final"].flatMap((k) => linesFor(data.paperLines, w.client.Key, w.period, "journals", k));
     const no = others.reduce((m, l) => Math.max(m, Number(l.f.no) || 0), 0) + 1;
     for (const l of lines) await w.removeLine(l);
-    if (plan.lines.length) {
+    if (plan && plan.lines.length) {
       await w.addLines("journals", "dep", plan.lines.map((l) => ({ Code: l.Code, Detail: l.Detail, Remark: l.Remark, f: { no, dr: l.dr || undefined, cr: l.cr || undefined } })));
       if (plan.newAccounts.length) await writeMaps(plan.newAccounts.map((a) => ({ key: acctKey(a.code, a.name), iris: a.code || undefined, dest: a.dest })));
     }
   };
+  return { plan, upToDate: plan ? upToDate : true, post, wanted };
+}
+
+function DepreciationJournal({ lines }: { lines: Line[] }) {
+  const w = useWriter();
+  const { plan, upToDate, post } = useDepJournal(lines);
+  if (!plan) return <p className="muted" style={{ margin: 0 }}>Once there's a trial balance and the asset registers are filled in, the depreciation journal is worked out here.</p>;
   return (
     <div className="stack" style={{ gap: 8 }}>
       <p className={`recon ${upToDate ? "ok" : "warn"}`} style={{ margin: 0 }}>
@@ -1369,6 +1375,25 @@ function DepreciationJournal({ lines }: { lines: Line[] }) {
       )}
     </div>
   );
+}
+
+/**
+ * Keeps the depreciation journal posted: when the registers' depreciation and the trial balance's differ, the journal that closes the gap is
+ * written (and rewritten when the registers change), so the final trial balance always carries the depreciation and the fixed assets agree to it.
+ */
+export function AutoDepreciationJournal() {
+  const { data } = useData();
+  const w = useWriter();
+  const lines = linesFor(data.paperLines, w.client.Key, w.period, "journals", "dep");
+  const { plan, upToDate, post, wanted } = useDepJournal(lines);
+  const tried = useRef("");
+  useEffect(() => {
+    if (!plan || upToDate || w.busy || tried.current === wanted) return;
+    if (!plan.lines.length && !lines.length) return;
+    const t = setTimeout(() => { tried.current = wanted; void post(); }, 600);
+    return () => clearTimeout(t);
+  }, [plan, upToDate, w.busy, wanted]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }
 
 /** Whether a section agrees to the trial balance: a tick, or the difference. */

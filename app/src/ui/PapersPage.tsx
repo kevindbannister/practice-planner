@@ -12,7 +12,7 @@ import { ClientDeck } from "./ClientDeck";
 import { AccountsFigures, AccountsScreen } from "./AccountsScreen";
 import { WorkbookImport } from "./PaperImport";
 import { XeroImport } from "./XeroImport";
-import { AddSchedule, AssetsView, LeadTable, PaperWriter, Schedule, SectionRecon, useSectionsInUse, useWriterState } from "./PaperSchedules";
+import { AddSchedule, AssetsView, AutoDepreciationJournal, LeadTable, PaperWriter, Schedule, SectionRecon, useSectionsInUse, useWriterState } from "./PaperSchedules";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
 import { GROUPS, LEAD_KINDS, PaperStatus, SECTIONS, STATUS_LABEL, Section, progress, sectionsOff, stateOf, subsFor, yearEnds } from "../lib/papers";
 import { Row } from "../lib/schema";
@@ -456,6 +456,7 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
           </div>
         </div>
         <SectionRecon section={sec} />
+        {["fixed", "journals", "final-tb", "summary"].includes(sec.key) && <AutoDepreciationJournal />}
         {isDoc && (
           <label>
             Link to the file (OneDrive, SharePoint or the accounts software)
