@@ -8,7 +8,7 @@ const schema = require("./schema.json");
 
 const LISTS = new Map(schema.lists.map((l) => [l.key, l]));
 const HIDDEN_LISTS = new Set(schema.lists.filter((l) => /^Portal/.test(l.key)).map((l) => l.key));
-const READ_ONLY_LISTS = new Set(["Settings", "FeeHistory", "JobHistory", "SalesLog", "Activities", "HmrcAuthEvents", "ChecklistLog", "CoSecLedger", "CoSecEvents", "CHFlags"]);
+const READ_ONLY_LISTS = new Set(["Settings", "FeeHistory", "JobHistory", "SalesLog", "Activities", "HmrcAuthEvents", "ChecklistLog", "CoSecLedger", "CoSecEvents", "CHFlags", "HmrcFilings", "HmrcFilingLog"]);
 const HIDDEN_COLUMN = /secret|token|sealed|password|authcode|^LogoData$/i;
 const SECRET_SETTING = /connection|secret|token|sealed|auth|credential/i;
 const SYSTEM_COLUMNS = new Set(["Key", "PracticeId", "Created", "Modified"]);

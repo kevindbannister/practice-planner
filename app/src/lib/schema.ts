@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions" | "HmrcFilings" | "HmrcFilingLog"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -388,6 +388,16 @@ export const LISTS: ListDef[] = [
     // Dividends: the calculation is stored as lines so it can be re-checked later. See lib/cosecDividends.ts.
     key: "CoSecDividends", displayName: "PP CoSec Dividends", description: "Practice Planner: dividends proposed, declared and paid",
     columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Ref"), t("Type"), t("RecordDate"), t("DeclaredOn"), t("PaidOn"), t("Currency"), note("Rates"), note("Lines"), n("TotalPence"), note("Waivers"), t("ReviewedBy"), t("ReviewedAt"), note("ReviewNote"), t("Status", true), note("Notes"), t("Created"), t("CreatedBy"), t("Updated")],
+  },
+  {
+    // Each submission attempt of a return version to HMRC (SA100, SA800, CT600), with the approvals it rests on. See lib/hmrcFiling.ts.
+    key: "HmrcFilings", displayName: "PP HMRC Filings", description: "Practice Planner: returns prepared, approved and filed with HMRC, one row per version",
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Service", true), t("Period", true), n("Version"), t("Supersedes"), t("State", true), t("Env"), t("PayloadHash"), t("XmlHash"), note("Validation"), t("ReviewedBy"), t("ReviewedAt"), t("ApprovedBy"), t("ApprovedAt"), t("ApprovedHash"), note("ApprovalNote"), t("ConfirmedBy"), t("ConfirmedAt"), t("SubmittedBy"), t("SubmittedAt"), t("CorrelationId"), t("Irmark"), t("Outcome"), t("AnsweredAt"), note("Messages"), note("Receipt"), t("Created"), t("CreatedBy"), note("Notes")],
+  },
+  {
+    // Append-only: nothing in the app edits or deletes a row here.
+    key: "HmrcFilingLog", displayName: "PP HMRC Filing History", description: "Practice Planner: append-only history of every step in an HMRC filing",
+    columns: [t("Key", true), t("PracticeId", true), t("FilingKey", true), t("ClientKey", true), t("At", true), t("By"), t("Event"), t("From"), t("To"), note("Detail")],
   },
   {
     // Dormant (never traded) accounts jobs: the checks, confirmations, figures at preparation, and what happened at each step. See lib/cosecDormant.ts.

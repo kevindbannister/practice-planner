@@ -139,3 +139,8 @@ test("a key in x-api-key works even when Authorization carries an unrelated toke
   assert.equal((await rpc("unrelated-swa-token", ping, { headers: { authorization: "Bearer unrelated-swa-token", "x-mcp-key": WRITE } })).status, 200);
   assert.equal((await rpc("unrelated-swa-token", ping, { headers: { authorization: "Bearer unrelated-swa-token" } })).status, 401);
 });
+
+test("bots can read but never write HMRC filing records, approvals or their history", () => {
+  const policy = require("../mcp/lib/policy.js");
+  for (const k of ["HmrcFilings", "HmrcFilingLog"]) { assert.ok(policy.list(k), `${k} is a list`); assert.equal(policy.canWrite(k), false, `${k} can't be written`); }
+});

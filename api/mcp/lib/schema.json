@@ -4171,6 +4171,184 @@
    ]
   },
   {
+   "key": "HmrcFilings",
+   "displayName": "PP HMRC Filings",
+   "description": "returns prepared, approved and filed with HMRC, one row per version",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Service",
+     "type": "text"
+    },
+    {
+     "name": "Period",
+     "type": "text"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    },
+    {
+     "name": "Supersedes",
+     "type": "text"
+    },
+    {
+     "name": "State",
+     "type": "text"
+    },
+    {
+     "name": "Env",
+     "type": "text"
+    },
+    {
+     "name": "PayloadHash",
+     "type": "text"
+    },
+    {
+     "name": "XmlHash",
+     "type": "text"
+    },
+    {
+     "name": "Validation",
+     "type": "note"
+    },
+    {
+     "name": "ReviewedBy",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedAt",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedBy",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedAt",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedHash",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalNote",
+     "type": "note"
+    },
+    {
+     "name": "ConfirmedBy",
+     "type": "text"
+    },
+    {
+     "name": "ConfirmedAt",
+     "type": "text"
+    },
+    {
+     "name": "SubmittedBy",
+     "type": "text"
+    },
+    {
+     "name": "SubmittedAt",
+     "type": "text"
+    },
+    {
+     "name": "CorrelationId",
+     "type": "text"
+    },
+    {
+     "name": "Irmark",
+     "type": "text"
+    },
+    {
+     "name": "Outcome",
+     "type": "text"
+    },
+    {
+     "name": "AnsweredAt",
+     "type": "text"
+    },
+    {
+     "name": "Messages",
+     "type": "note"
+    },
+    {
+     "name": "Receipt",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "HmrcFilingLog",
+   "displayName": "PP HMRC Filing History",
+   "description": "append-only history of every step in an HMRC filing",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "FilingKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "At",
+     "type": "text"
+    },
+    {
+     "name": "By",
+     "type": "text"
+    },
+    {
+     "name": "Event",
+     "type": "text"
+    },
+    {
+     "name": "From",
+     "type": "text"
+    },
+    {
+     "name": "To",
+     "type": "text"
+    },
+    {
+     "name": "Detail",
+     "type": "note"
+    }
+   ]
+  },
+  {
    "key": "CoSecAccounts",
    "displayName": "PP CoSec Accounts",
    "description": "dormant company accounts jobs and their progress to acceptance",

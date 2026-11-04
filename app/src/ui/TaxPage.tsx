@@ -18,6 +18,7 @@ import { HmrcAccountDialog } from "./HmrcAccountImport";
 import { YEARS, ratesFor, yearEnd, yearLabel, yearOf } from "../lib/taxRates";
 import { Icon, href, useRoute } from "./bits";
 import { TaxPlanView, TaxPlanningList } from "./TaxPlanning";
+import { HmrcFilingPanel } from "./HmrcFiling";
 import { BannerMenu } from "./BannerMenu";
 import { useEditor } from "./Editors";
 import { useData, useIndex } from "./data";
@@ -1172,6 +1173,7 @@ function SummaryView({ client: c, year, ret, comp, update }: { client: Client; y
             </tbody>
           </table>
         </section>
+        <HmrcFilingPanel client={c} year={year} ret={ret} />
         <section className="card" style={{ padding: 16 }}>
           <div className="row-wrap" style={{ gap: 8, justifyContent: "space-between", marginBottom: 8 }}>
             <h3 style={{ margin: 0 }}>Payments for {yearLabel(year)}</h3>
