@@ -19,7 +19,7 @@ import { Icon, companiesHouseUrl } from "./bits";
 import { readSetting, useData } from "./data";
 import { BookMeta, LedgerExtras, LedgerTable, bookKeyFor, useXeroBook } from "./XeroLedger";
 import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, IRIS_BUILT_IN, Mapping, accountsFigures, controlNote, mapTb, mappedWithout, onSide, paperAccounts, parseChart, savedMaps, tbTotals } from "../lib/tbMap";
-import { DepClass, additionsFromRegisters, classShown, disposalsFromRegisters, depreciationJournal, journalSignature, sectionRecon } from "../lib/paperRecon";
+import { DepClass, additionsFromRegisters, softFigures, classShown, disposalsFromRegisters, depreciationJournal, journalSignature, sectionRecon } from "../lib/paperRecon";
 
 // ------------------------------------------------------------------ saving
 
@@ -554,7 +554,7 @@ function KindSummary({ sb, s, lines, tbKey }: { sb: Sub; s: Setup; lines: Line[]
 // ------------------------------------------------------------------ the grid of lines
 
 function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub; lines: Line[]; s: Setup; cols: Col[]; done?: boolean }) {
-  const { data } = useData();
+  const { data, create, update } = useData();
   const w = useWriter();
   const [pasting, setPasting] = useState(false);
   const [paste, setPaste] = useState("");
@@ -570,6 +570,37 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
   const matched = new Set(tbPrior ? lines.map((l) => priorOf(l)?.key).filter(Boolean) as string[] : []);
   const priorOnly = priorAccts.filter((r) => !matched.has(r.key));
   const sumPrior = (k: "dr" | "cr") => Math.round(priorAccts.reduce((a, r) => a + r[k], 0) * 100) / 100;
+  // type last year's figure: it's stored on last year's software trial balance, less what last year's journals do, so the final figure comes out as typed
+  const [priorBusy, setPriorBusy] = useState(false);
+  const savePrior = async (pr: (typeof priorAccts)[number] | undefined, name: { Code: string; Detail: string; type?: string }, side: "dr" | "cr", raw: string) => {
+    const typed = numOrBlank(raw, "money");
+    const soft = softFigures(pr, side, typed === "" ? undefined : typed);
+    const stamp = new Date().toISOString();
+    setPriorBusy(true);
+    try {
+      const mine = pr?.lines || [];
+      const figs = (l: Line | undefined, d: number, c: number) => {
+        const f: Record<string, unknown> = { ...(l?.f || {}), dr: d || undefined, cr: c || undefined };
+        if (name.type && !f.type) f.type = name.type;
+        for (const k of Object.keys(f)) if (f[k] === undefined || f[k] === "") delete f[k];
+        return JSON.stringify(f);
+      };
+      if (mine.length) {
+        await update("PaperLines", mine[0].row, { Figures: figs(mine[0], soft.dr, soft.cr), Updated: stamp });
+        for (const extra of mine.slice(1)) await update("PaperLines", extra.row, { Figures: figs(extra, 0, 0), Updated: stamp });
+      } else {
+        const seq = linesFor(data.paperLines, w.client.Key, prior, "tb", "main").reduce((m, l) => Math.max(m, l.Seq), 0) + 1;
+        await create("PaperLines", { Key: newKey("PL"), ClientKey: w.client.Key, PeriodEnd: prior, SectionKey: "tb", SubKey: "main", Code: name.Code || undefined, Detail: name.Detail || undefined, Figures: figs(undefined, soft.dr, soft.cr), Seq: seq, Updated: stamp });
+      }
+    } finally {
+      setPriorBusy(false);
+    }
+  };
+  const priorCells = (pr: (typeof priorAccts)[number] | undefined, name: { Code: string; Detail: string; type?: string }) => (["dr", "cr"] as const).map((side) => (
+    <td key={side} className="num mono prior">
+      <Field value={pr && pr[side] ? money(pr[side]) : ""} label={`${prior.slice(0, 4)} ${side === "dr" ? "debit" : "credit"} for ${name.Detail || name.Code || "this account"}`} type="money" onSave={(x) => savePrior(pr, name, side, x)} />
+    </td>
+  ));
   const inputCols = cols.filter((c) => !c.calc);
   const hasTotals = cols.some((c) => c.total) && lines.length > 0;
 
@@ -647,7 +678,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
                   </td>
                 ))}
                 {showPrior && <td className="num mono prior">{money(priorFor(data.paperLines, w.client.Key, w.period, section.key, sb.key, l.Detail)) || "–"}</td>}
-                {tbPrior && (() => { const pr = priorOf(l); return <><td className="num mono prior">{money(pr?.dr)}</td><td className="num mono prior">{money(pr?.cr)}</td></>; })()}
+                {tbPrior && priorCells(priorOf(l), { Code: l.Code, Detail: l.Detail, type: String(l.f.type || "") })}
                 {done && <td style={{ textAlign: "center" }}><input type="checkbox" checked={l.Done} aria-label={`Completed: ${l.Detail || "this note"}`} style={{ width: 18, height: 18 }} onChange={(e) => void w.patchLine(l, { Done: e.target.checked })} /></td>}
                 <td><button type="button" className="iconbtn" aria-label={`Remove ${l.Detail || "this line"}`} disabled={w.busy} onClick={() => void w.removeLine(l)}><Icon name="close" size={14} /></button></td>
               </tr>
@@ -675,7 +706,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
             {tbPrior && priorOnly.map((r) => (
               <tr key={`po-${r.key}`} className="prior-only" title="On last year's trial balance but not this year's">
                 {cols.map((c) => <td key={c.key} className={c.key === "Detail" ? "muted" : undefined}>{c.key === "Code" ? r.code : c.key === "Detail" ? <>{r.account} <span style={{ fontSize: 11 }}>(last year only)</span></> : null}</td>)}
-                <td className="num mono prior">{money(r.dr)}</td><td className="num mono prior">{money(r.cr)}</td><td />
+                {priorCells(r, { Code: r.code, Detail: r.account, type: r.type })}<td />
               </tr>
             ))}
             {!lines.length && <tr><td colSpan={colCount} className="muted" style={{ padding: 12 }}>{done ? "Nothing here yet." : "No lines yet."}</td></tr>}
@@ -697,6 +728,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
           )}
         </table>
       </div>
+      {tbPrior && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Last year's columns are editable. They show last year's final figures (after its journals); a figure you type becomes that account's final figure for last year, and last year's software trial balance is adjusted to suit.{priorBusy ? " Saving…" : ""}</p>}
       <div className="row-wrap" style={{ gap: 8 }}>
         <button type="button" className="btn small" disabled={w.busy} onClick={() => void w.addLines(section.key, sb.key, [sb.kind === "register" ? { f: { months: 12 } } : sb.kind === "journals" ? { f: { no: nextJournal(lines) } } : {}])}>
           + {done ? "Add a note" : "Add a line"}
