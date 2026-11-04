@@ -15,12 +15,12 @@ import {
 } from "../lib/papers";
 import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
-import { Icon, companiesHouseUrl } from "./bits";
+import { Icon, companiesHouseUrl, href } from "./bits";
 import { readSetting, useData } from "./data";
 import { BookMeta, LedgerExtras, LedgerTable, bookKeyFor, useXeroBook } from "./XeroLedger";
-import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, IRIS_BUILT_IN, Mapping, accountsFigures, controlNote, mapTb, mappedWithout, onSide, paperAccounts, parseChart, savedMaps, tbTotals } from "../lib/tbMap";
+import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, IRIS_BUILT_IN, Mapping, accountsFigures, controlNote, mapTb, mappedWithout, onSide, paperAccounts, parseChart, priorAccounts, usesOwnPrior, PRIOR_OWN_SUB, savedMaps, tbTotals } from "../lib/tbMap";
 import { DetailOrder } from "../lib/accounts";
-import { DepClass, additionsFromRegisters, softFigures, classShown, disposalsFromRegisters, depreciationJournal, journalSignature, sectionRecon } from "../lib/paperRecon";
+import { DepClass, additionsFromRegisters, classShown, disposalsFromRegisters, depreciationJournal, journalSignature, sectionRecon } from "../lib/paperRecon";
 
 // ------------------------------------------------------------------ saving
 
@@ -175,17 +175,19 @@ function useTbMaps(period: string): Mapping[] | undefined {
   const { data } = useData();
   const w = useWriter();
   const chart = useChart();
+  // last year, as this year's papers use it: last year's own final trial balance, or the figures the papers keep for themselves
+  const own = period === priorPeriod(w.period) && usesOwnPrior(data.papers, w.client.Key, w.period);
   return useMemo(() => {
     // many parts of a page ask for the same year's mapping: work it out once per change of data
-    const key = `${w.client.Key}|${period}`;
+    const key = `${w.client.Key}|${period}|${own ? w.period : ""}`;
     const hit = mapCache.get(key);
     if (hit && hit.lines === data.paperLines && hit.papers === data.papers && hit.chart === chart) return hit.maps;
-    const rows = paperAccounts(data.paperLines, w.client.Key, period);
+    const rows = own ? priorAccounts(data.paperLines, data.papers, w.client.Key, w.period) : paperAccounts(data.paperLines, w.client.Key, period);
     const maps = rows.length ? mapTb(rows, { lines: data.paperLines, papers: data.papers }, w.client.Key, period, chart) : undefined;
     mapCache.set(key, { lines: data.paperLines, papers: data.papers, chart, maps });
     if (mapCache.size > 20) mapCache.delete(mapCache.keys().next().value as string);
     return maps;
-  }, [data.paperLines, data.papers, chart, w.client.Key, period]);
+  }, [data.paperLines, data.papers, chart, w.client.Key, period, own, w.period]);
 }
 const mapCache = new Map<string, { lines: Row[]; papers: Row[]; chart: ChartRow[]; maps: Mapping[] | undefined }>();
 
@@ -556,7 +558,7 @@ function KindSummary({ sb, s, lines, tbKey }: { sb: Sub; s: Setup; lines: Line[]
 // ------------------------------------------------------------------ the grid of lines
 
 function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub; lines: Line[]; s: Setup; cols: Col[]; done?: boolean }) {
-  const { data, create, update } = useData();
+  const { data } = useData();
   const w = useWriter();
   const [pasting, setPasting] = useState(false);
   const [paste, setPaste] = useState("");
@@ -566,41 +568,36 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
   const showPrior = sb.kind === "list";
   // the year end trial balance also shows last year's (after its journals), account by account
   const tbPrior = sb.kind === "tb" && section.key === "tb";
-  const priorAccts = useMemo(() => (tbPrior ? paperAccounts(data.paperLines, w.client.Key, prior).filter((r) => r.dr || r.cr) : []), [tbPrior, data.paperLines, w.client.Key, prior]);
+  const ownPrior = tbPrior && usesOwnPrior(data.papers, w.client.Key, w.period);
+  const priorAccts = useMemo(() => (tbPrior ? priorAccounts(data.paperLines, data.papers, w.client.Key, w.period).filter((r) => r.dr || r.cr) : []), [tbPrior, data.paperLines, data.papers, w.client.Key, w.period]);
   const nm = (x: string) => x.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
   const priorOf = (l: Line) => priorAccts.find((r) => r.key === acctKey(l.Code, l.Detail)) || (l.Detail.trim() ? priorAccts.find((r) => nm(r.account) === nm(l.Detail)) : undefined);
   const matched = new Set(tbPrior ? lines.map((l) => priorOf(l)?.key).filter(Boolean) as string[] : []);
   const priorOnly = priorAccts.filter((r) => !matched.has(r.key));
   const sumPrior = (k: "dr" | "cr") => Math.round(priorAccts.reduce((a, r) => a + r[k], 0) * 100) / 100;
-  // type last year's figure: it's stored on last year's software trial balance, less what last year's journals do, so the final figure comes out as typed
-  const [priorBusy, setPriorBusy] = useState(false);
-  const savePrior = async (pr: (typeof priorAccts)[number] | undefined, name: { Code: string; Detail: string; type?: string }, side: "dr" | "cr", raw: string) => {
-    const typed = numOrBlank(raw, "money");
-    const soft = softFigures(pr, side, typed === "" ? undefined : typed);
-    const stamp = new Date().toISOString();
-    setPriorBusy(true);
-    try {
-      const mine = pr?.lines || [];
-      const figs = (l: Line | undefined, d: number, c: number) => {
-        const f: Record<string, unknown> = { ...(l?.f || {}), dr: d || undefined, cr: c || undefined };
-        if (name.type && !f.type) f.type = name.type;
-        for (const k of Object.keys(f)) if (f[k] === undefined || f[k] === "") delete f[k];
-        return JSON.stringify(f);
-      };
-      if (mine.length) {
-        await update("PaperLines", mine[0].row, { Figures: figs(mine[0], soft.dr, soft.cr), Updated: stamp });
-        for (const extra of mine.slice(1)) await update("PaperLines", extra.row, { Figures: figs(extra, 0, 0), Updated: stamp });
-      } else {
-        const seq = linesFor(data.paperLines, w.client.Key, prior, "tb", "main").reduce((m, l) => Math.max(m, l.Seq), 0) + 1;
-        await create("PaperLines", { Key: newKey("PL"), ClientKey: w.client.Key, PeriodEnd: prior, SectionKey: "tb", SubKey: "main", Code: name.Code || undefined, Detail: name.Detail || undefined, Figures: figs(undefined, soft.dr, soft.cr), Seq: seq, Updated: stamp });
-      }
-    } finally {
-      setPriorBusy(false);
+  const ownLines = tbPrior ? linesFor(data.paperLines, w.client.Key, w.period, "tb", PRIOR_OWN_SUB) : [];
+  // use the papers' own figures for last year: start them from last year's final trial balance, then they can be edited here
+  const useOwnPrior = async (on: boolean) => {
+    if (on && !ownLines.length) {
+      const base = paperAccounts(data.paperLines, w.client.Key, prior).filter((r) => r.dr || r.cr);
+      if (base.length) await w.addLines("tb", PRIOR_OWN_SUB, base.map((r) => ({ Code: r.code, Detail: r.account, f: { type: r.type || undefined, iris: r.iris || undefined, dr: r.dr || undefined, cr: r.cr || undefined } })));
     }
+    await w.writeSetup("tb/main", { priorOwn: on ? true : undefined });
+  };
+  /** Type one of this year's own figures for last year (a debit or a credit; blank clears it). */
+  const saveOwn = async (pr: (typeof priorAccts)[number] | undefined, name: { Code: string; Detail: string; type?: string }, side: "dr" | "cr", raw: string) => {
+    const typed = numOrBlank(raw, "money");
+    const other = side === "dr" ? "cr" : "dr";
+    const f = { [side]: typed === "" || typed === 0 ? "" : typed, ...(typed === "" || typed === 0 ? {} : { [other]: "" }) };
+    const mine = pr?.lines[0];
+    if (mine) await w.patchLine(mine, { f });
+    else if (typed !== "" && typed !== 0) await w.addLines("tb", PRIOR_OWN_SUB, [{ Code: name.Code, Detail: name.Detail, f: { type: name.type || undefined, [side]: typed } }]);
   };
   const priorCells = (pr: (typeof priorAccts)[number] | undefined, name: { Code: string; Detail: string; type?: string }) => (["dr", "cr"] as const).map((side) => (
     <td key={side} className="num mono prior">
-      <Field value={pr && pr[side] ? money(pr[side]) : ""} label={`${prior.slice(0, 4)} ${side === "dr" ? "debit" : "credit"} for ${name.Detail || name.Code || "this account"}`} type="money" onSave={(x) => savePrior(pr, name, side, x)} />
+      {ownPrior
+        ? <Field value={pr && pr[side] ? money(pr[side]) : ""} label={`${prior.slice(0, 4)} ${side === "dr" ? "debit" : "credit"} for ${name.Detail || name.Code || "this account"}`} type="money" onSave={(x) => saveOwn(pr, name, side, x)} />
+        : money(pr?.[side])}
     </td>
   ));
   const inputCols = cols.filter((c) => !c.calc);
@@ -655,6 +652,20 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
 
   return (
     <div className="stack" style={{ gap: 10 }}>
+      {tbPrior && (
+        <div className="stack prior-tb" style={{ gap: 6 }}>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+            {ownPrior
+              ? <>Last year's columns are figures kept on these papers, started from last year's final trial balance. Edit them here.</>
+              : <>Last year's columns are last year's <strong>final trial balance</strong> (its software trial balance and journals), taken from the {prior.slice(0, 4)} working papers. They can't be changed from this year: <a href={href("papers", w.client.Key, prior)}>open the {prior.slice(0, 4)} papers</a> to change them.</>}
+          </p>
+          <label className="row-wrap" style={{ gap: 8, alignItems: "center", fontSize: 13 }}>
+            <input type="checkbox" checked={ownPrior} disabled={w.busy} onChange={(e) => void useOwnPrior(e.target.checked)} />
+            Use different figures for last year (instead of last year's final trial balance)
+          </label>
+          {!ownPrior && ownLines.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Figures you kept here earlier are saved. Tick the box to use them again.</p>}
+        </div>
+      )}
       <div className="table-wrap">
         <table className={`grid lines kind-${sb.kind}`}>
           <thead>
@@ -730,7 +741,6 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
           )}
         </table>
       </div>
-      {tbPrior && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Last year's columns are editable. They show last year's final figures (after its journals); a figure you type becomes that account's final figure for last year, and last year's software trial balance is adjusted to suit.{priorBusy ? " Saving…" : ""}</p>}
       <div className="row-wrap" style={{ gap: 8 }}>
         <button type="button" className="btn small" disabled={w.busy} onClick={() => void w.addLines(section.key, sb.key, [sb.kind === "register" ? { f: { months: 12 } } : sb.kind === "journals" ? { f: { no: nextJournal(lines) } } : {}])}>
           + {done ? "Add a note" : "Add a line"}

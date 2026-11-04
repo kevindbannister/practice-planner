@@ -174,18 +174,3 @@ export function sectionRecon(sec: Section, papers: Row[], paperLines: Row[], cli
   }
   return out;
 }
-
-// ------------------------------------------------------------------ editing a year end trial balance figure
-
-/**
- * Last year's trial balance is shown after its journals. To make a typed figure the account's final one, the software's figure has to be
- * the typed figure less what the journals do to it. Typing a debit makes the balance that debit, typing a credit makes it that credit
- * (a blank clears the column being edited, and the balance is whatever sits in the other).
- * Returns the debit and credit to store on the software trial balance line.
- */
-export function softFigures(acct: { jDr: number; jCr: number; dr: number; cr: number } | undefined, side: "dr" | "cr", typed: number | undefined): { dr: number; cr: number } {
-  const other = acct ? (side === "dr" ? acct.cr : acct.dr) : 0;
-  const finalNet = typed === undefined || typed === 0 ? (other ? (side === "dr" ? -other : other) : 0) : side === "dr" ? typed : -typed;
-  const soft = round2(finalNet - ((acct?.jDr || 0) - (acct?.jCr || 0)));
-  return soft >= 0 ? { dr: soft, cr: 0 } : { dr: 0, cr: -soft };
-}

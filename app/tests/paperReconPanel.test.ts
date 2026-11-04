@@ -103,3 +103,15 @@ test("a lead schedule sits on the left, with no choice of how a line opens and n
   assert.doesNotMatch(h, /class="lead-panel"/);
   assert.match(h, /open its working on the right/);
 });
+
+test("the year end trial balance shows last year's final figures read-only, linked to last year's papers, with a box to use different figures", () => {
+  const prior = (Key: string, Code: string, Detail: string, f: Record<string, unknown>, seq: number) => ({ Key, ClientKey: "C1", PeriodEnd: "2025-03-31", SectionKey: "tb", SubKey: "main", Code, Detail, Seq: seq, Figures: JSON.stringify(f) });
+  const lines = [tb("T3", "200", "Sales", "Revenue", undefined, 20000), prior("P1", "200", "Sales", { cr: 17000 }, 1)];
+  const show = (papers: any[]) => render(() => createElement(Schedule, { section: SECTIONS.find((s) => s.key === "tb")!, sb: SECTIONS.find((s) => s.key === "tb")!.subs[0] }), papers, lines);
+  const h = show([]);
+  assert.match(h, /final trial balance/); assert.match(h, /can&#x27;t be changed from this year/); assert.match(h, /href="[^"]*C1[^"]*2025-03-31/);
+  assert.match(h, /Use different figures for last year/); assert.match(h, /17,000\.00/);
+  assert.doesNotMatch(h, /aria-label="2025 credit for Sales"/);
+  const own = show([setup("tb/main", { priorOwn: true })]);
+  assert.match(own, /Edit them here/);
+});

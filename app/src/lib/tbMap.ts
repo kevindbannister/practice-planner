@@ -355,6 +355,20 @@ export function paperAccounts(lines: Row[], clientKey: string, period: string): 
   return finalTb(tb, journals);
 }
 
+/** Where a company's own figures for last year are kept when it doesn't use last year's final trial balance (on this year's papers). */
+export const PRIOR_OWN_SUB = "prior";
+/** Whether this year's papers use their own figures for last year instead of last year's final trial balance. */
+export const usesOwnPrior = (papers: Row[], clientKey: string, period: string): boolean => !!setupOf(papers, clientKey, period, "tb/main").priorOwn;
+
+/**
+ * Last year's trial balance as this year's papers use it: last year's own final trial balance (its software trial balance and every journal)
+ * unless the papers are set to use their own figures for last year, which sit on this year's papers.
+ */
+export function priorAccounts(lines: Row[], papers: Row[], clientKey: string, period: string): TbRow[] {
+  if (usesOwnPrior(papers, clientKey, period)) return finalTb(linesFor(lines, clientKey, period, "tb", PRIOR_OWN_SUB), []);
+  return paperAccounts(lines, clientKey, priorPeriod(period));
+}
+
 /**
  * The trial balance as it stands without one set of journals (the depreciation journal, so it can be worked out from what is left):
  * each place's total and the accounts, mapped the way the paper maps them.
