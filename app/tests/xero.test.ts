@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { FakeXero } from "../src/lib/fakeXero";
 import { acctKey } from "../src/lib/papers";
 import {
-  DEFAULT_OPTIONS, ImportPart, contactBalances, ledgerCheck, parseTrialBalance, payrollByMonth, r2, readFromXero, outstandingFromInvoices, registerFromAssets, scopesFor, vatByQuarter, vatPeriods, xDate, yearStart, matchClient,
+  DEFAULT_OPTIONS, XeroError, ImportPart, contactBalances, ledgerCheck, parseTrialBalance, payrollByMonth, r2, readFromXero, outstandingFromInvoices, registerFromAssets, scopesFor, vatByQuarter, vatPeriods, xDate, yearStart, matchClient,
 } from "../src/lib/xero";
 
 const connected = (groups = [...DEFAULT_OPTIONS.groups, "ledger"]) => {
@@ -189,6 +189,16 @@ test("fixed assets: refused by Xero, the import says which tick to use", async (
   const x = await readFromXero(connected(DEFAULT_OPTIONS.groups.filter((g) => g !== "assets")), T, "2026-04-30", new Set<ImportPart>(["assets"]), { quarterEnds: [3, 6, 9, 12] });
   assert.equal(x.fixedAssets.length, 0);
   assert.ok(x.problems.some((p) => /Fixed asset register/.test(p)));
+});
+
+test("fixed assets: a 404 from Xero (no asset register) is reported, and the rest of the import still comes back", async () => {
+  const fake: any = connected(DEFAULT_OPTIONS.groups);
+  const get = fake.get.bind(fake);
+  fake.get = (id: string, api: string, path: string, q?: any) =>
+    api === "assets" ? Promise.reject(new XeroError("not-found", "Xero returned an error (404).")) : get(id, api, path, q);
+  const x = await readFromXero(fake, T, "2026-04-30", new Set<ImportPart>(["assets", "bank"]), { quarterEnds: [3, 6, 9, 12] });
+  assert.equal(x.fixedAssets.length, 0);
+  assert.ok(x.problems.some((p) => /fixed asset register/i.test(p)), x.problems.join(" | "));
 });
 
 test("a ledger line links to its transaction in Xero", async () => {

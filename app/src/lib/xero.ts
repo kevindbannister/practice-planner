@@ -98,7 +98,7 @@ export class HttpXero implements XeroApi {
     if (res.ok && json) return json;
     if (!json || !json.error) throw new XeroError("no-bridge", "The Xero connection isn't on the server yet. It arrives with the next deployment.");
     if (json.error === "reconnect") await this.sealed.write(undefined);
-    throw new XeroError(json.error, json.message || "Xero didn't answer. Try again.", json.retryAfter);
+    throw new XeroError(json.error, `${json.message || "Xero didn't answer. Try again."}${json.error === "not-found" && json.path ? ` (reading ${json.api ? `${json.api}/` : ""}${json.path})` : ""}`, json.retryAfter);
   }
 
   /** One call at a time, so a renewed sign-in is always used by the next call. */
@@ -648,7 +648,7 @@ export async function readDocuments(api: XeroApi, id: string, from: string, to: 
     try {
       return await fn();
     } catch (e) {
-      if (!scopeMissing(e)) throw e;
+      if (!unavailable(e)) throw e;
       gaps.push(label);
       if (!why && e instanceof XeroError) why = e.message;
       return empty;
@@ -727,6 +727,8 @@ async function pagedAccounting(api: XeroApi, tenantId: string, path: string, lis
 }
 
 const scopeMissing = (e: unknown) => e instanceof XeroError && (e.code === "scope" || e.code === "forbidden");
+/** A read Xero can't give this organisation (no scope, no access, or the module isn't set up, which Xero answers with 404). */
+const unavailable = (e: unknown) => scopeMissing(e) || (e instanceof XeroError && e.code === "not-found");
 
 /** Read everything asked for, for one organisation and one year. */
 export async function readFromXero(
@@ -758,7 +760,7 @@ export async function readFromXero(
       const dr = r2(tb.reduce((a, l) => a + (l.f.dr || 0), 0)), cr = r2(tb.reduce((a, l) => a + (l.f.cr || 0), 0));
       log.push(`Trial balance at ${to}: ${tb.length} accounts, debits ${dr.toFixed(2)}, credits ${cr.toFixed(2)}${Math.abs(dr - cr) > 0.004 ? " (doesn't balance)" : ""}. Last year's: ${priorTb.length} accounts.`);
     } catch (e) {
-      if (!scopeMissing(e)) throw e;
+      if (!unavailable(e)) throw e;
       problems.push("The trial balance couldn't be read: tick \"Trial balance, bank summary and profit and loss reports\" in Settings › Xero and connect again.");
     }
   }
@@ -822,7 +824,7 @@ export async function readFromXero(
         if (cc) creditors = contactBalances(all, cc.key).map((x) => ({ ...x, balance: -x.balance }));
         done = true;
       } catch (e) {
-        if (!scopeMissing(e)) throw e;
+        if (!unavailable(e)) throw e;
       }
     }
     if (!done) {
@@ -849,7 +851,7 @@ export async function readFromXero(
           ? "Customers' and suppliers' balances are from invoices and bills less payments and credits dated by the year end. Xero wouldn't show some credit notes, prepayments or overpayments, so those minus balances may be missing."
           : "Customers' and suppliers' balances are from invoices and bills less payments and credits dated by the year end, including credit notes, prepayments and overpayments not yet used (the minus balances).");
       } catch (e) {
-        if (!scopeMissing(e)) throw e;
+        if (!unavailable(e)) throw e;
         problems.push("Customers' and suppliers' balances couldn't be worked out without the ledger or the invoices.");
       }
     }
@@ -866,7 +868,7 @@ export async function readFromXero(
       book.bank = parseBankSummary(await api.get(id, "accounting", "Reports/BankSummary", { fromDate: from, toDate: to }), accounts);
       log.push(`Bank summary: ${book.bank.length} bank account${book.bank.length === 1 ? "" : "s"}.`);
     } catch (e) {
-      if (!scopeMissing(e)) throw e;
+      if (!unavailable(e)) throw e;
       problems.push("The bank summary couldn't be read (needs the reports access).");
     }
     say("Finding unreconciled bank items…");
@@ -887,7 +889,7 @@ export async function readFromXero(
       log.push(`Unreconciled bank items dated by the year end: ${book.unreconciled.length}.`);
       book.notes.push("Unreconciled items are those Xero still shows as unreconciled today; items dated before the year end and reconciled since then don't appear.");
     } catch (e) {
-      if (!scopeMissing(e)) throw e;
+      if (!unavailable(e)) throw e;
       problems.push("Unreconciled bank items couldn't be read (needs \"Invoices, bills… bank transactions\").");
     }
   }
@@ -941,8 +943,8 @@ export async function readFromXero(
         }
       }
     } catch (e) {
-      if (!scopeMissing(e)) throw e;
-      problems.push("The fixed asset register couldn't be read: tick \"Fixed asset register\" in Settings › Xero and connect again (and your Xero plan has to include fixed assets).");
+      if (!unavailable(e)) throw e;
+      problems.push("The fixed asset register couldn't be read (Xero has no fixed asset register for this organisation, or the connection lacks access): tick \"Fixed asset register\" in Settings › Xero and connect again (and your Xero plan has to include fixed assets).");
     }
   }
 
