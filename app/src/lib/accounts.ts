@@ -5,7 +5,7 @@
 // against the facts and the standard before relying on it. Nothing here files anything anywhere.
 import { Block, Cell, DocContent, Run } from "./docModel";
 import { AssetTotals } from "./papers";
-import { AccountsFigures, DESTS, DEST_BY_KEY, Mapping } from "./tbMap";
+import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, Mapping, irisRangeDest } from "./tbMap";
 
 export const ACCOUNTS_SETUP_ITEM = "_acc";
 
@@ -206,7 +206,7 @@ export function balanceSheet(f: F, prior: F | undefined, type: AccountsType, ref
 export type DetailItem = { label: string; amount: number; iris: string; code: string };
 export type DetailGroup = { key: string; title: string; section: string; items: DetailItem[]; total: number };
 /** How the detailed profit and loss is ordered (set in Settings › Detailed P&L): the headings, and the accounts under each. */
-export type DetailOrder = { groups?: string[]; items?: "name" | "iris" | "code" };
+export type DetailOrder = { groups?: string[]; items?: "name" | "iris" | "code"; /** every IRIS code in the order the user dragged them to (a line not in it goes after, in the `items` order) */ lines?: string[] };
 
 /** Every heading the detailed profit and loss can have, in the order they show until the user changes it. */
 export const DETAIL_HEADINGS: { key: string; title: string; bucket: string }[] = DESTS
@@ -218,6 +218,32 @@ export function headingOrder(saved?: string[]): string[] {
   const all = DETAIL_HEADINGS.map((h) => h.key);
   const known = (saved || []).filter((k) => all.includes(k));
   return [...known, ...all.filter((k) => !known.includes(k))];
+}
+
+/** Compares two lines by the order dragged in Settings, then (for lines not in it) by name, IRIS code or code as chosen. */
+export function itemCmp(order?: DetailOrder) {
+  const idx = new Map((order?.lines || []).map((c, i) => [c, i]));
+  const how = order?.items || "name";
+  return (a: { iris: string; label: string; code?: string }, b: { iris: string; label: string; code?: string }): number => {
+    const ia = a.iris ? idx.get(a.iris) : undefined, ib = b.iris ? idx.get(b.iris) : undefined;
+    if (ia !== undefined && ib !== undefined) return ia - ib;
+    if (ia !== undefined) return -1;
+    if (ib !== undefined) return 1;
+    if (how === "iris" || how === "code") return byCodeThenName(a.iris || "\uffff", b.iris || "\uffff") || a.label.localeCompare(b.label);
+    return a.label.localeCompare(b.label);
+  };
+}
+
+/** Every profit and loss line on the IRIS chart with the heading it belongs under, in the order the report shows them. */
+export function detailLines(chart: ChartRow[], order?: DetailOrder): { code: string; name: string; heading: string }[] {
+  const keys = new Set(DETAIL_HEADINGS.map((h) => h.key));
+  const out: { code: string; name: string; heading: string }[] = [];
+  for (const c of chart) {
+    const heading = c.dest || irisRangeDest(c.code, c.name, 0);
+    if (heading && keys.has(heading) && !out.some((x) => x.code === c.code)) out.push({ code: c.code, name: c.name, heading });
+  }
+  const cmp = itemCmp(order);
+  return out.sort((a, b) => cmp({ iris: a.code, label: a.name }, { iris: b.code, label: b.name }));
 }
 
 const byCodeThenName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
@@ -242,12 +268,7 @@ export function detailGroups(maps: Mapping[], order?: DetailOrder): { income: De
     g.total = Math.round((g.total + amount) * 100) / 100;
   }
   const rank = new Map(headingOrder(order?.groups).map((k, i) => [k, i]));
-  const how = order?.items || "name";
-  const cmp = (a: DetailItem, b: DetailItem) => {
-    if (how === "iris") return byCodeThenName(a.iris || "\uffff", b.iris || "\uffff") || a.label.localeCompare(b.label);
-    if (how === "code") return byCodeThenName(a.code || "\uffff", b.code || "\uffff") || a.label.localeCompare(b.label);
-    return a.label.localeCompare(b.label);
-  };
+  const cmp = itemCmp(order);
   for (const k of Object.keys(out) as (keyof typeof out)[]) {
     out[k].sort((a, b) => (rank.get(a.key) ?? 999) - (rank.get(b.key) ?? 999));
     for (const g of out[k]) g.items.sort(cmp);

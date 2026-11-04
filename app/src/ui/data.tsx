@@ -379,12 +379,27 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     return () => { coSecHook.current = null; };
   }, [store, user, create, updateMany]);
 
+  // A setting saved in one tab reaches the others: the saving tab tells them, and a tab that comes back into view reads the settings again.
+  const settingsChannel = useRef<BroadcastChannel | null>(null);
+  useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try { bc = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("pp-settings"); } catch { bc = null; }
+    settingsChannel.current = bc;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const again = () => { clearTimeout(timer); timer = setTimeout(() => { refreshList("Settings").catch(() => undefined); }, 600); };
+    if (bc) bc.onmessage = again;
+    const seen = () => { if (document.visibilityState === "visible") again(); };
+    document.addEventListener("visibilitychange", seen);
+    return () => { clearTimeout(timer); document.removeEventListener("visibilitychange", seen); bc?.close(); settingsChannel.current = null; };
+  }, [refreshList]);
+
   const saveSetting = useCallback(
     async (key: string, value: unknown) => {
       const existing = data.settings.find((s) => s.Key === key);
       const v = JSON.stringify(value);
       if (existing) await update("Settings", existing, { Value: v });
       else await create("Settings", { Key: key, Title: key, Value: v });
+      try { settingsChannel.current?.postMessage(key); } catch { /* fine */ }
       if (key === "tightDays") setTightDays(value as number);
     },
     [data.settings, update, create],

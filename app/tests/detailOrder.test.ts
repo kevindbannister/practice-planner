@@ -32,3 +32,19 @@ test("the detailed profit and loss is by IRIS line: accounts on one code are add
   assert.equal(items.find((x) => x.iris === "905/2")!.amount, 150);
   assert.ok(items.some((x) => x.label === "Odd (no IRIS code)"));
 });
+
+import { IRIS_BUILT_IN } from "../src/lib/tbMap";
+import { detailLines } from "../src/lib/accounts";
+test("dragged IRIS line order is followed in the report, lines not in it go after", () => {
+  const three = [m("1", "A", "905/2", "expenditure/premises", 1), m("2", "B", "905/9", "expenditure/premises", 1), m("3", "C", "905/5", "expenditure/premises", 1)];
+  const labels = (o: any) => detailGroups(three, o).expenses[0].items.map((x) => x.iris);
+  assert.deepEqual(labels({ lines: ["905/9", "905/2"] }), ["905/9", "905/2", "905/5"]);
+});
+test("every profit and loss line on the chart is offered under a heading, and the dragged order applies to them", () => {
+  const all = detailLines(IRIS_BUILT_IN);
+  assert.ok(all.length > 30);
+  assert.ok(all.every((l) => DETAIL_HEADINGS.some((h) => h.key === l.heading)));
+  assert.ok(!all.some((l) => /^5\d\d|^7\d\d|^9\d\d/.test(l.code)));
+  const codes = all.map((l) => l.code).reverse();
+  assert.deepEqual(detailLines(IRIS_BUILT_IN, { lines: codes }).map((l) => l.code), codes);
+});
