@@ -6,7 +6,7 @@ import { moveItem } from "../lib/stages";
 import { Icon } from "./bits";
 import { readSetting, useData } from "./data";
 
-const ITEM_ORDERS: [NonNullable<DetailOrder["items"]>, string][] = [["name", "By account name"], ["iris", "By IRIS code"], ["code", "By the software's account code"]];
+const ITEM_ORDERS: [NonNullable<DetailOrder["items"]>, string][] = [["name", "By IRIS line name"], ["iris", "By IRIS code"]];
 
 export function DetailedPlSettings() {
   const { data, saveSetting } = useData();

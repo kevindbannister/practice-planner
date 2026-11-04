@@ -234,7 +234,11 @@ export function detailGroups(maps: Mapping[], order?: DetailOrder): { income: De
     const id = `${bucket}|${d.key}`;
     let g = by.get(id);
     if (!g) { g = { key: d.key, title: d.label.split("›").pop()?.trim() || d.label, section: d.section, items: [], total: 0 }; by.set(id, g); out[bucket].push(g); }
-    g.items.push({ label: m.acct.account || m.acct.code, amount, iris: m.iris || "", code: m.acct.code || "" });
+    // the detailed profit and loss is by IRIS line, not by the software's accounts: accounts on the same IRIS code are added together
+    const label = m.iris ? (m.irisName || m.iris) : `${m.acct.account || m.acct.code} (no IRIS code)`;
+    const same = m.iris ? g.items.find((x) => x.iris === m.iris) : undefined;
+    if (same) same.amount = Math.round((same.amount + amount) * 100) / 100;
+    else g.items.push({ label, amount, iris: m.iris || "", code: m.iris || "" });
     g.total = Math.round((g.total + amount) * 100) / 100;
   }
   const rank = new Map(headingOrder(order?.groups).map((k, i) => [k, i]));

@@ -36,3 +36,13 @@ test("credit card balances are still creditors, but credit card charges are a co
 test("every rule points at a real heading", () => {
   for (const r of EXPENSE_RULES) assert.ok(DEST_BY_KEY.has(r.dest), r.dest);
 });
+
+import { irisFallback } from "../src/lib/tbMap";
+test("an account with no IRIS code gets one from its name and place, only from the IRIS chart", () => {
+  assert.equal(irisFallback("Telephone & Internet", "expenditure/tb"), "263");
+  assert.equal(irisFallback("Motor Vehicle Expenses", "expenditure/tb"), "267");
+  assert.equal(irisFallback("Bank Fees", "expenditure/tb"), "378");
+  assert.equal(irisFallback("Accountancy", "expenditure/tb"), "285");
+  assert.equal(irisFallback("Trade Debtors", "debtors/trade"), "586");
+  assert.equal(irisFallback("Something odd", "expenditure/tb"), "280");
+});

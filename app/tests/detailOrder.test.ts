@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { DETAIL_HEADINGS, detailGroups, headingOrder } from "../src/lib/accounts";
 
-const m = (code: string, account: string, iris: string, dest: string, balance: number) => ({ acct: { code, account }, iris, dest, balance, swBalance: balance, jBalance: 0 }) as any;
+const m = (code: string, account: string, iris: string, dest: string, balance: number) => ({ acct: { code, account }, iris, irisName: account === "Rent" ? "Other operating leases - rent" : account === "Insurance" ? "Insurance" : account, dest, balance, swBalance: balance, jBalance: 0 }) as any;
 const maps = [
   m("410", "Rent", "905/2", "expenditure/premises", 12000), m("400", "Wages", "905/1", "expenditure/employee", 30000),
   m("430", "Insurance", "905/9", "expenditure/premises", 900), m("420", "Accountancy", "905/5", "expenditure/accountancy", 1500),
@@ -21,7 +21,14 @@ test("a saved heading order is followed, and a new heading goes to the end", () 
 });
 test("accounts under a heading go by name, IRIS code or the software's code", () => {
   const premises = (o?: any) => detailGroups(maps, o).expenses.find((g) => g.key === "expenditure/premises")!.items.map((x) => x.label);
-  assert.deepEqual(premises(), ["Insurance", "Rent"]);
-  assert.deepEqual(premises({ items: "iris" }), ["Rent", "Insurance"]);
-  assert.deepEqual(premises({ items: "code" }), ["Rent", "Insurance"]);
+  assert.deepEqual(premises(), ["Insurance", "Other operating leases - rent"]);
+  assert.deepEqual(premises({ items: "iris" }), ["Other operating leases - rent", "Insurance"]);
+  assert.deepEqual(premises({ items: "code" }), ["Other operating leases - rent", "Insurance"]);
+});
+test("the detailed profit and loss is by IRIS line: accounts on one code are added, one with no code says so", () => {
+  const two = [m("1", "Rent A", "905/2", "expenditure/premises", 100), m("2", "Rent B", "905/2", "expenditure/premises", 50), m("3", "Odd", "", "expenditure/premises", 5)];
+  const items = detailGroups(two).expenses[0].items;
+  assert.equal(items.length, 2);
+  assert.equal(items.find((x) => x.iris === "905/2")!.amount, 150);
+  assert.ok(items.some((x) => x.label === "Odd (no IRIS code)"));
 });

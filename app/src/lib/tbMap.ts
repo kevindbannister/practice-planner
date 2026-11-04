@@ -326,6 +326,76 @@ export function irisOf(raw: string, acctName: string, chart: ChartRow[]): { code
   return { code: hits[0]?.code || "", name: t };
 }
 
+// ------------------------------------------------------------------ IRIS codes for accounts that came without one
+
+/**
+ * The IRIS Elements profit and loss line an account belongs on, read from its name (first match wins). Only codes in the IRIS chart are used,
+ * so a Xero account never reaches the detailed profit and loss under its own name. Names arrive lower-cased with punctuation removed.
+ */
+export const IRIS_PL_RULES: { code: string; re: RegExp }[] = [
+  { code: "392/1", re: /(profit|loss|gain) (and |or )?(loss )?on (the )?(sale|disposal)|profit loss on sale/ },
+  { code: "416", re: /interest on (corporation tax|paye|vat|late)|hmrc interest|late payment interest/ },
+  { code: "426", re: /hire purchase|^hp\b|finance lease/ },
+  { code: "414", re: /interest (paid|payable|charged|on (loans?|overdraft))|loan interest|overdraft interest|finance charges?|bank interest paid/ },
+  { code: "254/5*1", re: /directors? (social security|national insurance|ni\b)|directors? employers? ni/ },
+  { code: "254/8*1", re: /directors? pension/ },
+  { code: "254/1*1", re: /directors? (remuneration|salar|pay\b|fees|bonus)|employment costs directors|^remuneration/ },
+  { code: "378", re: /bank (charges?|fees?)|card (charges?|fees?)|merchant|paypal|stripe|gocardless|transaction (charges?|fees?)|service charges?|overdraft (fees?|charges?)/ },
+  { code: "390/15", re: /(depreciation|depn|amortisation).*(computer|it equipment|laptop)|(computer|it equipment|laptop).*(depreciation|depn)/ },
+  { code: "390/14", re: /(depreciation|depn|amortisation).*(motor|vehicle|van)|(motor|vehicle|van).*(depreciation|depn)/ },
+  { code: "390/13", re: /(depreciation|depn|amortisation).*(fixture|fitting|furniture)|(fixture|fitting|furniture).*(depreciation|depn)/ },
+  { code: "390/12", re: /^(depreciation|depn|amortisation|amortization)\b|(depreciation|depn|amortisation) (charge|expense|of)|\bdepn of\b/ },
+  { code: "256", re: /employers? (ni|national insurance|social security)|^national insurance|social security/ },
+  { code: "257", re: /pension/ },
+  { code: "325", re: /training|welfare|recruitment|\bhr\b|staff (entertainment|costs?)|casual labour/ },
+  { code: "255", re: /wages|salar|payroll|employment|employee|\bstaff\b/ },
+  { code: "321", re: /entertain|\bevents?\b|client gifts?|hospitality/ },
+  { code: "265", re: /advertis|marketing|promotion|social media|\bseo\b|search engine|sponsorship|brochure|leaflet|website (design|marketing)/ },
+  { code: "267", re: /vehicle|motor|travel|subsistence|mileage|fuel|petrol|diesel|\bmot\b|road tax|parking|congestion|ulez|accommodation|hotel|train fares?|flights?|airfares?|taxi|car (hire|expenses|running|tax)/ },
+  { code: "227", re: /^rent\b|rent and rates|operating lease|other operating leases?/ },
+  { code: "230", re: /rates|water/ },
+  { code: "233", re: /light|heat|power|electric|\bgas\b|utilities|utility/ },
+  { code: "234", re: /premises (improvements?|repairs?|costs?)|repairs? to (property|premises|building)|property repairs|building (repairs|maintenance)|miscellaneous premises/ },
+  { code: "274", re: /cleaning|waste|household|hygiene/ },
+  { code: "272", re: /repairs?|renewals|maintenance/ },
+  { code: "232", re: /insurance/ },
+  { code: "260", re: /hire of|plant hire|equipment hire/ },
+  { code: "263", re: /telephone|mobiles?|internet|broadband|phones?/ },
+  { code: "264", re: /post|stationer|stationary|printing|office|courier|delivery/ },
+  { code: "279", re: /computer|\bit (system|costs?|support|services|equipment|expenses)|software|saas|hosting|\bdomain|cloud|subscriptions?|online (services|subscriptions?)/ },
+  { code: "285", re: /accountancy|accounting|audit|bookkeeping|accountants?/ },
+  { code: "288", re: /commission/ },
+  { code: "290", re: /solicitor|legal|consultan|professional/ },
+  { code: "280", re: /sundry|general|miscellaneous|other expenses|^expenses?$/ },
+];
+
+/** An IRIS code for each place, for accounts that came without one (only codes that are on the IRIS chart). */
+export const IRIS_BY_DEST: Record<string, string> = {
+  "income/sales": "1", "income/fees": "1", "income/reimbursed": "1", "income/interest": "130",
+  "expenditure/cos": "27", "expenditure/interestpayable": "414", "expenditure/tb": "280",
+  "taxation/current": "442", "taxation/deferred": "450", "capital/dividends": "471/1", "capital/shares": "966/1", "capital/reserves": "968/1",
+  "bank/current": "692", "bank/deposit": "693", "debtors/trade": "586", "debtors/other": "594", "debtors/prepayments": "614", "debtors/accrued": "614", "debtors/group": "715/1",
+  "stock/stock": "569", "creditors/trade": "737", "creditors/tax": "747", "creditors/ssot": "755", "creditors/accruals": "786", "creditors/card": "770", "creditors/hp": "909", "creditors/dla": "727/1*1",
+  "fixed/freehold#cost": "512/1", "fixed/plant#cost": "523/1", "fixed/plant#dep": "523/21", "fixed/fixtures#cost": "524/1", "fixed/fixtures#dep": "524/21",
+  "fixed/motor#cost": "525/1", "fixed/motor#dep": "525/21", "fixed/computer#cost": "526/1", "fixed/computer#dep": "526/21",
+};
+
+/** The IRIS code for an account that came without one: the profit and loss rules by name, then the place's usual code. "" when none fits. */
+export function irisFallback(acctName: string, dest: string): string {
+  const n = norm(acctName);
+  if (/^(income|expenditure)\//.test(dest) && dest !== "expenditure/cos" && !/^income\//.test(dest)) {
+    const hit = IRIS_PL_RULES.find((r) => r.re.test(n));
+    if (hit) return hit.code;
+  }
+  if (dest === "expenditure/cos") {
+    if (/opening stock/.test(n)) return "18";
+    if (/closing stock/.test(n)) return "74";
+    if (/sub ?contract/.test(n)) return "53";
+  }
+  if (dest === "creditors/ssot" && /\bvat\b/.test(n)) return "735";
+  return IRIS_BY_DEST[dest] || "";
+}
+
 // ------------------------------------------------------------------ suggestions for a whole trial balance
 
 export type Mapping = {
@@ -415,7 +485,7 @@ export function mapTb(rows: TbRow[], all: { lines: Row[]; papers: Row[] }, clien
     if (k && l.f.dest && !byName.has(k)) byName.set(k, { iris: String(l.f.iris || "") || undefined, dest: String(l.f.dest) });
   }
   const chartByCode = new Map(chart.map((c) => [c.code, c]));
-  return rows.map((acct) => {
+  const mapped = rows.map((acct): Mapping => {
     const balance = round2(acct.dr - acct.cr), swBalance = round2(acct.tbDr - acct.tbCr), jBalance = round2(acct.jDr - acct.jCr);
     const fromTb = irisOf(acct.iris, acct.account, chart);
     const base = { acct, balance, swBalance, jBalance };
@@ -439,6 +509,12 @@ export function mapTb(rows: TbRow[], all: { lines: Row[]; papers: Row[] }, clien
     const ic = !chart.length ? undefined : acct.type ? chart.find((c) => norm(c.name) === norm(acct.account)) : guessIris(acct.account, chart);
     if (ic) return { ...base, iris: ic.code, irisName: ic.name, dest: chartDest(ic, balance || swBalance, acct.account), saved: false, why: `IRIS ${ic.code} ${ic.name} (from the name)` };
     return { ...base, iris: "", irisName: "", dest: guessDest(acct.account, acct.type, balance || swBalance), saved: false, why: "From the name" };
+  });
+  // every account gets an IRIS code: the one it came with, else one from its name and place
+  return mapped.map((m) => {
+    if (m.iris || m.dest === "ignore") return m;
+    const code = irisFallback(m.acct.account, m.dest);
+    return code ? { ...m, iris: code, irisName: chartByCode.get(code)?.name || m.irisName } : m;
   });
 }
 
