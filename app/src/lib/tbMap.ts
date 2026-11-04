@@ -152,6 +152,20 @@ export function guessDest(name: string, type: string, balance: number): string {
   return credit ? "creditors/other" : "debtors/other";
 }
 
+/** The detailed profit and loss heading each IRIS profit and loss code sits under (the codes on the IRIS chart; others go by their name). */
+export const IRIS_HEADING: Record<string, string> = {
+  "18": "expenditure/cos", "27": "expenditure/cos", "53": "expenditure/cos", "74": "expenditure/cos",
+  "227": "expenditure/premises", "230": "expenditure/premises", "233": "expenditure/premises", "234": "expenditure/premises", "272": "expenditure/premises", "274": "expenditure/premises",
+  "232": "expenditure/insurance",
+  "254/1*1": "expenditure/directors", "254/5*1": "expenditure/directors", "254/8*1": "expenditure/directors",
+  "255": "expenditure/employee", "256": "expenditure/employee", "257": "expenditure/employee", "275": "expenditure/employee", "325": "expenditure/employee",
+  "260": "expenditure/tb", "280": "expenditure/tb", "288": "expenditure/tb", "392/1": "expenditure/tb",
+  "263": "expenditure/office", "264": "expenditure/office",
+  "265": "expenditure/advertising", "267": "expenditure/motor", "279": "expenditure/it", "285": "expenditure/accountancy", "290": "expenditure/legal", "321": "expenditure/entertainment",
+  "378": "expenditure/bank", "414": "expenditure/interestpayable", "416": "expenditure/interestpayable", "426": "expenditure/interestpayable",
+  "390/12": "expenditure/depreciation", "390/13": "expenditure/depreciation", "390/14": "expenditure/depreciation", "390/15": "expenditure/depreciation",
+};
+
 /**
  * Where an IRIS Accounts Production code goes, from the IRIS numbering: profit and loss below 500
  * (turnover, cost of sales, overheads, interest, tax, dividends), then fixed assets, current assets,
@@ -161,6 +175,7 @@ export function irisRangeDest(code: string, acctName: string, balance: number): 
   const m = /^(\d{1,4})(?:\/(\d+))?/.exec(code.trim());
   if (!m) return undefined;
   const c = Number(m[1]), subCode = m[2] === undefined ? undefined : Number(m[2]);
+  if (Number(m[1]) < 440) { const fixed = IRIS_HEADING[code.trim().replace(/\*\d+$/, "*1")]; if (fixed) return fixed; }
   const n = norm(acctName), credit = balance < 0;
   const part = subCode !== undefined && subCode >= 20 ? "dep" : "cost";
   if (c < 18) return /reimburs|recharged? expenses/.test(n) ? "income/reimbursed" : /^fees?\b|fees? (income|received)/.test(n) ? "income/fees" : "income/sales";

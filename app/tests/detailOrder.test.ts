@@ -48,3 +48,13 @@ test("every profit and loss line on the chart is offered under a heading, and th
   const codes = all.map((l) => l.code).reverse();
   assert.deepEqual(detailLines(IRIS_BUILT_IN, { lines: codes }).map((l) => l.code), codes);
 });
+
+import { irisRangeDest } from "../src/lib/tbMap";
+test("IRIS codes sit under the right heading whatever the wording of their name", () => {
+  assert.equal(irisRangeDest("254/5*1", "Directors' social security", 1), "expenditure/directors");
+  assert.equal(irisRangeDest("254/5*2", "Directors' social security", 1), "expenditure/directors");
+  assert.equal(irisRangeDest("256", "Social security", 1), "expenditure/employee");
+  assert.equal(irisRangeDest("227", "Other operating leases - rent", 1), "expenditure/premises");
+  assert.equal(irisRangeDest("234", "Repairs to Property", 1), "expenditure/premises");
+  assert.equal(irisRangeDest("426", "Hire purchase", 1), "expenditure/interestpayable");
+});

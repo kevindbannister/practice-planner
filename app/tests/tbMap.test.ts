@@ -90,7 +90,7 @@ test("IRIS: codes go by the IRIS numbering, names are looked up on the chart", (
   assert.equal(irisRangeDest("1", "", -5), "income/sales");
   assert.equal(irisRangeDest("27", "", 5), "expenditure/cos");
   assert.equal(irisRangeDest("285", "", 5), "expenditure/accountancy");
-  assert.equal(irisRangeDest("390/14", "", 5), "expenditure/tb");
+  assert.equal(irisRangeDest("390/14", "", 5), "expenditure/depreciation");
   assert.equal(irisRangeDest("442", "", 5), "taxation/current");
   assert.equal(irisRangeDest("471/1", "", 5), "capital/dividends");
   assert.equal(irisRangeDest("715/1", "", 5), "debtors/group");
