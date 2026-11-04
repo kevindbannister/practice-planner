@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DataContext } from "../src/ui/data";
-import { AssetSummary, AssetsView, DisposalsFromRegisters, PaperWriter, Schedule, SectionRecon } from "../src/ui/PaperSchedules";
+import { AssetSummary, AssetsView, LeadTable, DisposalsFromRegisters, PaperWriter, Schedule, SectionRecon } from "../src/ui/PaperSchedules";
 import { SECTIONS } from "../src/lib/papers";
 
 const P = "2026-03-31", client = { Key: "C1", Title: "Kent Stove" } as any;
@@ -92,4 +92,14 @@ test("the disposals tab lists each disposal with NBV, the proceeds typed and the
 test("with no disposals the tab says how to record one", () => {
   const h = render((fixed) => createElement(DisposalsFromRegisters, { section: fixed }));
   assert.match(h, /No disposals in the registers this year/);
+});
+
+test("a lead schedule sits on the left, with no choice of how a line opens and nothing open until one is clicked", () => {
+  const exp = SECTIONS.find((s) => s.key === "expenditure")!;
+  const h = render(() => createElement(LeadTable, { section: exp }));
+  assert.match(h, /class="lead-split asset-split"/);
+  assert.match(h, /lead-main asset-main stack"/);
+  assert.doesNotMatch(h, /Side panel|Under the line/);
+  assert.doesNotMatch(h, /class="lead-panel"/);
+  assert.match(h, /open its working on the right/);
 });

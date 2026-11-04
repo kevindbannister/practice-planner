@@ -240,7 +240,7 @@ const diffOf = (a: number, b: number) => Math.round((a - b) * 100) / 100;
 // ------------------------------------------------------------------ trial balance accounts in a schedule
 
 /** The trial balance accounts that belong to a schedule: a line each (the software's figure, journals, final), a total, and a link to move one that's in the wrong place. */
-function TbItems({ section, sb }: { section: Section; sb: Sub }) {
+export function TbItems({ section, sb }: { section: Section; sb: Sub }) {
   const w = useWriter();
   const maps = useTbMaps(w.period);
   const writeMaps = useMapWriter();
@@ -350,7 +350,7 @@ function TbItems({ section, sb }: { section: Section; sb: Sub }) {
 
 // ------------------------------------------------------------------ one schedule
 
-export function Schedule({ section, sb }: { section: Section; sb: Sub }) {
+export function Schedule({ section, sb, tb = true }: { section: Section; sb: Sub; /** show the trial balance accounts here (false when they sit elsewhere on the page) */ tb?: boolean }) {
   const { data } = useData();
   const w = useWriter();
   const itemKey = setupKey(section.key, sb.key);
@@ -371,7 +371,7 @@ export function Schedule({ section, sb }: { section: Section; sb: Sub }) {
   else body = (
     <>
       <KindSettings section={section} sb={sb} itemKey={itemKey} s={s} lines={lines} />
-      {["list", "register", "account", "expense"].includes(sb.kind) && <TbItems section={section} sb={sb} />}
+      {tb && ["list", "register", "account", "expense"].includes(sb.kind) && <TbItems section={section} sb={sb} />}
       {sb.kind === "journals" && section.key === "journals" && sb.key === "dep" && <DepreciationJournal lines={lines} />}
       {sb.kind === "journals" && <AccountList />}
       <Grid section={section} sb={sb} lines={lines} s={s} cols={KIND_COLS[sb.kind] || KIND_COLS.list!} />
@@ -989,18 +989,12 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
   ) : null;
   const span = checks ? 5 : 3;
   const [open, setOpen] = useState<string[]>([]);
-  // how a line shows its schedule: opens under the line, or in a panel beside the lead (kept per paper for now)
-  const modeKey = `papers.leadMode.${section.key}`;
-  const [mode, setModeState] = useState<"line" | "panel">(() => { try { return localStorage.getItem(modeKey) === "panel" ? "panel" : "line"; } catch { return "line"; } });
-  const setMode = (m: "line" | "panel") => {
-    setModeState(m);
-    setOpen((o) => (m === "panel" ? o.slice(0, 1) : o));
-    try { localStorage.setItem(modeKey, m); } catch { /* no storage */ }
-  };
+  // a line opens its schedule in a panel on the right; the lead stays on the left, narrowing while one is open
+  const mode: "line" | "panel" = onOpen ? "line" : "panel";
   const toggle = (k: string) => onOpen ? onOpen(k) : setOpen((o) => (o.includes(k) ? o.filter((x) => x !== k) : mode === "panel" ? [k] : [...o, k]));
   const shown = new Set<string>(); // a split account has two rows; its schedule sits under the first
   const line = (r: (typeof rows)[number]) => {
-    const k = r.sub.key, isOpen = open.includes(k), first = !shown.has(k);
+    const k = r.sub.key, isOpen = open.includes(k);
     shown.add(k);
     return (
       <Fragment key={r.label}>
@@ -1013,7 +1007,6 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
           </td>
           <td className="num mono">{money(r.now) || "–"}</td><td className="num prior">{priorCell(r)}</td>{tbCells(r.now, tbFor(r))}
         </tr>
-        {isOpen && first && mode === "line" && <tr className="lead-open"><td colSpan={span} id={`lead-${section.key}-${k}`}><Schedule section={section} sb={r.sub} /></td></tr>}
       </Fragment>
     );
   };
@@ -1067,15 +1060,9 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
   return (
     <section className="card pad stack" aria-label={`${section.title} lead schedule`}>
       <h3 className="card-title"><span className="card-title-ico" aria-hidden="true"><Icon name="calc" size={16} /></span>Lead Schedule</h3>
-      {!onOpen && <div className="row-wrap lead-mode">
-        <span className="muted" style={{ fontSize: 12 }}>A line opens:</span>
-        <div className="seg" role="group" aria-label="How a line opens its schedule">
-          <button type="button" aria-pressed={mode === "line"} onClick={() => setMode("line")}>Under the line</button>
-          <button type="button" aria-pressed={mode === "panel"} onClick={() => setMode("panel")}>Side panel</button>
-        </div>
-      </div>}
-      <div className={mode === "panel" && panelRow ? "lead-split" : undefined}>
-      <div className="table-wrap lead-main">
+      <div className={mode === "panel" ? "lead-split asset-split" : undefined}>
+      <div className={mode === "panel" ? `lead-main asset-main stack${panelRow ? " is-focus" : ""}` : "table-wrap lead-main"}>
+      <div className="table-wrap">
       <table className="grid lead">
         <thead><tr><th scope="col">Lead schedule</th><th scope="col" className="num">{w.period.slice(0, 4)}</th><th scope="col" className="num prior">{priorPeriod(w.period).slice(0, 4)}</th>{checks && <><th scope="col" className="num">Per trial balance</th><th scope="col" className="num">Difference</th></>}</tr></thead>
         <tbody>
@@ -1084,17 +1071,19 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
         </tbody>
       </table>
       </div>
+      {mode === "panel" && panelRow && <TbItems key={panelRow.sub.key} section={section} sb={panelRow.sub} />}
+      </div>
       {mode === "panel" && panelRow && (
         <aside className="lead-panel" aria-label={`${panelRow.label} schedule`}>
           <div className="lead-panel-head">
             <div><span className="eyebrow">Schedule</span><h3 style={{ margin: 0 }}>{panelRow.label} · {money(panelRow.now) || "0.00"}</h3></div>
             <button type="button" className="iconbtn" aria-label="Close the panel" onClick={() => setOpen([])}><Icon name="close" size={16} /></button>
           </div>
-          <Schedule section={section} sb={panelRow.sub} />
+          <Schedule section={section} sb={panelRow.sub} tb={false} />
         </aside>
       )}
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>{onOpen ? "Click a line to open its schedule. It has a link back here." : mode === "panel" ? "Click a line to open its schedule beside the lead." : "Click a line to open its schedule."}</p>
+      <p className="muted" style={{ margin: 0, fontSize: 12 }}>{onOpen ? "Click a line to open its schedule. It has a link back here." : "Click a line to open its working on the right. Its trial balance codes, with their transactions, show under the lead."}</p>
       {typed && <p className="muted" style={{ margin: 0, fontSize: 12 }}>No paper for last year in the planner yet, so type last year's figures from the accounts.</p>}
     </section>
   );
