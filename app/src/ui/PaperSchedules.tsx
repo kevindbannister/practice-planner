@@ -18,7 +18,8 @@ import { Row } from "../lib/schema";
 import { Icon, companiesHouseUrl } from "./bits";
 import { readSetting, useData } from "./data";
 import { BookMeta, LedgerExtras, LedgerTable, bookKeyFor, useXeroBook } from "./XeroLedger";
-import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, IRIS_BUILT_IN, Mapping, accountsFigures, controlNote, mapTb, onSide, paperAccounts, parseChart, savedMaps, tbTotals } from "../lib/tbMap";
+import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, IRIS_BUILT_IN, Mapping, accountsFigures, controlNote, mapTb, mappedWithout, onSide, paperAccounts, parseChart, savedMaps, tbTotals } from "../lib/tbMap";
+import { DepClass, additionsFromRegisters, classShown, depreciationJournal, journalSignature, sectionRecon } from "../lib/paperRecon";
 
 // ------------------------------------------------------------------ saving
 
@@ -360,6 +361,7 @@ export function Schedule({ section, sb }: { section: Section; sb: Sub }) {
   if (sb.kind === "info") body = <InfoForm itemKey={itemKey} s={s} />;
   else if (sb.kind === "report") body = <Report itemKey={itemKey} s={s} statutory={section.key === "statutory"} />;
   else if (sb.kind === "finaltb") body = <FinalTb />;
+  else if (section.key === "fixed" && sb.key === "additions") body = <AdditionsFromRegisters section={section} sb={sb} lines={lines} s={s} />;
   else if (sb.kind === "summary") body = <AccountsSummary />;
   else if (sb.kind === "openbal") body = <OpeningBalances client={w.client} period={w.period} />;
   else if (sb.kind === "bank") body = <AccountsWorkingPapers client={w.client} period={w.period} />;
@@ -370,6 +372,7 @@ export function Schedule({ section, sb }: { section: Section; sb: Sub }) {
     <>
       <KindSettings section={section} sb={sb} itemKey={itemKey} s={s} lines={lines} />
       {["list", "register", "account", "expense"].includes(sb.kind) && <TbItems section={section} sb={sb} />}
+      {sb.kind === "journals" && section.key === "journals" && sb.key === "dep" && <DepreciationJournal lines={lines} />}
       {sb.kind === "journals" && <AccountList />}
       <Grid section={section} sb={sb} lines={lines} s={s} cols={KIND_COLS[sb.kind] || KIND_COLS.list!} />
       <KindSummary sb={sb} s={s} lines={lines} itemKey={itemKey} tbKey={`${section.key}/${sb.key}`} />
@@ -897,7 +900,7 @@ function AccountsSummary() {
   const swDiff = Math.round(accts.reduce((a, r) => a + r.tbDr - r.tbCr, 0) * 100) / 100;
   const finalDiff = Math.round(accts.reduce((a, r) => a + r.dr - r.cr, 0) * 100) / 100;
   const journalLines = SECTIONS.find((x) => x.key === "journals")!.subs.flatMap((sb) => linesFor(data.paperLines, w.client.Key, w.period, "journals", sb.key));
-  const offJournals = ["obd", "main", "review", "final"].flatMap((k) => journalTotals(linesFor(data.paperLines, w.client.Key, w.period, "journals", k)).filter((j) => Math.abs(j.dr - j.cr) > 0.004).map((j) => `#${j.no} (${money(j.dr - j.cr)})`));
+  const offJournals = ["obd", "main", "dep", "review", "final"].flatMap((k) => journalTotals(linesFor(data.paperLines, w.client.Key, w.period, "journals", k)).filter((j) => Math.abs(j.dr - j.cr) > 0.004).map((j) => `#${j.no} (${money(j.dr - j.cr)})`));
   const unsaved = maps.filter((m) => !m.saved).length;
   const leadDiffs: string[] = [];
   for (const sec of SECTIONS.filter((x) => x.summary === "lead")) {
@@ -1102,25 +1105,47 @@ export function AssetSummary({ section }: { section: Section }) {
   const { data } = useData();
   const w = useWriter();
   const classes = subsFor(section, data.papers, w.client.Key, w.period).filter((x) => x.kind === "register");
-  const cols = classes.map((sb) => {
+  const allCols = classes.map((sb) => {
     const s: Setup = { ...setupOf(data.papers, w.client.Key, w.period, setupKey(section.key, sb.key)), _period: w.period };
     const lines = linesFor(data.paperLines, w.client.Key, w.period, section.key, sb.key);
     const rate = s.method && s.method !== "none" && s.rate ? `${s.rate}% ${s.method === "rb" ? "RB" : "SL"}` : "";
     return { sb, t: registerTotals(lines, s), rate };
   });
-  const sumOf = (k: keyof AssetTotals) => Math.round(cols.reduce((a, c) => a + c.t[k], 0) * 100) / 100;
+  const checks = useTbChecks();
+  // a column shows when ticked; until the user ticks it, one with nothing in the trial balance is hidden
+  const override = (w.setup(section.key).cols as Record<string, boolean> | undefined) || {};
+  const figures = (c: (typeof allCols)[number]) => [c.t.costBf, c.t.depBf, c.t.add, c.t.disp, c.t.charge, c.t.costCf, c.t.depCf].some((x) => Math.abs(x) > 0.004);
+  const shown = (c: (typeof allCols)[number]) => classShown({ override: override[c.sb.key], hasTb: !!checks, tbCost: checks?.get(`${section.key}/${c.sb.key}#cost`), tbDep: checks?.get(`${section.key}/${c.sb.key}#dep`), hasFigures: figures(c) });
+  const cols = allCols.filter(shown);
+  const hiddenWithFigures = allCols.filter((c) => !shown(c) && figures(c)).map((c) => c.sb.title);
+  const setShown = (key: string, on: boolean) => w.writeSetup(section.key, { cols: { ...override, [key]: on } });
+  const sumOf = (k: keyof AssetTotals) => Math.round(allCols.reduce((a, c) => a + c.t[k], 0) * 100) / 100;
   const ROWS: [string, keyof AssetTotals | null][] = [
     ["Cost", null], ["Cost b/f", "costBf"], ["Additions", "add"], ["Disposals", "disp"], ["Cost c/f", "costCf"],
     ["Depreciation", null], ["Depreciation b/f", "depBf"], ["Charge for the year", "charge"], ["Eliminated on disposal", "depDisp"], ["Depreciation c/f", "depCf"],
     [`NBV at ${fmtDate(w.period)}`, "nbvCf"], [`NBV at ${fmtDate(priorPeriod(w.period))}`, "nbvBf"],
   ];
-  const checks = useTbChecks();
   const tbRow = (part: "cost" | "dep") => cols.map((c) => checks?.get(`${section.key}/${c.sb.key}#${part}`));
   const tbCost = tbRow("cost"), tbDep = tbRow("dep");
   const proceeds = Number(w.setup(section.key).proceeds) || 0;
   const disposedNbv = Math.round((sumOf("disp") - sumOf("depDisp")) * 100) / 100;
   return (
     <section className="card pad stack" aria-label={`${section.title} summary`}>
+      {allCols.length > 0 && (
+        <fieldset className="asset-cols">
+          <legend>Columns shown</legend>
+          {allCols.map((c) => {
+            const auto = override[c.sb.key] === undefined && !shown(c);
+            return (
+              <label key={c.sb.key} className="asset-col-tick">
+                <input type="checkbox" checked={shown(c)} disabled={w.busy} onChange={(e) => void setShown(c.sb.key, e.target.checked)} />
+                <span>{c.sb.title}</span>
+                {auto && <span className="muted"> (nothing in the trial balance)</span>}
+              </label>
+            );
+          })}
+        </fieldset>
+      )}
       <div className="table-wrap">
         <table className="grid lead assets">
           <thead>
@@ -1149,6 +1174,7 @@ export function AssetSummary({ section }: { section: Section }) {
           </tbody>
         </table>
       </div>
+      {hiddenWithFigures.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>The total includes {hiddenWithFigures.join(", ")}, which {hiddenWithFigures.length === 1 ? "is" : "are"} hidden but {hiddenWithFigures.length === 1 ? "has" : "have"} figures.</p>}
       {sumOf("disp") > 0 && (
         <div className="setup-row">
           <SetupMoney itemKey={section.key} field="proceeds" label="Proceeds from disposals" s={w.setup(section.key)} />
@@ -1157,6 +1183,149 @@ export function AssetSummary({ section }: { section: Section }) {
         </div>
       )}
     </section>
+  );
+}
+
+/** This year's additions, listed from the registers: every asset in a register's breakdown that was added in the year. */
+function AdditionsFromRegisters({ section, sb, lines, s }: { section: Section; sb: Sub; lines: Line[]; s: Setup }) {
+  const { data } = useData();
+  const w = useWriter();
+  const regs = subsFor(section, data.papers, w.client.Key, w.period).filter((x) => x.kind === "register")
+    .map((x) => ({ key: x.key, title: x.title, lines: linesFor(data.paperLines, w.client.Key, w.period, section.key, x.key) }));
+  const rows = additionsFromRegisters(regs);
+  const total = Math.round(rows.reduce((a, r) => a + r.amount, 0) * 100) / 100;
+  const registerAdd = Math.round(regs.reduce((a, r) => a + r.lines.reduce((b, l) => b + (Number(l.f.add) || 0), 0), 0) * 100) / 100;
+  return (
+    <>
+      <p className="muted" style={{ margin: 0, fontSize: 12 }}>These come from the asset registers above: add an asset there with an amount in Additions and it is listed here. Nothing to type here.</p>
+      {rows.length === 0 ? <p className="muted" style={{ margin: 0 }}>No additions in the registers this year.</p> : (
+        <div className="table-wrap">
+          <table className="grid">
+            <thead><tr><th scope="col">Class</th><th scope="col">Date</th><th scope="col">Asset</th><th scope="col">Details</th><th scope="col" className="num">Cost</th></tr></thead>
+            <tbody>
+              {rows.map((r, i) => <tr key={i}><td>{r.cls}</td><td>{r.date ? fmtDate(r.date) : "–"}</td><td>{r.asset || "–"}</td><td>{r.details}</td><td className="num mono">{money(r.amount)}</td></tr>)}
+              <tr className="lead-total"><td colSpan={4}>Total additions</td><td className="num mono"><strong>{money(total)}</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="stat-row">
+        <Stat label="Additions per the registers" value={money(registerAdd) || "0.00"} />
+        <Stat label={Math.abs(total - registerAdd) < 0.005 ? "Agrees to the registers" : "Difference to the registers"} value={Math.abs(total - registerAdd) < 0.005 ? "✔" : money(total - registerAdd)} warn={Math.abs(total - registerAdd) >= 0.005} />
+      </div>
+      {lines.length > 0 && (
+        <>
+          <p className="muted" style={{ margin: 0, fontSize: 12 }}><strong>Typed here earlier</strong> (not from a register, and not in the total above). Move them into a register if they are assets.</p>
+          <Grid section={section} sb={sb} lines={lines} s={s} cols={KIND_COLS.list!} />
+        </>
+      )}
+    </>
+  );
+}
+
+/** The depreciation journal: what the registers charge that the trial balance doesn't have yet, posted so the final trial balance agrees. */
+function DepreciationJournal({ lines }: { lines: Line[] }) {
+  const { data } = useData();
+  const w = useWriter();
+  const chart = useChart();
+  const writeMaps = useMapWriter();
+  const fixed = SECTIONS.find((x) => x.key === "fixed")!;
+  const plan = useMemo(() => {
+    const maps = mappedWithout(data.paperLines, data.papers, w.client.Key, w.period, chart, "dep");
+    if (!maps.length) return undefined;
+    const totals = tbTotals(maps);
+    const pick = (dest: string, prefer?: RegExp) => {
+      const hits = maps.filter((m) => m.dest === dest);
+      return [...hits].sort((a, b) => (prefer && prefer.test(b.acct.account) ? 1 : 0) - (prefer && prefer.test(a.acct.account) ? 1 : 0) || Math.abs(b.balance) - Math.abs(a.balance))[0];
+    };
+    const classes: DepClass[] = [];
+    for (const sb of subsFor(fixed, data.papers, w.client.Key, w.period).filter((x) => x.kind === "register")) {
+      const regLines = linesFor(data.paperLines, w.client.Key, w.period, "fixed", sb.key);
+      if (!regLines.length) continue;
+      const t = registerTotals(regLines, { ...setupOf(data.papers, w.client.Key, w.period, setupKey("fixed", sb.key)), _period: w.period });
+      const acct = pick(`fixed/${sb.key}#dep`, /charge/i);
+      classes.push({ key: sb.key, title: sb.title, depCf: t.depCf, tbDep: totals.get(`fixed/${sb.key}#dep`) || 0, creditAcct: acct ? { code: acct.acct.code, name: acct.acct.account } : undefined });
+    }
+    const charge = maps.filter((m) => m.dest.startsWith("expenditure/") && /deprec|depn/i.test(m.acct.account)).sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))[0];
+    return depreciationJournal(classes, charge ? { code: charge.acct.code, name: charge.acct.account } : undefined, fmtDate(w.period));
+  }, [data.paperLines, data.papers, chart, w.client.Key, w.period]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!plan) return <p className="muted" style={{ margin: 0 }}>Once there's a trial balance and the asset registers are filled in, the depreciation journal is worked out here.</p>;
+  const stored = journalSignature(lines.map((l) => ({ Code: l.Code, Detail: l.Detail, dr: Number(l.f.dr) || 0, cr: Number(l.f.cr) || 0 })));
+  const wanted = journalSignature(plan.lines);
+  const upToDate = stored === wanted;
+  const post = async () => {
+    const others = ["obd", "main", "review", "final"].flatMap((k) => linesFor(data.paperLines, w.client.Key, w.period, "journals", k));
+    const no = others.reduce((m, l) => Math.max(m, Number(l.f.no) || 0), 0) + 1;
+    for (const l of lines) await w.removeLine(l);
+    if (plan.lines.length) {
+      await w.addLines("journals", "dep", plan.lines.map((l) => ({ Code: l.Code, Detail: l.Detail, Remark: l.Remark, f: { no, dr: l.dr || undefined, cr: l.cr || undefined } })));
+      if (plan.newAccounts.length) await writeMaps(plan.newAccounts.map((a) => ({ key: acctKey(a.code, a.name), iris: a.code || undefined, dest: a.dest })));
+    }
+  };
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <p className={`recon ${upToDate ? "ok" : "warn"}`} style={{ margin: 0 }}>
+        {upToDate
+          ? (lines.length ? "✔ The journal is up to date: the final trial balance now has the depreciation the registers show." : "✔ Nothing to journal: the trial balance already has the depreciation the registers show.")
+          : lines.length ? "⚠ The registers or the trial balance have changed since this journal was made." : "⚠ The trial balance is short of the depreciation the registers show."}
+      </p>
+      {!upToDate && plan.lines.length > 0 && (
+        <div className="table-wrap">
+          <table className="grid">
+            <thead><tr><th scope="col">Account</th><th scope="col" className="num">Debit</th><th scope="col" className="num">Credit</th></tr></thead>
+            <tbody>{plan.lines.map((l, i) => <tr key={i}><td>{[l.Code, l.Detail].filter(Boolean).join(" ")}</td><td className="num mono">{money(l.dr) || ""}</td><td className="num mono">{money(l.cr) || ""}</td></tr>)}</tbody>
+          </table>
+        </div>
+      )}
+      {plan.newAccounts.length > 0 && !upToDate && <p className="muted" style={{ margin: 0, fontSize: 12 }}>New accounts the journal will create (they aren't on the software's trial balance): {plan.newAccounts.map((a) => [a.code, a.name].filter(Boolean).join(" ")).join(" · ")}.</p>}
+      {plan.notes.map((n) => <p key={n} className="muted" style={{ margin: 0, fontSize: 12 }}>⚠ {n}</p>)}
+      {!upToDate && (plan.lines.length > 0 || lines.length > 0) && (
+        <div><button type="button" className="btn primary small" disabled={w.busy} onClick={() => void post()}>{lines.length ? "Update the depreciation journal" : "Post the depreciation journal"}</button></div>
+      )}
+    </div>
+  );
+}
+
+/** Whether a section agrees to the trial balance: a tick, or the difference. */
+export function SectionRecon({ section }: { section: Section }) {
+  const { data } = useData();
+  const w = useWriter();
+  const checks = useTbChecks();
+  const maps = useTbMaps(w.period);
+  const result = useMemo(() => {
+    if (!maps?.length) return undefined;
+    const accts = maps.map((m) => m.acct);
+    const swDiff = Math.round(accts.reduce((a, r) => a + r.tbDr - r.tbCr, 0) * 100) / 100;
+    const finalDiff = Math.round(accts.reduce((a, r) => a + r.dr - r.cr, 0) * 100) / 100;
+    const diffs: { label: string; diff: number }[] = [];
+    let checked = 0;
+    const add = (label: string, diff: number) => { checked++; if (Math.abs(diff) > 0.004) diffs.push({ label, diff }); };
+    if (section.key === "tb") add("The software trial balance balances", swDiff);
+    else if (section.key === "journals") {
+      for (const k of ["obd", "main", "dep", "review", "final"]) for (const j of journalTotals(linesFor(data.paperLines, w.client.Key, w.period, "journals", k))) add(`Journal ${j.no} balances`, j.dr - j.cr);
+      add("The final trial balance balances", finalDiff);
+    } else if (section.key === "final-tb") {
+      add("The final trial balance balances", finalDiff);
+      for (const sec of SECTIONS) for (const d of sectionRecon(sec, data.papers, data.paperLines, w.client.Key, w.period, checks).diffs) add(d.label, d.diff);
+    } else if (section.key !== "summary") {
+      const r = sectionRecon(section, data.papers, data.paperLines, w.client.Key, w.period, checks);
+      checked = r.checked;
+      diffs.push(...r.diffs);
+    }
+    return { checked, diffs };
+  }, [maps, checks, data.papers, data.paperLines, w.client.Key, w.period, section]);
+  if (!result) return null;
+  if (!result.checked) {
+    const linked = DESTS.some((d) => d.section === section.key);
+    return linked ? <p className="recon muted" style={{ margin: 0 }}>Nothing filled in here yet to agree to the trial balance.</p> : null;
+  }
+  const ok = result.diffs.length === 0;
+  return (
+    <p className={`recon ${ok ? "ok" : "warn"}`} style={{ margin: 0 }}>
+      {ok
+        ? <>✔ <strong>Agrees to the trial balance</strong>{section.key === "tb" || section.key === "journals" || section.key === "final-tb" ? "" : ` (${result.checked} ${result.checked === 1 ? "check" : "checks"})`}</>
+        : <>⚠ <strong>Doesn't agree to the trial balance:</strong> {result.diffs.map((d) => `${d.label} (${money(d.diff)})`).join(" · ")}</>}
+    </p>
   );
 }
 

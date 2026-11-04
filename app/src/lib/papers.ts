@@ -98,7 +98,7 @@ export const SECTIONS: Section[] = [
   sec("openbal", "Opening balances", "Trial balance", [sub("main", "Opening balances", "openbal")]),
   sec("accwp", "Accounts working papers", "Trial balance", [sub("main", "Accounts working papers", "bank")]),
   sec("journals", "Journals", "Trial balance", [
-    sub("obd", "Opening balance differences", "journals"), sub("main", "Journals", "journals"), sub("review", "Review journals", "journals"), sub("final", "Final journals", "journals"),
+    sub("obd", "Opening balance differences", "journals"), sub("main", "Journals", "journals"), sub("dep", "Depreciation journal", "journals"), sub("review", "Review journals", "journals"), sub("final", "Final journals", "journals"),
   ]),
   sec("opening", "Opening balances", "Trial balance", [sub("main", "Opening balances", "opening")], { offByDefault: true }),
   sec("final-tb", "Final trial balance", "Trial balance", [sub("main", "Final trial balance", "finaltb")]),

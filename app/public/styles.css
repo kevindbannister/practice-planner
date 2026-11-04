@@ -3141,3 +3141,11 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .tax-box-head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
 .tax-box-head>span:first-of-type{margin-left:auto}
 .tax-expense-totals{border-top:1px solid #c9ced8;margin-top:10px;padding-top:6px}
+
+/* working papers: columns of the fixed asset summary, and "agrees to the trial balance" */
+.asset-cols { display: flex; flex-wrap: wrap; gap: 6px 16px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; margin: 0; }
+.asset-cols legend { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 0 4px; }
+.asset-col-tick { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.recon { font-size: 13px; }
+.recon.ok { color: var(--green, #1f7a4d); }
+.recon.warn { color: var(--amber, #b7791f); }

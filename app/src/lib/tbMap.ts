@@ -337,6 +337,16 @@ export function paperAccounts(lines: Row[], clientKey: string, period: string): 
 }
 
 /**
+ * The trial balance as it stands without one set of journals (the depreciation journal, so it can be worked out from what is left):
+ * each place's total and the accounts, mapped the way the paper maps them.
+ */
+export function mappedWithout(lines: Row[], papers: Row[], clientKey: string, period: string, chart: ChartRow[], journalSub: string): Mapping[] {
+  const kept = lines.filter((r) => !(r.ClientKey === clientKey && r.PeriodEnd === period && r.SectionKey === "journals" && String(r.SubKey || "main") === journalSub));
+  const rows = paperAccounts(kept, clientKey, period);
+  return rows.length ? mapTb(rows, { lines: kept, papers }, clientKey, period, chart) : [];
+}
+
+/**
  * What each account of the final trial balance maps to: what's saved, else a suggestion. Suggestions come
  * from last year's choice for the same account, the IRIS code or name on the trial balance, the same account
  * name at another company, then the account's name and type.
