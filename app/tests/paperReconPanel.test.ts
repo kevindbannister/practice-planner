@@ -68,7 +68,7 @@ const withDisposal = [...paperLines, reg("R3", "plant", "Sold drill", { costBf: 
 
 test("the fixed asset section opens on the lead schedule, with additions and disposals in tabs and no register open", () => {
   const h = render((fixed) => createElement(AssetsView, { section: fixed }));
-  assert.match(h, /class="lead-split"/); assert.match(h, /class="asset-pick"/);
+  assert.match(h, /class="lead-split asset-split"/); assert.match(h, /class="asset-pick"/);
   assert.doesNotMatch(h, /class="lead-panel"/, "no register is open until an asset type is clicked");
   assert.match(h, /This year&#x27;s additions/); assert.match(h, /Disposals<\/button>/);
   assert.match(h, /New press/, "the additions tab is the one showing");
