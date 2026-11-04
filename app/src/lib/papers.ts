@@ -86,7 +86,7 @@ export const SECTIONS: Section[] = [
     sub("interestpayable", "Interest payable", "list", { group: "Interest payable" }),
   ]),
   lead("taxation", "Tax on profit", "Profit and loss", [sub("current", "Corporation tax"), sub("deferred", "Deferred tax")], { offByDefault: true, canAdd: false }),
-  sec("vat", "VAT", "Other schedules", [sub("control", "VAT control account", "account", { normal: "cr" }), sub("returns", "VAT return summary", "vat")]),
+  lead("vat", "VAT", "Other schedules", [sub("control", "VAT control account", "account", { normal: "cr" }), sub("returns", "VAT return summary", "vat")], { canAdd: false }),
   sec("workings", "Accounts working papers", "Other schedules", [sub("receipts", "Receipts"), sub("payments", "Payments"), sub("sundry", "Sundry")], { offByDefault: true, canAdd: true }),
   sec("wages", "Wages and PAYE", "Other schedules", [
     sub("control", "Wages control account", "account", { normal: "cr" }), sub("directors", "Directors' remuneration", "payroll"), sub("records", "Wages records", "payroll"),
