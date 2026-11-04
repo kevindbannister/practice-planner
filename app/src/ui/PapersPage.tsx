@@ -12,7 +12,7 @@ import { ClientDeck } from "./ClientDeck";
 import { AccountsFigures, AccountsScreen } from "./AccountsScreen";
 import { WorkbookImport } from "./PaperImport";
 import { XeroImport } from "./XeroImport";
-import { AddSchedule, AssetSummary, LeadTable, PaperWriter, Schedule, SectionRecon, useSectionsInUse, useWriterState } from "./PaperSchedules";
+import { AddSchedule, AssetsView, LeadTable, PaperWriter, Schedule, SectionRecon, useSectionsInUse, useWriterState } from "./PaperSchedules";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
 import { GROUPS, LEAD_KINDS, PaperStatus, SECTIONS, STATUS_LABEL, Section, progress, sectionsOff, stateOf, subsFor, yearEnds } from "../lib/papers";
 import { Row } from "../lib/schema";
@@ -477,8 +477,8 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
           <Schedule key={picked.key} section={sec} sb={picked} />
         </>
       )}
-      {sec.summary === "assets" && <AssetSummary section={sec} />}
-      {!picked && subs.filter((sb) => sec.summary !== "lead" || !LEAD_KINDS.includes(sb.kind)).map((sb) => <Schedule key={sb.key} section={sec} sb={sb} />)}
+      {sec.summary === "assets" && <AssetsView section={sec} />}
+      {!picked && sec.summary !== "assets" && subs.filter((sb) => sec.summary !== "lead" || !LEAD_KINDS.includes(sb.kind)).map((sb) => <Schedule key={sb.key} section={sec} sb={sb} />)}
       {sec.canAdd && !picked && <AddSchedule section={sec} />}
 
       <div className="card pad stack">

@@ -3149,3 +3149,5 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .recon { font-size: 13px; }
 .recon.ok { color: var(--green, #1f7a4d); }
 .recon.warn { color: var(--amber, #b7791f); }
+.asset-pick { background: none; border: 0; padding: 2px 6px; font: inherit; font-weight: 700; color: var(--blue-ink, inherit); cursor: pointer; border-radius: 8px; text-decoration: underline dotted; }
+.asset-pick:hover, .asset-pick[aria-pressed="true"] { background: var(--blue-soft); }

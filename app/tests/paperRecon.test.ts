@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { SECTIONS, linesFor, registerTotals, setupOf, setupKey } from "../src/lib/papers";
 import { IRIS_BUILT_IN, mappedWithout, paperAccounts, mapTb, tbTotals } from "../src/lib/tbMap";
-import { additionsFromRegisters, classShown, depreciationJournal, journalSignature, sectionRecon } from "../src/lib/paperRecon";
+import { additionsFromRegisters, classShown, disposalsFromRegisters, depreciationJournal, journalSignature, sectionRecon } from "../src/lib/paperRecon";
 
 const P = "2026-03-31", C = "C1";
 const tb = (Key: string, Code: string, Detail: string, type: string, dr?: number, cr?: number) => ({
@@ -105,4 +105,15 @@ test("a section reconciles to the trial balance, or shows the difference", () =>
   const vl = [{ Key: "V1", ClientKey: C, PeriodEnd: P, SectionKey: "vat", SubKey: "control", Detail: "x", Seq: 1, Figures: JSON.stringify({ cr: 300 }) }];
   assert.deepEqual(sectionRecon(vat, [], vl, C, P, new Map([["vat/control", 300]])).diffs, []);
   assert.equal(sectionRecon(vat, [], vl, C, P, new Map([["vat/control", 250]])).diffs[0].diff, 50);
+});
+
+test("disposals come from the register lines and the profit or loss is proceeds less NBV", () => {
+  const lines = linesFor([
+    reg("D1", "plant", "Drill", { disp: 3000, depDisp: 2500, proceeds: 800, disposedOn: "2025-12-01" }, 1),
+    reg("D2", "plant", "Saw", { disp: 500, depDisp: 500 }, 2),
+    reg("D3", "plant", "Lathe", { costBf: 9000 }, 3),
+  ], C, P, "fixed", "plant");
+  const rows = disposalsFromRegisters([{ key: "plant", title: "Plant and machinery", lines }]);
+  assert.deepEqual(rows.map((r) => [r.asset, r.nbv, r.proceeds, r.profit]), [["Drill", 500, 800, 300], ["Saw", 0, undefined, undefined]]);
+  assert.equal(rows[0].disposedOn, "2025-12-01");
 });

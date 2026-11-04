@@ -19,7 +19,7 @@ import { Icon, companiesHouseUrl } from "./bits";
 import { readSetting, useData } from "./data";
 import { BookMeta, LedgerExtras, LedgerTable, bookKeyFor, useXeroBook } from "./XeroLedger";
 import { AccountsFigures, ChartRow, DESTS, DEST_BY_KEY, IRIS_BUILT_IN, Mapping, accountsFigures, controlNote, mapTb, mappedWithout, onSide, paperAccounts, parseChart, savedMaps, tbTotals } from "../lib/tbMap";
-import { DepClass, additionsFromRegisters, classShown, depreciationJournal, journalSignature, sectionRecon } from "../lib/paperRecon";
+import { DepClass, additionsFromRegisters, classShown, disposalsFromRegisters, depreciationJournal, journalSignature, sectionRecon } from "../lib/paperRecon";
 
 // ------------------------------------------------------------------ saving
 
@@ -1101,7 +1101,7 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
 }
 
 /** The fixed asset summary: cost, depreciation and NBV for each class, from the registers. */
-export function AssetSummary({ section }: { section: Section }) {
+export function AssetSummary({ section, picked, onPick }: { section: Section; /** the class whose schedule is open: only its column shows */ picked?: string; onPick?: (key: string) => void }) {
   const { data } = useData();
   const w = useWriter();
   const classes = subsFor(section, data.papers, w.client.Key, w.period).filter((x) => x.kind === "register");
@@ -1116,7 +1116,8 @@ export function AssetSummary({ section }: { section: Section }) {
   const override = (w.setup(section.key).cols as Record<string, boolean> | undefined) || {};
   const figures = (c: (typeof allCols)[number]) => [c.t.costBf, c.t.depBf, c.t.add, c.t.disp, c.t.charge, c.t.costCf, c.t.depCf].some((x) => Math.abs(x) > 0.004);
   const shown = (c: (typeof allCols)[number]) => classShown({ override: override[c.sb.key], hasTb: !!checks, tbCost: checks?.get(`${section.key}/${c.sb.key}#cost`), tbDep: checks?.get(`${section.key}/${c.sb.key}#dep`), hasFigures: figures(c) });
-  const cols = allCols.filter(shown);
+  const focus = picked ? allCols.find((c) => c.sb.key === picked) : undefined;
+  const cols = focus ? [focus] : allCols.filter(shown);
   const hiddenWithFigures = allCols.filter((c) => !shown(c) && figures(c)).map((c) => c.sb.title);
   const setShown = (key: string, on: boolean) => w.writeSetup(section.key, { cols: { ...override, [key]: on } });
   const sumOf = (k: keyof AssetTotals) => Math.round(allCols.reduce((a, c) => a + c.t[k], 0) * 100) / 100;
@@ -1127,11 +1128,9 @@ export function AssetSummary({ section }: { section: Section }) {
   ];
   const tbRow = (part: "cost" | "dep") => cols.map((c) => checks?.get(`${section.key}/${c.sb.key}#${part}`));
   const tbCost = tbRow("cost"), tbDep = tbRow("dep");
-  const proceeds = Number(w.setup(section.key).proceeds) || 0;
-  const disposedNbv = Math.round((sumOf("disp") - sumOf("depDisp")) * 100) / 100;
   return (
     <section className="card pad stack" aria-label={`${section.title} summary`}>
-      {allCols.length > 0 && (
+      {allCols.length > 0 && !focus && (
         <fieldset className="asset-cols">
           <legend>Columns shown</legend>
           {allCols.map((c) => {
@@ -1149,14 +1148,14 @@ export function AssetSummary({ section }: { section: Section }) {
       <div className="table-wrap">
         <table className="grid lead assets">
           <thead>
-            <tr><th scope="col" /> {cols.map((c) => <th key={c.sb.key} scope="col" className="num">{c.sb.title}{c.rate ? <div className="muted" style={{ fontWeight: 400, fontSize: 11 }}>{c.rate}</div> : null}</th>)}<th scope="col" className="num">Total</th></tr>
+            <tr><th scope="col" /> {cols.map((c) => <th key={c.sb.key} scope="col" className="num">{onPick ? <button type="button" className="asset-pick" aria-pressed={picked === c.sb.key} title={picked === c.sb.key ? "Show every asset type again" : `Open the ${c.sb.title.toLowerCase()} schedule`} onClick={() => onPick(c.sb.key)}>{c.sb.title}</button> : c.sb.title}{c.rate ? <div className="muted" style={{ fontWeight: 400, fontSize: 11 }}>{c.rate}</div> : null}</th>)}{!focus && <th scope="col" className="num">Total</th>}</tr>
           </thead>
           <tbody>
             {ROWS.map(([label, k]) => k ? (
               <tr key={label} className={k === "costCf" || k === "depCf" || k === "nbvCf" ? "lead-sub" : undefined}>
-                <td>{label}</td>{cols.map((c) => <td key={c.sb.key} className="num mono">{money(c.t[k]) || "–"}</td>)}<td className="num mono"><strong>{money(sumOf(k)) || "–"}</strong></td>
+                <td>{label}</td>{cols.map((c) => <td key={c.sb.key} className="num mono">{money(c.t[k]) || "–"}</td>)}{!focus && <td className="num mono"><strong>{money(sumOf(k)) || "–"}</strong></td>}
               </tr>
-            ) : <tr key={label} className="lead-label"><td colSpan={cols.length + 2}>{label}</td></tr>)}
+            ) : <tr key={label} className="lead-label"><td colSpan={cols.length + (focus ? 1 : 2)}>{label}</td></tr>)}
             {checks && ([["Cost per trial balance", tbCost, "costCf"], ["Depreciation per trial balance", tbDep, "depCf"]] as const).map(([label, vals, k]) => {
               const total = vals.reduce((a: number, x) => a + (x ?? 0), 0);
               return (
@@ -1167,22 +1166,108 @@ export function AssetSummary({ section }: { section: Section }) {
                     const d = t === undefined ? 0 : diffOf(c.t[k], t);
                     return <td key={c.sb.key} className={`num mono${d ? " diff-warn" : " muted"}`} title={d ? `Difference ${money(d)}` : undefined}>{t === undefined ? "–" : `${money(t) || "0.00"}${d ? " ⚠" : ""}`}</td>;
                   })}
-                  <td className="num mono muted">{money(total) || "0.00"}</td>
+                  {!focus && <td className="num mono muted">{money(total) || "0.00"}</td>}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      {hiddenWithFigures.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>The total includes {hiddenWithFigures.join(", ")}, which {hiddenWithFigures.length === 1 ? "is" : "are"} hidden but {hiddenWithFigures.length === 1 ? "has" : "have"} figures.</p>}
-      {sumOf("disp") > 0 && (
-        <div className="setup-row">
-          <SetupMoney itemKey={section.key} field="proceeds" label="Proceeds from disposals" s={w.setup(section.key)} />
-          <Stat label="NBV of disposals" value={money(disposedNbv) || "0.00"} />
-          <Stat label={proceeds - disposedNbv >= 0 ? "Profit on disposal" : "Loss on disposal"} value={money(Math.abs(proceeds - disposedNbv)) || "0.00"} />
+      {!focus && hiddenWithFigures.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>The total includes {hiddenWithFigures.join(", ")}, which {hiddenWithFigures.length === 1 ? "is" : "are"} hidden but {hiddenWithFigures.length === 1 ? "has" : "have"} figures.</p>}
+    </section>
+  );
+}
+
+/**
+ * The fixed asset section: the lead schedule is the main view. Clicking an asset type opens its register on the right (under the lead on a
+ * narrow screen) and hides the other types; clicking it again brings them back. Below sit this year's additions and disposals, in tabs.
+ */
+export function AssetsView({ section }: { section: Section }) {
+  const { data } = useData();
+  const w = useWriter();
+  const subs = subsFor(section, data.papers, w.client.Key, w.period);
+  const registers = subs.filter((x) => x.kind === "register");
+  const [picked, setPicked] = useState<string | undefined>();
+  const open = registers.find((x) => x.key === picked);
+  const additions = subs.find((x) => x.key === "additions");
+  const [tab, setTab] = useState<"additions" | "disposals">("additions");
+  return (
+    <>
+      <div className="lead-split">
+        <div className="lead-main stack">
+          <AssetSummary section={section} picked={open?.key} onPick={(k) => setPicked((p) => (p === k ? undefined : k))} />
+        </div>
+        {open && (
+          <aside className="lead-panel" aria-label={`${open.title} schedule`}>
+            <div className="lead-panel-head">
+              <div><span className="eyebrow">Schedule</span><h3 style={{ margin: 0 }}>{open.title}</h3></div>
+              <button type="button" className="iconbtn" aria-label="Close and show every asset type" onClick={() => setPicked(undefined)}><Icon name="close" size={16} /></button>
+            </div>
+            <Schedule section={section} sb={open} />
+          </aside>
+        )}
+      </div>
+      {additions && (
+        <section className="card pad stack" aria-label="Additions and disposals">
+          <div className="seg" role="group" aria-label="Additions or disposals">
+            <button type="button" aria-pressed={tab === "additions"} onClick={() => setTab("additions")}>This year&apos;s additions</button>
+            <button type="button" aria-pressed={tab === "disposals"} onClick={() => setTab("disposals")}>Disposals</button>
+          </div>
+          {tab === "additions"
+            ? <AdditionsFromRegisters section={section} sb={additions} lines={linesFor(data.paperLines, w.client.Key, w.period, section.key, additions.key)} s={{ ...setupOf(data.papers, w.client.Key, w.period, setupKey(section.key, additions.key)), _period: w.period }} />
+            : <DisposalsFromRegisters section={section} />}
+        </section>
+      )}
+    </>
+  );
+}
+
+/** Disposals in the year, from the registers: cost, depreciation eliminated and NBV, with the proceeds and date typed here and the profit or loss worked out. */
+export function DisposalsFromRegisters({ section }: { section: Section }) {
+  const { data } = useData();
+  const w = useWriter();
+  const regs = subsFor(section, data.papers, w.client.Key, w.period).filter((x) => x.kind === "register")
+    .map((x) => ({ key: x.key, title: x.title, lines: linesFor(data.paperLines, w.client.Key, w.period, section.key, x.key) }));
+  const rows = disposalsFromRegisters(regs);
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const sum = (f: (r: (typeof rows)[number]) => number) => r2(rows.reduce((a, r) => a + f(r), 0));
+  const legacy = Number(w.setup(section.key).proceeds) || 0;
+  const typedAny = rows.some((r) => r.proceeds !== undefined);
+  const proceeds = typedAny ? sum((r) => r.proceeds ?? 0) : legacy;
+  const profit = r2(proceeds - sum((r) => r.nbv));
+  const missing = rows.filter((r) => r.proceeds === undefined).length;
+  return (
+    <>
+      <p className="muted" style={{ margin: 0, fontSize: 12 }}>An asset appears here when its register line has a Disposals (cost) or Dep&apos;n on disposals amount. Type the proceeds and the date sold here; the profit or loss is proceeds less NBV.</p>
+      {rows.length === 0 ? <p className="muted" style={{ margin: 0 }}>No disposals in the registers this year. Put the cost sold in the Disposals (cost) column of the asset, and the depreciation to date in Dep&apos;n on disposals.</p> : (
+        <div className="table-wrap">
+          <table className="grid">
+            <thead><tr><th scope="col">Class</th><th scope="col">Asset</th><th scope="col">Date sold</th><th scope="col" className="num">Cost</th><th scope="col" className="num">Depreciation</th><th scope="col" className="num">NBV</th><th scope="col" className="num">Proceeds</th><th scope="col" className="num">Profit / (loss)</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.line.Key}>
+                  <td>{r.cls}</td><td>{r.asset || "–"}</td>
+                  <td><Field value={r.disposedOn} label={`Date sold: ${r.asset}`} type="date" onSave={(x) => w.patchLine(r.line, { f: { disposedOn: x || undefined } })} /></td>
+                  <td className="num mono">{money(r.cost) || "–"}</td><td className="num mono">{money(r.depElim) || "–"}</td><td className="num mono">{money(r.nbv) || "–"}</td>
+                  <td className="num"><Field value={r.proceeds === undefined ? "" : money(r.proceeds) || "0.00"} label={`Proceeds: ${r.asset}`} type="money" placeholder="0.00" onSave={(x) => w.patchLine(r.line, { f: { proceeds: parseAmount(x) } })} /></td>
+                  <td className={`num mono${r.profit !== undefined && r.profit < 0 ? " diff-warn" : ""}`}>{r.profit === undefined ? "–" : money(r.profit) || "0.00"}</td>
+                </tr>
+              ))}
+              <tr className="lead-total"><td colSpan={3}>Total</td><td className="num mono">{money(sum((r) => r.cost)) || "–"}</td><td className="num mono">{money(sum((r) => r.depElim)) || "–"}</td><td className="num mono"><strong>{money(sum((r) => r.nbv)) || "–"}</strong></td><td className="num mono">{money(proceeds) || "–"}</td><td className="num mono"><strong>{money(profit) || "0.00"}</strong></td></tr>
+            </tbody>
+          </table>
         </div>
       )}
-    </section>
+      {rows.length > 0 && (
+        <div className="stat-row">
+          <Stat label="NBV of disposals" value={money(sum((r) => r.nbv)) || "0.00"} />
+          <Stat label="Proceeds" value={money(proceeds) || "0.00"} />
+          <Stat label={profit >= 0 ? "Profit on disposal" : "Loss on disposal"} value={money(Math.abs(profit)) || "0.00"} />
+          {missing > 0 && <Stat label="Proceeds not entered" value={`${missing} ${missing === 1 ? "asset" : "assets"}`} warn />}
+        </div>
+      )}
+      {legacy > 0 && !typedAny && rows.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>The proceeds above are the single total typed before ({money(legacy)}). Type them against each asset to replace it.</p>}
+    </>
   );
 }
 

@@ -39,6 +39,31 @@ export function additionsFromRegisters(regs: { key: string; title: string; lines
   return out;
 }
 
+// ------------------------------------------------------------------ disposals
+
+export type DisposalRow = {
+  classKey: string; cls: string; asset: string; boughtOn: string; disposedOn: string;
+  cost: number; depElim: number; nbv: number;
+  /** proceeds typed on the line (undefined until entered) */ proceeds: number | undefined;
+  /** proceeds less NBV; undefined until proceeds are entered */ profit: number | undefined;
+  line: Line;
+};
+
+/** Every register line with a disposal in the year: cost disposed, depreciation eliminated, NBV, and (once typed) proceeds and the profit or loss. */
+export function disposalsFromRegisters(regs: { key: string; title: string; lines: Line[] }[]): DisposalRow[] {
+  const out: DisposalRow[] = [];
+  for (const r of regs) {
+    for (const l of r.lines) {
+      const cost = round2(num(l.f.disp)), depElim = round2(num(l.f.depDisp));
+      if (!cost && !depElim) continue;
+      const nbv = round2(cost - depElim);
+      const typed = l.f.proceeds === undefined || l.f.proceeds === "" ? undefined : round2(num(l.f.proceeds));
+      out.push({ classKey: r.key, cls: r.title, asset: l.Detail || "", boughtOn: String(l.f.date || ""), disposedOn: String(l.f.disposedOn || ""), cost, depElim, nbv, proceeds: typed, profit: typed === undefined ? undefined : round2(typed - nbv), line: l });
+    }
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------ the depreciation journal
 
 export type Acct = { code: string; name: string };
