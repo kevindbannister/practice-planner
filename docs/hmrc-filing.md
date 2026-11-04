@@ -56,3 +56,12 @@ SA800 (Priority 3), CT600 and iXBRL (Priority 4), HMRC account and payments APIs
 ## 6. Definition of done: status
 
 None of the eight conditions is met. SA100 XML, SA800, CT600 and the HMRC test passes are all outstanding.
+
+## SA100 builder and conformance check (2025-26)
+
+HMRC's RIM pack (v1.2) is in `api/filing/rim/sa100-2025-26/` (MTR XSD, envelope XSD, Schematron and its compiled XSLT, with SHA256SUMS).
+
+- `scripts/validate_rim.py <rim folder> <message.xml>` checks a GovTalk message against the XSD, then HMRC's business rules. HMRC's compiled rules answer with an `ErrorResponse` (not SVRL); any `Error` in it is a failure. The business rules also require the `GovTalkDetails/Keys` to match the `IRheader` keys. Needs python3 + lxml, so it is a development and test check, not a runtime one.
+- `api/filing/lib/sa100.js` builds the `IRenvelope` for: personal details, self-employment on SA103S (expense boxes 11-19, capital allowances, CIS, losses) and SA110 totals. Anything else in a return is listed as unsupported and the build is refused, so a partial return is never produced as complete. Turnover over £90,000 needs SA103F, which is not built.
+- Not registered as an adapter: the GovTalk message class and key rules for SA100 are not in the RIM pack (the envelope XSD only says Class is a 4-32 character string). They must come from HMRC's technical documentation or the SDST. Until then nothing can be sent.
+- Not yet checked: the planner's SA110 figures against HMRC's own calculation, and runtime validation (the API has no XML schema validator; options are a WASM XSD library or a Python function).
