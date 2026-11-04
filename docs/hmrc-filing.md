@@ -89,3 +89,9 @@ HMRC's CT600 pack (V1.994, the version HMRC lists as live) is in `api/filing/rim
 - Rates and limits are GOV.UK's for FY2023 to FY2026 (all 25% / 19% / £50,000 / £250,000). FY2027 isn't published, so periods reaching 1 April 2027 are refused.
 - Refused: UK property, chargeable gains, interest and dividends, group relief, R&D, overseas income, losses carried back, loans to participators, distributions, large-company instalments, amended returns, periods over 12 months or before April 2023.
 - Not registered as an adapter: the GovTalk message class and keys aren't in the pack. The planner has no Corporation Tax module (no computation screen, return record or storage); the builder takes a plain data object.
+
+## Profit and loss for the iXBRL accounts (`app/src/lib/plTags.ts`)
+
+`buildPl(maps)` turns the mapped final trial balance into the statement lines (turnover, cost of sales, gross profit, distribution, administrative expenses, other income, operating profit, investment income, interest, profit before tax, tax, profit) and a detail line per account under its schedule. Statement lines carry the FRC UK GAAP element that tags them; the staff costs schedule carries `StaffCostsEmployeeBenefitsExpense`.
+
+**Not checked:** the element names were written from memory. The taxonomy package is not in the CT600 pack, so every tag is `verified: false`. Detail lines for premises, legal, accountancy, general expenses and the rest have no element yet (`needsElement`): they need the HMRC DPL package. Load the package, add a test that every element exists in it, and fill the table in.
