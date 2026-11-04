@@ -77,3 +77,15 @@ Rules learned from HMRC's checker: on the short route the tax adjustments (3.66-
 Refused (reported as unsupported, nothing built): turnover over £90,000, capital allowances and balancing charges, savings, UK/foreign property and chargeable-asset pages, the full partnership statement (SA800PS), attachments and amended returns.
 
 Not registered as an adapter: the GovTalk message class and key rules are not in the RIM pack. The planner holds only a partner's share (SA104); there is no partnership return record, screen or storage yet.
+
+## CT600 builder and conformance check (CT RIM V1.994, 2026)
+
+HMRC's CT600 pack (V1.994, the version HMRC lists as live) is in `api/filing/rim/ct600-2026-v1-994/`. `scripts/validate_rim.py` checks against it like the other two. The newer V1.995 ("2027") isn't live yet and isn't used.
+
+`api/filing/lib/ct600.js` builds the `IRenvelope` and works out the Corporation Tax for: company details and period (12 months or less, from 1 April 2023), trading profit, trading losses brought forward, qualifying donations, the main rate (25%) and small profits rate (19%), associated companies, periods across two financial years, the declaration, and attaching iXBRL accounts and computation that the caller supplies.
+
+- **iXBRL is required** by HMRC rules 9113 and 9965. The planner cannot make iXBRL, so the build is refused if they aren't supplied. The tests use placeholder files: they prove the return and envelope pass HMRC's rules, **not** that any iXBRL is valid (its taxonomy checks are separate and not in this pack).
+- **Marginal relief isn't built**: profits inside the band are refused, because the pack doesn't say how HMRC wants marginal relief shown (the only marginal relief box in the schema is for ring-fence trades).
+- Rates and limits are GOV.UK's for FY2023 to FY2026 (all 25% / 19% / £50,000 / £250,000). FY2027 isn't published, so periods reaching 1 April 2027 are refused.
+- Refused: UK property, chargeable gains, interest and dividends, group relief, R&D, overseas income, losses carried back, loans to participators, distributions, large-company instalments, amended returns, periods over 12 months or before April 2023.
+- Not registered as an adapter: the GovTalk message class and keys aren't in the pack. The planner has no Corporation Tax module (no computation screen, return record or storage); the builder takes a plain data object.

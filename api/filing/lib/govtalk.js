@@ -28,7 +28,7 @@ function registerAdapter(a) {
 const BLOCKERS = {
   SA100: "The SA100 adapter isn't registered: the XML builder covers only part of a return, and HMRC's GovTalk message class for SA100 isn't in the RIM pack (it has to come from HMRC's technical documentation or the SDST).",
   SA800: "The SA800 adapter isn't registered: the XML builder covers only the short trading route, and HMRC's GovTalk message class for SA800 isn't in the RIM pack (it has to come from HMRC's technical documentation or the SDST).",
-  CT600: "The CT600 adapter isn't built: it needs HMRC's CT600 schema and iXBRL requirements, which haven't been supplied.",
+  CT600: "The CT600 adapter isn't registered: the XML builder covers only simple companies, the iXBRL accounts and computation have to be supplied (the planner doesn't make them), and HMRC's GovTalk message class for CT600 isn't in the RIM pack.",
 };
 function adapterFor(service) {
   const a = adapters.get(service);
