@@ -54,7 +54,7 @@ test("the depreciation journal credits each class and debits the charge, and bri
   const plantDep = before.find((m) => m.dest === "fixed/plant#dep")!;
   const j = depreciationJournal([{ key: "plant", title: "Plant and machinery", depCf: regT.depCf, tbDep: totals.get("fixed/plant#dep") || 0, creditAcct: { code: plantDep.acct.code, name: plantDep.acct.account } }], undefined, "31/03/2026");
   assert.deepEqual(j.lines.map((l) => [l.Detail, l.dr, l.cr]), [["Depreciation", 2000, 0], ["Plant and machinery - accumulated depreciation", 0, 2000]]);
-  assert.ok(j.newAccounts.some((a) => a.name === "Depreciation" && a.dest === "expenditure/tb"));
+  assert.ok(j.newAccounts.some((a) => a.name === "Depreciation" && a.dest === "expenditure/depreciation"));
   assert.match(j.lines[0].Remark || "", /Being depreciation charge/);
 
   // put the journal through: the final trial balance still balances and the depreciation now agrees to the register

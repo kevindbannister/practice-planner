@@ -38,6 +38,7 @@ const HEADING: Record<string, StatementKey> = {
 /** The detailed element for a schedule's lines, where there is one in the accounts' notes (staff costs). The rest need the DPL package. */
 const DETAIL: Record<string, PlTag> = {
   "expenditure/employee": frc("StaffCostsEmployeeBenefitsExpense"),
+  "expenditure/directors": frc("StaffCostsEmployeeBenefitsExpense"),
 };
 
 export type PlLine = { key: StatementKey; label: string; amount: number; element: string; verified: false };

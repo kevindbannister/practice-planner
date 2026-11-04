@@ -68,7 +68,7 @@ export function statutoryDest(name: string): { dest: string; iris?: string } | u
   if (/^cost of sales$/.test(head)) return { dest: "expenditure/cos" };
   if (/^(administrative expenses|distribution costs|selling and distribution|other operating charges|establishment)$/.test(head)) {
     if (/accountancy|accounting fees/.test(n)) return { dest: "expenditure/accountancy", iris: "285" };
-    if (/directors? (salar|remuneration)/.test(n)) return { dest: "expenditure/tb", iris: "254/1*1" };
+    if (/directors? (salar|remuneration)/.test(n)) return { dest: "expenditure/directors", iris: "254/1*1" };
     return { dest: "expenditure/tb" };
   }
   if (/^interest payable/.test(head)) return { dest: "expenditure/tb", iris: "414" };

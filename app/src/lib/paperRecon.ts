@@ -111,7 +111,7 @@ export function depreciationJournal(classes: DepClass[], chargeAcct: Acct | unde
   }
   if (!total) return { lines: [], newAccounts: [], perClass, notes };
   const charge = chargeAcct || { code: "", name: "Depreciation" };
-  if (!chargeAcct) newAccounts.push({ code: charge.code, name: charge.name, dest: "expenditure/tb" });
+  if (!chargeAcct) newAccounts.push({ code: charge.code, name: charge.name, dest: "expenditure/depreciation" });
   lines.unshift({ Code: charge.code, Detail: charge.name, dr: total, cr: 0, Remark: `Being depreciation charge for the year ended ${dateText}` });
   return { lines, newAccounts, perClass, notes };
 }

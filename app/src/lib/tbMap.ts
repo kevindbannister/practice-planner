@@ -43,15 +43,33 @@ export const onSide = (balance: number, side: "dr" | "cr") => round2(side === "d
 
 const norm = (s: string) => s.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 
-/** Which IRIS profit and loss group an expense account belongs to, from its name (general expenses when nothing fits). */
+/**
+ * Which heading of the administrative expenses a profit and loss account belongs to, read from its name. The first rule that matches wins,
+ * so the specific ones (bank charges, directors' pay, premises insurance) come before the broad ones (insurance, office costs).
+ * Names reach these already lower-cased with punctuation removed ("Directors' remuneration" is "directors remuneration").
+ */
+export const EXPENSE_RULES: { dest: string; label: string; re: RegExp }[] = [
+  { dest: "expenditure/interestpayable", label: "Interest payable", re: /interest (paid|payable|charged|on (loans?|overdraft|hp|hire))|bank (interest|charges? interest)|loan interest|hp interest|finance charges?|overdraft interest/ },
+  { dest: "expenditure/depreciation", label: "Depreciation", re: /^(depreciation|depn|amortisation|amortization)\b|(depreciation|depn|amortisation|amortization) (charge|expense|of)|\bdepn of\b/ },
+  { dest: "expenditure/directors", label: "Directors' remuneration", re: /directors? (remuneration|salar|pay\b|fees|pension|bonus|ni\b|national insurance)|employment costs directors|^remuneration/ },
+  { dest: "expenditure/bank", label: "Bank and card charges", re: /bank (charges?|fees?)|card (charges?|fees?)|merchant|paypal|stripe|gocardless|square fees|transaction (charges?|fees?)|service charges?|overdraft (fees?|charges?)/ },
+  { dest: "expenditure/premises", label: "Premises costs", re: /premises (insurance|improvements?)|insurance (building|premises)|^(rent|rates|business rates|light|heat|power|electric|gas\b|water|cleaning|property|building)|rent and rates|light and heat|heat and light|\b(business rates|council tax|waste|utilities|utility|repairs and (renewals|maintenance)|security|alarm)\b|^rent\b|premises/ },
+  { dest: "expenditure/motor", label: "Motor and vehicle costs", re: /vehicle|motor|car (hire|expenses|running|tax|insurance)|fuel|petrol|diesel|\bmot\b|road tax|parking|congestion|ulez|van (costs|running|expenses)/ },
+  { dest: "expenditure/travel", label: "Travel and subsistence", re: /travel|subsistence|mileage|accommodation|hotel|train fares?|flights?|airfares?|taxi/ },
+  { dest: "expenditure/employee", label: "Employee costs", re: /wages|salar|employers? (ni|national insurance|pension)|national insurance|\bni\b|paye|pension (cost|contrib)|^pensions?\b|\bstaff\b|employee|employment|training|recruitment|\bhr\b|casual labour|payroll/ },
+  { dest: "expenditure/entertainment", label: "Entertainment", re: /entertain|\bevents?\b|client gifts?|hospitality/ },
+  { dest: "expenditure/advertising", label: "Marketing and advertising", re: /advertis|marketing|promotion|social media|\bseo\b|search engine|sponsorship|brochure|leaflet|website (design|marketing)/ },
+  { dest: "expenditure/accountancy", label: "Accountancy", re: /^(accountancy|accounting|audit)|audit (and|fees)|accountancy (fees|and)|bookkeeping|accountants?/ },
+  { dest: "expenditure/legal", label: "Legal and professional", re: /solicitor|legal|consultan|professional (fees|charges)|^professional/ },
+  { dest: "expenditure/distribution", label: "Distribution costs", re: /^(carriage|postage and carriage|packaging|delivery|distribution|freight|haulage)|carriage outwards|courier|delivery (costs?|charges?)|freight/ },
+  { dest: "expenditure/insurance", label: "Insurance", re: /insurance/ },
+  { dest: "expenditure/it", label: "IT and software", re: /\bit (system|costs?|support|services|equipment|expenses)|software|saas|hosting|\bdomain|cloud|computer (costs?|expenses|running|supplies)|online (subscriptions?|services)|app subscriptions?/ },
+  { dest: "expenditure/office", label: "Office costs", re: /office|stationer|stationary|postage|printing|telephone|mobiles?|internet|broadband|phones?|subscriptions?|books|periodicals/ },
+];
+
+/** Which heading of the administrative expenses an account belongs to, from its name (general expenses when nothing fits). */
 export function expenseDest(n: string): string {
-  if (/interest (paid|payable|charged|on (loans?|overdraft|hp|hire))|bank (interest|charges? interest)|loan interest|hp interest|finance charges?|overdraft interest/.test(n)) return "expenditure/interestpayable";
-  if (/^(wages|salar|directors? (remuneration|salar|pension|fees)|employer|staff|pension|national insurance|ni\b|paye|subsistence|training|recruitment|casual labour|staff welfare|staff costs?|employee)/.test(n) || /wages|salaries|employers? ni|pension contrib/.test(n)) return "expenditure/employee";
-  if (/^(rent|rates|business rates|light|heat|power|electric|gas\b|water|insurance - (building|premises)|cleaning|premises|repairs and renewals|repairs and maintenance|property|building)|rent and rates|light and heat|heat and light|premises insurance/.test(n)) return "expenditure/premises";
-  if (/^(accountancy|accounting|audit)/.test(n)) return "expenditure/accountancy";
-  if (/solicitor|legal|consultan|professional (fees|charges)|^professional/.test(n)) return "expenditure/legal";
-  if (/^(carriage|postage and carriage|packaging|delivery|distribution|freight|haulage|vehicle running)|carriage outwards|delivery costs?/.test(n)) return "expenditure/distribution";
-  return "expenditure/tb";
+  return EXPENSE_RULES.find((r) => r.re.test(n))?.dest || "expenditure/tb";
 }
 
 /** Rules that hold whatever the account type says (IRIS account names read well through these). */
@@ -62,7 +80,7 @@ function nameRule(n: string, credit: boolean): string | undefined {
   if (/dividend/.test(n)) return "capital/dividends";
   if (/amts owed by to group|amounts owed (by|to) group|group undertak|intercompany|inter company/.test(n)) return credit ? "creditors/other" : "debtors/group";
   if (/directors? curr|directors? current|directors? loan/.test(n)) return "creditors/dla";
-  if (/credit card/.test(n)) return "creditors/card";
+  if (/credit card/.test(n) && !/charges?|fees?|interest/.test(n)) return "creditors/card";
   if (/suspense/.test(n)) return "creditors/other";
   if (/deferred tax timing|deferred taxation provision|provision for deferred/.test(n)) return "provisions/deferred";
   if (/^deferred tax$/.test(n)) return "taxation/deferred";
@@ -72,7 +90,7 @@ function nameRule(n: string, credit: boolean): string | undefined {
   if (/bank loans?|^loans?\b|bounce back|cbils|mortgage/.test(n) && !/interest|to |receivable/.test(n)) return after ? "creditors/loan#after" : "creditors/loan";
   if (/unlisted investment|other investments|listed investment|\binvestments?\b/.test(n) && !/income|interest|property/.test(n)) return "investments/main";
   if (/^opening stock|^closing stock|^purchases|materials purchased|sub ?contractors?|direct (wages|labour|costs)/.test(n)) return "expenditure/cos";
-  if (/^depn of|^depreciation$|depreciation \(3/.test(n)) return "expenditure/tb";
+  if (/^depn of|^depreciation$|depreciation \(3/.test(n)) return "expenditure/depreciation";
   if (/other revenue|other operating income|miscellaneous income|sundry income/.test(n)) return "income/other";
   return undefined;
 }
@@ -124,12 +142,13 @@ export function guessDest(name: string, type: string, balance: number): string {
     if (/liabilit/.test(ty)) return "creditors/other";
     if (/asset/.test(ty)) return credit ? "creditors/other" : "debtors/other";
   }
+  if (isPl && /^(uk )?(corporation tax|ct)\b|^tax (on|charge)|^taxation$|^income tax$/.test(n) && !/payable|liability|creditor|control|provision|repayable|refund/.test(n)) return "taxation/current";
   if (/cost of sales|cost of goods|purchases|direct cost|materials|subcontract/.test(n) || /direct cost|cost of sales/.test(ty)) return credit && /discount/.test(n) ? "income/other" : "expenditure/cos";
   if (/dividends? (received|income)|investment income|income from (investments|shares)/.test(n) && credit) return "income/investment";
   if (/interest/.test(n) && (credit || /income|revenue/.test(ty)) && !/paye|corporation|paid|payable|loan|hp|hire/.test(n)) return "income/interest";
   if (/revenue|income|sales/.test(ty) || /sales|turnover|fees? (income|received)|revenue|commissions? received/.test(n)) return /other|grant|sundry|rent received|commission/.test(n) ? "income/other" : /reimburs|recharged? expenses|expenses recharged/.test(n) ? "income/reimbursed" : /^fees?\b|fees? (income|received)/.test(n) ? "income/fees" : "income/sales";
   // with no type, anything else is most likely a profit and loss account: an expense if a debit
-  if (isPl || !type) return credit ? "income/other" : expenseDest(n);
+  if (isPl || !type) return credit && !/overhead|expense|direct cost/.test(ty) ? "income/other" : expenseDest(n);
   return credit ? "creditors/other" : "debtors/other";
 }
 
