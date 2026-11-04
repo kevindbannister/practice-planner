@@ -1193,8 +1193,8 @@ export function AssetsView({ section }: { section: Section }) {
   const [tab, setTab] = useState<"additions" | "disposals">("additions");
   return (
     <>
-      <div className="lead-split">
-        <div className="lead-main stack">
+      <div className="lead-split asset-split">
+        <div className={`lead-main asset-main stack${open ? " is-focus" : ""}`}>
           <AssetSummary section={section} picked={open?.key} onPick={(k) => setPicked((p) => (p === k ? undefined : k))} />
         </div>
         {open && (

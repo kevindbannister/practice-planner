@@ -3151,3 +3151,18 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .recon.warn { color: var(--amber, #b7791f); }
 .asset-pick { background: none; border: 0; padding: 2px 6px; font: inherit; font-weight: 700; color: var(--blue-ink, inherit); cursor: pointer; border-radius: 8px; text-decoration: underline dotted; }
 .asset-pick:hover, .asset-pick[aria-pressed="true"] { background: var(--blue-soft); }
+
+/* fixed assets: the lead schedule sits on the left at the width of its figures; with a register open it narrows so the register gets the room */
+.asset-split { flex-wrap: nowrap; }
+.asset-split .asset-main { flex: 0 0 auto; width: fit-content; max-width: 62%; min-width: 0; }
+.asset-split .asset-main .table-wrap { overflow-x: auto; }
+.asset-split .asset-main table.grid { width: auto; }
+.asset-split .asset-main table.grid th, .asset-split .asset-main table.grid td { padding-left: 10px; padding-right: 10px; white-space: nowrap; }
+.asset-split .asset-main table.grid td:first-child, .asset-split .asset-main table.grid th:first-child { min-width: 0; max-width: 190px; white-space: normal; padding-left: 0; }
+.asset-split .asset-main table.grid th.num, .asset-split .asset-main table.grid td.num { min-width: 92px; }
+.asset-split .asset-main.is-focus table.grid th.num, .asset-split .asset-main.is-focus table.grid td.num { min-width: 80px; }
+.asset-split .lead-panel { flex: 1 1 0; min-width: 0; }
+.asset-split .lead-panel .table-wrap { overflow-x: auto; }
+@media (max-width: 800px) { .asset-split { flex-wrap: wrap; } .asset-split .asset-main { max-width: 100%; flex-basis: 100%; width: auto; } .asset-split .lead-panel { flex-basis: 100%; } }
+.asset-split .asset-main .asset-cols { width: 0; min-width: 100%; box-sizing: border-box; }
+.asset-split .asset-main .table-wrap { max-width: 100%; }
