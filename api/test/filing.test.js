@@ -116,7 +116,7 @@ test("a body that isn't in canonical form is caught before it is hashed", () => 
 test("with no adapter registered every service is blocked, and says why", async () => {
   for (const service of ["SA100", "SA800", "CT600"]) {
     const a = gt.adapterFor(service);
-    assert.equal(a.adapter, null); assert.match(a.blocked, /isn't built/);
+    assert.equal(a.adapter, null); assert.match(a.blocked, /adapter isn't (built|registered)/);
     await assert.rejects(() => gt.send({ fetch: fakeFetch(), secrets: createSecrets({ env: ENV }), service, mode: "ets", body: BODY }), (e) => e.code === "blocked");
     assert.throws(() => gt.mockSend({ service, body: BODY }), (e) => e.code === "blocked");
   }
@@ -187,7 +187,7 @@ test("the handler needs a sign-in and says what is set up and what is blocked", 
   assert.equal(info.body.environments.mock.ok, true);
   assert.equal(info.body.environments.ets.ok, false); assert.equal(info.body.environments.live.ok, false);
   assert.equal(info.body.liveEnabled, false);
-  assert.equal(info.body.services.SA100.adapter, false); assert.match(info.body.services.SA100.reason, /RIM artefacts/);
+  assert.equal(info.body.services.SA100.adapter, false); assert.match(info.body.services.SA100.reason, /message class/);
   assert.equal(JSON.stringify(info.body).includes("p&ss"), false);
 });
 
@@ -220,7 +220,7 @@ test("live filing needs to be switched on, approved by name and have the vendor 
 test("without an adapter even a mock send is blocked (409), because there is no XML to check", async () => {
   const h = createHandler({ fetch: fakeFetch(), env: {}, now: () => NOW });
   const r = await call(h, "send", { body: { service: "SA100", env: "mock", body: BODY, confirm: true } });
-  assert.equal(r.status, 409); assert.match(r.body.message, /adapter isn't built/);
+  assert.equal(r.status, 409); assert.match(r.body.message, /adapter isn't (built|registered)/);
 });
 
 test("poll isn't available for a mock run", withAdapter(async () => {

@@ -7,12 +7,11 @@ try:
 except ImportError:
     print("lxml is not installed"); sys.exit(2)
 folder, doc = sys.argv[1], sys.argv[2]
-xsd = next(f for f in os.listdir(folder) if f.endswith(".xsd") and not f.startswith("envelope"))
+xsd = next(f for f in sorted(os.listdir(folder)) if f.endswith(".xsd") and not f.startswith(("envelope", "SAelements")))
 xslt = next(f for f in os.listdir(folder) if f.endswith(".xslt"))
 tree = etree.parse(doc)
 problems = []
-MTRNS = "{http://www.govtalk.gov.uk/taxation/SA/SA100/25-26/1}"
-env = tree.getroot().find(".//" + MTRNS + "IRenvelope")
+env = next((e for e in tree.getroot().iter() if isinstance(e.tag, str) and etree.QName(e).localname == "IRenvelope"), None)
 if env is None:
     print("No IRenvelope in the message"); sys.exit(1)
 schema = etree.XMLSchema(etree.parse(os.path.join(folder, xsd)))

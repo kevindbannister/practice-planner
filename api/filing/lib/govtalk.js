@@ -26,8 +26,8 @@ function registerAdapter(a) {
   adapters.set(a.service, a);
 }
 const BLOCKERS = {
-  SA100: "The SA100 adapter isn't built: it needs HMRC's official Self Assessment individual RIM artefacts (XSD and schematron), which haven't been supplied.",
-  SA800: "The SA800 adapter isn't built: it needs HMRC's official Self Assessment partnership artefacts, which haven't been supplied.",
+  SA100: "The SA100 adapter isn't registered: the XML builder covers only part of a return, and HMRC's GovTalk message class for SA100 isn't in the RIM pack (it has to come from HMRC's technical documentation or the SDST).",
+  SA800: "The SA800 adapter isn't registered: the XML builder covers only the short trading route, and HMRC's GovTalk message class for SA800 isn't in the RIM pack (it has to come from HMRC's technical documentation or the SDST).",
   CT600: "The CT600 adapter isn't built: it needs HMRC's CT600 schema and iXBRL requirements, which haven't been supplied.",
 };
 function adapterFor(service) {

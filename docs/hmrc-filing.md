@@ -65,3 +65,15 @@ HMRC's RIM pack (v1.2) is in `api/filing/rim/sa100-2025-26/` (MTR XSD, envelope 
 - `api/filing/lib/sa100.js` builds the `IRenvelope` for: personal details, self-employment on SA103S (expense boxes 11-19, capital allowances, CIS, losses) and SA110 totals. Anything else in a return is listed as unsupported and the build is refused, so a partial return is never produced as complete. Turnover over £90,000 needs SA103F, which is not built.
 - Not registered as an adapter: the GovTalk message class and key rules for SA100 are not in the RIM pack (the envelope XSD only says Class is a 4-32 character string). They must come from HMRC's technical documentation or the SDST. Until then nothing can be sent.
 - Not yet checked: the planner's SA110 figures against HMRC's own calculation, and runtime validation (the API has no XML schema validator; options are a WASM XSD library or a Python function).
+
+## SA800 builder and conformance check (2025-26)
+
+HMRC's partnership RIM pack (v1.0a) is in `api/filing/rim/sa800-2025-26/`. `scripts/validate_rim.py` works on it the same way as for SA100.
+
+`api/filing/lib/sa800.js` builds the partnership `IRenvelope` for: partnership details and nominated partner, trading income on the short route (turnover, expenses, net profit), each partner's share of profit or loss, and the declaration. It checks, before building, the things HMRC's rules enforce: UTR check digit (rule 8205, repeated digits refused by 6965), at least two partners, accepted name characters, and that the partners' shares add up to the partnership's profit.
+
+Rules learned from HMRC's checker: on the short route the tax adjustments (3.66-3.73) must not be sent (6626) and the taxable profit [3.83] must equal net profit [3.26] (6627); the partners' total must equal [3.83] (6904).
+
+Refused (reported as unsupported, nothing built): turnover over £90,000, capital allowances and balancing charges, savings, UK/foreign property and chargeable-asset pages, the full partnership statement (SA800PS), attachments and amended returns.
+
+Not registered as an adapter: the GovTalk message class and key rules are not in the RIM pack. The planner holds only a partner's share (SA104); there is no partnership return record, screen or storage yet.
