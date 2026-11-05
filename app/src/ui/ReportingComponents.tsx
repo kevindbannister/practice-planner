@@ -14,11 +14,11 @@ export const NAVY = "#131b30", RED = "#d4300f", AMBER = "#f5a30a", GREY = "#b8bb
 export const LINE = [NAVY, RED, AMBER, "#5b7bb3", "#6f9a3a", "#8a8f9a"];
 export const labelsOn = (o: ChartOpts, n: number) => o.labels ?? n <= 13;
 export const T: Record<string, React.CSSProperties> = {
-  h2: { margin: "0 0 26px", fontSize: 28, fontWeight: 500, letterSpacing: -0.3, borderBottom: "1px solid #8a8d94", paddingBottom: 8, color: "#111" },
-  cap: { margin: "22px 0 6px", fontSize: 14, fontWeight: 500, color: MUTED },
-  p: { margin: "6px 0", fontSize: 12.5, lineHeight: 1.5, whiteSpace: "pre-wrap" },
-  th: { textAlign: "right", padding: "5px 4px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "1px solid #111", color: "#111" },
-  td: { textAlign: "right", padding: "3.5px 4px", fontVariantNumeric: "tabular-nums" },
+  h2: { margin: "0 0 24px", fontSize: 24, fontWeight: 500, letterSpacing: -0.25, borderBottom: "1px solid #8a8d94", paddingBottom: 7, color: "#111" },
+  cap: { margin: "20px 0 6px", fontSize: 12, fontWeight: 500, color: MUTED },
+  p: { margin: "6px 0", fontSize: 10.7, lineHeight: 1.5, whiteSpace: "pre-wrap" },
+  th: { textAlign: "right", padding: "4px 4px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "1px solid #111", color: "#111" },
+  td: { textAlign: "right", padding: "3px 4px", fontVariantNumeric: "tabular-nums" },
 };
 const money0 = (v?: number) => (v === undefined ? "" : `${v < 0 ? "-" : ""}£${Math.abs(Math.round(v)).toLocaleString("en-GB")}`);
 function nice(lo: number, hi: number) {
@@ -70,13 +70,13 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
   const halo = { stroke: "#fff", strokeWidth: 3, paintOrder: "stroke" } as const;
   return (
     <div>
-      {ids.length > 1 && o.legend !== false && <div style={{ display: "flex", gap: 18, fontSize: 11, flexWrap: "wrap", justifyContent: "flex-end", margin: "0 0 4px" }}>{ids.map((id, k) => <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 9, height: 9, background: LINE[k % LINE.length], display: "inline-block" }} />{measureById(id)?.label}</span>)}</div>}
+      {ids.length > 1 && o.legend !== false && <div style={{ display: "flex", gap: 16, fontSize: 9.3, flexWrap: "wrap", justifyContent: "flex-end", margin: "0 0 4px" }}>{ids.map((id, k) => <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, background: LINE[k % LINE.length], display: "inline-block" }} />{measureById(id)?.label}</span>)}</div>}
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label={b.title}>
-        {nz.ticks.map((v) => <g key={v}><line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke="#e4e5e9" /><text x={L - 8} y={Y(v)} fontSize={10.5} fill={MUTED} textAnchor="end" dominantBaseline="middle">{axis(v)}</text></g>)}
+        {nz.ticks.map((v) => <g key={v}><line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke="#e4e5e9" /><text x={L - 8} y={Y(v)} fontSize={9.4} fill={MUTED} textAnchor="end" dominantBaseline="middle">{axis(v)}</text></g>)}
         {bk.map((_, i) => <line key={i} x1={X(i)} x2={X(i)} y1={Tp} y2={H - B2} stroke="#e4e5e9" strokeDasharray="1 3" />)}
         {o.highlight && <rect x={bars ? L + slot * last : X(last) - 14} y={Tp} width={bars ? slot : 28} height={H - Tp - B2} fill="#f1f1f4" />}
         {lo < 0 && hi > 0 && <line x1={L} x2={W - R} y1={zero} y2={zero} stroke="#8c8f97" />}
-        {bk.map((x, i) => (bk.length <= 13 || i % 2 === 0) && <text key={i} x={X(i)} y={H - 10} fontSize={10.5} fill={MUTED} textAnchor="middle">{x.label}</text>)}
+        {bk.map((x, i) => (bk.length <= 13 || i % 2 === 0) && <text key={i} x={X(i)} y={H - 10} fontSize={9.4} fill={MUTED} textAnchor="middle">{x.label}</text>)}
         {bars
           ? series.map((s, k) => s.map((v, i) => {
             if (v === undefined) return null;
@@ -86,7 +86,7 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
             return (
               <g key={`${k}-${i}`}>
                 <rect x={x0} y={Math.min(Y(top), Y(stacked ? base : 0))} width={Math.max(1, bw - 1.5)} height={Math.abs(Y(top) - Y(stacked ? base : 0))} fill={fill} />
-                {showLabels && !stacked && <text x={x0 + bw / 2} y={v < 0 ? Y(v) + 11 : Y(v) - 4} fontSize={8.5} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>}
+                {showLabels && !stacked && <text x={x0 + bw / 2} y={v < 0 ? Y(v) + 11 : Y(v) - 4} fontSize={7.8} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>}
               </g>
             );
           }))
@@ -97,11 +97,11 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
               <g key={ids[k]}>
                 {pts.length > 1 && <polygon fill={col} opacity={0.16} points={[`${pts[0][0]},${zero}`, ...pts.map((q) => q.join(",")), `${pts[pts.length - 1][0]},${zero}`].join(" ")} />}
                 <polyline fill="none" stroke={col} strokeWidth={2} strokeLinejoin="round" points={pts.map((q) => q.join(",")).join(" ")} />
-                {s.map((v, i) => v !== undefined && <g key={i}><circle cx={X(i)} cy={Y(v)} r={3} fill="#fff" stroke={col} strokeWidth={1.6} />{showLabels && <text x={X(i)} y={v < 0 ? Y(v) + 14 : Y(v) - 7} fontSize={8.5} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>}</g>)}
+                {s.map((v, i) => v !== undefined && <g key={i}><circle cx={X(i)} cy={Y(v)} r={3} fill="#fff" stroke={col} strokeWidth={1.6} />{showLabels && <text x={X(i)} y={v < 0 ? Y(v) + 14 : Y(v) - 7} fontSize={7.8} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>}</g>)}
               </g>
             );
           })}
-        {stacked && showLabels && tot.map((v, i) => <text key={i} x={X(i)} y={Y(v) - 4} fontSize={8.5} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>)}
+        {stacked && showLabels && tot.map((v, i) => <text key={i} x={X(i)} y={Y(v) - 4} fontSize={7.8} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>)}
       </svg>
     </div>
   );
@@ -135,13 +135,13 @@ export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
         const t = one(b, cc, which);
         const hl = t.cols.findIndex((col) => !col.total && col.months.length === 1 && col.months[0] === cc.anchor && t.cols.length > 3) >= 0 ? t.cols.findIndex((col) => !col.total && col.months.length === 1 && col.months[0] === cc.anchor) : t.cols.length > 1 && t.cols.length <= 3 ? 0 : -1;
         const tint = (j: number): React.CSSProperties => (j === hl ? { background: "#efe7f1" } : {});
-        const size = t.cols.length > 10 ? (cc.land ? 9.5 : 8.4) : 9.5;
+        const size = t.cols.length > 10 ? (cc.land ? 8.8 : 7.8) : 8.8;
         const many = t.cols.length > 6;
         return (
           <table key={which} style={{ width: "100%", borderCollapse: "collapse", fontSize: size, marginBottom: 16, color: "#111", tableLayout: many ? "fixed" : undefined }}>
             <thead><tr>
               <th style={{ ...T.th, textAlign: "left", color: MUTED, fontSize: size, width: many ? "17%" : undefined }}>{b.hideTitles ? "" : which === "pl" ? "PROFIT & LOSS" : "BALANCE SHEET"}</th>
-              {t.cols.map((col, j) => <th key={col.key} style={{ ...T.th, ...tint(j), padding: many ? "5px 3px" : T.th.padding }}>{col.label}</th>)}
+              {t.cols.map((col, j) => <th key={col.key} style={{ ...T.th, ...tint(j), padding: many ? "4px 3px" : T.th.padding }}>{col.label}</th>)}
               {t.pctRev && <th style={T.th}>% of Revenue</th>}
               {t.varCols && <th style={T.th}>Variance £</th>}{t.pctCols && <th style={T.th}>Variance %</th>}
             </tr></thead>
@@ -156,7 +156,7 @@ export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
                 return (
                   <tr key={i} style={rs}>
                     <td style={{ ...T.td, textAlign: "left", paddingLeft: row.kind === "line" ? 12 : 4, fontSize: size }}>{row.label}</td>
-                    {t.cols.map((col, j) => <td key={col.key} style={{ ...T.td, ...tint(j), padding: many ? "3.5px 3px" : T.td.padding, whiteSpace: "nowrap" }}>{head ? "" : f(row.vals[j])}</td>)}
+                    {t.cols.map((col, j) => <td key={col.key} style={{ ...T.td, ...tint(j), padding: many ? "3px 3px" : T.td.padding, whiteSpace: "nowrap" }}>{head ? "" : f(row.vals[j])}</td>)}
                     {t.pctRev && <td style={T.td}>{head || v0 === undefined || !t.revenue ? "" : `${(((v0 as number) / t.revenue) * 100).toFixed(1)}%`}</td>}
                     {t.varCols && <td style={T.td}>{head ? "" : f(v)}</td>}{t.pctCols && <td style={T.td}>{head ? "" : pc}</td>}
                   </tr>
@@ -175,11 +175,11 @@ export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
 function Spark({ values, color }: { values: (number | undefined)[]; color: string }) {
   const v = values.filter((x): x is number => x !== undefined);
   if (v.length < 2) return null;
-  const lo = Math.min(...v), hi = Math.max(...v), W = 100, H = 20;
+  const lo = Math.min(...v), hi = Math.max(...v), W = 90, H = 18;
   const y = (x: number) => H - 3 - ((x - lo) / (hi - lo || 1)) * (H - 6);
   const pts = values.map((x, i) => (x === undefined ? undefined : [(i / (values.length - 1)) * W, y(x)] as [number, number])).filter(Boolean) as [number, number][];
   const line = pts.map((q) => q.join(",")).join(" ");
-  return <svg viewBox={`0 0 ${W} ${H}`} style={{ width: 100, height: 20, display: "block", margin: "12px 0" }} aria-hidden="true"><polygon fill={color} opacity={0.14} points={`0,${H} ${line} ${W},${H}`} /><polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" points={line} /></svg>;
+  return <svg viewBox={`0 0 ${W} ${H}`} style={{ width: 90, height: 18, display: "block", margin: "12px 0" }} aria-hidden="true"><polygon fill={color} opacity={0.14} points={`0,${H} ${line} ${W},${H}`} /><polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" points={line} /></svg>;
 }
 
 export function KeyView({ b, c, label, tone = 0 }: { b: B<"key">; c: Ctx; label?: ReactNode; tone?: number }) {
@@ -187,7 +187,7 @@ export function KeyView({ b, c, label, tone = 0 }: { b: B<"key">; c: Ctx; label?
   const m = measureById(b.measure);
   const k = keyData(cc.d, b.measure, cc.kind, cc.anchor, cc.endMonth, b.compare);
   const tag = periodCols(cc.kind, cc.anchor, cc.endMonth, "none")[0]?.label;
-  const head = <div style={{ borderBottom: "1px solid #8a8d94", paddingBottom: 6, marginBottom: 12, fontSize: 11.5, fontWeight: 700, letterSpacing: 0.2, textTransform: "uppercase", color: "#8a8d94", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label ?? b.title}{tag && <span style={{ fontWeight: 500, textTransform: "none" }}> ({tag})</span>}</div>;
+  const head = <div style={{ borderBottom: "1px solid #8a8d94", paddingBottom: 6, marginBottom: 12, fontSize: 10.7, fontWeight: 700, letterSpacing: 0.2, textTransform: "uppercase", color: "#8a8d94", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label ?? b.title}{tag && <span style={{ fontWeight: 500, textTransform: "none" }}> ({tag})</span>}</div>;
   if (!m || k.value === undefined) return <div>{head}{none("No figure for this yet.")}</div>;
   const diff = k.compare !== undefined ? k.value - k.compare : undefined;
   const up = (diff ?? 0) >= 0;
@@ -195,16 +195,16 @@ export function KeyView({ b, c, label, tone = 0 }: { b: B<"key">; c: Ctx; label?
   return (
     <div>
       {head}
-      <div style={{ fontSize: 28, fontWeight: 500, letterSpacing: -0.3, lineHeight: 1.1, color: "#111" }}>{fmtValue(m.unit, k.value, b.fmt)}</div>
-      {diff !== undefined && <div style={{ fontSize: 11.5, color: MUTED, marginTop: 8 }}><span style={{ color: up ? "#7ea34f" : RED }}>{up ? "▲" : "▼"} {m.unit === "money" ? fmtValue(m.unit, Math.abs(diff), b.fmt) : fmtValue(m.unit, diff, b.fmt)}</span> from {cmpLabel}</div>}
+      <div style={{ fontSize: 24, fontWeight: 500, letterSpacing: -0.25, lineHeight: 1.1, color: "#111" }}>{fmtValue(m.unit, k.value, b.fmt)}</div>
+      {diff !== undefined && <div style={{ fontSize: 9.3, color: MUTED, marginTop: 8 }}><span style={{ color: up ? "#7ea34f" : RED }}>{up ? "▲" : "▼"} {m.unit === "money" ? fmtValue(m.unit, Math.abs(diff), b.fmt) : fmtValue(m.unit, diff, b.fmt)}</span> from {cmpLabel}</div>}
       {b.spark && <Spark values={k.spark} color={LINE[tone % 3]} />}
-      {b.showDesc && b.desc && <div style={{ fontSize: 12.5, lineHeight: 1.4, color: "#222", marginTop: 4, whiteSpace: "pre-wrap" }}>{b.desc}</div>}
+      {b.showDesc && b.desc && <div style={{ fontSize: 10.7, lineHeight: 1.4, color: "#222", marginTop: 4, whiteSpace: "pre-wrap" }}>{b.desc}</div>}
     </div>
   );
 }
 
 const Thumb = ({ icon }: { icon: Icon }) => (icon === "none" ? null : (
-  <svg viewBox="0 0 16 16" width={22} height={22} aria-label={icon === "up" ? "Good" : "Bad"} style={{ verticalAlign: "-6px", marginRight: 8 }}><path d={icon === "up" ? "M3 14V7M3 7l4-5c1.5 0 2 1 1.7 2.5L8.4 6H13c.8 0 1.2.7 1 1.4l-1.4 5.6c-.2.6-.7 1-1.3 1H3" : "M3 2v7M3 9l4 5c1.5 0 2-1 1.7-2.5L8.4 10H13c.8 0 1.2-.7 1-1.4L11.6 3c-.2-.6-.7-1-1.3-1H3"} fill="none" stroke={icon === "up" ? "#5b8a2d" : RED} strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" /></svg>
+  <svg viewBox="0 0 16 16" width={20} height={20} aria-label={icon === "up" ? "Good" : "Bad"} style={{ verticalAlign: "-6px", marginRight: 8 }}><path d={icon === "up" ? "M3 14V7M3 7l4-5c1.5 0 2 1 1.7 2.5L8.4 6H13c.8 0 1.2.7 1 1.4l-1.4 5.6c-.2.6-.7 1-1.3 1H3" : "M3 2v7M3 9l4 5c1.5 0 2-1 1.7-2.5L8.4 10H13c.8 0 1.2-.7 1-1.4L11.6 3c-.2-.6-.7-1-1.3-1H3"} fill="none" stroke={icon === "up" ? "#5b8a2d" : RED} strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" /></svg>
 ));
 
 /** Whether an observation is hidden (its extra condition says so) – the screen still shows it, dimmed, so it can be edited. */
@@ -220,9 +220,9 @@ export function ObservationView({ b, c }: { b: B<"observation">; c: Ctx }) {
   const icon = r.ok === undefined ? "none" : r.ok ? b.thenIcon : b.elseIcon, text = r.ok === undefined ? "" : r.ok ? b.thenText : b.elseText;
   return (
     <div style={{ margin: "20px 0" }}>
-      <div style={{ fontSize: 12.5, letterSpacing: 0.3, color: "#8a8d94", textTransform: "uppercase", marginBottom: 6 }}><Thumb icon={icon} />{b.title}</div>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#111" }}>{lm?.label} {fmtValue(lm?.unit || "money", r.left)} <span style={{ fontWeight: 400, color: "#8a8d94", fontSize: 11 }}>({"measure" in b.right ? WHEN_LABEL[b.right.when] : "Target"} {fmtValue(rm?.unit || lm?.unit || "money", r.right)})</span></div>
-      <div style={{ fontSize: 12.5, lineHeight: 1.45, whiteSpace: "pre-wrap", marginTop: 2 }}>{r.ok === undefined ? <span style={{ color: "#8a8d94" }}>No figures to compare yet.</span> : text}</div>
+      <div style={{ fontSize: 10.7, letterSpacing: 0.3, color: "#8a8d94", textTransform: "uppercase", marginBottom: 6 }}><Thumb icon={icon} />{b.title}</div>
+      <div style={{ fontSize: 10.7, fontWeight: 700, color: "#111" }}>{lm?.label} {fmtValue(lm?.unit || "money", r.left)} <span style={{ fontWeight: 400, color: "#8a8d94", fontSize: 9.3 }}>({"measure" in b.right ? WHEN_LABEL[b.right.when] : "Target"} {fmtValue(rm?.unit || lm?.unit || "money", r.right)})</span></div>
+      <div style={{ fontSize: 10.7, lineHeight: 1.45, whiteSpace: "pre-wrap", marginTop: 2 }}>{r.ok === undefined ? <span style={{ color: "#8a8d94" }}>No figures to compare yet.</span> : text}</div>
     </div>
   );
 }
@@ -237,17 +237,17 @@ export function TopView({ b, c }: { b: B<"top">; c: Ctx }) {
   const colour = (i: number) => (red ? RED : i === 0 ? NAVY : GREY);
   const LAB = "28%";
   return (
-    <div style={{ fontSize: 10.5 }}>
+    <div style={{ fontSize: 9.3 }}>
       <div style={{ display: "flex", borderBottom: `1px solid ${RULE}`, height: 22, alignItems: "flex-end" }}>
         <div style={{ width: LAB }} />
-        <div style={{ position: "relative", flex: 1, height: 14 }}>{nz.ticks.map((v) => <span key={v} style={{ position: "absolute", left: pos(v), transform: "translateX(-50%)", fontSize: 9, color: MUTED, whiteSpace: "nowrap" }}>{axisMoney(v).replace("K", "K")}</span>)}</div>
+        <div style={{ position: "relative", flex: 1, height: 14 }}>{nz.ticks.map((v) => <span key={v} style={{ position: "absolute", left: pos(v), transform: "translateX(-50%)", fontSize: 8, color: MUTED, whiteSpace: "nowrap" }}>{axisMoney(v).replace("K", "K")}</span>)}</div>
       </div>
       {rows.map((r, i) => (
         <div key={r.name} style={{ display: "flex", alignItems: "center", height: 32, borderBottom: `1px solid ${RULE}` }}>
           <div style={{ width: LAB, paddingRight: 10, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
           <div style={{ position: "relative", flex: 1, height: "100%", borderLeft: `1px solid ${RULE}` }}>
             <div style={{ position: "absolute", left: 0, top: 7, height: 18, width: pos(Math.max(0, r.amount)), background: colour(i), opacity: red ? Math.max(0.35, 1 - i * 0.09) : 1 }} />
-            <span style={{ position: "absolute", left: `calc(${pos(Math.max(0, r.amount))} + 8px)`, top: 0, lineHeight: "32px", fontSize: 13, fontWeight: 500, color: "#3a3d45", fontVariantNumeric: "tabular-nums" }}>{fmtValue("money", r.amount)}</span>
+            <span style={{ position: "absolute", left: `calc(${pos(Math.max(0, r.amount))} + 8px)`, top: 0, lineHeight: "32px", fontSize: 10.7, fontWeight: 500, color: "#3a3d45", fontVariantNumeric: "tabular-nums" }}>{fmtValue("money", r.amount)}</span>
           </div>
         </div>
       ))}

@@ -53,14 +53,14 @@ export function AgedView({ data, kind, limit, open, onOpen }: { data: AgedData; 
   const who = kind === "rec" ? "customers" : "suppliers";
   const shown = limit ? book.contacts.slice(0, limit) : book.contacts;
   const rest = book.contacts.slice(shown.length);
-  const th: React.CSSProperties = { textAlign: "right", padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "1px solid #111", fontSize: 10 };
-  const td: React.CSSProperties = { textAlign: "right", padding: "4px 6px", fontVariantNumeric: "tabular-nums", fontSize: 10 };
+  const th: React.CSSProperties = { textAlign: "right", padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "1px solid #111", fontSize: 8.8 };
+  const td: React.CSSProperties = { textAlign: "right", padding: "4px 6px", fontVariantNumeric: "tabular-nums", fontSize: 8.8 };
   if (!book.count) return <p style={{ fontSize: 14, color: "#7a8591" }}>Nothing is {kind === "rec" ? "owed by customers" : "owed to suppliers"} as at {dmy(data.asAt)}.</p>;
   return (
     <div>
       <div style={{ display: "flex", gap: 24, flexWrap: "wrap", margin: "4px 0 12px" }}>
         {([["Total " + (kind === "rec" ? "owed to you" : "you owe"), money(book.totals.total)], ["Overdue", `${money(book.overdue)} (${book.overduePct}%)`], ["Oldest", book.oldestLate ? `${book.oldestLate} days late` : "Nothing late"], ["Invoices", String(book.count)]] as const).map(([l, v]) => (
-          <div key={l}><div style={{ fontSize: 11, letterSpacing: 0.5, color: "#59636e", textTransform: "uppercase" }}>{l}</div><div style={{ fontSize: 17 }}>{v}</div></div>
+          <div key={l}><div style={{ fontSize: 11, letterSpacing: 0.5, color: "#59636e", textTransform: "uppercase" }}>{l}</div><div style={{ fontSize: 15 }}>{v}</div></div>
         ))}
       </div>
       <div style={{ display: "flex", height: 34, marginBottom: 4 }} role="img" aria-label={`${AGED_TITLE[kind]} by how late`}>
