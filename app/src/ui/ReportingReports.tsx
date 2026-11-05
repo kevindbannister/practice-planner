@@ -7,14 +7,14 @@ import { cashFlow, measureById, monthlySeries } from "../lib/analysis";
 import { AgedData } from "../lib/aged";
 import { KpiSettings, computeKpis, formatKpi } from "../lib/kpis";
 import {
-  Block, CHART_BLOCKS, LAYOUTS, Orientation, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, moveItem, newReport, periodWords, uid,
+  Block, CHART_BLOCKS, LAYOUTS, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, moveItem, newReport, periodWords, uid,
 } from "../lib/reportBuilder";
 import { PeriodKind, REPORT_FOLDER, ReportData, bsStatement, monthLabel, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { todayIso } from "../lib/domain";
 import { Icon, IconName, href } from "./bits";
 import { readSetting, useData } from "./data";
 import { AgedView, useAgedData } from "./ReportingAged";
-import { ChartView, ComponentEditor, Ctx, KeyView, ObservationView, T, TableView, TopView, observationHidden } from "./ReportingComponents";
+import { ChartView, ComponentEditor, Ctx, KeyView, LINE, ObservationView, Swatch, T, TableView, TopView, observationHidden } from "./ReportingComponents";
 import { Seg, useReportData } from "./reportingKit";
 import { Thumb } from "./ReportingThumbs";
 
@@ -151,12 +151,12 @@ function Network() {
   );
 }
 
-export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools, addButtons }: {
-  doc: ReportDoc; c?: Ctx; clientName: string; edit?: (s: Section, b: Block) => Edit;
+export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools, addButtons, selectedId, onSelect }: {
+  doc: ReportDoc; c?: Ctx; clientName: string; edit?: (s: Section, b: Block) => Edit; selectedId?: string; onSelect?: (b: Block) => void;
   sectionTools?: (s: Section, i: number) => ReactNode; blockTools?: (s: Section, b: Block, i: number) => ReactNode; addButtons?: (s: Section) => ReactNode;
 }) {
   const words = periodWords(doc.kind, c?.anchor || doc.anchor);
-  if (c) c = { ...c, land: doc.orientation === "landscape" };
+  if (c) c = { ...c, land: doc.orientation === "landscape", palette: doc.palette ?? c.palette };
   return (
     <div className={`rp${doc.orientation === "landscape" ? " rp-land" : ""}`}>
       <style>{REPORT_CSS}</style>
@@ -174,7 +174,7 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
         const items: ReactNode[] = [];
         for (let bi = 0; bi < s.blocks.length; bi++) {
           const render = (b: Block, i: number, tone?: number) => (
-            <div key={b.id} className="rb-block">
+            <div key={b.id} className={`rb-block${selectedId === b.id ? " sel" : ""}${onSelect ? " pick" : ""}`} onClick={onSelect ? (e) => { if (!(e.target as HTMLElement).closest("input,textarea,button,select,a")) onSelect(b); } : undefined}>
               {blockTools?.(s, b, i)}
               <BlockView b={b} c={c} edit={edit?.(s, b)} tone={tone} />
             </div>
@@ -318,6 +318,7 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
   const [state, setState] = useState<"" | "saving" | "saved">("");
   const [publishing, setPublishing] = useState(""), [problem, setProblem] = useState("");
   const [editId, setEditId] = useState("");
+  const [draft, setDraft] = useState<Block | undefined>();
   const dirty = useRef(false), docRef = useRef(doc); docRef.current = doc;
   const persist = async (x: ReportDoc) => { dirty.current = false; setState("saving"); try { await save(listRef.current.map((y) => (y.id === x.id ? x : y))); setState("saved"); } catch { setState(""); setProblem("The change couldn't be saved. Try again."); } };
   const update = (fn: (x: ReportDoc) => ReportDoc) => { dirty.current = true; setState(""); setDoc((x) => ({ ...fn(x), updatedAt: new Date().toISOString() })); };
@@ -326,7 +327,9 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
 
   const months = d?.months || [];
   const anchor = anchorFor(doc, months);
-  const c: Ctx | undefined = d && anchor ? { d, kind: doc.kind, anchor, endMonth, kpi, aged } : undefined;
+  const c: Ctx | undefined = d && anchor ? { d, kind: doc.kind, anchor, endMonth, kpi, aged, palette: doc.palette } : undefined;
+  const shown: ReportDoc = draft ? { ...doc, sections: doc.sections.map((s) => ({ ...s, blocks: s.blocks.map((x) => (x.id === draft.id ? draft : x)) })) } : doc;
+  const EDITABLE = ["key", "observation", "top", "chart", "table", "kpis", "cashflow", "aged"];
   const sec = (id: string, fn: (s: Section) => Section) => update((x) => ({ ...x, sections: x.sections.map((s) => (s.id === id ? fn(s) : s)) }));
   const add = (blocks: Block[]) => {
     const id = doc.sections.some((s) => s.id === target) ? target : doc.sections[doc.sections.length - 1]?.id;
@@ -394,7 +397,7 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
           ))}
         </nav>
         <aside className="rb-panel">
-          {editing && <ComponentEditor key={editing.b.id} block={editing.b} c={c} onCancel={() => setEditId("")} onSave={(nb) => { sec(editing.s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === nb.id ? nb : y)) })); setEditId(""); }} />}
+          {editing && <ComponentEditor key={editing.b.id} block={editing.b} c={c} preview={(nb) => (c ? <BlockView b={nb} c={{ ...c, land: doc.orientation === "landscape" }} /> : null)} onDraft={setDraft} onCancel={() => setEditId("")} onSave={(nb) => { sec(editing.s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === nb.id ? nb : y)) })); setEditId(""); }} />}
           {!editing && <h3 className="rb-panel-title">{panelTitle}</h3>}
           {!editing && panel === "outline" && (
             <div className="rb-list">
@@ -421,6 +424,11 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
               <label>Period<Seg value={doc.kind} set={(k) => update((x) => ({ ...x, kind: k }))} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" /></label>
               <label>Ending in<select aria-label="Month" value={anchor} onChange={(e) => update((x) => ({ ...x, anchor: e.target.value }))}>{[...months].reverse().map((m) => <option key={m} value={m}>{monthLong(m)}</option>)}</select></label>
               <label>Orientation<Seg value={doc.orientation} set={(o) => update((x) => ({ ...x, orientation: o }))} opts={[["portrait", "Portrait"], ["landscape", "Landscape"]]} label="Orientation" /></label>
+              <div className="rb-colours">
+                <span>Colours</span>
+                <div className="rb-presets">{PALETTES.map((p) => <button key={p.name} type="button" className={`rb-preset${(doc.palette || PALETTES[0].colors).join() === p.colors.join() ? " on" : ""}`} title={p.name} aria-label={p.name} onClick={() => update((x) => ({ ...x, palette: p.name === PALETTES[0].name ? undefined : p.colors }))}>{p.colors.slice(0, 4).map((k) => <i key={k} style={{ background: k }} />)}</button>)}</div>
+                {(doc.palette || LINE).slice(0, 6).map((k, i) => <Swatch key={i} label={`Colour ${i + 1}`} value={doc.palette?.[i]} fallback={k} set={(v) => update((x) => { const base = [...(x.palette || LINE)]; base[i] = v || LINE[i]; return { ...x, palette: base.join() === LINE.join() ? undefined : base }; })} />)}
+              </div>
               <label className="rb-check"><input type="checkbox" checked={doc.disclaimer} onChange={(e) => update((x) => ({ ...x, disclaimer: e.target.checked }))} /> Include a disclaimer at the end</label>
               {doc.disclaimer && <textarea aria-label="Disclaimer" rows={6} value={doc.disclaimerText} onChange={(e) => update((x) => ({ ...x, disclaimerText: e.target.value }))} />}
             </div>
@@ -429,7 +437,7 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
         <main className="rb-canvas">
           <div className="rb-page" style={{ width }}>
             <ReportView
-              doc={doc} c={c} clientName={clientName}
+              doc={shown} c={c} clientName={clientName} selectedId={editId} onSelect={(b) => { if (EDITABLE.includes(b.type)) setEditId(b.id); }}
               edit={(s, b) => ({ change: (nb) => sec(s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === b.id ? nb : y)) })) })}
               sectionTools={(s, i) => (
                 <div className={`rb-sechead${s.id === target ? " on" : ""}`}>

@@ -13,25 +13,33 @@ export type Operand = { measure: string; when: When } | { value: number };
 export type Icon = "up" | "down" | "none";
 export type Fmt = { rounded?: boolean; decimals?: boolean; /** default true */ symbol?: boolean };
 export type TopGroup = "income" | "cos" | "expense" | "other" | "bank" | "curAsset" | "fixed" | "curLiab" | "ltLiab" | "equity";
-export type ChartOpts = { highlight?: boolean; trim?: boolean; stack?: boolean; zero?: boolean; legend?: boolean; labels?: boolean };
+export type ChartOpts = { highlight?: boolean; trim?: boolean; stack?: boolean; zero?: boolean; legend?: boolean; labels?: boolean; /** one colour per series; blank = the report palette */ colors?: string[] };
+/** Colour sets for a whole report: the series colours in order. */
+export const PALETTES: { name: string; colors: string[] }[] = [
+  { name: "Navy, red, amber", colors: ["#131b30", "#d4300f", "#f5a30a", "#5b7bb3", "#6f9a3a", "#8a8f9a"] },
+  { name: "Ocean", colors: ["#0b3c5d", "#1d8fb5", "#7fcdbb", "#f2a65a", "#8e6bbf", "#8a8f9a"] },
+  { name: "Forest", colors: ["#1f3d2b", "#4f8a3c", "#b5c94a", "#d98b2b", "#3b7a8a", "#8a8f9a"] },
+  { name: "Plum", colors: ["#3b1f4a", "#a23b72", "#f18f01", "#2e86ab", "#6a994e", "#8a8f9a"] },
+  { name: "Greys", colors: ["#1b1f27", "#545b68", "#8b93a1", "#b8bbc4", "#d4300f", "#f5a30a"] },
+];
 export type Freq = "month" | "quarter" | "year";
 export type Block =
   | { id: string; type: "text"; style: TextStyle; title?: string; text: string }
-  | { id: string; type: "key"; title: string; measure: string; compare: "none" | "prior" | "lastYear"; spark: boolean; showDesc: boolean; desc: string; fmt: Fmt; period?: PeriodKind }
-  | { id: string; type: "observation"; title: string; left: { measure: string; when: When }; op: Op; right: Operand; thenIcon: Icon; thenText: string; elseIcon: Icon; elseText: string; hideWhen: "never" | "true" | "false"; period?: PeriodKind }
-  | { id: string; type: "top"; title: string; group: TopGroup; n: number; order: "top" | "bottom"; hideNil: boolean; period?: PeriodKind }
+  | { id: string; type: "key"; color?: string; title: string; measure: string; compare: "none" | "prior" | "lastYear"; spark: boolean; showDesc: boolean; desc: string; fmt: Fmt; period?: PeriodKind }
+  | { id: string; type: "observation"; thenColor?: string; elseColor?: string; title: string; left: { measure: string; when: When }; op: Op; right: Operand; thenIcon: Icon; thenText: string; elseIcon: Icon; elseText: string; hideWhen: "never" | "true" | "false"; period?: PeriodKind }
+  | { id: string; type: "top"; color?: string; color2?: string; title: string; group: TopGroup; n: number; order: "top" | "bottom"; hideNil: boolean; period?: PeriodKind }
   | { id: string; type: "columns"; left: string; right: string }
   | { id: string; type: "line" }
   | { id: string; type: "page" }
   | { id: string; type: "chart"; title: string; measures: string[]; months: 13 | 24 | 36; bars?: boolean; freq?: Freq; previous?: number; opts?: ChartOpts }
-  | { id: string; type: "table"; statement: "pl" | "bs" | "both"; compare: "none" | "prior" | "lastYear" | "months"; detail: "summary" | "detailed"; title: string; cols?: string[]; hidden?: string[]; fmt?: Fmt; hideTitles?: boolean; period?: PeriodKind }
+  | { id: string; type: "table"; tint?: string; statement: "pl" | "bs" | "both"; compare: "none" | "prior" | "lastYear" | "months"; detail: "summary" | "detailed"; title: string; cols?: string[]; hidden?: string[]; fmt?: Fmt; hideTitles?: boolean; period?: PeriodKind }
   | { id: string; type: "kpis"; title: string }
   | { id: string; type: "cashflow"; title: string }
   | { id: string; type: "aged"; which: "rec" | "pay"; title: string };
 export type Section = { id: string; title: string; blocks: Block[] };
 export type ReportDoc = {
   id: string; name: string; kind: PeriodKind; /** the month the period ends in; empty = the latest month read */ anchor: string;
-  orientation: Orientation; sections: Section[]; disclaimer: boolean; disclaimerText: string;
+  orientation: Orientation; /** series colours for the whole report; blank = the default set */ palette?: string[]; sections: Section[]; disclaimer: boolean; disclaimerText: string;
   status: "draft" | "published"; createdAt: string; updatedAt: string; publishedAt?: string; /** where the published copy is kept on OneDrive */ file?: string;
 };
 
