@@ -3,7 +3,8 @@
 // The figures are read from Xero once (Refresh reads them again), kept on OneDrive, and worked out from the months.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Compare, Detail, PeriodKind, bsStatement, monthLong, periodCols, plStatement } from "../lib/reportData";
-import { href, useRoute } from "./bits";
+import { Icon, IconName, href, useRoute } from "./bits";
+import { BannerMenu } from "./BannerMenu";
 import { useData } from "./data";
 import { KpiExplorer } from "./ReportingExplorer";
 import { CashFlowScreen, GoalseekScreen, GrowthScreen, TrendScreen } from "./ReportingAnalysis";
@@ -15,9 +16,11 @@ import { KpiScreen } from "./ReportingKpis";
 import { useReportData } from "./reportingKit";
 import { useXeroLinks } from "./XeroSettings";
 
-const TOOLS: [string, string, boolean][] = [
-  ["financials", "Financials", true], ["kpis", "KPIs", true], ["explorer", "KPI Explorer", true], ["profitability", "Profitability", true],
-  ["cashflow", "Cash Flow", true], ["growth", "Growth", true], ["trend", "Trend", true], ["goalseek", "Goalseek", true], ["receivables", "Receivables", true], ["settings", "Settings", true], ["payables", "Payables", true], ["reports", "Reports", true],
+const GROUPS: { name: string; items: [string, string, IconName][] }[] = [
+  { name: "Analysis", items: [["financials", "Financials", "calc"], ["kpis", "KPIs", "flag"], ["explorer", "KPI Explorer", "spark"], ["profitability", "Profitability", "scale"], ["cashflow", "Cash Flow", "coins"], ["growth", "Growth", "up"], ["trend", "Trend", "chart"], ["goalseek", "Goalseek", "flag"]] },
+  { name: "Receivables and payables", items: [["receivables", "Receivables", "down"], ["payables", "Payables", "up"]] },
+  { name: "Reports", items: [["reports", "Reports", "book"]] },
+  { name: "Settings", items: [["settings", "Settings", "cog"]] },
 ];
 
 const fmt = (n?: number) => (n === undefined ? "" : n === 0 ? "–" : n < 0 ? `(${Math.abs(Math.round(n)).toLocaleString("en-GB")})` : Math.round(n).toLocaleString("en-GB"));
@@ -32,42 +35,90 @@ export function ReportingPage() {
   const clients = data.clients.filter((c) => c.Title && tenantFor(c.Key)).sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
   const client = data.clients.find((c) => c.Key === clientKey);
 
-  return (
-    <div className="stack" style={{ gap: 14 }}>
-      <div className="row-wrap" style={{ gap: 12, alignItems: "center" }}>
-        <h1 style={{ margin: 0 }}>Reporting</h1>
-        <select aria-label="Client" value={clientKey} onChange={(e) => { window.location.hash = href("reporting", e.target.value, tool); }}>
-          <option value="">Choose a client…</option>
-          {clients.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}
-        </select>
-      </div>
-      {!connected && <div className="alert amber"><strong>Xero isn't connected</strong><span>Connect Xero in Settings › Xero, then link each client, and the reports fill from it.</span></div>}
-      {connected && !clients.length && <div className="alert amber"><strong>No clients are linked to Xero yet</strong><span>Link a client's Xero organisation in Settings › Xero.</span></div>}
-      {client && tenantFor(client.Key) && (
-        <div style={{ display: "grid", gridTemplateColumns: "180px minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
-          <nav aria-label="Reports" className="stack" style={{ gap: 2 }}>
-            {TOOLS.map(([k, label, ready]) => ready
-              ? <a key={k} href={href("reporting", client.Key, k)} aria-current={tool === k ? "page" : undefined} style={{ padding: "6px 10px", borderRadius: 6, fontWeight: tool === k ? 600 : 400, background: tool === k ? "var(--soft, #eef2f7)" : "none" }}>{label}</a>
-              : <span key={k} className="muted" style={{ padding: "6px 10px", fontSize: 13 }}>{label} <span style={{ fontSize: 11 }}>· next</span></span>)}
-          </nav>
-          {tool === "settings" ? <ReportingSettings clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} tab={parts[3]} />
-            : tool === "receivables" || tool === "payables" ? <AgedScreen clientKey={client.Key} clientName={String(client.Title)} tenant={tenantFor(client.Key)!} kind={tool === "payables" ? "pay" : "rec"} />
-            : tool === "reports" ? <ReportsScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} id={parts[3]} />
-            : tool === "cashflow" ? <CashFlowScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
-            : tool === "growth" ? <GrowthScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
-            : tool === "trend" ? <TrendScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
-            : tool === "goalseek" ? <GoalseekScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
-            : tool === "profitability"
-            ? <Profitability clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
-            : tool === "explorer"
-            ? <KpiExplorer clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
-            : tool === "kpis"
-            ? <KpiScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
-            : <Financials clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />}
+  const [shut, setShut] = useState<string[]>(() => {
+    try { const v = localStorage.getItem("reporting.shut"); if (v) return JSON.parse(v) as string[]; } catch { /* no storage */ }
+    return [];
+  });
+  const flip = (g: string) => setShut((a) => {
+    const n = a.includes(g) ? a.filter((x) => x !== g) : [...a, g];
+    try { localStorage.setItem("reporting.shut", JSON.stringify(n)); } catch { /* no storage */ }
+    return n;
+  });
+  const linked = !!client && !!tenantFor(client.Key);
+
+  if (!client || !linked) {
+    return (
+      <div className="page">
+        <div className="page-head"><div><h1>Reporting</h1><p className="muted" style={{ margin: "4px 0 0" }}>Choose a client to see their figures from Xero.</p></div></div>
+        <div className="row-wrap">
+          <select aria-label="Client" value={clientKey} onChange={(e) => { window.location.hash = href("reporting", e.target.value, tool); }}>
+            <option value="">Choose a client…</option>
+            {clients.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}
+          </select>
         </div>
-      )}
-      {client && !tenantFor(client.Key) && <div className="alert amber"><strong>This client isn't linked to Xero</strong><span>Link it in Settings › Xero first.</span></div>}
-    </div>
+        {!connected && <div className="alert amber"><strong>Xero isn't connected</strong><span>Connect Xero in Settings › Xero, then link each client, and the reports fill from it.</span></div>}
+        {connected && !clients.length && <div className="alert amber"><strong>No clients are linked to Xero yet</strong><span>Link a client's Xero organisation in Settings › Xero.</span></div>}
+        {client && !linked && <div className="alert amber"><strong>This client isn't linked to Xero</strong><span>Link it in Settings › Xero first.</span></div>}
+      </div>
+    );
+  }
+
+  const props = { clientKey: client.Key, clientName: String(client.Title), yearEnd: client.YearEnd as string | undefined, tenant: tenantFor(client.Key)! };
+  return (
+    <>
+      <header className="paper-top">
+        <a className="paper-top-icon" href="#/reporting" title="Back to reporting" aria-label="Back to reporting"><Icon name="chart" size={20} /></a>
+        <h1>{client.Title}</h1>
+        {client.CompanyNumber && <span className="chip mono">{client.CompanyNumber}</span>}
+        <span className="chip">{props.tenant.tenantName}</span>
+        <a className="chip blue chip-fixed" href={href("clients", client.Key)}>Client page</a>
+        <div className="paper-tools">
+          <select className="input" aria-label="Client" value={clientKey} style={{ width: "auto", minHeight: 32, padding: "2px 8px" }} onChange={(e) => { window.location.hash = href("reporting", e.target.value, tool); }}>
+            {clients.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}
+          </select>
+          <BannerMenu />
+        </div>
+      </header>
+      <div className="page paper-page">
+        <div className="paper">
+          <nav className="paper-side" aria-label="Reporting tools">
+            {GROUPS.map((g) => {
+              const closed = shut.includes(g.name) && !g.items.some(([k]) => k === tool);
+              return (
+                <div key={g.name} className="paper-group">
+                  <button type="button" className="paper-group-name" aria-expanded={!closed} onClick={() => flip(g.name)}>
+                    <span aria-hidden="true">{closed ? "▸" : "▾"}</span> {g.name}
+                  </button>
+                  {!closed && <ul>
+                    {g.items.map(([k, label, icon]) => (
+                      <li key={k}>
+                        <button type="button" className={`paper-item${tool === k ? " on" : ""}`} aria-current={tool === k ? "true" : undefined} onClick={() => { window.location.hash = href("reporting", client.Key, k); }}>
+                          <span className="paper-ico" aria-hidden="true"><Icon name={icon} size={15} /></span>
+                          <span className="paper-name">{label}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>}
+                </div>
+              );
+            })}
+          </nav>
+          <section className="paper-main stack" style={{ minWidth: 0 }}>
+            {tool === "settings" ? <ReportingSettings {...props} tab={parts[3]} />
+              : tool === "receivables" || tool === "payables" ? <AgedScreen clientKey={props.clientKey} clientName={props.clientName} tenant={props.tenant} kind={tool === "payables" ? "pay" : "rec"} />
+              : tool === "reports" ? <ReportsScreen {...props} id={parts[3]} />
+              : tool === "cashflow" ? <CashFlowScreen {...props} />
+              : tool === "growth" ? <GrowthScreen {...props} />
+              : tool === "trend" ? <TrendScreen {...props} />
+              : tool === "goalseek" ? <GoalseekScreen {...props} />
+              : tool === "profitability" ? <Profitability {...props} />
+              : tool === "explorer" ? <KpiExplorer {...props} />
+              : tool === "kpis" ? <KpiScreen {...props} />
+              : <Financials {...props} />}
+          </section>
+        </div>
+      </div>
+    </>
   );
 }
 
