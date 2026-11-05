@@ -119,21 +119,38 @@ export function formatKpi(unit: KpiUnit, v?: number): string {
 
 // ------------------------------------------------------------------ the explorer wheel
 
-export type WheelItem = { id: string; name: string; category: KpiCategory; angle: number; status: "on" | "off" | "none" };
-export type WheelGroup = { category: KpiCategory; angle: number };
+export type Importance = "High" | "Medium" | "Low";
+export const IMPORTANCE: Record<string, Importance> = {
+  revenue: "High", gpm: "High", npm: "High", cash: "High", current: "High", revg: "High",
+  opm: "Medium", ardays: "Medium", apdays: "Medium", roe: "Medium", roce: "Medium", quick: "Medium", dte: "Medium", gpg: "Medium", ebitg: "Medium",
+  invdays: "Low", roa: "Low", dta: "Low",
+};
+export type Grouping = "perspective" | "result" | "importance";
+export type WheelItem = { id: string; name: string; category: string; angle: number; status: "on" | "off" | "none" };
+export type WheelGroup = { category: string; angle: number };
 
-/** Where each KPI sits round the wheel (degrees clockwise from the top): the categories in order, a gap between them. */
-export function wheelLayout(results: KpiResult[]): { items: WheelItem[]; groups: WheelGroup[] } {
-  const cats = CATEGORIES.filter((c) => results.some((x) => x.def.category === c));
-  const slots = results.length + cats.length; // one empty slot after each category
+/** Where each KPI sits round the wheel (degrees clockwise from the top, 0 to 360): by perspective or importance in groups with a gap
+ *  between them, or by result in one arc across the top with the off-track ones first. */
+export function wheelLayout(results: KpiResult[], by: Grouping = "perspective"): { items: WheelItem[]; groups: WheelGroup[] } {
+  const status = (x: KpiResult): WheelItem["status"] => (x.onTrack === undefined ? "none" : x.onTrack ? "on" : "off");
+  const norm = (a: number) => ((a % 360) + 360) % 360;
+  if (by === "result") {
+    const order = { off: 0, none: 1, on: 2 } as const;
+    const list = [...results].sort((a, b) => order[status(a)] - order[status(b)]);
+    const n = list.length;
+    return { items: list.map((x, i) => ({ id: x.def.id, name: x.def.name, category: "", angle: norm(-105 + ((i + 0.5) / n) * 210), status: status(x) })), groups: [] };
+  }
+  const key = (x: KpiResult): string => (by === "importance" ? IMPORTANCE[x.def.id] || "Medium" : x.def.category);
+  const names: string[] = by === "importance" ? ["High", "Medium", "Low"] : CATEGORIES;
+  const cats = names.filter((c) => results.some((x) => key(x) === c));
+  const slots = results.length + cats.length; // one empty slot after each group
   const step = slots ? 360 / slots : 0;
   const items: WheelItem[] = [], groups: WheelGroup[] = [];
   let slot = 0;
   for (const c of cats) {
-    const list = results.filter((x) => x.def.category === c);
     const start = slot;
-    for (const x of list) {
-      items.push({ id: x.def.id, name: x.def.name, category: c, angle: slot * step + step / 2, status: x.onTrack === undefined ? "none" : x.onTrack ? "on" : "off" });
+    for (const x of results.filter((r) => key(r) === c)) {
+      items.push({ id: x.def.id, name: x.def.name, category: c, angle: slot * step + step / 2, status: status(x) });
       slot++;
     }
     groups.push({ category: c, angle: ((start + slot - 1) / 2) * step + step / 2 });

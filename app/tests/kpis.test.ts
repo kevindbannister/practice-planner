@@ -96,3 +96,13 @@ test("wheelLayout puts every KPI on the circle with a gap after each category", 
   assert.equal(items[2].status, "on");
   assert.equal(wheelLayout([]).items.length, 0);
 });
+
+test("wheelLayout by result puts off-track first in one arc; by importance groups High, Medium, Low", () => {
+  const res = KPI_DEFS.map((def, i) => ({ def, target: 1, value: 2, onTrack: i % 2 === 0 }));
+  const r = wheelLayout(res, "result");
+  assert.equal(r.groups.length, 0);
+  assert.ok(r.items.slice(0, 9).every((x) => x.status === "off") && r.items.slice(9).every((x) => x.status === "on"));
+  const imp = wheelLayout(res, "importance");
+  assert.deepEqual(imp.groups.map((g) => g.category), ["High", "Medium", "Low"]);
+  assert.equal(imp.items.length, KPI_DEFS.length);
+});

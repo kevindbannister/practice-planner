@@ -1,7 +1,7 @@
 // Reporting › KPI Explorer: every KPI as a tile round a wheel, grouped by category, green when the target is met and red when it isn't.
 // The middle shows how many are on track; pick a tile to see its result, target and how it is worked out.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { KpiSettings, computeKpis, formatKpi, wheelLayout } from "../lib/kpis";
+import { Grouping, KpiSettings, computeKpis, formatKpi, wheelLayout } from "../lib/kpis";
 import { PeriodKind, monthLong } from "../lib/reportData";
 import { readSetting, useData } from "./data";
 import { Seg, useReportData } from "./reportingKit";
@@ -16,6 +16,8 @@ export function KpiExplorer({ clientKey, clientName, yearEnd, tenant }: { client
   const [kind, setKind] = useState<PeriodKind>("month");
   const [anchor, setAnchor] = useState("");
   const [pick, setPick] = useState("");
+  const [by, setBy] = useState<Grouping>("perspective");
+  const [show, setShow] = useState<"all" | "off" | "on">("all");
   const endMonth = Number((/^(\d{2})-/.exec(yearEnd || "") || [])[1]) || 12;
   const d = r.data;
   const months = d?.months || [];
@@ -27,7 +29,10 @@ export function KpiExplorer({ clientKey, clientName, yearEnd, tenant }: { client
   }, [r.checked, r.data, r.busy, r.error, clientKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const results = useMemo(() => (d && at ? computeKpis(d, kind, at, endMonth, settings) : []), [d, at, kind, endMonth, settings.targets, settings.off]); // eslint-disable-line react-hooks/exhaustive-deps
-  const { items, groups } = useMemo(() => wheelLayout(results), [results]);
+  const shown = useMemo(() => results.filter((x) => show === "all" || (show === "off" ? x.onTrack === false : x.onTrack === true)), [results, show]);
+  const { items, groups } = useMemo(() => wheelLayout(shown, by), [shown, by]);
+  const { items: all } = useMemo(() => wheelLayout(results, by), [results, by]); // where a hidden tile waits
+  const here = new Map(items.map((i) => [i.id, i]));
   const on = results.filter((x) => x.onTrack === true).length, off = results.filter((x) => x.onTrack === false).length;
   const scored = on + off;
   const share = scored ? Math.round((on / scored) * 100) : 0;
@@ -57,24 +62,32 @@ export function KpiExplorer({ clientKey, clientName, yearEnd, tenant }: { client
             <select aria-label="Month" value={at} onChange={(e) => setAnchor(e.target.value)}>
               {[...months].reverse().map((m) => <option key={m} value={m}>{monthLong(m)}</option>)}
             </select>
-            <span className="muted" style={{ fontSize: 13 }}>Showing {results.length} KPIs grouped by perspective</span>
+            <span className="muted" style={{ fontSize: 13 }}>Showing {shown.length} KPIs, grouped by</span>
+            <select aria-label="Group by" value={by} onChange={(e) => setBy(e.target.value as Grouping)}>
+              <option value="perspective">Perspective</option><option value="result">Result</option><option value="importance">Importance</option>
+            </select>
+            <Seg value={show} set={(v) => { setShow(v); setPick(""); }} opts={[["all", "All KPIs"], ["off", "Off track"], ["on", "On track"]]} label="Show" />
           </div>
           <div className="card pad" style={{ display: "grid", justifyItems: "center", overflow: "hidden" }}>
             <svg viewBox="-110 -20 860 680" role="img" aria-label={`${on} of ${scored} KPIs on track`} style={{ width: "100%", maxWidth: 860, height: "auto" }}>
               <circle cx={C} cy={C} r={R} fill="none" stroke="#eef1f4" strokeWidth={6} />
+              <style>{`@keyframes kpiFade{from{opacity:0}to{opacity:1}}`}</style>
               {groups.map((g) => {
                 const p = pos(g.angle, R - 34), flip = g.angle > 90 && g.angle < 270;
-                return <text key={g.category} x={p.x} y={p.y} fontSize={10} fontWeight={700} letterSpacing={1} textAnchor="middle" dominantBaseline="middle" transform={`rotate(${flip ? g.angle + 180 : g.angle} ${p.x} ${p.y})`} fill="#3b4652">{g.category.toUpperCase()}</text>;
+                return <text key={`${by}-${g.category}`} x={p.x} y={p.y} fontSize={10} fontWeight={700} letterSpacing={1} textAnchor="middle" dominantBaseline="middle" transform={`rotate(${flip ? g.angle + 180 : g.angle} ${p.x} ${p.y})`} fill="#3b4652" style={{ animation: "kpiFade .7s .5s both" }}>{g.category.toUpperCase()}</text>;
               })}
-              {items.map((it) => {
-                const p = pos(it.angle, R), lp = pos(it.angle, R + 22), right = it.angle < 180;
+              {all.map((slot) => {
+                const it = here.get(slot.id) || slot, visible = here.has(slot.id);
+                const ang = it.angle > 180 ? it.angle - 360 : it.angle; // short way round when tiles move
+                const p = pos(ang, R), right = ang >= 0;
                 const active = pick === it.id;
                 return (
-                  <g key={it.id} role="button" tabIndex={0} aria-label={`${it.name}: ${it.status === "on" ? "on track" : it.status === "off" ? "off track" : "no result"}`} style={{ cursor: "pointer" }}
+                  <g key={it.id} role="button" tabIndex={visible ? 0 : -1} aria-hidden={!visible} aria-label={`${it.name}: ${it.status === "on" ? "on track" : it.status === "off" ? "off track" : "no result"}`}
+                    style={{ cursor: "pointer", opacity: visible ? 1 : 0, pointerEvents: visible ? "auto" : "none", transform: `translate(${p.x}px, ${p.y}px) rotate(${ang}deg)`, transition: "transform .9s cubic-bezier(.4,0,.2,1), opacity .5s" }}
                     onClick={() => setPick(active ? "" : it.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPick(active ? "" : it.id); } }}>
-                    <rect x={p.x - 13} y={p.y - 13} width={26} height={26} rx={3} fill={COLOUR[it.status]} stroke={active ? "#1f2a37" : "none"} strokeWidth={2.5} transform={`rotate(${it.angle} ${p.x} ${p.y})`} />
-                    <text x={p.x} y={p.y} fontSize={14} fontWeight={700} fill="#fff" textAnchor="middle" dominantBaseline="central">{it.status === "on" ? "○" : it.status === "off" ? "✕" : "–"}</text>
-                    <text x={lp.x} y={lp.y} fontSize={11} fill="#3b4652" textAnchor={right ? "start" : "end"} dominantBaseline="middle" transform={`rotate(${right ? it.angle - 90 : it.angle + 90} ${lp.x} ${lp.y})`}>{it.name}</text>
+                    <rect x={-13} y={-13} width={26} height={26} rx={3} fill={COLOUR[it.status]} stroke={active ? "#1f2a37" : "none"} strokeWidth={2.5} />
+                    <text fontSize={14} fontWeight={700} fill="#fff" textAnchor="middle" dominantBaseline="central">{it.status === "on" ? "○" : it.status === "off" ? "✕" : "–"}</text>
+                    <text y={-22} fontSize={11} fill="#3b4652" textAnchor={right ? "start" : "end"} dominantBaseline="middle" transform={`rotate(${right ? -90 : 90} 0 -22)`}>{it.name}</text>
                   </g>
                 );
               })}
