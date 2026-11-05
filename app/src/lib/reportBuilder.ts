@@ -15,7 +15,8 @@ export type Block =
   | { id: string; type: "chart"; title: string; measures: string[]; months: 13 | 24 | 36; bars?: boolean }
   | { id: string; type: "table"; statement: "pl" | "bs"; compare: "none" | "prior" | "lastYear" | "months"; detail: "summary" | "detailed"; title: string }
   | { id: string; type: "kpis"; title: string }
-  | { id: string; type: "cashflow"; title: string };
+  | { id: string; type: "cashflow"; title: string }
+  | { id: string; type: "aged"; which: "rec" | "pay"; title: string };
 export type Section = { id: string; title: string; blocks: Block[] };
 export type ReportDoc = {
   id: string; name: string; kind: PeriodKind; /** the month the period ends in; empty = the latest month read */ anchor: string;
@@ -79,12 +80,20 @@ export const TABLE_BLOCKS: Pick[] = [
   { name: "Balance Sheet vs last period", note: "With the movement", make: () => table("Balance Sheet vs last period", "bs", "prior") },
 ];
 
+const aged = (which: "rec" | "pay"): Block => ({ id: uid(), type: "aged", which, title: which === "rec" ? "Aged Receivables" : "Aged Payables" });
+TABLE_BLOCKS.push(
+  { name: "Aged Receivables", note: "Who owes the business, by how late", make: () => aged("rec") },
+  { name: "Aged Payables", note: "Who the business owes, by how late", make: () => aged("pay") },
+);
+
 export type Layout = { name: string; note: string; make: () => Block[] };
 export const LAYOUTS: Layout[] = [
   { name: "Monthly summary", note: "Summary, profit and loss, revenue and margins", make: () => [
     { id: uid(), type: "text", style: "summary", title: "Executive summary", text: "" }, TABLE_BLOCKS[1].make(), CHART_BLOCKS[0].make(), CHART_BLOCKS[4].make()] },
   { name: "KPI summary", note: "KPI results with a comment", make: () => [CHART_BLOCKS[8].make(), { id: uid(), type: "text", style: "observation", title: "Observation", text: "" }] },
   { name: "Cash flow analysis", note: "Cash flow, cash on hand and the balance sheet", make: () => [CHART_BLOCKS[9].make(), CHART_BLOCKS[6].make(), TABLE_BLOCKS[6].make()] },
+  { name: "Aged Accounts Receivable", note: "Ageing bar and table of customers", make: () => [aged("rec"), { id: uid(), type: "text", style: "observation", title: "Observation", text: "" }] },
+  { name: "Aged Accounts Payable", note: "Ageing bar and table of suppliers", make: () => [aged("pay"), { id: uid(), type: "text", style: "observation", title: "Observation", text: "" }] },
   { name: "Revenue charts", note: "Revenue over 13 and 24 months and profit", make: () => [CHART_BLOCKS[0].make(), CHART_BLOCKS[1].make(), CHART_BLOCKS[3].make()] },
   { name: "Full month pack", note: "Everything above, in order", make: () => [
     { id: uid(), type: "text", style: "summary", title: "Executive summary", text: "" }, TABLE_BLOCKS[1].make(), CHART_BLOCKS[2].make(), CHART_BLOCKS[8].make(), { id: uid(), type: "page" }, CHART_BLOCKS[9].make(), TABLE_BLOCKS[6].make(), { id: uid(), type: "page" }, TABLE_BLOCKS[3].make()] },

@@ -8,6 +8,7 @@ import { useData } from "./data";
 import { KpiExplorer } from "./ReportingExplorer";
 import { CashFlowScreen, GoalseekScreen, GrowthScreen, TrendScreen } from "./ReportingAnalysis";
 import { ReportsScreen } from "./ReportingReports";
+import { AgedScreen } from "./ReportingAged";
 import { Profitability } from "./ReportingProfitability";
 import { KpiScreen } from "./ReportingKpis";
 import { useReportData } from "./reportingKit";
@@ -15,7 +16,7 @@ import { useXeroLinks } from "./XeroSettings";
 
 const TOOLS: [string, string, boolean][] = [
   ["financials", "Financials", true], ["kpis", "KPIs", true], ["explorer", "KPI Explorer", true], ["profitability", "Profitability", true],
-  ["cashflow", "Cash Flow", true], ["growth", "Growth", true], ["trend", "Trend", true], ["goalseek", "Goalseek", true], ["reports", "Reports", true],
+  ["cashflow", "Cash Flow", true], ["growth", "Growth", true], ["trend", "Trend", true], ["goalseek", "Goalseek", true], ["receivables", "Receivables", true], ["payables", "Payables", true], ["reports", "Reports", true],
 ];
 
 const fmt = (n?: number) => (n === undefined ? "" : n === 0 ? "–" : n < 0 ? `(${Math.abs(Math.round(n)).toLocaleString("en-GB")})` : Math.round(n).toLocaleString("en-GB"));
@@ -48,7 +49,8 @@ export function ReportingPage() {
               ? <a key={k} href={href("reporting", client.Key, k)} aria-current={tool === k ? "page" : undefined} style={{ padding: "6px 10px", borderRadius: 6, fontWeight: tool === k ? 600 : 400, background: tool === k ? "var(--soft, #eef2f7)" : "none" }}>{label}</a>
               : <span key={k} className="muted" style={{ padding: "6px 10px", fontSize: 13 }}>{label} <span style={{ fontSize: 11 }}>· next</span></span>)}
           </nav>
-          {tool === "reports" ? <ReportsScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} id={parts[3]} />
+          {tool === "receivables" || tool === "payables" ? <AgedScreen clientKey={client.Key} clientName={String(client.Title)} tenant={tenantFor(client.Key)!} kind={tool === "payables" ? "pay" : "rec"} />
+            : tool === "reports" ? <ReportsScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} id={parts[3]} />
             : tool === "cashflow" ? <CashFlowScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
             : tool === "growth" ? <GrowthScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
             : tool === "trend" ? <TrendScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />

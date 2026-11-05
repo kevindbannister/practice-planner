@@ -4,6 +4,7 @@
 import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { cashFlow, measureById, monthlySeries } from "../lib/analysis";
+import { AgedData } from "../lib/aged";
 import { KpiSettings, computeKpis, formatKpi } from "../lib/kpis";
 import {
   Block, CHART_BLOCKS, LAYOUTS, Orientation, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, moveItem, newReport, periodWords, uid,
@@ -12,6 +13,7 @@ import { PeriodKind, REPORT_FOLDER, ReportData, bsStatement, monthLabel, monthLo
 import { todayIso } from "../lib/domain";
 import { href } from "./bits";
 import { readSetting, useData } from "./data";
+import { AgedView, useAgedData } from "./ReportingAged";
 import { Seg, useReportData } from "./reportingKit";
 
 type Tenant = { tenantId: string; tenantName: string };
@@ -27,7 +29,7 @@ const when = (iso?: string) => (iso ? new Date(iso).toLocaleString("en-GB", { da
 
 // ------------------------------------------------------------------ drawing the report (used on screen and in the published copy)
 
-type Ctx = { d: ReportData; kind: PeriodKind; anchor: string; endMonth: number; kpi: KpiSettings };
+type Ctx = { d: ReportData; kind: PeriodKind; anchor: string; endMonth: number; kpi: KpiSettings; aged?: AgedData };
 const T: Record<string, React.CSSProperties> = {
   h2: { margin: "28px 0 10px", fontSize: 20, fontWeight: 600, borderBottom: "2px solid #e3e7eb", paddingBottom: 6 },
   cap: { margin: "18px 0 6px", fontSize: 13, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", color: "#4a5560" },
@@ -163,7 +165,7 @@ function BlockView({ b, c, edit }: { b: Block; c?: Ctx; edit?: Edit }) {
   return (
     <div style={{ margin: "8px 0", pageBreakInside: "avoid", breakInside: "avoid" }}>
       {title(b.title)}
-      {b.type === "chart" ? <ChartView b={b} c={c} /> : b.type === "table" ? <TableView b={b} c={c} /> : b.type === "kpis" ? <KpiView c={c} /> : <CashFlowView c={c} />}
+      {b.type === "aged" ? (c.aged ? <AgedView data={c.aged} kind={b.which} limit={15} /> : <p style={{ ...T.p, color: "#7a8591" }}>The unpaid invoices and bills haven't been read from Xero yet (Reporting › Receivables).</p>) : b.type === "chart" ? <ChartView b={b} c={c} /> : b.type === "table" ? <TableView b={b} c={c} /> : b.type === "kpis" ? <KpiView c={c} /> : <CashFlowView c={c} />}
     </div>
   );
 }
@@ -211,6 +213,7 @@ export function publishedHtml(doc: ReportDoc, c: Ctx, clientName: string): strin
 export function ReportsScreen({ clientKey, clientName, yearEnd, tenant, id }: Props) {
   const { data: app, saveSetting, store } = useData();
   const r = useReportData(clientKey, tenant);
+  const ag = useAgedData(clientKey, tenant);
   const tried = useRef("");
   useEffect(() => {
     if (r.checked && !r.data && !r.busy && !r.error && tried.current !== clientKey) { tried.current = clientKey; void r.refresh(); }
@@ -225,7 +228,7 @@ export function ReportsScreen({ clientKey, clientName, yearEnd, tenant, id }: Pr
   const doc = id ? list.find((x) => x.id === id) : undefined;
 
   if (id && !doc) return <div className="alert amber"><strong>That report isn't there</strong><span><a href={href("reporting", clientKey, "reports")}>Back to the reports</a></span></div>;
-  if (doc) return <Editor key={doc.id} doc={doc} d={d} busy={r.busy} clientKey={clientKey} clientName={clientName} endMonth={endMonth} kpi={kpi} listRef={listRef} save={save} store={store} refresh={r.refresh} />;
+  if (doc) return <Editor key={doc.id} doc={doc} d={d} busy={r.busy} clientKey={clientKey} clientName={clientName} endMonth={endMonth} kpi={kpi} aged={ag.data} listRef={listRef} save={save} store={store} refresh={r.refresh} />;
   return <List list={list} d={d} busy={r.busy} error={r.error} clientKey={clientKey} clientName={clientName} endMonth={endMonth} kpi={kpi} save={save} store={store} refresh={r.refresh} />;
 }
 
@@ -303,7 +306,7 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
 type PanelId = "outline" | "text" | "charts" | "tables" | "layouts" | "settings";
 const PANELS: [PanelId, string][] = [["outline", "Outline"], ["text", "Text"], ["charts", "Charts"], ["tables", "Tables & Financials"], ["layouts", "Layouts"], ["settings", "Report settings"]];
 
-function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, listRef, save, store, refresh }: Common & { doc: ReportDoc; listRef: { current: ReportDoc[] } }) {
+function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, aged, listRef, save, store, refresh }: Common & { doc: ReportDoc; aged?: AgedData; listRef: { current: ReportDoc[] } }) {
   const [doc, setDoc] = useState<ReportDoc>(initial);
   const [panel, setPanel] = useState<PanelId>("outline");
   const [target, setTarget] = useState(initial.sections[initial.sections.length - 1]?.id || "");
@@ -317,7 +320,7 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, l
 
   const months = d?.months || [];
   const anchor = anchorFor(doc, months);
-  const c: Ctx | undefined = d && anchor ? { d, kind: doc.kind, anchor, endMonth, kpi } : undefined;
+  const c: Ctx | undefined = d && anchor ? { d, kind: doc.kind, anchor, endMonth, kpi, aged } : undefined;
   const sec = (id: string, fn: (s: Section) => Section) => update((x) => ({ ...x, sections: x.sections.map((s) => (s.id === id ? fn(s) : s)) }));
   const add = (blocks: Block[]) => {
     const id = doc.sections.some((s) => s.id === target) ? target : doc.sections[doc.sections.length - 1]?.id;
