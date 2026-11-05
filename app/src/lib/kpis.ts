@@ -41,7 +41,7 @@ export const KPI_DEFS: KpiDef[] = [
 export const CATEGORIES: KpiCategory[] = ["Profitability", "Activity", "Efficiency", "Liquidity", "Gearing", "Cash Flow", "Growth"];
 
 /** Per client: the targets changed from the standard, and the KPIs switched off. */
-export type KpiSettings = { targets?: Record<string, number>; off?: string[] };
+export type KpiSettings = { targets?: Record<string, number>; off?: string[]; importance?: Record<string, Importance>; alerts?: Record<string, { on: boolean; threshold?: number }> };
 
 export type KpiResult = { def: KpiDef; value?: number; target: number; /** result less target, in the result's own unit */ gap?: number; onTrack?: boolean; note?: string };
 
@@ -119,19 +119,38 @@ export function formatKpi(unit: KpiUnit, v?: number): string {
 
 // ------------------------------------------------------------------ the explorer wheel
 
-export type Importance = "High" | "Medium" | "Low";
+export type Importance = "Critical" | "High" | "Medium" | "Low";
+export const IMPORTANCE_LEVELS: Importance[] = ["Critical", "High", "Medium", "Low"];
 export const IMPORTANCE: Record<string, Importance> = {
   revenue: "High", gpm: "High", npm: "High", cash: "High", current: "High", revg: "High",
   opm: "Medium", ardays: "Medium", apdays: "Medium", roe: "Medium", roce: "Medium", quick: "Medium", dte: "Medium", gpg: "Medium", ebitg: "Medium",
   invdays: "Low", roa: "Low", dta: "Low",
 };
+export const importanceOf = (id: string, settings: Pick<KpiSettings, "importance"> = {}): Importance => settings.importance?.[id] || IMPORTANCE[id] || "Medium";
+
+/** What an alert says: "Gross Profit Margin is less than 25%", or "exceeds" where a high result is the bad side. */
+export const alertWording = (def: Pick<KpiDef, "name" | "lowerIsBetter">) => `${def.name} ${def.lowerIsBetter ? "exceeds" : "is less than"}`;
+export type TriggeredAlert = { def: KpiDef; value: number; threshold: number };
+/** The switched-on alerts whose KPI is on the wrong side of its threshold for the period (a monthly amount threshold is scaled to the period). */
+export function triggeredAlerts(results: KpiResult[], settings: KpiSettings = {}): TriggeredAlert[] {
+  const out: TriggeredAlert[] = [];
+  for (const r of results) {
+    const a = settings.alerts?.[r.def.id];
+    if (!a?.on || r.value === undefined) continue;
+    const base = settings.targets?.[r.def.id] ?? r.def.target;
+    const threshold = a.threshold === undefined ? r.target : r.def.perMonth && base ? r2(a.threshold * (r.target / base)) : a.threshold;
+    if (r.def.lowerIsBetter ? r.value > threshold : r.value < threshold) out.push({ def: r.def, value: r.value, threshold });
+  }
+  return out;
+}
+
 export type Grouping = "perspective" | "result" | "importance";
 export type WheelItem = { id: string; name: string; category: string; angle: number; status: "on" | "off" | "none" };
 export type WheelGroup = { category: string; angle: number };
 
 /** Where each KPI sits round the wheel (degrees clockwise from the top, 0 to 360): by perspective or importance in groups with a gap
  *  between them, or by result in one arc across the top with the off-track ones first. */
-export function wheelLayout(results: KpiResult[], by: Grouping = "perspective"): { items: WheelItem[]; groups: WheelGroup[] } {
+export function wheelLayout(results: KpiResult[], by: Grouping = "perspective", importance: KpiSettings["importance"] = {}): { items: WheelItem[]; groups: WheelGroup[] } {
   const status = (x: KpiResult): WheelItem["status"] => (x.onTrack === undefined ? "none" : x.onTrack ? "on" : "off");
   const norm = (a: number) => ((a % 360) + 360) % 360;
   if (by === "result") {
@@ -140,8 +159,8 @@ export function wheelLayout(results: KpiResult[], by: Grouping = "perspective"):
     const n = list.length;
     return { items: list.map((x, i) => ({ id: x.def.id, name: x.def.name, category: "", angle: norm(-105 + ((i + 0.5) / n) * 210), status: status(x) })), groups: [] };
   }
-  const key = (x: KpiResult): string => (by === "importance" ? IMPORTANCE[x.def.id] || "Medium" : x.def.category);
-  const names: string[] = by === "importance" ? ["High", "Medium", "Low"] : CATEGORIES;
+  const key = (x: KpiResult): string => (by === "importance" ? importanceOf(x.def.id, { importance }) : x.def.category);
+  const names: string[] = by === "importance" ? IMPORTANCE_LEVELS : CATEGORIES;
   const cats = names.filter((c) => results.some((x) => key(x) === c));
   const slots = results.length + cats.length; // one empty slot after each group
   const step = slots ? 360 / slots : 0;

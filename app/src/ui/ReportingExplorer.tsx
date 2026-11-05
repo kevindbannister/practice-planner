@@ -30,8 +30,8 @@ export function KpiExplorer({ clientKey, clientName, yearEnd, tenant }: { client
 
   const results = useMemo(() => (d && at ? computeKpis(d, kind, at, endMonth, settings) : []), [d, at, kind, endMonth, settings.targets, settings.off]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = useMemo(() => results.filter((x) => show === "all" || (show === "off" ? x.onTrack === false : x.onTrack === true)), [results, show]);
-  const { items, groups } = useMemo(() => wheelLayout(shown, by), [shown, by]);
-  const { items: all } = useMemo(() => wheelLayout(results, by), [results, by]); // where a hidden tile waits
+  const { items, groups } = useMemo(() => wheelLayout(shown, by, settings.importance), [shown, by, settings.importance]);
+  const { items: all } = useMemo(() => wheelLayout(results, by, settings.importance), [results, by, settings.importance]); // where a hidden tile waits
   const here = new Map(items.map((i) => [i.id, i]));
   const on = results.filter((x) => x.onTrack === true).length, off = results.filter((x) => x.onTrack === false).length;
   const scored = on + off;

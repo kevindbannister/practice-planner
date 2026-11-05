@@ -106,3 +106,29 @@ test("wheelLayout by result puts off-track first in one arc; by importance group
   assert.deepEqual(imp.groups.map((g) => g.category), ["High", "Medium", "Low"]);
   assert.equal(imp.items.length, KPI_DEFS.length);
 });
+
+import { alertWording, importanceOf, triggeredAlerts } from "../src/lib/kpis";
+test("importance falls back to the standard and can be overridden", () => {
+  assert.equal(importanceOf("revenue"), "High");
+  assert.equal(importanceOf("revenue", { importance: { revenue: "Critical" } }), "Critical");
+  assert.equal(importanceOf("unknown"), "Medium");
+  const res = KPI_DEFS.map((def) => ({ def, target: 1, value: 2, onTrack: true }));
+  const g = wheelLayout(res, "importance", { revenue: "Critical" });
+  assert.deepEqual(g.groups.map((x) => x.category), ["Critical", "High", "Medium", "Low"]);
+});
+test("alerts fire on the wrong side of the threshold, scaled for amounts", () => {
+  const rev = KPI_DEFS.find((k) => k.id === "revenue")!, ar = KPI_DEFS.find((k) => k.id === "ardays")!, gpm = KPI_DEFS.find((k) => k.id === "gpm")!;
+  const res = [
+    { def: rev, target: 270000, value: 200000, onTrack: false },   // a quarter: target 90,000 a month
+    { def: ar, target: 40, value: 55, onTrack: false },
+    { def: gpm, target: 35, value: 40, onTrack: true },
+  ];
+  const s = { alerts: { revenue: { on: true, threshold: 80000 }, ardays: { on: true }, gpm: { on: true, threshold: 45 } } };
+  const t = triggeredAlerts(res, s);
+  assert.deepEqual(t.map((x) => x.def.id), ["revenue", "ardays", "gpm"]);
+  assert.equal(t[0].threshold, 240000); // 80,000 a month over three months
+  assert.equal(t[1].threshold, 40);     // no threshold set: the target
+  assert.deepEqual(triggeredAlerts(res, { alerts: { gpm: { on: true, threshold: 30 }, ardays: { on: false } } }), []);
+  assert.equal(alertWording(ar), "Accounts Receivable Days exceeds");
+  assert.equal(alertWording(gpm), "Gross Profit Margin is less than");
+});

@@ -1,7 +1,7 @@
 // Reporting › KPIs: the client's key measures for a month, quarter or year, each against its target, with the ones off track picked out.
 // "Edit targets" changes a target or switches a KPI off for this client (saved in the planner's settings).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CATEGORIES, KPI_DEFS, KpiSettings, computeKpis, formatKpi } from "../lib/kpis";
+import { CATEGORIES, KPI_DEFS, KpiSettings, alertWording, computeKpis, formatKpi, triggeredAlerts } from "../lib/kpis";
 import { PeriodKind, monthLong } from "../lib/reportData";
 import { readSetting, useData } from "./data";
 import { Seg, useReportData } from "./reportingKit";
@@ -58,6 +58,10 @@ export function KpiScreen({ clientKey, clientName, yearEnd, tenant }: { clientKe
       </div>
       {r.error && <div className="alert red"><strong>Couldn't read the figures</strong><span>{r.error}</span></div>}
       {d?.notes.map((n) => <div key={n} className="alert amber"><span>{n}</span></div>)}
+      {triggeredAlerts(results, settings).length > 0 && (
+        <div className="alert red" role="status"><strong>{triggeredAlerts(results, settings).length} alert{triggeredAlerts(results, settings).length === 1 ? "" : "s"} triggered</strong>
+          <span>{triggeredAlerts(results, settings).map((f) => `${alertWording(f.def)} ${formatKpi(f.def.unit, f.threshold)} (now ${formatKpi(f.def.unit, f.value)})`).join(" · ")}</span></div>
+      )}
 
       {d && (
         <>
