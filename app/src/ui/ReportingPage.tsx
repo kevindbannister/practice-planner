@@ -64,6 +64,8 @@ export function ReportingPage() {
   }
 
   const props = { clientKey: client.Key, clientName: String(client.Title), yearEnd: client.YearEnd as string | undefined, tenant: tenantFor(client.Key)! };
+  // the report builder gets a page of its own, without the tools menu
+  if (tool === "reports" && parts[3]) return <ReportsScreen {...props} id={parts[3]} />;
   return (
     <>
       <header className="paper-top">

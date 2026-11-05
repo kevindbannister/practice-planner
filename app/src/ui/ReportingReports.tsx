@@ -11,7 +11,7 @@ import {
 } from "../lib/reportBuilder";
 import { PeriodKind, REPORT_FOLDER, ReportData, bsStatement, monthLabel, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { todayIso } from "../lib/domain";
-import { href } from "./bits";
+import { Icon, IconName, href } from "./bits";
 import { readSetting, useData } from "./data";
 import { AgedView, useAgedData } from "./ReportingAged";
 import { ChartView, ComponentEditor, Ctx, KeyView, ObservationView, T, TableView, TopView, observationHidden } from "./ReportingComponents";
@@ -113,16 +113,18 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
   const words = periodWords(doc.kind, c?.anchor || doc.anchor);
   return (
     <div style={{ fontFamily: "system-ui, -apple-system, 'Segoe UI', Arial, sans-serif", color: "#1f2a37" }}>
-      <div style={{ textAlign: "center", padding: "56px 0 40px", borderBottom: "1px solid #e3e7eb" }}>
-        <div style={{ fontSize: 30, fontWeight: 600 }}>{doc.name}</div>
-        <div style={{ marginTop: 10, fontSize: 15 }}>{clientName}{words ? ` · ${words}` : ""}</div>
-        <div style={{ marginTop: 6, fontSize: 12, color: "#7a8591" }}>{doc.status === "published" ? `Published ${when(doc.publishedAt)}` : "Not yet published"}</div>
+      <div style={{ padding: "60px 0 34px", borderBottom: "1px solid #d9dee3" }}>
+        <div style={{ fontSize: 11, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7683", fontWeight: 600 }}>{clientName}</div>
+        <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: -0.4, marginTop: 10, lineHeight: 1.15 }}>{doc.name}</div>
+        <div style={{ width: 36, height: 3, background: "#2b4a6f", margin: "18px 0 14px" }} />
+        <div style={{ fontSize: 14, color: "#3d4852" }}>{words}</div>
+        {doc.status === "published" && <div style={{ fontSize: 12, color: "#7a8591", marginTop: 4 }}>Published {when(doc.publishedAt)}</div>}
       </div>
       {doc.sections.map((s, si) => (
-        <section key={s.id} style={{ marginBottom: 10 }}>
+        <section key={s.id} className="rb-section" style={{ marginBottom: 10 }}>
           {sectionTools ? sectionTools(s, si) : <h2 style={T.h2}>{s.title}</h2>}
           {s.blocks.map((b, bi) => (
-            <div key={b.id}>
+            <div key={b.id} className="rb-block">
               {blockTools?.(s, b, bi)}
               <BlockView b={b} c={c} edit={edit?.(s, b)} />
             </div>
@@ -130,7 +132,7 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
           {addButtons?.(s)}
         </section>
       ))}
-      {doc.disclaimer && <p style={{ ...T.p, marginTop: 30, fontSize: 11, color: "#7a8591", borderTop: "1px solid #e3e7eb", paddingTop: 10 }}>{doc.disclaimerText}</p>}
+      {doc.disclaimer && <p style={{ ...T.p, marginTop: 30, fontSize: 11, color: "#7a8591", borderTop: "1px solid #d9dee3", paddingTop: 10 }}>{doc.disclaimerText}</p>}
     </div>
   );
 }
@@ -140,7 +142,7 @@ export function publishedHtml(doc: ReportDoc, c: Ctx, clientName: string): strin
   const body = renderToStaticMarkup(<ReportView doc={doc} c={c} clientName={clientName} />);
   const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch] as string));
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(doc.name)} – ${esc(clientName)}</title>
-<style>@page{size:A4 ${doc.orientation};margin:14mm}body{margin:0;background:#eef1f4}main{max-width:${doc.orientation === "landscape" ? 1100 : 820}px;margin:0 auto;background:#fff;padding:20px 40px 40px}@media print{body{background:#fff}main{max-width:none;padding:0}.noprint{display:none}}.noprint{max-width:820px;margin:12px auto;text-align:right}button{font:inherit;padding:6px 14px}</style></head>
+<style>@page{size:A4 ${doc.orientation};margin:14mm}body{margin:0;background:#e9ecef}main{max-width:${doc.orientation === "landscape" ? 1100 : 820}px;margin:0 auto;background:#fff;padding:20px 40px 40px}@media print{body{background:#fff}main{max-width:none;padding:0}.noprint{display:none}}.noprint{max-width:820px;margin:12px auto;text-align:right}button{font:inherit;padding:6px 14px}</style></head>
 <body><div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div><main>${body}</main></body></html>`;
 }
 
@@ -240,7 +242,7 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
 }
 
 type PanelId = "outline" | "text" | "charts" | "tables" | "layouts" | "settings";
-const PANELS: [PanelId, string][] = [["outline", "Outline"], ["text", "Text"], ["charts", "Charts"], ["tables", "Tables & Financials"], ["layouts", "Layouts"], ["settings", "Report settings"]];
+const PANELS: [PanelId, string][] = [["outline", "Outline"], ["text", "Text"], ["charts", "Charts"], ["tables", "Tables & financials"], ["layouts", "Layouts"], ["settings", "Report settings"]];
 
 function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, aged, listRef, save, store, refresh }: Common & { doc: ReportDoc; aged?: AgedData; listRef: { current: ReportDoc[] } }) {
   const [doc, setDoc] = useState<ReportDoc>(initial);
@@ -281,91 +283,113 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
   };
 
   const picks = (items: Pick[]) => (
-    <div className="stack" style={{ gap: 6 }}>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>Adds to the “{targetTitle || "last"}” section.</p>
-      {items.map((p) => <button key={p.name} type="button" className="card pad" style={{ textAlign: "left", cursor: "pointer", padding: "8px 10px" }} onClick={() => add([p.make()])}><strong style={{ fontSize: 13 }}>{p.name}</strong><div className="muted" style={{ fontSize: 11 }}>{p.note}</div></button>)}
+    <div className="rb-list">
+      <p className="rb-hint">Adds to “{targetTitle || "the last section"}”.</p>
+      {items.map((p) => <button key={p.name} type="button" className="rb-pick" onClick={() => add([p.make()])}><strong>{p.name}</strong><span>{p.note}</span></button>)}
     </div>
   );
-  const mini = (label: string, onClick: () => void, off = false) => <button type="button" aria-label={label} title={label} disabled={off} onClick={onClick} style={{ border: "1px solid #d5dbe1", background: "#fff", borderRadius: 4, width: 26, height: 24, cursor: off ? "default" : "pointer", opacity: off ? 0.35 : 1 }}>{label.startsWith("Move up") ? "↑" : label.startsWith("Move down") ? "↓" : "✕"}</button>;
-  const width = doc.orientation === "landscape" ? 980 : 760;
+  const ICO: Record<string, ReactNode> = {
+    up: <path d="M3.5 9.5 8 5l4.5 4.5" />, down: <path d="M3.5 6.5 8 11l4.5-4.5" />,
+    del: <path d="M3.5 4.5h9M6.5 4.5V3h3v1.5M5 4.5l.5 8h5l.5-8" />, edit: <path d="M3 13l.6-2.6 7-7 2 2-7 7L3 13Z" />,
+  };
+  const mini = (label: string, onClick: () => void, off = false) => {
+    const k = label.startsWith("Move up") ? "up" : label.startsWith("Move down") ? "down" : "del";
+    return <button type="button" className="rb-ico" aria-label={label} title={label} disabled={off} onClick={onClick}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICO[k]}</svg></button>;
+  };
+  const width = doc.orientation === "landscape" ? 1000 : 780;
+  const RAIL: [PanelId, string, IconName][] = [["outline", "Outline", "list"], ["text", "Text", "letter"], ["charts", "Charts", "chart"], ["tables", "Tables", "calc"], ["layouts", "Layouts", "layout"], ["settings", "Settings", "cog"]];
+  const panelTitle = PANELS.find(([k]) => k === panel)?.[1];
+  const words = periodWords(doc.kind, anchor);
 
   return (
-    <section className="stack" style={{ gap: 10, minWidth: 0 }} aria-label="Report editor">
-      <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
-        <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}>
-          <a href={href("reporting", clientKey, "reports")}>← Reports</a>
-          <input aria-label="Report name" value={doc.name} onChange={(e) => update((x) => ({ ...x, name: e.target.value }))} style={{ fontSize: 18, fontWeight: 600, minWidth: 260 }} />
-          <span className="muted" style={{ fontSize: 12 }} aria-live="polite">{state === "saving" ? "Saving…" : state === "saved" ? "Saved" : dirty.current ? "Unsaved changes" : "Draft"}</span>
-        </div>
-        <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
+    <div className="rb" aria-label="Report editor">
+      <header className="rb-bar">
+        <a className="rb-back" href={href("reporting", clientKey, "reports")}><Icon name="left" size={14} /> Reports</a>
+        <span className="rb-sep" aria-hidden="true" />
+        <input className="rb-title" aria-label="Report name" value={doc.name} onChange={(e) => update((x) => ({ ...x, name: e.target.value }))} />
+        <span className="rb-state" aria-live="polite">{state === "saving" ? "Saving…" : state === "saved" ? "Saved" : dirty.current ? "Unsaved changes" : "Draft"}</span>
+        <div className="rb-actions">
+          <span className="rb-meta">{clientName}{words ? ` · ${words}` : ""} · {doc.orientation}</span>
           {!d && <button type="button" className="btn small" disabled={!!busy} onClick={() => void refresh()}>Read from Xero</button>}
-          <button type="button" className="btn primary" disabled={!c || !!publishing} onClick={() => void publish()}>{publishing || "Publish report"}</button>
+          <button type="button" className="btn primary small" disabled={!c || !!publishing} onClick={() => void publish()}>{publishing || "Publish"}</button>
         </div>
-      </div>
-      {problem && <div className="alert red"><span>{problem}</span></div>}
-      {!d && <div className="alert amber"><span>{busy || "The figures haven't been read from Xero yet, so charts and tables can't be drawn."}</span></div>}
-      <div style={{ display: "grid", gridTemplateColumns: "260px minmax(0, 1fr)", gap: 14, alignItems: "start" }}>
-        <aside className="card pad stack" style={{ gap: 10, position: "sticky", top: 8 }}>
+      </header>
+      {(problem || !d) && <div className="rb-notes">
+        {problem && <div className="alert red"><span>{problem}</span></div>}
+        {!d && <div className="alert amber"><span>{busy || "The figures haven't been read from Xero yet, so charts and tables can't be drawn."}</span></div>}
+      </div>}
+      <div className="rb-body">
+        <nav className="rb-rail" aria-label="Add to the report">
+          {RAIL.map(([k, l, ic]) => (
+            <button key={k} type="button" className={`rb-tab${panel === k && !editing ? " on" : ""}`} aria-pressed={panel === k && !editing} onClick={() => { setEditId(""); setPanel(k); }}>
+              <Icon name={ic} size={18} /><span>{l}</span>
+            </button>
+          ))}
+        </nav>
+        <aside className="rb-panel">
           {editing && <ComponentEditor key={editing.b.id} block={editing.b} c={c} onCancel={() => setEditId("")} onSave={(nb) => { sec(editing.s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === nb.id ? nb : y)) })); setEditId(""); }} />}
-          {!editing && <select aria-label="Panel" value={panel} onChange={(e) => setPanel(e.target.value as PanelId)}>{PANELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}
+          {!editing && <h3 className="rb-panel-title">{panelTitle}</h3>}
           {!editing && panel === "outline" && (
-            <div className="stack" style={{ gap: 6 }}>
+            <div className="rb-list">
               {doc.sections.map((s, i) => (
-                <div key={s.id} style={{ display: "flex", gap: 4, alignItems: "center", padding: 4, borderRadius: 4, background: s.id === target ? "var(--soft, #eef2f7)" : undefined }}>
-                  <button type="button" onClick={() => setTarget(s.id)} style={{ flex: 1, textAlign: "left", border: 0, background: "none", cursor: "pointer", fontSize: 13 }}>{s.title || "Untitled"} <span className="muted" style={{ fontSize: 11 }}>· {s.blocks.length}</span></button>
+                <div key={s.id} className={`rb-out${s.id === target ? " on" : ""}`}>
+                  <button type="button" className="rb-out-name" onClick={() => setTarget(s.id)}>{s.title || "Untitled"}<span>{s.blocks.length}</span></button>
                   {mini("Move up", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}
                 </div>
               ))}
-              <button type="button" className="btn small" onClick={addSection}>New section</button>
+              <button type="button" className="btn small" style={{ alignSelf: "flex-start", marginTop: 8 }} onClick={addSection}>New section</button>
             </div>
           )}
           {!editing && panel === "text" && picks(TEXT_BLOCKS)}
           {!editing && panel === "charts" && picks(CHART_BLOCKS)}
           {!editing && panel === "tables" && picks(TABLE_BLOCKS)}
           {!editing && panel === "layouts" && (
-            <div className="stack" style={{ gap: 6 }}>
-              <p className="muted" style={{ margin: 0, fontSize: 12 }}>A ready-made set of blocks, added to the “{targetTitle || "last"}” section.</p>
-              {LAYOUTS.map((l) => <button key={l.name} type="button" className="card pad" style={{ textAlign: "left", cursor: "pointer", padding: "8px 10px" }} onClick={() => add(l.make())}><strong style={{ fontSize: 13 }}>{l.name}</strong><div className="muted" style={{ fontSize: 11 }}>{l.note}</div></button>)}
+            <div className="rb-list">
+              <p className="rb-hint">A ready-made set of components, added to “{targetTitle || "the last section"}”.</p>
+              {LAYOUTS.map((l) => <button key={l.name} type="button" className="rb-pick" onClick={() => add(l.make())}><strong>{l.name}</strong><span>{l.note}</span></button>)}
             </div>
           )}
           {!editing && panel === "settings" && (
-            <div className="stack" style={{ gap: 10 }}>
-              <label className="stack" style={{ gap: 2, fontSize: 12 }}>Period<Seg value={doc.kind} set={(k) => update((x) => ({ ...x, kind: k }))} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" /></label>
-              <label className="stack" style={{ gap: 2, fontSize: 12 }}>Ending in<select aria-label="Month" value={anchor} onChange={(e) => update((x) => ({ ...x, anchor: e.target.value }))}>{[...months].reverse().map((m) => <option key={m} value={m}>{monthLong(m)}</option>)}</select></label>
-              <label className="stack" style={{ gap: 2, fontSize: 12 }}>Orientation<Seg value={doc.orientation} set={(o) => update((x) => ({ ...x, orientation: o }))} opts={[["portrait", "Portrait"], ["landscape", "Landscape"]]} label="Orientation" /></label>
-              <label style={{ fontSize: 12 }}><input type="checkbox" checked={doc.disclaimer} onChange={(e) => update((x) => ({ ...x, disclaimer: e.target.checked }))} /> Include a disclaimer at the end</label>
-              {doc.disclaimer && <textarea aria-label="Disclaimer" rows={5} value={doc.disclaimerText} onChange={(e) => update((x) => ({ ...x, disclaimerText: e.target.value }))} style={{ fontSize: 12 }} />}
+            <div className="rb-form">
+              <label>Period<Seg value={doc.kind} set={(k) => update((x) => ({ ...x, kind: k }))} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" /></label>
+              <label>Ending in<select aria-label="Month" value={anchor} onChange={(e) => update((x) => ({ ...x, anchor: e.target.value }))}>{[...months].reverse().map((m) => <option key={m} value={m}>{monthLong(m)}</option>)}</select></label>
+              <label>Orientation<Seg value={doc.orientation} set={(o) => update((x) => ({ ...x, orientation: o }))} opts={[["portrait", "Portrait"], ["landscape", "Landscape"]]} label="Orientation" /></label>
+              <label className="rb-check"><input type="checkbox" checked={doc.disclaimer} onChange={(e) => update((x) => ({ ...x, disclaimer: e.target.checked }))} /> Include a disclaimer at the end</label>
+              {doc.disclaimer && <textarea aria-label="Disclaimer" rows={6} value={doc.disclaimerText} onChange={(e) => update((x) => ({ ...x, disclaimerText: e.target.value }))} />}
             </div>
           )}
         </aside>
-        <div style={{ overflowX: "auto", background: "#eef1f4", padding: 14, borderRadius: 6 }}>
-          <div style={{ width, maxWidth: "100%", margin: "0 auto", background: "#fff", boxShadow: "0 1px 6px rgba(0,0,0,.15)", padding: "0 36px 36px", boxSizing: "border-box" }}>
+        <main className="rb-canvas">
+          <div className="rb-page" style={{ width }}>
             <ReportView
               doc={doc} c={c} clientName={clientName}
               edit={(s, b) => ({ change: (nb) => sec(s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === b.id ? nb : y)) })) })}
               sectionTools={(s, i) => (
-                <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 26, borderBottom: "2px solid #e3e7eb", paddingBottom: 6, outline: s.id === target ? "2px solid #cfe0f3" : undefined }}>
-                  <input aria-label="Section title" value={s.title} onFocus={() => setTarget(s.id)} onChange={(e) => sec(s.id, (x) => ({ ...x, title: e.target.value }))} style={{ flex: 1, fontSize: 20, fontWeight: 600, border: 0, background: "transparent" }} />
-                  {mini("Move up section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}
-                  {doc.sections.length > 1 && mini("Delete section", () => update((x) => ({ ...x, sections: x.sections.filter((y) => y.id !== s.id) })))}
+                <div className={`rb-sechead${s.id === target ? " on" : ""}`}>
+                  <input aria-label="Section title" value={s.title} onFocus={() => setTarget(s.id)} onChange={(e) => sec(s.id, (x) => ({ ...x, title: e.target.value }))} />
+                  <span className="rb-tools">
+                    {mini("Move up section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}
+                    {doc.sections.length > 1 && mini("Delete section", () => update((x) => ({ ...x, sections: x.sections.filter((y) => y.id !== s.id) })))}
+                  </span>
                 </div>
               )}
               blockTools={(s, b, i) => (
-                <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 6 }}>
-                  {["key", "observation", "top", "chart", "table", "kpis", "cashflow", "aged"].includes(b.type) && <button type="button" aria-label="Edit component" title="Edit component" onClick={() => setEditId(b.id)} style={{ border: "1px solid #d5dbe1", background: "#fff", borderRadius: 4, height: 24, padding: "0 8px", cursor: "pointer", fontSize: 12 }}>Edit</button>}
+                <div className="rb-tools rb-blocktools">
+                  {["key", "observation", "top", "chart", "table", "kpis", "cashflow", "aged"].includes(b.type) && <button type="button" className="rb-ico wide" aria-label="Edit component" title="Edit component" onClick={() => setEditId(b.id)}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICO.edit}</svg>Edit</button>}
                   {mini("Move up", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i - 1) })), i === 0)}{mini("Move down", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i + 1) })), i === s.blocks.length - 1)}{mini("Delete", () => sec(s.id, (x) => ({ ...x, blocks: x.blocks.filter((y) => y.id !== b.id) })))}
                 </div>
               )}
               addButtons={(s) => (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "14px 0", padding: 10, border: "1px dashed #cbd5e1", borderRadius: 6, justifyContent: "center" }}>
-                  {([["Add Text", "text"], ["Add Charts", "charts"], ["Add Tables & Financials", "tables"], ["Add a layout", "layouts"]] as [string, PanelId][]).map(([l, p]) => <button key={l} type="button" className="btn small" onClick={() => { setTarget(s.id); setPanel(p); }}>{l}</button>)}
+                <div className="rb-add">
+                  <span>Add</span>
+                  {([["Text", "text"], ["Charts", "charts"], ["Tables", "tables"], ["Layout", "layouts"]] as [string, PanelId][]).map(([l, pn]) => <button key={l} type="button" onClick={() => { setTarget(s.id); setEditId(""); setPanel(pn); }}>{l}</button>)}
                 </div>
               )}
             />
-            <div style={{ textAlign: "center", marginTop: 20 }}><button type="button" className="btn" onClick={addSection}>Add another section</button><p className="muted" style={{ fontSize: 12 }}>Or, are you all done? Choose Publish report.</p></div>
+            <div className="rb-end"><button type="button" className="btn small" onClick={addSection}>Add a section</button><p>When you're done, choose Publish.</p></div>
           </div>
-        </div>
+        </main>
       </div>
-    </section>
+    </div>
   );
 }

@@ -12,7 +12,7 @@ import { Seg } from "./reportingKit";
 export type Ctx = { d: ReportData; kind: PeriodKind; anchor: string; endMonth: number; kpi: KpiSettings; aged?: AgedData };
 export const LINE = ["#3b82c4", "#d0342c", "#8fb35a", "#7a3b8f", "#f0a020", "#2b2f33"];
 export const T: Record<string, React.CSSProperties> = {
-  h2: { margin: "28px 0 10px", fontSize: 20, fontWeight: 600, borderBottom: "2px solid #e3e7eb", paddingBottom: 6 },
+  h2: { margin: "34px 0 12px", fontSize: 17, fontWeight: 600, letterSpacing: -0.1, borderBottom: "1px solid #d9dee3", paddingBottom: 8 },
   cap: { margin: "18px 0 6px", fontSize: 13, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", color: "#4a5560" },
   p: { margin: "8px 0", fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" },
   th: { textAlign: "right", padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "2px solid #cbd5e1" },
