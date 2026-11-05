@@ -32,7 +32,7 @@ function useReportData(clientKey: string, tenant?: { tenantId: string; tenantNam
     store.graph.download(reportItem(clientKey)).then(
       (bytes) => {
         if (!live) return;
-        try { setS({ data: JSON.parse(new TextDecoder().decode(bytes)) as ReportData, busy: "", checked: true }); } catch { setS({ busy: "", checked: true }); }
+        try { const saved = JSON.parse(new TextDecoder().decode(bytes)) as ReportData; setS({ data: saved.v === 2 ? saved : undefined, busy: "", checked: true }); } catch { setS({ busy: "", checked: true }); } // an older layout of the saved figures is read again
       },
       () => live && setS({ busy: "", checked: true }),
     );
@@ -106,7 +106,11 @@ function Financials({ clientKey, clientName, yearEnd, tenant }: { clientKey: str
   const at = anchor && months.includes(anchor) ? anchor : months[months.length - 1] || "";
 
   const cols = useMemo(() => (at ? periodCols(kind, at, endMonth, compare) : []), [kind, at, endMonth, compare]);
-  const rows = useMemo(() => (!d || !at ? [] : statement === "pl" ? plStatement(d, cols, detail) : bsStatement(d, cols, detail)), [d, at, statement, cols, detail]);
+  const rows = useMemo(() => {
+    if (!d || !at) return [];
+    const all = statement === "pl" ? plStatement(d, cols, detail) : bsStatement(d, cols, detail);
+    return all.filter((r) => r.kind !== "line" || r.code === undefined || r.vals.some((v) => v)); // an account with nothing in any column isn't shown
+  }, [d, at, statement, cols, detail]);
   const showVar = compare === "prior" || compare === "lastYear";
   const seg = <T extends string>(value: T, set: (v: T) => void, opts: [T, string][], label: string) => (
     <div className="seg" role="group" aria-label={label}>{opts.map(([k, l]) => <button key={k} type="button" aria-pressed={value === k} onClick={() => set(k)}>{l}</button>)}</div>

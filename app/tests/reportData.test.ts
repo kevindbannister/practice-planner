@@ -113,15 +113,18 @@ test("a balance sheet report is read by section, newest column first", () => {
   ]);
 });
 
-test("reading from Xero fills each month from year-long reports and keeps the profit and loss if the balance sheet is refused", async () => {
-  const calls: string[] = [];
+test("reading from Xero asks for a year of months at a time, newest column first, and keeps the profit and loss if the balance sheet is refused", async () => {
+  const asked: any[] = [];
   const api: any = {
     async get(_id: string, _api: string, path: string, q: any = {}) {
-      calls.push(`${path} ${q.fromDate || q.date}`);
       if (path === "Accounts") return { Accounts: [] };
       if (path === "Reports/ProfitAndLoss") {
-        const n = (Date.parse(`${q.toDate}T00:00:00Z`) - Date.parse(`${q.fromDate}T00:00:00Z`) > 300 * 86400000) ? 12 : 3;
-        return { Reports: [{ Rows: [header(n), rowPl("Trading Income", [["Sales (200)", Array.from({ length: n }, (_, i) => i + 1)]])] }] };
+        asked.push(q);
+        const n = Number(q.periods) + 1;
+        const labels = Array.from({ length: n }, (_, i) => `${addMonths(String(q.toDate).slice(0, 7), -i)}-28`); // newest first, as Xero gives them
+        const head = { RowType: "Header", Cells: [{ Value: "" }, ...labels.map((l) => ({ Value: l }))] };
+        const sales = Array.from({ length: n }, (_, i) => n - i); // the oldest month is 1, the newest is n
+        return { Reports: [{ Rows: [head, rowPl("Trading Income", [["Sales (200)", sales]]), { RowType: "Section", Title: "", Rows: [{ RowType: "Row", Cells: [{ Value: "Gross Profit" }, { Value: "9" }] }] }] }] };
       }
       throw Object.assign(new Error("no"), { code: "not-found" });
     },
@@ -129,10 +132,12 @@ test("reading from Xero fills each month from year-long reports and keeps the pr
   const d = await readReportData(api, { tenantId: "t", tenantName: "T" }, "2026-10", 15);
   assert.equal(d.months.length, 15);
   assert.equal(d.months[0], "2025-08");
+  assert.equal(asked[0].periods, 11);
+  assert.equal(asked[0].timeframe, "MONTH");
+  assert.equal(asked[1].periods, 2);
   const sales = d.pl.find((r) => r.name === "Sales")!;
-  assert.equal(sales.amounts.length, 15);
-  assert.deepEqual(sales.amounts.slice(0, 12), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-  assert.deepEqual(sales.amounts.slice(12), [1, 2, 3]);
+  assert.deepEqual(sales.amounts, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]);
+  assert.ok(!d.pl.some((r) => /gross profit/i.test(r.name)), "Xero's own subtotals are not accounts");
   assert.equal(d.bs.length, 0);
   assert.ok(d.notes.length > 0);
 });

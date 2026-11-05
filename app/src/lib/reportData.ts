@@ -5,7 +5,7 @@ import { XAccount, XeroApi, XeroError, parseAccounts, parseProfitAndLoss, r2 } f
 
 export type RRow = { code: string; name: string; group: string; amounts: number[] };
 /** Months are "YYYY-MM". `pl` amounts line up with `months`, `bs` amounts with `bsMonths` (the balance at each month end). */
-export type ReportData = { v: 1; at: string; tenantId: string; tenantName: string; months: string[]; pl: RRow[]; bsMonths: string[]; bs: RRow[]; notes: string[] };
+export type ReportData = { v: 2; at: string; tenantId: string; tenantName: string; months: string[]; pl: RRow[]; bsMonths: string[]; bs: RRow[]; notes: string[] };
 
 export const REPORT_FOLDER = "Practice Planner Xero";
 export const reportItem = (clientKey: string) => `/me/drive/root:/${encodeURIComponent(REPORT_FOLDER)}/${encodeURIComponent(clientKey)}/${encodeURIComponent("reporting.json")}`;
@@ -71,6 +71,13 @@ export function parseBalanceSheet(report: any, accounts: XAccount[]): { rows: RR
   return { rows, columns };
 }
 
+/** Xero lists the months newest first (the date asked for, then the months before it); this checks that from the column headings. */
+export function columnsNewestFirst(labels: string[]): boolean {
+  const t = labels.map((l) => Date.parse(`${l} UTC`)).filter((n) => !Number.isNaN(n));
+  if (t.length < 2) return true;
+  return t[0] > t[t.length - 1];
+}
+
 const fit = (a: number[], n: number): number[] => (a.length === n ? a : a.length > n ? a.slice(a.length - n) : [...Array(n - a.length).fill(0), ...a]);
 
 const keyOf = (r: { code: string; name: string }) => `${r.code}|${r.name}`;
@@ -83,17 +90,21 @@ export async function readReportData(api: XeroApi, t: { tenantId: string; tenant
   const accounts = parseAccounts(await api.get(id, "accounting", "Accounts"));
   const months = monthRange(addMonths(endMonth, -(back - 1)), endMonth);
 
-  // profit and loss, a year at a time (Xero gives one column for each month of the dates asked for)
+  // profit and loss, a year at a time: Xero gives the month of the date asked for and the 11 months before it, one column each
   const plMap = new Map<string, RRow>();
+  const SUBTOTAL = /^(gross profit|net profit|operating profit|net income|total\b.*)$/i;
   for (let i = 0; i < months.length; i += 12) {
     const chunk = months.slice(i, i + 12);
     say(`Reading the profit and loss, ${monthLong(chunk[0])} to ${monthLong(chunk[chunk.length - 1])}…`);
-    const json = await api.get(id, "accounting", "Reports/ProfitAndLoss", { fromDate: firstDay(chunk[0]), toDate: lastDayOf(chunk[chunk.length - 1]), standardLayout: true, timeframe: "MONTH" });
+    const json = await api.get(id, "accounting", "Reports/ProfitAndLoss", { fromDate: firstDay(chunk[0]), toDate: lastDayOf(chunk[chunk.length - 1]), periods: chunk.length - 1, timeframe: "MONTH", standardLayout: true });
     const pl = parseProfitAndLoss(json, accounts);
+    const newestFirst = columnsNewestFirst(pl.months);
     for (const row of pl.rows) {
+      if (!row.code && SUBTOTAL.test(row.name.trim())) continue; // Xero's own subtotals are worked out here instead
       const k = keyOf(row);
       const have = plMap.get(k) || { code: row.code, name: row.name, group: row.section, amounts: Array(months.length).fill(0) };
-      fit(row.amounts, chunk.length).forEach((v, j) => (have.amounts[i + j] = r2(v)));
+      const cols = newestFirst ? [...row.amounts].reverse() : row.amounts; // now oldest first
+      fit(cols, chunk.length).forEach((v, j) => (have.amounts[i + j] = r2(v)));
       plMap.set(k, have);
     }
   }
@@ -120,7 +131,7 @@ export async function readReportData(api: XeroApi, t: { tenantId: string; tenant
       notes.push(e instanceof XeroError ? `The balance sheet couldn't be read (${e.message})` : "The balance sheet couldn't be read from Xero.");
     }
   }
-  return { v: 1, at: new Date().toISOString(), tenantId: id, tenantName: t.tenantName, months, pl: [...plMap.values()], bsMonths: months, bs: bsOk ? [...bsMap.values()] : [], notes };
+  return { v: 2, at: new Date().toISOString(), tenantId: id, tenantName: t.tenantName, months, pl: [...plMap.values()], bsMonths: months, bs: bsOk ? [...bsMap.values()] : [], notes };
 }
 
 // ------------------------------------------------------------------ periods and columns
