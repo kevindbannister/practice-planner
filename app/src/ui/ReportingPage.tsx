@@ -5,12 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Compare, Detail, PeriodKind, bsStatement, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { href, useRoute } from "./bits";
 import { useData } from "./data";
+import { KpiExplorer } from "./ReportingExplorer";
 import { KpiScreen } from "./ReportingKpis";
 import { useReportData } from "./reportingKit";
 import { useXeroLinks } from "./XeroSettings";
 
 const TOOLS: [string, string, boolean][] = [
-  ["financials", "Financials", true], ["kpis", "KPIs", true], ["explorer", "KPI Explorer", false], ["profitability", "Profitability", false],
+  ["financials", "Financials", true], ["kpis", "KPIs", true], ["explorer", "KPI Explorer", true], ["profitability", "Profitability", false],
   ["cashflow", "Cash Flow", false], ["growth", "Growth", false], ["trend", "Trend", false], ["goalseek", "Goalseek", false],
 ];
 
@@ -44,7 +45,9 @@ export function ReportingPage() {
               ? <a key={k} href={href("reporting", client.Key, k)} aria-current={tool === k ? "page" : undefined} style={{ padding: "6px 10px", borderRadius: 6, fontWeight: tool === k ? 600 : 400, background: tool === k ? "var(--soft, #eef2f7)" : "none" }}>{label}</a>
               : <span key={k} className="muted" style={{ padding: "6px 10px", fontSize: 13 }}>{label} <span style={{ fontSize: 11 }}>· next</span></span>)}
           </nav>
-          {tool === "kpis"
+          {tool === "explorer"
+            ? <KpiExplorer clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
+            : tool === "kpis"
             ? <KpiScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
             : <Financials clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />}
         </div>

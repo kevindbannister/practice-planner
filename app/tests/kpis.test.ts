@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { computeKpis, formatKpi } from "../src/lib/kpis";
+import { KPI_DEFS, computeKpis, formatKpi, wheelLayout } from "../src/lib/kpis";
 
 const months = ["2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"];
 const flat = (v: number) => months.map(() => v);
@@ -79,4 +79,20 @@ test("figures show in their own units", () => {
   assert.equal(formatKpi("days", 44.6), "45 days");
   assert.equal(formatKpi("ratio", 0.58), "0.58:1");
   assert.equal(formatKpi("money", undefined), "–");
+});
+
+test("wheelLayout puts every KPI on the circle with a gap after each category", () => {
+  const res = KPI_DEFS.map((def, i) => ({ def, target: 1, value: i % 3 === 0 ? undefined : 2, onTrack: i % 3 === 0 ? undefined : i % 2 === 0 }));
+  const { items, groups } = wheelLayout(res);
+  assert.equal(items.length, KPI_DEFS.length);
+  assert.equal(groups.length, 7);
+  assert.ok(items.every((x) => x.angle > 0 && x.angle < 360));
+  const step = 360 / (KPI_DEFS.length + 7);
+  const a = items.filter((x) => x.category === "Profitability");
+  const next = items.find((x) => x.category === "Activity")!;
+  assert.ok(Math.abs(next.angle - a[a.length - 1].angle - 2 * step) < 1e-9);
+  assert.equal(items[0].status, "none");
+  assert.equal(items[1].status, "off");
+  assert.equal(items[2].status, "on");
+  assert.equal(wheelLayout([]).items.length, 0);
 });

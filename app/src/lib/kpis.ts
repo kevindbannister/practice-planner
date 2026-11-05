@@ -116,3 +116,28 @@ export function formatKpi(unit: KpiUnit, v?: number): string {
   if (unit === "days") return `${Math.round(v)} days`;
   return `${v.toFixed(2)}:1`;
 }
+
+// ------------------------------------------------------------------ the explorer wheel
+
+export type WheelItem = { id: string; name: string; category: KpiCategory; angle: number; status: "on" | "off" | "none" };
+export type WheelGroup = { category: KpiCategory; angle: number };
+
+/** Where each KPI sits round the wheel (degrees clockwise from the top): the categories in order, a gap between them. */
+export function wheelLayout(results: KpiResult[]): { items: WheelItem[]; groups: WheelGroup[] } {
+  const cats = CATEGORIES.filter((c) => results.some((x) => x.def.category === c));
+  const slots = results.length + cats.length; // one empty slot after each category
+  const step = slots ? 360 / slots : 0;
+  const items: WheelItem[] = [], groups: WheelGroup[] = [];
+  let slot = 0;
+  for (const c of cats) {
+    const list = results.filter((x) => x.def.category === c);
+    const start = slot;
+    for (const x of list) {
+      items.push({ id: x.def.id, name: x.def.name, category: c, angle: slot * step + step / 2, status: x.onTrack === undefined ? "none" : x.onTrack ? "on" : "off" });
+      slot++;
+    }
+    groups.push({ category: c, angle: ((start + slot - 1) / 2) * step + step / 2 });
+    slot++;
+  }
+  return { items, groups };
+}
