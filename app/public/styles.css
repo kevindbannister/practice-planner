@@ -3233,3 +3233,8 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .rb-thumb { flex: none; border-radius: 6px; }
 .rb-pick:hover .rb-thumb { box-shadow: 0 0 0 2px var(--blue-line); }
 .rb-panel { width: 340px; }
+
+.rb-page { padding: 0 0 40px; min-height: 600px; }
+.rb-sechead { margin-top: 0; margin-bottom: 22px; padding-bottom: 8px; border-bottom: 1px solid #8a8d94; }
+.rb-sechead.on { border-bottom-color: #111; }
+.rb-sechead input { font-size: 30px; font-weight: 500; letter-spacing: -.4px; }

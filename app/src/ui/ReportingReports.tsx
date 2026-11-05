@@ -44,10 +44,10 @@ function KpiView({ c }: { c: Ctx }) {
             const head = r.def.category !== last; last = r.def.category;
             return (
               <Fragment key={r.def.id}>
-                {head && <tr><td colSpan={4} style={{ padding: "8px 8px 2px", fontWeight: 700, fontSize: 11, letterSpacing: 0.5, color: "#4a5560" }}>{r.def.category.toUpperCase()}</td></tr>}
-                <tr style={{ borderTop: "1px solid #f0f3f6" }}>
-                  <td style={{ ...T.td, textAlign: "left" }}>{r.def.name}</td><td style={T.td}>{r.note && r.value === undefined ? "–" : formatKpi(r.def.unit, r.value)}</td><td style={T.td}>{formatKpi(r.def.unit, r.target)}</td>
-                  <td style={{ ...T.td, textAlign: "center", color: r.onTrack === undefined ? "#9aa5b1" : r.onTrack ? "#6f9a3a" : "#d0342c", fontWeight: 700 }}>{r.onTrack === undefined ? "–" : r.onTrack ? "On track" : "Off track"}</td>
+                {head && <tr style={{ borderBottom: "1px solid #111" }}><td colSpan={4} style={{ padding: "10px 6px 4px", fontWeight: 700, fontSize: 12, letterSpacing: 0.3, color: "#111" }}>{r.def.category.toUpperCase()}</td></tr>}
+                <tr style={{ borderBottom: "1px solid #e6e6ea" }}>
+                  <td style={{ ...T.td, textAlign: "left", paddingLeft: 14 }}>{r.def.name}</td><td style={T.td}>{r.note && r.value === undefined ? "–" : formatKpi(r.def.unit, r.value)}</td><td style={T.td}>{formatKpi(r.def.unit, r.target)}</td>
+                  <td style={{ ...T.td, textAlign: "center", color: r.onTrack === undefined ? "#9aa5b1" : r.onTrack ? "#5b8a2d" : "#d4300f", fontWeight: 700 }}>{r.onTrack === undefined ? "–" : r.onTrack ? "On track" : "Off track"}</td>
                 </tr>
               </Fragment>
             );
@@ -66,8 +66,8 @@ function CashFlowView({ c }: { c: Ctx }) {
       <tbody>
         {cf.lines.map((l, i) => (
           <Fragment key={l.label}>
-            <tr style={{ borderTop: "1px solid #f0f3f6" }}><td style={{ ...T.td, textAlign: "left", color: "#7a8591", width: 44, fontSize: 10 }}>{l.tag}</td><td style={{ ...T.td, textAlign: "left" }}>{l.label}</td><td style={{ ...T.td, color: l.amount < 0 ? "#d0342c" : undefined }}>{gbp(l.amount)}</td></tr>
-            {cf.totals.filter((t) => t.after === i).map((t) => <tr key={t.total.label} style={{ background: "#f4f7fb", fontWeight: 700 }}><td colSpan={2} style={{ ...T.td, textAlign: "left" }}>{t.total.label}</td><td style={T.td}>{gbp(t.total.amount)}</td></tr>)}
+            <tr style={{ borderBottom: "1px solid #e6e6ea" }}><td style={{ ...T.td, textAlign: "left", color: "#7a8591", width: 44, fontSize: 10 }}>{l.tag}</td><td style={{ ...T.td, textAlign: "left" }}>{l.label}</td><td style={{ ...T.td, color: l.amount < 0 ? "#d4300f" : undefined }}>{gbp(l.amount)}</td></tr>
+            {cf.totals.filter((t) => t.after === i).map((t) => <tr key={t.total.label} style={{ borderTop: "1px solid #111", borderBottom: "1px solid #111", fontWeight: 700 }}><td colSpan={2} style={{ ...T.td, textAlign: "left" }}>{t.total.label}</td><td style={T.td}>{gbp(t.total.amount)}</td></tr>)}
           </Fragment>
         ))}
       </tbody>
@@ -76,7 +76,7 @@ function CashFlowView({ c }: { c: Ctx }) {
 }
 
 type Edit = { change: (b: Block) => void };
-function BlockView({ b, c, edit }: { b: Block; c?: Ctx; edit?: Edit }) {
+function BlockView({ b, c, edit, tone }: { b: Block; c?: Ctx; edit?: Edit; tone?: number }) {
   const field = (value: string, set: (v: string) => void, rows = 4, label = "Text") => (edit
     ? <textarea aria-label={label} value={value} rows={rows} placeholder="Write here…" onChange={(e) => set(e.target.value)} style={{ width: "100%", boxSizing: "border-box", font: "inherit", fontSize: 14, lineHeight: 1.5, padding: 8, border: "1px dashed #cbd5e1", borderRadius: 4, resize: "vertical" }} />
     : <div style={T.p}>{value}</div>);
@@ -84,26 +84,69 @@ function BlockView({ b, c, edit }: { b: Block; c?: Ctx; edit?: Edit }) {
   if (b.type === "page") return edit ? <div style={{ borderTop: "2px dashed #b8c2cc", margin: "18px 0", textAlign: "center", fontSize: 11, color: "#7a8591" }}>Page break</div> : <div style={{ pageBreakAfter: "always", breakAfter: "page" }} />;
   if (b.type === "columns") return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>{field(b.left, (v) => edit?.change({ ...b, left: v }), 5, "Left column")}{field(b.right, (v) => edit?.change({ ...b, right: v }), 5, "Right column")}</div>;
   if (b.type === "text") {
-    if (b.style === "heading") return edit ? <input aria-label="Heading" value={b.text} placeholder="Heading" onChange={(e) => edit.change({ ...b, text: e.target.value })} style={{ width: "100%", boxSizing: "border-box", fontSize: 16, fontWeight: 600, border: "1px dashed #cbd5e1", padding: 6 }} /> : <h3 style={{ margin: "14px 0 6px", fontSize: 16 }}>{b.text}</h3>;
+    if (b.style === "heading") return edit ? <input aria-label="Heading" value={b.text} placeholder="Heading" onChange={(e) => edit.change({ ...b, text: e.target.value })} style={{ width: "100%", boxSizing: "border-box", fontSize: 16, fontWeight: 600, border: "1px dashed #cbd5e1", padding: 6 }} /> : <h3 style={{ margin: "22px 0 8px", fontSize: 22, fontWeight: 500, color: "#111" }}>{b.text}</h3>;
     const box = b.style === "observation" || b.style === "summary";
     return (
-      <div style={box ? { borderLeft: `4px solid ${b.style === "summary" ? "#2b6cb0" : GREEN}`, background: "#f7f9fb", padding: "8px 14px", margin: "10px 0" } : undefined}>
-        {box && b.title !== undefined && <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "#4a5560" }}>{edit ? <input aria-label="Title" value={b.title} onChange={(e) => edit.change({ ...b, title: e.target.value })} style={{ font: "inherit", textTransform: "inherit", border: 0, background: "transparent", width: "100%" }} /> : b.title}</div>}
+      <div style={box ? { margin: "22px 0" } : undefined}>
+        {box && b.title !== undefined && <div style={{ fontSize: 17, letterSpacing: 0.3, textTransform: "uppercase", color: "#8a8d94", marginBottom: 4 }}>{edit ? <input aria-label="Title" value={b.title} onChange={(e) => edit.change({ ...b, title: e.target.value })} style={{ font: "inherit", textTransform: "inherit", border: 0, background: "transparent", width: "100%" }} /> : b.title}</div>}
         {field(b.text, (v) => edit?.change({ ...b, text: v }), box ? 4 : 5)}
       </div>
     );
   }
-  const title = (t: string) => (edit
+  const tagOf = (cx: Ctx, p?: PeriodKind) => periodCols(p || cx.kind, cx.anchor, cx.endMonth, "none")[0]?.label;
+  const title = (t: string, suffix?: string) => (edit
     ? <input aria-label="Block title" value={t} onChange={(e) => edit.change({ ...b, title: e.target.value } as Block)} style={{ ...T.cap, width: "100%", boxSizing: "border-box", border: 0, background: "transparent" }} />
-    : <div style={T.cap}>{t}</div>);
+    : <div style={T.cap}>{t}{suffix && <span style={{ color: "#a5a8b0" }}> ({suffix})</span>}</div>);
   if (!c) return null;
   const hidden = b.type === "observation" && observationHidden(b, c);
   if (hidden && !edit) return null;
   return (
-    <div style={{ margin: "8px 0", pageBreakInside: "avoid", breakInside: "avoid", opacity: hidden ? 0.45 : 1 }} title={hidden ? "Hidden in the published report by its extra condition" : undefined}>
-      {b.type !== "observation" && title(b.title)}
-      {b.type === "key" ? <KeyView b={b} c={c} /> : b.type === "observation" ? <ObservationView b={b} c={c} /> : b.type === "top" ? <TopView b={b} c={c} /> : b.type === "aged" ? (c.aged ? <AgedView data={c.aged} kind={b.which} limit={15} /> : <p style={{ ...T.p, color: "#7a8591" }}>The unpaid invoices and bills haven't been read from Xero yet (Reporting › Receivables).</p>) : b.type === "chart" ? <ChartView b={b} c={c} /> : b.type === "table" ? <TableView b={b} c={c} /> : b.type === "kpis" ? <KpiView c={c} /> : <CashFlowView c={c} />}
+    <div style={{ margin: "6px 0", pageBreakInside: "avoid", breakInside: "avoid", opacity: hidden ? 0.45 : 1 }} title={hidden ? "Hidden in the published report by its extra condition" : undefined}>
+      {b.type !== "observation" && b.type !== "key" && title(b.title, b.type === "top" ? tagOf(c, b.period) : undefined)}
+      {b.type === "key" ? <KeyView b={b} c={c} tone={tone} label={edit ? <input aria-label="Block title" value={b.title} onChange={(e) => edit.change({ ...b, title: e.target.value })} style={{ font: "inherit", textTransform: "inherit", color: "inherit", letterSpacing: "inherit", border: 0, background: "transparent", width: "70%" }} /> : undefined} /> : b.type === "observation" ? <ObservationView b={b} c={c} /> : b.type === "top" ? <TopView b={b} c={c} /> : b.type === "aged" ? (c.aged ? <AgedView data={c.aged} kind={b.which} limit={15} /> : <p style={{ ...T.p, color: "#7a8591" }}>The unpaid invoices and bills haven't been read from Xero yet (Reporting › Receivables).</p>) : b.type === "chart" ? <ChartView b={b} c={c} /> : b.type === "table" ? <TableView b={b} c={c} /> : b.type === "kpis" ? <KpiView c={c} /> : <CashFlowView c={c} />}
     </div>
+  );
+}
+
+// the report's look: a cover page, then one page per section, in a restrained navy / red / amber palette
+const REPORT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap');
+.rp{font-family:Figtree,"Avenir Next","Segoe UI",system-ui,-apple-system,Arial,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.rp *{box-sizing:border-box}
+.rp-cover{position:relative;container-type:inline-size;aspect-ratio:210/297;background:#fff;overflow:hidden;page:cover}
+.rp-land .rp-cover{aspect-ratio:297/210}
+.rp-cover-body{position:absolute;left:17%;right:17%;top:30%}
+.rp-land .rp-cover-body{top:18%}
+.rp-logo{font-size:7.2cqw;font-weight:800;letter-spacing:-.045em;line-height:1;color:#111;margin-bottom:11cqw}
+.rp-land .rp-logo{font-size:5.4cqw;margin-bottom:5cqw}
+.rp-rule{border:0;border-top:1px solid #333;margin:0}
+.rp-title{font-size:3.1cqw;font-weight:500;margin:0;padding:3.2cqw 0;letter-spacing:-.01em}
+.rp-sub{font-size:2.5cqw;font-weight:300;line-height:1.55;margin-top:3.2cqw}
+.rp-band{position:absolute;left:0;right:0;bottom:0;height:33%;background:#141b2f}
+.rp-land .rp-band{height:28%}
+.rp-band svg{width:100%;height:100%;display:block}
+.rp-in{padding:0 7%}
+.rp-sec{padding:40px 0 18px}
+.rp-keys{display:flex;gap:4%;margin:6px 0 10px}
+.rp-keys>.rb-block{flex:1 1 0;min-width:0}
+.rp-foot{font-size:11px;color:#8a8d94;border-top:1px solid #dcdde1;padding-top:10px;margin:30px 0 20px}`;
+
+const NET = (() => {
+  let seed = 11;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const pts = Array.from({ length: 64 }, () => [rnd() * 1000, 30 + rnd() * 260] as [number, number]);
+  const edges: [number, number][] = [];
+  pts.forEach((p, i) => {
+    pts.map((q, j) => ({ j, d: (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 })).filter((x) => x.j !== i).sort((x, y) => x.d - y.d).slice(0, 3).forEach((x) => edges.push([i, x.j]));
+  });
+  for (let k = 0; k < 26; k++) edges.push([Math.floor(rnd() * pts.length), Math.floor(rnd() * pts.length)]);
+  return { pts, edges };
+})();
+function Network() {
+  return (
+    <svg viewBox="0 0 1000 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      {NET.edges.map(([i, j], k) => <line key={k} x1={NET.pts[i][0]} y1={NET.pts[i][1]} x2={NET.pts[j][0]} y2={NET.pts[j][1]} stroke="#3a4157" strokeWidth={1.2} />)}
+      {NET.pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i % 3 === 0 ? 4.6 : 3.2} fill="#3a4157" />)}
+    </svg>
   );
 }
 
@@ -113,27 +156,45 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
 }) {
   const words = periodWords(doc.kind, c?.anchor || doc.anchor);
   return (
-    <div style={{ fontFamily: "system-ui, -apple-system, 'Segoe UI', Arial, sans-serif", color: "#1f2a37" }}>
-      <div style={{ padding: "60px 0 34px", borderBottom: "1px solid #d9dee3" }}>
-        <div style={{ fontSize: 11, letterSpacing: 1.4, textTransform: "uppercase", color: "#6b7683", fontWeight: 600 }}>{clientName}</div>
-        <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: -0.4, marginTop: 10, lineHeight: 1.15 }}>{doc.name}</div>
-        <div style={{ width: 36, height: 3, background: "#2b4a6f", margin: "18px 0 14px" }} />
-        <div style={{ fontSize: 14, color: "#3d4852" }}>{words}</div>
-        {doc.status === "published" && <div style={{ fontSize: 12, color: "#7a8591", marginTop: 4 }}>Published {when(doc.publishedAt)}</div>}
+    <div className={`rp${doc.orientation === "landscape" ? " rp-land" : ""}`}>
+      <style>{REPORT_CSS}</style>
+      <div className="rp-cover">
+        <div className="rp-cover-body">
+          <div className="rp-logo">{clientName}</div>
+          <hr className="rp-rule" />
+          <h1 className="rp-title">{doc.name}</h1>
+          <hr className="rp-rule" />
+          <div className="rp-sub">{clientName}<br />{words}</div>
+        </div>
+        <div className="rp-band"><Network /></div>
       </div>
-      {doc.sections.map((s, si) => (
-        <section key={s.id} className="rb-section" style={{ marginBottom: 10 }}>
-          {sectionTools ? sectionTools(s, si) : <h2 style={T.h2}>{s.title}</h2>}
-          {s.blocks.map((b, bi) => (
+      {doc.sections.map((s, si) => {
+        const items: ReactNode[] = [];
+        for (let bi = 0; bi < s.blocks.length; bi++) {
+          const render = (b: Block, i: number, tone?: number) => (
             <div key={b.id} className="rb-block">
-              {blockTools?.(s, b, bi)}
-              <BlockView b={b} c={c} edit={edit?.(s, b)} />
+              {blockTools?.(s, b, i)}
+              <BlockView b={b} c={c} edit={edit?.(s, b)} tone={tone} />
             </div>
-          ))}
-          {addButtons?.(s)}
-        </section>
-      ))}
-      {doc.disclaimer && <p style={{ ...T.p, marginTop: 30, fontSize: 11, color: "#7a8591", borderTop: "1px solid #d9dee3", paddingTop: 10 }}>{doc.disclaimerText}</p>}
+          );
+          if (s.blocks[bi].type === "key") {
+            const row: [Block, number][] = [];
+            while (bi < s.blocks.length && s.blocks[bi].type === "key" && row.length < 3) { row.push([s.blocks[bi], bi]); bi++; }
+            bi--;
+            items.push(<div key={row[0][0].id} className="rp-keys">{row.map(([b, i], j) => render(b, i, j))}</div>);
+          } else items.push(render(s.blocks[bi], bi));
+        }
+        return (
+          <section key={s.id} className="rp-sec rb-section">
+            <div className="rp-in">
+              {sectionTools ? sectionTools(s, si) : <h2 style={T.h2}>{s.title}</h2>}
+              {items}
+              {addButtons?.(s)}
+            </div>
+          </section>
+        );
+      })}
+      {doc.disclaimer && <div className="rp-in"><p className="rp-foot">{doc.disclaimerText}</p></div>}
     </div>
   );
 }
@@ -142,8 +203,10 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
 export function publishedHtml(doc: ReportDoc, c: Ctx, clientName: string): string {
   const body = renderToStaticMarkup(<ReportView doc={doc} c={c} clientName={clientName} />);
   const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch] as string));
+  const land = doc.orientation === "landscape";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(doc.name)} – ${esc(clientName)}</title>
-<style>@page{size:A4 ${doc.orientation};margin:14mm}body{margin:0;background:#e9ecef}main{max-width:${doc.orientation === "landscape" ? 1100 : 820}px;margin:0 auto;background:#fff;padding:20px 40px 40px}@media print{body{background:#fff}main{max-width:none;padding:0}.noprint{display:none}}.noprint{max-width:820px;margin:12px auto;text-align:right}button{font:inherit;padding:6px 14px}</style></head>
+<style>@page{size:A4 ${doc.orientation};margin:16mm 0}@page cover{size:A4 ${doc.orientation};margin:0}body{margin:0;background:#e9ecef}main{max-width:${land ? 1180 : 840}px;margin:0 auto;background:#fff}.noprint{max-width:${land ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}.rp-sec{border-top:1px solid #e3e5e9}
+@media print{body{background:#fff}main{max-width:none}.noprint{display:none}.rp-cover{aspect-ratio:auto;width:100%;height:${land ? 209 : 296}mm}.rp-sec{break-before:page;padding:0;border:0}.rp-in{padding:0 16mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
 <body><div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div><main>${body}</main></body></html>`;
 }
 

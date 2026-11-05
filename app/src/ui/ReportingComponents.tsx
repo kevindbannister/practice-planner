@@ -10,14 +10,25 @@ import { PeriodKind, ReportData, bsStatement, monthLabel, periodCols, periodMont
 import { Seg } from "./reportingKit";
 
 export type Ctx = { d: ReportData; kind: PeriodKind; anchor: string; endMonth: number; kpi: KpiSettings; aged?: AgedData };
-export const LINE = ["#3b82c4", "#d0342c", "#8fb35a", "#7a3b8f", "#f0a020", "#2b2f33"];
+export const NAVY = "#131b30", RED = "#d4300f", AMBER = "#f5a30a", GREY = "#b8bbc4", MUTED = "#6b6f7a", RULE = "#dcdde1";
+export const LINE = [NAVY, RED, AMBER, "#5b7bb3", "#6f9a3a", "#8a8f9a"];
+export const labelsOn = (o: ChartOpts, n: number) => o.labels ?? n <= 13;
 export const T: Record<string, React.CSSProperties> = {
-  h2: { margin: "34px 0 12px", fontSize: 17, fontWeight: 600, letterSpacing: -0.1, borderBottom: "1px solid #d9dee3", paddingBottom: 8 },
-  cap: { margin: "18px 0 6px", fontSize: 13, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", color: "#4a5560" },
-  p: { margin: "8px 0", fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" },
-  th: { textAlign: "right", padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "2px solid #cbd5e1" },
-  td: { textAlign: "right", padding: "4px 8px", fontVariantNumeric: "tabular-nums" },
+  h2: { margin: "0 0 26px", fontSize: 32, fontWeight: 500, letterSpacing: -0.4, borderBottom: "1px solid #8a8d94", paddingBottom: 10, color: "#111" },
+  cap: { margin: "26px 0 8px", fontSize: 19, fontWeight: 500, color: MUTED },
+  p: { margin: "8px 0", fontSize: 15, lineHeight: 1.55, whiteSpace: "pre-wrap" },
+  th: { textAlign: "right", padding: "7px 6px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "1px solid #111", color: "#111" },
+  td: { textAlign: "right", padding: "4px 6px", fontVariantNumeric: "tabular-nums" },
 };
+const money0 = (v?: number) => (v === undefined ? "" : `${v < 0 ? "-" : ""}£${Math.abs(Math.round(v)).toLocaleString("en-GB")}`);
+function nice(lo: number, hi: number) {
+  const span = hi - lo || Math.abs(hi) || 1, raw = span / 4, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p;
+  const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p, a = Math.floor(lo / step + 1e-9) * step, z = Math.ceil(hi / step - 1e-9) * step;
+  const ticks: number[] = [];
+  for (let v = a; v <= z + step / 2; v += step) ticks.push(+v.toFixed(10));
+  return { lo: a, hi: z, ticks };
+}
+const axisMoney = (v: number) => { const a = Math.abs(v), sg = v < 0 ? "-" : ""; return a >= 1e6 ? `${sg}£${(a / 1e6).toFixed(1)}M` : a >= 1e3 ? `${sg}£${+(a / 1e3).toFixed(1)}K` : a === 0 ? "£0" : `${sg}£${Math.round(a)}`; };
 const gbp = (n?: number) => (n === undefined ? "" : n === 0 ? "–" : n < 0 ? `(${Math.abs(Math.round(n)).toLocaleString("en-GB")})` : Math.round(n).toLocaleString("en-GB"));
 const withPeriod = (c: Ctx, p?: PeriodKind): Ctx => (p ? { ...c, kind: p } : c);
 const none = (t: string) => <p style={{ ...T.p, color: "#7a8591" }}>{t}</p>;
@@ -40,49 +51,58 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
   }
   const all = series.flat().filter((v): v is number => v !== undefined);
   if (!all.length || !bk.length) return none(`There are no figures for this chart${ids.length < b.measures.length || !c.d.bs.length ? " yet (balance sheet measures need the balance sheet read from Xero)" : ""}.`);
-  const W = 700, H = 240, L = 54, Tp = 14, B2 = 26, R = 22;
+  const W = 760, H = 340, L = 58, Tp = 22, B2 = 30, R = 16;
   const bars = !!b.bars || !!o.stack;
   const stacked = !!o.stack && unit === "money" && ids.length > 1;
   const tot = stacked ? bk.map((_, i) => series.reduce((a, s) => a + Math.max(0, s[i] || 0), 0)) : [];
   const hi0 = stacked ? Math.max(...tot) : Math.max(...all), lo0 = stacked ? 0 : Math.min(...all);
   const forceZero = bars || !!o.zero;
-  const lo1 = forceZero ? Math.min(0, lo0) : lo0, hi1 = forceZero ? Math.max(0, hi0) : hi0;
-  const pad = (hi1 - lo1 || Math.abs(hi1) || 1) * 0.08;
-  const lo = forceZero ? lo1 : lo1 - pad, hi = hi1 + pad;
+  const nz = nice(forceZero ? Math.min(0, lo0) : lo0, forceZero ? Math.max(0, hi0) : hi0);
+  const lo = nz.lo, hi = nz.hi;
   const slot = (W - L - R) / bk.length;
-  const X = (i: number) => (bars ? L + slot * (i + 0.5) : L + (bk.length < 2 ? (W - L - R) / 2 : (i / (bk.length - 1)) * (W - L - R)));
+  const X = (i: number) => (bars ? L + slot * (i + 0.5) : L + slot * 0.5 + (bk.length < 2 ? 0 : (i / (bk.length - 1)) * (W - L - R - slot)));
   const Y = (v: number) => H - B2 - ((v - lo) / (hi - lo)) * (H - Tp - B2);
   const fmt = (v: number) => fmtValue(unit, v, { rounded: true });
-  const groupW = Math.max(4, slot * 0.7), bw = stacked ? groupW : groupW / ids.length;
-  const last = bk.length - 1;
+  const axis = (v: number) => (unit === "money" ? axisMoney(v) : fmtValue(unit, v, { rounded: true }));
+  const showLabels = labelsOn(o, bk.length);
+  const groupW = Math.max(4, slot * 0.72), bw = stacked ? groupW : groupW / ids.length;
+  const last = bk.length - 1, zero = Y(Math.max(lo, Math.min(hi, 0)));
+  const halo = { stroke: "#fff", strokeWidth: 3, paintOrder: "stroke" } as const;
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }} role="img" aria-label={b.title}>
-        {[0, 1, 2, 3, 4].map((i) => { const v = lo + ((hi - lo) * i) / 4; return <g key={i}><line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke="#eef1f4" /><text x={L - 6} y={Y(v)} fontSize={9} fill="#6b7785" textAnchor="end" dominantBaseline="middle">{fmt(v)}</text></g>; })}
-        {o.highlight && <rect x={bars ? L + slot * last : X(last) - 12} y={Tp} width={bars ? slot : 24} height={H - Tp - B2} fill="#eef3e6" />}
-        {bk.map((x, i) => (bk.length <= 13 || i % 2 === 0) && <text key={i} x={X(i)} y={H - 8} fontSize={9} fill="#59636e" textAnchor="middle">{x.label}</text>)}
+      {ids.length > 1 && o.legend !== false && <div style={{ display: "flex", gap: 22, fontSize: 13, flexWrap: "wrap", justifyContent: "flex-end", margin: "0 0 6px" }}>{ids.map((id, k) => <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span style={{ width: 12, height: 12, background: LINE[k % LINE.length], display: "inline-block" }} />{measureById(id)?.label}</span>)}</div>}
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label={b.title}>
+        {nz.ticks.map((v) => <g key={v}><line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke="#e4e5e9" /><text x={L - 8} y={Y(v)} fontSize={10.5} fill={MUTED} textAnchor="end" dominantBaseline="middle">{axis(v)}</text></g>)}
+        {bk.map((_, i) => <line key={i} x1={X(i)} x2={X(i)} y1={Tp} y2={H - B2} stroke="#e4e5e9" strokeDasharray="1 3" />)}
+        {o.highlight && <rect x={bars ? L + slot * last : X(last) - 14} y={Tp} width={bars ? slot : 28} height={H - Tp - B2} fill="#f1f1f4" />}
+        {lo < 0 && hi > 0 && <line x1={L} x2={W - R} y1={zero} y2={zero} stroke="#8c8f97" />}
+        {bk.map((x, i) => (bk.length <= 13 || i % 2 === 0) && <text key={i} x={X(i)} y={H - 10} fontSize={10.5} fill={MUTED} textAnchor="middle">{x.label}</text>)}
         {bars
           ? series.map((s, k) => s.map((v, i) => {
             if (v === undefined) return null;
             const base = stacked ? series.slice(0, k).reduce((a, q) => a + Math.max(0, q[i] || 0), 0) : 0, top = base + (stacked ? Math.max(0, v) : v);
             const x0 = stacked ? X(i) - bw / 2 : X(i) - groupW / 2 + k * bw;
-            const fill = ids.length === 1 ? (v < 0 ? "#d0342c" : "#8fb35a") : LINE[k % LINE.length];
+            const fill = ids.length === 1 ? (v < 0 ? RED : NAVY) : LINE[k % LINE.length];
             return (
               <g key={`${k}-${i}`}>
-                <rect x={x0} y={Math.min(Y(top), Y(stacked ? base : 0))} width={bw - 1} height={Math.abs(Y(top) - Y(stacked ? base : 0))} fill={fill} />
-                {o.labels && !stacked && <text x={x0 + bw / 2} y={Y(v) - 3} fontSize={8} textAnchor="middle" fill="#4a5560">{fmt(v)}</text>}
+                <rect x={x0} y={Math.min(Y(top), Y(stacked ? base : 0))} width={Math.max(1, bw - 1.5)} height={Math.abs(Y(top) - Y(stacked ? base : 0))} fill={fill} />
+                {showLabels && !stacked && <text x={x0 + bw / 2} y={v < 0 ? Y(v) + 11 : Y(v) - 4} fontSize={8.5} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>}
               </g>
             );
           }))
-          : series.map((s, k) => (
-            <g key={ids[k]}>
-              <polyline fill="none" stroke={LINE[k % LINE.length]} strokeWidth={2} points={s.map((v, i) => (v === undefined ? "" : `${X(i)},${Y(v)}`)).filter(Boolean).join(" ")} />
-              {s.map((v, i) => v !== undefined && <g key={i}><circle cx={X(i)} cy={Y(v)} r={2.5} fill="#fff" stroke={LINE[k % LINE.length]} strokeWidth={1.5} />{o.labels && <text x={X(i)} y={Y(v) - 6} fontSize={8} textAnchor="middle" fill="#4a5560">{fmt(v)}</text>}</g>)}
-            </g>
-          ))}
-        {stacked && o.labels && tot.map((v, i) => <text key={i} x={X(i)} y={Y(v) - 3} fontSize={8} textAnchor="middle" fill="#4a5560">{fmt(v)}</text>)}
+          : series.map((s, k) => {
+            const pts = s.map((v, i) => (v === undefined ? undefined : [X(i), Y(v)] as [number, number])).filter(Boolean) as [number, number][];
+            const col = LINE[k % LINE.length];
+            return (
+              <g key={ids[k]}>
+                {pts.length > 1 && <polygon fill={col} opacity={0.16} points={[`${pts[0][0]},${zero}`, ...pts.map((q) => q.join(",")), `${pts[pts.length - 1][0]},${zero}`].join(" ")} />}
+                <polyline fill="none" stroke={col} strokeWidth={2} strokeLinejoin="round" points={pts.map((q) => q.join(",")).join(" ")} />
+                {s.map((v, i) => v !== undefined && <g key={i}><circle cx={X(i)} cy={Y(v)} r={3} fill="#fff" stroke={col} strokeWidth={1.6} />{showLabels && <text x={X(i)} y={v < 0 ? Y(v) + 14 : Y(v) - 7} fontSize={8.5} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>}</g>)}
+              </g>
+            );
+          })}
+        {stacked && showLabels && tot.map((v, i) => <text key={i} x={X(i)} y={Y(v) - 4} fontSize={8.5} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>)}
       </svg>
-      {ids.length > 1 && o.legend !== false && <div style={{ display: "flex", gap: 14, fontSize: 12, flexWrap: "wrap" }}>{ids.map((id, k) => <span key={id}><span style={{ color: LINE[k % LINE.length] }}>●</span> {measureById(id)?.label}</span>)}</div>}
     </div>
   );
 }
@@ -106,18 +126,22 @@ function one(b: B<"table">, c: Ctx, which: "pl" | "bs") {
 
 export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
   const cc = withPeriod(c, b.period);
-  const fmtOn = !!(b.fmt?.rounded || b.fmt?.decimals || b.fmt?.symbol);
-  const f = (v?: number) => (v === undefined ? "" : fmtOn ? (v === 0 ? "–" : fmtValue("money", v, b.fmt)) : gbp(v));
+  const fmtOn = !!(b.fmt?.rounded || b.fmt?.decimals || b.fmt?.symbol === false);
+  const f = (v?: number) => (v === undefined ? "" : fmtOn ? fmtValue("money", v, b.fmt) : money0(v));
   const parts: ("pl" | "bs")[] = b.statement === "both" ? ["pl", "bs"] : [b.statement];
   return (
     <div>
       {parts.map((which) => {
         const t = one(b, cc, which);
+        const hl = t.cols.findIndex((col) => !col.total && col.months.length === 1 && col.months[0] === cc.anchor && t.cols.length > 3) >= 0 ? t.cols.findIndex((col) => !col.total && col.months.length === 1 && col.months[0] === cc.anchor) : t.cols.length > 1 && t.cols.length <= 3 ? 0 : -1;
+        const tint = (j: number): React.CSSProperties => (j === hl ? { background: "#efe7f1" } : {});
+        const size = t.cols.length > 10 ? 8.6 : t.cols.length > 6 ? 10.5 : 12;
+        const many = t.cols.length > 6;
         return (
-          <table key={which} style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginBottom: 14 }}>
+          <table key={which} style={{ width: "100%", borderCollapse: "collapse", fontSize: size, marginBottom: 18, color: "#111", tableLayout: many ? "fixed" : undefined }}>
             <thead><tr>
-              <th style={{ ...T.th, textAlign: "left" }}>{b.hideTitles ? "" : which === "pl" ? "PROFIT & LOSS" : "BALANCE SHEET"}</th>
-              {t.cols.map((col) => <th key={col.key} style={T.th}>{col.label}</th>)}
+              <th style={{ ...T.th, textAlign: "left", color: MUTED, fontSize: size + 0.5, width: many ? "17%" : undefined }}>{b.hideTitles ? "" : which === "pl" ? "PROFIT & LOSS" : "BALANCE SHEET"}</th>
+              {t.cols.map((col, j) => <th key={col.key} style={{ ...T.th, ...tint(j), padding: many ? "7px 3px" : T.th.padding }}>{col.label}</th>)}
               {t.pctRev && <th style={T.th}>% of Revenue</th>}
               {t.varCols && <th style={T.th}>Variance £</th>}{t.pctCols && <th style={T.th}>Variance %</th>}
             </tr></thead>
@@ -127,10 +151,12 @@ export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
                 const v0 = row.vals[0], v1 = row.vals[1];
                 const v = t.showVar && v0 !== undefined && v1 !== undefined ? Math.round((v0 as number) - (v1 as number)) : undefined;
                 const pc = v1 ? `${Math.round((((v0 as number) - (v1 as number)) / Math.abs(v1 as number)) * 100)}%` : "";
+                const rule = strong ? "1px solid #111" : "1px solid #e6e6ea";
+                const rs: React.CSSProperties = { fontWeight: strong ? 600 : 400, borderBottom: rule, borderTop: row.kind === "total" || row.kind === "sub" ? "1px solid #111" : undefined };
                 return (
-                  <tr key={i} style={{ fontWeight: strong ? 600 : 400, borderTop: row.kind === "total" || row.kind === "sub" ? "1px solid #cbd5e1" : "1px solid #f0f3f6", background: row.kind === "total" ? "#f4f7fb" : undefined }}>
-                    <td style={{ ...T.td, textAlign: "left", paddingLeft: row.kind === "line" && b.detail === "detailed" ? 20 : 8 }}>{row.label}</td>
-                    {t.cols.map((col, j) => <td key={col.key} style={T.td}>{head ? "" : f(row.vals[j])}</td>)}
+                  <tr key={i} style={rs}>
+                    <td style={{ ...T.td, textAlign: "left", paddingLeft: row.kind === "line" ? 14 : 6, fontSize: head ? size + 0.5 : size }}>{row.label}</td>
+                    {t.cols.map((col, j) => <td key={col.key} style={{ ...T.td, ...tint(j), padding: many ? "4px 3px" : T.td.padding, whiteSpace: "nowrap" }}>{head ? "" : f(row.vals[j])}</td>)}
                     {t.pctRev && <td style={T.td}>{head || v0 === undefined || !t.revenue ? "" : `${(((v0 as number) / t.revenue) * 100).toFixed(1)}%`}</td>}
                     {t.varCols && <td style={T.td}>{head ? "" : f(v)}</td>}{t.pctCols && <td style={T.td}>{head ? "" : pc}</td>}
                   </tr>
@@ -146,31 +172,39 @@ export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
 
 // ------------------------------------------------------------------ key number, observation, top accounts
 
-function Spark({ values }: { values: (number | undefined)[] }) {
+function Spark({ values, color }: { values: (number | undefined)[]; color: string }) {
   const v = values.filter((x): x is number => x !== undefined);
   if (v.length < 2) return null;
-  const lo = Math.min(...v), hi = Math.max(...v), W = 120, H = 28;
-  const pts = values.map((x, i) => (x === undefined ? "" : `${(i / (values.length - 1)) * W},${H - 2 - ((x - lo) / (hi - lo || 1)) * (H - 4)}`)).filter(Boolean).join(" ");
-  return <svg viewBox={`0 0 ${W} ${H}`} style={{ width: 120, height: 28 }} aria-hidden="true"><polyline fill="none" stroke="#3b82c4" strokeWidth={1.5} points={pts} /></svg>;
+  const lo = Math.min(...v), hi = Math.max(...v), W = 170, H = 30;
+  const y = (x: number) => H - 3 - ((x - lo) / (hi - lo || 1)) * (H - 6);
+  const pts = values.map((x, i) => (x === undefined ? undefined : [(i / (values.length - 1)) * W, y(x)] as [number, number])).filter(Boolean) as [number, number][];
+  const line = pts.map((q) => q.join(",")).join(" ");
+  return <svg viewBox={`0 0 ${W} ${H}`} style={{ width: 170, height: 30, display: "block", margin: "14px 0" }} aria-hidden="true"><polygon fill={color} opacity={0.14} points={`0,${H} ${line} ${W},${H}`} /><polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" points={line} /></svg>;
 }
 
-export function KeyView({ b, c }: { b: B<"key">; c: Ctx }) {
+export function KeyView({ b, c, label, tone = 0 }: { b: B<"key">; c: Ctx; label?: ReactNode; tone?: number }) {
   const cc = withPeriod(c, b.period);
   const m = measureById(b.measure);
   const k = keyData(cc.d, b.measure, cc.kind, cc.anchor, cc.endMonth, b.compare);
-  if (!m || k.value === undefined) return none("There's no figure for this yet (balance sheet measures need the balance sheet read from Xero).");
+  const tag = periodCols(cc.kind, cc.anchor, cc.endMonth, "none")[0]?.label;
+  const head = <div style={{ borderBottom: "1px solid #8a8d94", paddingBottom: 8, marginBottom: 14, fontSize: 15, fontWeight: 700, letterSpacing: 0.2, textTransform: "uppercase", color: "#8a8d94", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label ?? b.title}{tag && <span style={{ fontWeight: 500, textTransform: "none" }}> ({tag})</span>}</div>;
+  if (!m || k.value === undefined) return <div>{head}{none("No figure for this yet.")}</div>;
+  const diff = k.compare !== undefined ? k.value - k.compare : undefined;
+  const up = (diff ?? 0) >= 0;
+  const cmpLabel = b.compare === "none" ? "" : periodCols(cc.kind, cc.anchor, cc.endMonth, b.compare)[1]?.label;
   return (
-    <div style={{ maxWidth: 260, borderBottom: "1px solid #e3e7eb", paddingBottom: 6 }}>
-      <div style={{ fontSize: 28, fontWeight: 500 }}>{fmtValue(m.unit, k.value, b.fmt)}</div>
-      {b.compare !== "none" && k.compare !== undefined && <div style={{ fontSize: 12, color: "#4a5560" }}>{b.compare === "prior" ? "Last period" : "Same period last year"} {fmtValue(m.unit, k.compare, b.fmt)}{k.changePct !== undefined && <span style={{ color: k.changePct >= 0 ? "#4f7f23" : "#d0342c", fontWeight: 600 }}> {k.changePct >= 0 ? "+" : ""}{k.changePct}%</span>}</div>}
-      {b.spark && <Spark values={k.spark} />}
-      {b.showDesc && b.desc && <div style={{ fontSize: 12, color: "#59636e", marginTop: 4, whiteSpace: "pre-wrap" }}>{b.desc}</div>}
+    <div>
+      {head}
+      <div style={{ fontSize: 40, fontWeight: 500, letterSpacing: -0.5, lineHeight: 1.1, color: "#111" }}>{fmtValue(m.unit, k.value, b.fmt)}</div>
+      {diff !== undefined && <div style={{ fontSize: 15, color: MUTED, marginTop: 10 }}><span style={{ color: up ? "#7ea34f" : RED }}>{up ? "▲" : "▼"} {m.unit === "money" ? fmtValue(m.unit, Math.abs(diff), b.fmt) : fmtValue(m.unit, diff, b.fmt)}</span> from {cmpLabel}</div>}
+      {b.spark && <Spark values={k.spark} color={LINE[tone % 3]} />}
+      {b.showDesc && b.desc && <div style={{ fontSize: 15, lineHeight: 1.45, color: "#222", marginTop: 4, whiteSpace: "pre-wrap" }}>{b.desc}</div>}
     </div>
   );
 }
 
 const Thumb = ({ icon }: { icon: Icon }) => (icon === "none" ? null : (
-  <svg viewBox="0 0 16 16" width={16} height={16} aria-label={icon === "up" ? "Good" : "Bad"} style={{ verticalAlign: "-3px", marginRight: 6 }}><path d={icon === "up" ? "M3 14V7M3 7l4-5c1.5 0 2 1 1.7 2.5L8.4 6H13c.8 0 1.2.7 1 1.4l-1.4 5.6c-.2.6-.7 1-1.3 1H3" : "M3 2v7M3 9l4 5c1.5 0 2-1 1.7-2.5L8.4 10H13c.8 0 1.2-.7 1-1.4L11.6 3c-.2-.6-.7-1-1.3-1H3"} fill="none" stroke={icon === "up" ? "#4f7f23" : "#d0342c"} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" /></svg>
+  <svg viewBox="0 0 16 16" width={26} height={26} aria-label={icon === "up" ? "Good" : "Bad"} style={{ verticalAlign: "-8px", marginRight: 10 }}><path d={icon === "up" ? "M3 14V7M3 7l4-5c1.5 0 2 1 1.7 2.5L8.4 6H13c.8 0 1.2.7 1 1.4l-1.4 5.6c-.2.6-.7 1-1.3 1H3" : "M3 2v7M3 9l4 5c1.5 0 2-1 1.7-2.5L8.4 10H13c.8 0 1.2-.7 1-1.4L11.6 3c-.2-.6-.7-1-1.3-1H3"} fill="none" stroke={icon === "up" ? "#5b8a2d" : RED} strokeWidth={1} strokeLinecap="round" strokeLinejoin="round" /></svg>
 ));
 
 /** Whether an observation is hidden (its extra condition says so) – the screen still shows it, dimmed, so it can be edited. */
@@ -185,10 +219,10 @@ export function ObservationView({ b, c }: { b: B<"observation">; c: Ctx }) {
   const lm = measureById(b.left.measure), rm = "measure" in b.right ? measureById(b.right.measure) : undefined;
   const icon = r.ok === undefined ? "none" : r.ok ? b.thenIcon : b.elseIcon, text = r.ok === undefined ? "" : r.ok ? b.thenText : b.elseText;
   return (
-    <div style={{ borderLeft: "4px solid #cbd5e1", padding: "4px 12px", margin: "8px 0" }}>
-      <div style={{ fontSize: 11, letterSpacing: 0.5, color: "#59636e", textTransform: "uppercase" }}><Thumb icon={icon} />{b.title}</div>
-      <div style={{ fontSize: 13, fontWeight: 600 }}>{lm?.label} {fmtValue(lm?.unit || "money", r.left)} <span style={{ fontWeight: 400, color: "#7a8591", fontSize: 11 }}>({"measure" in b.right ? WHEN_LABEL[b.right.when] : "Target"} {fmtValue(rm?.unit || lm?.unit || "money", r.right)})</span></div>
-      <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{r.ok === undefined ? <span style={{ color: "#7a8591" }}>No figures to compare yet.</span> : text}</div>
+    <div style={{ margin: "26px 0" }}>
+      <div style={{ fontSize: 18, letterSpacing: 0.3, color: "#8a8d94", textTransform: "uppercase", marginBottom: 8 }}><Thumb icon={icon} />{b.title}</div>
+      <div style={{ fontSize: 15.5, fontWeight: 700, color: "#111" }}>{lm?.label} {fmtValue(lm?.unit || "money", r.left)} <span style={{ fontWeight: 400, color: "#8a8d94", fontSize: 14 }}>({"measure" in b.right ? WHEN_LABEL[b.right.when] : "Target"} {fmtValue(rm?.unit || lm?.unit || "money", r.right)})</span></div>
+      <div style={{ fontSize: 15.5, lineHeight: 1.5, whiteSpace: "pre-wrap", marginTop: 2 }}>{r.ok === undefined ? <span style={{ color: "#8a8d94" }}>No figures to compare yet.</span> : text}</div>
     </div>
   );
 }
@@ -197,13 +231,24 @@ export function TopView({ b, c }: { b: B<"top">; c: Ctx }) {
   const cc = withPeriod(c, b.period);
   const rows = topAccounts(cc.d, b.group, periodMonths(cc.kind, cc.anchor, cc.endMonth), b.n, b.order, b.hideNil);
   if (!rows.length) return none("No accounts have a balance for this period.");
-  const max = Math.max(...rows.map((r) => Math.abs(r.amount))) || 1;
+  const nz = nice(0, Math.max(...rows.map((r) => r.amount), 1));
+  const pos = (v: number) => `${Math.max(0, Math.min(100, (v / nz.hi) * 100))}%`;
+  const red = b.group === "expense" || b.group === "cos";
+  const colour = (i: number) => (red ? RED : i === 0 ? NAVY : GREY);
+  const LAB = "34%";
   return (
-    <div>
+    <div style={{ fontSize: 14 }}>
+      <div style={{ display: "flex", borderBottom: `1px solid ${RULE}`, height: 28, alignItems: "flex-end" }}>
+        <div style={{ width: LAB }} />
+        <div style={{ position: "relative", flex: 1, height: 18 }}>{nz.ticks.map((v) => <span key={v} style={{ position: "absolute", left: pos(v), transform: "translateX(-50%)", fontSize: 11.5, color: MUTED, whiteSpace: "nowrap" }}>{axisMoney(v).replace("K", "K")}</span>)}</div>
+      </div>
       {rows.map((r, i) => (
-        <div key={r.name} style={{ position: "relative", display: "flex", justifyContent: "space-between", fontSize: 12, padding: "3px 6px", borderBottom: "1px solid #f4f6f8" }}>
-          <span aria-hidden="true" style={{ position: "absolute", inset: 0, width: `${(Math.abs(r.amount) / max) * 100}%`, background: i === 0 ? "#ff6a3d" : "#fbd2c5", zIndex: 0 }} />
-          <span style={{ position: "relative", color: i === 0 ? "#fff" : undefined }}>{r.name}</span><span style={{ position: "relative", fontVariantNumeric: "tabular-nums", color: i === 0 ? "#fff" : undefined }}>{fmtValue("money", r.amount)}</span>
+        <div key={r.name} style={{ display: "flex", alignItems: "center", height: 40, borderBottom: `1px solid ${RULE}` }}>
+          <div style={{ width: LAB, paddingRight: 10, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+          <div style={{ position: "relative", flex: 1, height: "100%", borderLeft: `1px solid ${RULE}` }}>
+            <div style={{ position: "absolute", left: 0, top: 9, height: 22, width: pos(Math.max(0, r.amount)), background: colour(i), opacity: red ? Math.max(0.35, 1 - i * 0.09) : 1 }} />
+            <span style={{ position: "absolute", left: `calc(${pos(Math.max(0, r.amount))} + 8px)`, top: 0, lineHeight: "40px", fontSize: 15, fontWeight: 500, color: "#3a3d45", fontVariantNumeric: "tabular-nums" }}>{fmtValue("money", r.amount)}</span>
+          </div>
         </div>
       ))}
     </div>
@@ -308,7 +353,7 @@ export function ComponentEditor({ block, c, onSave, onCancel }: { block: Block; 
             <Check label="Stack results" on={!!o.stack} set={(v) => setO({ stack: v })} />
             <Check label="Always show zero on the vertical axis" on={!!o.zero} set={(v) => setO({ zero: v })} />
             <Check label="Show legend" on={o.legend !== false} set={(v) => setO({ legend: v })} />
-            <Check label="Show data labels" on={!!o.labels} set={(v) => setO({ labels: v })} />
+            <Check label="Show data labels" on={labelsOn(o, b.freq ? b.previous ?? 13 : b.months)} set={(v) => setO({ labels: v })} />
           </Sec>
         </>;
       })()}

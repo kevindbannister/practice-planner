@@ -10,7 +10,7 @@ import { Seg } from "./reportingKit";
 import { useXero } from "./XeroSettings";
 
 type Tenant = { tenantId: string; tenantName: string };
-const SHADE = ["#f7e9de", "#f4d9c3", "#f1c6a4", "#edb180", "#e69a5a"];
+const SHADE = ["#c9ccd4", "#f7c9bc", "#ee9b84", "#e2694a", "#d4300f"];
 const money = (n: number) => (n === 0 ? "–" : `${n < 0 ? "-" : ""}£${Math.abs(Math.round(n)).toLocaleString("en-GB")}`);
 const dmy = (iso: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "");
 
@@ -53,7 +53,7 @@ export function AgedView({ data, kind, limit, open, onOpen }: { data: AgedData; 
   const who = kind === "rec" ? "customers" : "suppliers";
   const shown = limit ? book.contacts.slice(0, limit) : book.contacts;
   const rest = book.contacts.slice(shown.length);
-  const th: React.CSSProperties = { textAlign: "right", padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "2px solid #cbd5e1", fontSize: 12 };
+  const th: React.CSSProperties = { textAlign: "right", padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "1px solid #111", fontSize: 12 };
   const td: React.CSSProperties = { textAlign: "right", padding: "5px 8px", fontVariantNumeric: "tabular-nums", fontSize: 12 };
   if (!book.count) return <p style={{ fontSize: 14, color: "#7a8591" }}>Nothing is {kind === "rec" ? "owed by customers" : "owed to suppliers"} as at {dmy(data.asAt)}.</p>;
   return (
@@ -88,7 +88,7 @@ export function AgedView({ data, kind, limit, open, onOpen }: { data: AgedData; 
             </Fragment>
           ))}
           {rest.length > 0 && <tr style={{ borderTop: "1px solid #f0f3f6" }}><td style={{ ...td, textAlign: "left", color: "#59636e" }}>{rest.length} other {who}</td>{AGED_BUCKETS.map(([k]) => <td key={k} style={td}>{money(rest.reduce((a, c) => a + c[k], 0))}</td>)}<td style={{ ...td, fontWeight: 600 }}>{money(rest.reduce((a, c) => a + c.total, 0))}</td></tr>}
-          <tr style={{ borderTop: "2px solid #cbd5e1", fontWeight: 700, background: "#f4f7fb" }}><td style={{ ...td, textAlign: "left" }}>Total</td>{AGED_BUCKETS.map(([k]) => <td key={k} style={td}>{money(book.totals[k])}</td>)}<td style={td}>{money(book.totals.total)}</td></tr>
+          <tr style={{ borderTop: "1px solid #111", borderBottom: "1px solid #111", fontWeight: 700 }}><td style={{ ...td, textAlign: "left" }}>Total</td>{AGED_BUCKETS.map(([k]) => <td key={k} style={td}>{money(book.totals[k])}</td>)}<td style={td}>{money(book.totals.total)}</td></tr>
         </tbody>
       </table>
       <p style={{ fontSize: 11, color: "#7a8591", margin: "8px 0 0" }}>As at {dmy(data.asAt)}. Days are counted from the due date. Credit notes and unallocated payments are not netted off.</p>
