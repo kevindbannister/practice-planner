@@ -133,6 +133,8 @@ test("reading from Xero asks for a year of months at a time, newest column first
   assert.equal(d.months.length, 15);
   assert.equal(d.months[0], "2025-08");
   assert.equal(asked[0].periods, 11);
+  assert.equal(asked[0].fromDate, "2026-07-01"); // every column is as long as the dates asked for: one month
+  assert.equal(asked[0].toDate, "2026-07-31");
   assert.equal(asked[0].timeframe, "MONTH");
   assert.equal(asked[1].periods, 2);
   const sales = d.pl.find((r) => r.name === "Sales")!;

@@ -32,7 +32,7 @@ function useReportData(clientKey: string, tenant?: { tenantId: string; tenantNam
     store.graph.download(reportItem(clientKey)).then(
       (bytes) => {
         if (!live) return;
-        try { const saved = JSON.parse(new TextDecoder().decode(bytes)) as ReportData; setS({ data: saved.v === 2 ? saved : undefined, busy: "", checked: true }); } catch { setS({ busy: "", checked: true }); } // an older layout of the saved figures is read again
+        try { const saved = JSON.parse(new TextDecoder().decode(bytes)) as ReportData; setS({ data: saved.v === 3 ? saved : undefined, busy: "", checked: true }); } catch { setS({ busy: "", checked: true }); } // an older layout of the saved figures is read again
       },
       () => live && setS({ busy: "", checked: true }),
     );

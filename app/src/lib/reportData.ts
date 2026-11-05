@@ -5,7 +5,7 @@ import { XAccount, XeroApi, XeroError, parseAccounts, parseProfitAndLoss, r2 } f
 
 export type RRow = { code: string; name: string; group: string; amounts: number[] };
 /** Months are "YYYY-MM". `pl` amounts line up with `months`, `bs` amounts with `bsMonths` (the balance at each month end). */
-export type ReportData = { v: 2; at: string; tenantId: string; tenantName: string; months: string[]; pl: RRow[]; bsMonths: string[]; bs: RRow[]; notes: string[] };
+export type ReportData = { v: 3; at: string; tenantId: string; tenantName: string; months: string[]; pl: RRow[]; bsMonths: string[]; bs: RRow[]; notes: string[] };
 
 export const REPORT_FOLDER = "Practice Planner Xero";
 export const reportItem = (clientKey: string) => `/me/drive/root:/${encodeURIComponent(REPORT_FOLDER)}/${encodeURIComponent(clientKey)}/${encodeURIComponent("reporting.json")}`;
@@ -90,13 +90,13 @@ export async function readReportData(api: XeroApi, t: { tenantId: string; tenant
   const accounts = parseAccounts(await api.get(id, "accounting", "Accounts"));
   const months = monthRange(addMonths(endMonth, -(back - 1)), endMonth);
 
-  // profit and loss, a year at a time: Xero gives the month of the date asked for and the 11 months before it, one column each
+  // profit and loss, a year at a time: the dates asked for are ONE month (Xero makes every column that long), and it adds the 11 months before it, newest first
   const plMap = new Map<string, RRow>();
   const SUBTOTAL = /^(gross profit|net profit|operating profit|net income|total\b.*)$/i;
   for (let i = 0; i < months.length; i += 12) {
     const chunk = months.slice(i, i + 12);
     say(`Reading the profit and loss, ${monthLong(chunk[0])} to ${monthLong(chunk[chunk.length - 1])}…`);
-    const json = await api.get(id, "accounting", "Reports/ProfitAndLoss", { fromDate: firstDay(chunk[0]), toDate: lastDayOf(chunk[chunk.length - 1]), periods: chunk.length - 1, timeframe: "MONTH", standardLayout: true });
+    const json = await api.get(id, "accounting", "Reports/ProfitAndLoss", { fromDate: firstDay(chunk[chunk.length - 1]), toDate: lastDayOf(chunk[chunk.length - 1]), periods: chunk.length - 1, timeframe: "MONTH", standardLayout: true });
     const pl = parseProfitAndLoss(json, accounts);
     const newestFirst = columnsNewestFirst(pl.months);
     for (const row of pl.rows) {
@@ -131,7 +131,7 @@ export async function readReportData(api: XeroApi, t: { tenantId: string; tenant
       notes.push(e instanceof XeroError ? `The balance sheet couldn't be read (${e.message})` : "The balance sheet couldn't be read from Xero.");
     }
   }
-  return { v: 2, at: new Date().toISOString(), tenantId: id, tenantName: t.tenantName, months, pl: [...plMap.values()], bsMonths: months, bs: bsOk ? [...bsMap.values()] : [], notes };
+  return { v: 3, at: new Date().toISOString(), tenantId: id, tenantName: t.tenantName, months, pl: [...plMap.values()], bsMonths: months, bs: bsOk ? [...bsMap.values()] : [], notes };
 }
 
 // ------------------------------------------------------------------ periods and columns
