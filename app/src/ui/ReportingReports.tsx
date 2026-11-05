@@ -16,6 +16,7 @@ import { readSetting, useData } from "./data";
 import { AgedView, useAgedData } from "./ReportingAged";
 import { ChartView, ComponentEditor, Ctx, KeyView, ObservationView, T, TableView, TopView, observationHidden } from "./ReportingComponents";
 import { Seg, useReportData } from "./reportingKit";
+import { Thumb } from "./ReportingThumbs";
 
 type Tenant = { tenantId: string; tenantName: string };
 type Props = { clientKey: string; clientName: string; yearEnd?: string; tenant: Tenant; id?: string };
@@ -282,10 +283,10 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
     } catch { setPublishing(""); setProblem("The report couldn't be published. Nothing has changed; try again."); }
   };
 
-  const picks = (items: Pick[]) => (
+  const picks = (items: Pick[], group: "text" | "charts" | "tables") => (
     <div className="rb-list">
       <p className="rb-hint">Adds to “{targetTitle || "the last section"}”.</p>
-      {items.map((p) => <button key={p.name} type="button" className="rb-pick" onClick={() => add([p.make()])}><strong>{p.name}</strong><span>{p.note}</span></button>)}
+      {items.map((p) => <button key={p.name} type="button" className="rb-pick" onClick={() => add([p.make()])}><Thumb name={p.name} group={group} /><span className="rb-pick-t"><strong>{p.name}</strong><span>{p.note}</span></span></button>)}
     </div>
   );
   const ICO: Record<string, ReactNode> = {
@@ -340,13 +341,13 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
               <button type="button" className="btn small" style={{ alignSelf: "flex-start", marginTop: 8 }} onClick={addSection}>New section</button>
             </div>
           )}
-          {!editing && panel === "text" && picks(TEXT_BLOCKS)}
-          {!editing && panel === "charts" && picks(CHART_BLOCKS)}
-          {!editing && panel === "tables" && picks(TABLE_BLOCKS)}
+          {!editing && panel === "text" && picks(TEXT_BLOCKS, "text")}
+          {!editing && panel === "charts" && picks(CHART_BLOCKS, "charts")}
+          {!editing && panel === "tables" && picks(TABLE_BLOCKS, "tables")}
           {!editing && panel === "layouts" && (
             <div className="rb-list">
               <p className="rb-hint">A ready-made set of components, added to “{targetTitle || "the last section"}”.</p>
-              {LAYOUTS.map((l) => <button key={l.name} type="button" className="rb-pick" onClick={() => add(l.make())}><strong>{l.name}</strong><span>{l.note}</span></button>)}
+              {LAYOUTS.map((l) => <button key={l.name} type="button" className="rb-pick" onClick={() => add(l.make())}><Thumb name={l.name} group="layouts" /><span className="rb-pick-t"><strong>{l.name}</strong><span>{l.note}</span></span></button>)}
             </div>
           )}
           {!editing && panel === "settings" && (

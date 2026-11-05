@@ -3226,3 +3226,10 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 @media (max-width: 900px) {
   .rb-panel { width: 220px; } .rb-meta { display: none; } .rb-page { padding: 0 20px 30px; } .rb-canvas { padding: 14px 10px 40px; }
 }
+.rb-pick { flex-direction: row; align-items: center; gap: 12px; padding: 8px 6px; }
+.rb-pick-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rb-pick-t strong { font-size: 13px; font-weight: 600; color: var(--ink); }
+.rb-pick-t span { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.rb-thumb { flex: none; border-radius: 6px; }
+.rb-pick:hover .rb-thumb { box-shadow: 0 0 0 2px var(--blue-line); }
+.rb-panel { width: 340px; }
