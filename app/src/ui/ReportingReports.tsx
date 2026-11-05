@@ -7,7 +7,7 @@ import { cashFlow, measureById, monthlySeries } from "../lib/analysis";
 import { AgedData } from "../lib/aged";
 import { KpiSettings, computeKpis, formatKpi } from "../lib/kpis";
 import {
-  Block, CHART_BLOCKS, LAYOUTS, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, moveItem, newReport, periodWords, uid,
+  Block, CHART_BLOCKS, LAYOUTS, chartH, spanOf, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, moveItem, newReport, periodWords, uid,
 } from "../lib/reportBuilder";
 import { PeriodKind, REPORT_FOLDER, ReportData, bsStatement, monthLabel, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { todayIso } from "../lib/domain";
@@ -127,8 +127,7 @@ const REPORT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Figtre
 .rp-in{padding:0 9%}
 .rp-land .rp-in{padding:0 6.3%}
 .rp-sec{padding:40px 0 18px}
-.rp-keys{display:flex;gap:3.5%;margin:6px 0 10px}
-.rp-keys>.rb-block{flex:1 1 0;min-width:0}
+.rp-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:3%;align-items:start}
 .rp-foot{font-size:8.4px;color:#8a8d94;border-top:1px solid #dcdde1;padding-top:10px;margin:30px 0 20px}`;
 
 const NET = (() => {
@@ -151,8 +150,9 @@ function Network() {
   );
 }
 
-export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools, addButtons, selectedId, onSelect }: {
-  doc: ReportDoc; c?: Ctx; clientName: string; edit?: (s: Section, b: Block) => Edit; selectedId?: string; onSelect?: (b: Block) => void;
+export type BlockProps = { className?: string; onDragOver?: React.DragEventHandler<HTMLDivElement>; onDrop?: React.DragEventHandler<HTMLDivElement> };
+export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools, addButtons, selectedId, onSelect, blockProps }: {
+  doc: ReportDoc; c?: Ctx; clientName: string; edit?: (s: Section, b: Block) => Edit; selectedId?: string; onSelect?: (b: Block) => void; blockProps?: (s: Section, b: Block, i: number) => BlockProps;
   sectionTools?: (s: Section, i: number) => ReactNode; blockTools?: (s: Section, b: Block, i: number) => ReactNode; addButtons?: (s: Section) => ReactNode;
 }) {
   const words = periodWords(doc.kind, c?.anchor || doc.anchor);
@@ -171,26 +171,23 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
         <div className="rp-band"><Network /></div>
       </div>
       {doc.sections.map((s, si) => {
-        const items: ReactNode[] = [];
-        for (let bi = 0; bi < s.blocks.length; bi++) {
-          const render = (b: Block, i: number, tone?: number) => (
-            <div key={b.id} className={`rb-block${selectedId === b.id ? " sel" : ""}${onSelect ? " pick" : ""}`} onClick={onSelect ? (e) => { if (!(e.target as HTMLElement).closest("input,textarea,button,select,a")) onSelect(b); } : undefined}>
-              {blockTools?.(s, b, i)}
+        let ki = 0;
+        const items = s.blocks.map((b, bi) => {
+          const bp = blockProps?.(s, b, bi), tone = b.type === "key" ? ki++ : undefined;
+          return (
+            <div key={b.id} className={`rb-block${selectedId === b.id ? " sel" : ""}${onSelect ? " pick" : ""}${bp?.className ? ` ${bp.className}` : ""}`} style={{ gridColumn: `span ${spanOf(b)}` }}
+              onDragOver={bp?.onDragOver} onDrop={bp?.onDrop}
+              onClick={onSelect ? (e) => { if (!(e.target as HTMLElement).closest("input,textarea,button,select,a")) onSelect(b); } : undefined}>
+              {blockTools?.(s, b, bi)}
               <BlockView b={b} c={c} edit={edit?.(s, b)} tone={tone} />
             </div>
           );
-          if (s.blocks[bi].type === "key") {
-            const row: [Block, number][] = [];
-            while (bi < s.blocks.length && s.blocks[bi].type === "key" && row.length < 3) { row.push([s.blocks[bi], bi]); bi++; }
-            bi--;
-            items.push(<div key={row[0][0].id} className="rp-keys">{row.map(([b, i], j) => render(b, i, j))}</div>);
-          } else items.push(render(s.blocks[bi], bi));
-        }
+        });
         return (
           <section key={s.id} className="rp-sec rb-section">
             <div className="rp-in">
               {sectionTools ? sectionTools(s, si) : <h2 style={T.h2}>{s.title}</h2>}
-              {items}
+              <div className="rp-grid">{items}</div>
               {addButtons?.(s)}
             </div>
           </section>
@@ -311,7 +308,7 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
 type PanelId = "outline" | "text" | "charts" | "tables" | "layouts" | "settings";
 const PANELS: [PanelId, string][] = [["outline", "Outline"], ["text", "Text"], ["charts", "Charts"], ["tables", "Tables & financials"], ["layouts", "Layouts"], ["settings", "Report settings"]];
 
-function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, aged, listRef, save, store, refresh }: Common & { doc: ReportDoc; aged?: AgedData; listRef: { current: ReportDoc[] } }) {
+export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, aged, listRef, save, store, refresh }: Common & { doc: ReportDoc; aged?: AgedData; listRef: { current: ReportDoc[] } }) {
   const [doc, setDoc] = useState<ReportDoc>(initial);
   const [panel, setPanel] = useState<PanelId>("outline");
   const [target, setTarget] = useState(initial.sections[initial.sections.length - 1]?.id || "");
@@ -319,6 +316,9 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
   const [publishing, setPublishing] = useState(""), [problem, setProblem] = useState("");
   const [editId, setEditId] = useState("");
   const [draft, setDraft] = useState<Block | undefined>();
+  const [over, setOver] = useState<{ id: string; after: boolean; horiz: boolean } | undefined>();
+  const [dragging, setDragging] = useState(false);
+  const dragId = useRef("");
   const dirty = useRef(false), docRef = useRef(doc); docRef.current = doc;
   const persist = async (x: ReportDoc) => { dirty.current = false; setState("saving"); try { await save(listRef.current.map((y) => (y.id === x.id ? x : y))); setState("saved"); } catch { setState(""); setProblem("The change couldn't be saved. Try again."); } };
   const update = (fn: (x: ReportDoc) => ReportDoc) => { dirty.current = true; setState(""); setDoc((x) => ({ ...fn(x), updatedAt: new Date().toISOString() })); };
@@ -330,10 +330,38 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
   const c: Ctx | undefined = d && anchor ? { d, kind: doc.kind, anchor, endMonth, kpi, aged, palette: doc.palette } : undefined;
   const shown: ReportDoc = draft ? { ...doc, sections: doc.sections.map((s) => ({ ...s, blocks: s.blocks.map((x) => (x.id === draft.id ? draft : x)) })) } : doc;
   const EDITABLE = ["key", "observation", "top", "chart", "table", "kpis", "cashflow", "aged"];
+  const WIDTHS: [number, string][] = [[3, "¼"], [4, "⅓"], [6, "½"], [8, "⅔"], [9, "¾"], [12, "Full"]];
   const sec = (id: string, fn: (s: Section) => Section) => update((x) => ({ ...x, sections: x.sections.map((s) => (s.id === id ? fn(s) : s)) }));
   const add = (blocks: Block[]) => {
     const id = doc.sections.some((s) => s.id === target) ? target : doc.sections[doc.sections.length - 1]?.id;
     if (id) sec(id, (s) => ({ ...s, blocks: [...s.blocks, ...blocks] }));
+  };
+  const patchBlock = (secId: string, id: string, patch: Partial<Block>) => sec(secId, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === id ? ({ ...y, ...patch } as Block) : y)) }));
+  /** Move a block next to another (before or after it), or to the end of a section, in this section or another. */
+  const moveBlock = (id: string, toSec: string, beside: string | null, after: boolean) => update((x) => {
+    const mover = x.sections.flatMap((s) => s.blocks).find((y) => y.id === id);
+    if (!mover) return x;
+    const stripped = x.sections.map((s) => ({ ...s, blocks: s.blocks.filter((y) => y.id !== id) }));
+    return { ...x, sections: stripped.map((s) => {
+      if (s.id !== toSec) return s;
+      const at = beside ? s.blocks.findIndex((y) => y.id === beside) : -1;
+      const i = at < 0 ? s.blocks.length : at + (after ? 1 : 0);
+      return { ...s, blocks: [...s.blocks.slice(0, i), mover, ...s.blocks.slice(i)] };
+    }) };
+  });
+  const endDrag = () => { dragId.current = ""; setDragging(false); setOver(undefined); };
+  /** Drag an edge of a block: the right edge changes how many of the 12 columns it takes, the bottom edge of a chart its height. */
+  const startResize = (e: React.PointerEvent, secId: string, b: Block, axis: "w" | "h") => {
+    e.preventDefault(); e.stopPropagation();
+    const el = (e.currentTarget as HTMLElement).closest(".rb-block") as HTMLElement, grid = el.parentElement as HTMLElement;
+    const gw = grid.getBoundingClientRect().width, unit = (gw * 1.03) / 12, shown = el.getBoundingClientRect().width;
+    const x0 = e.clientX, y0 = e.clientY, w0 = spanOf(b), h0 = chartH(b);
+    const move = (ev: PointerEvent) => {
+      if (axis === "w") patchBlock(secId, b.id, { w: Math.max(2, Math.min(12, Math.round(w0 + (ev.clientX - x0) / unit))) });
+      else patchBlock(secId, b.id, { h: Math.max(160, Math.min(700, Math.round(h0 + (ev.clientY - y0) * (760 / shown)))) });
+    };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
   };
   const addSection = () => { const s: Section = { id: uid("s"), title: "New section", blocks: [] }; update((x) => ({ ...x, sections: [...x.sections, s] })); setTarget(s.id); };
   const editing = doc.sections.flatMap((s) => s.blocks.map((b) => ({ s, b }))).find((x) => x.b.id === editId);
@@ -435,7 +463,7 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
           )}
         </aside>
         <main className="rb-canvas">
-          <div className="rb-page" style={{ width }}>
+          <div className={`rb-page${dragging ? " rb-dragging" : ""}`} style={{ width }}>
             <ReportView
               doc={shown} c={c} clientName={clientName} selectedId={editId} onSelect={(b) => { if (EDITABLE.includes(b.type)) setEditId(b.id); }}
               edit={(s, b) => ({ change: (nb) => sec(s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === b.id ? nb : y)) })) })}
@@ -449,13 +477,36 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
                 </div>
               )}
               blockTools={(s, b, i) => (
-                <div className="rb-tools rb-blocktools">
-                  {["key", "observation", "top", "chart", "table", "kpis", "cashflow", "aged"].includes(b.type) && <button type="button" className="rb-ico wide" aria-label="Edit component" title="Edit component" onClick={() => setEditId(b.id)}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICO.edit}</svg>Edit</button>}
-                  {mini("Move up", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i - 1) })), i === 0)}{mini("Move down", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i + 1) })), i === s.blocks.length - 1)}{mini("Delete", () => sec(s.id, (x) => ({ ...x, blocks: x.blocks.filter((y) => y.id !== b.id) })))}
-                </div>
+                <>
+                  <div className="rb-tools rb-blocktools">
+                    <select className="rb-w" aria-label="Width" title="Width" value={spanOf(b)} onChange={(e) => patchBlock(s.id, b.id, { w: Number(e.target.value) })}>
+                      {([[3, "¼"], [4, "⅓"], [6, "½"], [8, "⅔"], [9, "¾"], [12, "Full"]] as [number, string][]).concat(WIDTHS.some(([n]) => n === spanOf(b)) ? [] : [[spanOf(b), `${spanOf(b)}/12`]]).map(([n, l]) => <option key={n} value={n}>{l}</option>)}
+                    </select>
+                    {EDITABLE.includes(b.type) && <button type="button" className="rb-ico wide" aria-label="Edit component" title="Edit component" onClick={() => setEditId(b.id)}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICO.edit}</svg>Edit</button>}
+                    {mini("Move up", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i - 1) })), i === 0)}{mini("Move down", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i + 1) })), i === s.blocks.length - 1)}{mini("Delete", () => sec(s.id, (x) => ({ ...x, blocks: x.blocks.filter((y) => y.id !== b.id) })))}
+                  </div>
+                  <button type="button" className="rb-grip" draggable aria-label="Drag to move" title="Drag to move this component"
+                    onDragStart={(e) => { const el = (e.currentTarget as HTMLElement).closest(".rb-block") as HTMLElement; e.dataTransfer.setData("text/plain", b.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setDragImage(el, 16, 16); dragId.current = b.id; setTimeout(() => setDragging(true), 0); }}
+                    onDragEnd={endDrag}>
+                    <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true">{[3, 8, 13].map((y) => <g key={y}><circle cx="3" cy={y} r="1.3" /><circle cx="9" cy={y} r="1.3" /></g>)}</svg>
+                  </button>
+                  {spanOf(b) < 12 || b.type !== "line" ? <span className="rb-rz rb-rz-r" role="separator" aria-label="Resize width" title="Drag to change the width" onPointerDown={(e) => startResize(e, s.id, b, "w")} /> : null}
+                  {b.type === "chart" && <span className="rb-rz rb-rz-b" role="separator" aria-label="Resize height" title="Drag to change the height" onPointerDown={(e) => startResize(e, s.id, b, "h")} />}
+                </>
               )}
+              blockProps={(s, b) => ({
+                className: over?.id === b.id ? `${over.after ? "drop-after" : "drop-before"}${over.horiz ? " h" : ""}` : "",
+                onDragOver: (e) => {
+                  if (!dragId.current || dragId.current === b.id) return;
+                  e.preventDefault(); e.dataTransfer.dropEffect = "move";
+                  const r = e.currentTarget.getBoundingClientRect(), horiz = spanOf(b) < 12;
+                  const after = horiz ? e.clientX > r.left + r.width / 2 : e.clientY > r.top + r.height / 2;
+                  if (over?.id !== b.id || over.after !== after) setOver({ id: b.id, after, horiz });
+                },
+                onDrop: (e) => { e.preventDefault(); if (dragId.current && dragId.current !== b.id) moveBlock(dragId.current, s.id, b.id, over?.after ?? false); endDrag(); },
+              })}
               addButtons={(s) => (
-                <div className="rb-add">
+                <div className="rb-add" onDragOver={(e) => { if (dragId.current) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }} onDrop={(e) => { e.preventDefault(); if (dragId.current) moveBlock(dragId.current, s.id, null, false); endDrag(); }}>
                   <span>Add</span>
                   {([["Text", "text"], ["Charts", "charts"], ["Tables", "tables"], ["Layout", "layouts"]] as [string, PanelId][]).map(([l, pn]) => <button key={l} type="button" onClick={() => { setTarget(s.id); setEditId(""); setPanel(pn); }}>{l}</button>)}
                 </div>

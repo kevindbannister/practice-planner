@@ -4,7 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { MEASURES, measureById } from "../lib/analysis";
 import { AgedData } from "../lib/aged";
 import { figuresFor, KpiSettings } from "../lib/kpis";
-import { Block, ChartOpts, Fmt, Icon, Op, Operand, TopGroup, When } from "../lib/reportBuilder";
+import { Block, ChartOpts, chartH, Fmt, Icon, Op, Operand, TopGroup, When } from "../lib/reportBuilder";
 import { OP_LABEL, TOP_GROUPS, WHEN_LABEL, buckets, evalRule, fmtValue, keyData, measureValue, periodMonthsFor, tableCols, topAccounts } from "../lib/reportComponents";
 import { PeriodKind, ReportData, bsStatement, monthLabel, periodCols, periodMonths, plStatement } from "../lib/reportData";
 import { Seg } from "./reportingKit";
@@ -52,7 +52,7 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
   }
   const all = series.flat().filter((v): v is number => v !== undefined);
   if (!all.length || !bk.length) return none(`There are no figures for this chart${ids.length < b.measures.length || !c.d.bs.length ? " yet (balance sheet measures need the balance sheet read from Xero)" : ""}.`);
-  const W = 760, H = 340, L = 58, Tp = 22, B2 = 30, R = 16;
+  const W = 760, H = chartH(b), L = 58, Tp = 22, B2 = 30, R = 16;
   const bars = !!b.bars || !!o.stack;
   const stacked = !!o.stack && unit === "money" && ids.length > 1;
   const tot = stacked ? bk.map((_, i) => series.reduce((a, s) => a + Math.max(0, s[i] || 0), 0)) : [];

@@ -24,18 +24,22 @@ export const PALETTES: { name: string; colors: string[] }[] = [
 ];
 export type Freq = "month" | "quarter" | "year";
 export type Block =
-  | { id: string; type: "text"; style: TextStyle; title?: string; text: string }
-  | { id: string; type: "key"; color?: string; title: string; measure: string; compare: "none" | "prior" | "lastYear"; spark: boolean; showDesc: boolean; desc: string; fmt: Fmt; period?: PeriodKind }
-  | { id: string; type: "observation"; thenColor?: string; elseColor?: string; title: string; left: { measure: string; when: When }; op: Op; right: Operand; thenIcon: Icon; thenText: string; elseIcon: Icon; elseText: string; hideWhen: "never" | "true" | "false"; period?: PeriodKind }
-  | { id: string; type: "top"; color?: string; color2?: string; title: string; group: TopGroup; n: number; order: "top" | "bottom"; hideNil: boolean; period?: PeriodKind }
-  | { id: string; type: "columns"; left: string; right: string }
-  | { id: string; type: "line" }
-  | { id: string; type: "page" }
-  | { id: string; type: "chart"; title: string; measures: string[]; months: 13 | 24 | 36; bars?: boolean; freq?: Freq; previous?: number; opts?: ChartOpts }
-  | { id: string; type: "table"; tint?: string; statement: "pl" | "bs" | "both"; compare: "none" | "prior" | "lastYear" | "months"; detail: "summary" | "detailed"; title: string; cols?: string[]; hidden?: string[]; fmt?: Fmt; hideTitles?: boolean; period?: PeriodKind }
-  | { id: string; type: "kpis"; title: string }
-  | { id: string; type: "cashflow"; title: string }
-  | { id: string; type: "aged"; which: "rec" | "pay"; title: string };
+  | { w?: number; h?: number; id: string; type: "text"; style: TextStyle; title?: string; text: string }
+  | { w?: number; h?: number; id: string; type: "key"; color?: string; title: string; measure: string; compare: "none" | "prior" | "lastYear"; spark: boolean; showDesc: boolean; desc: string; fmt: Fmt; period?: PeriodKind }
+  | { w?: number; h?: number; id: string; type: "observation"; thenColor?: string; elseColor?: string; title: string; left: { measure: string; when: When }; op: Op; right: Operand; thenIcon: Icon; thenText: string; elseIcon: Icon; elseText: string; hideWhen: "never" | "true" | "false"; period?: PeriodKind }
+  | { w?: number; h?: number; id: string; type: "top"; color?: string; color2?: string; title: string; group: TopGroup; n: number; order: "top" | "bottom"; hideNil: boolean; period?: PeriodKind }
+  | { w?: number; h?: number; id: string; type: "columns"; left: string; right: string }
+  | { w?: number; h?: number; id: string; type: "line" }
+  | { w?: number; h?: number; id: string; type: "page" }
+  | { w?: number; h?: number; id: string; type: "chart"; title: string; measures: string[]; months: 13 | 24 | 36; bars?: boolean; freq?: Freq; previous?: number; opts?: ChartOpts }
+  | { w?: number; h?: number; id: string; type: "table"; tint?: string; statement: "pl" | "bs" | "both"; compare: "none" | "prior" | "lastYear" | "months"; detail: "summary" | "detailed"; title: string; cols?: string[]; hidden?: string[]; fmt?: Fmt; hideTitles?: boolean; period?: PeriodKind }
+  | { w?: number; h?: number; id: string; type: "kpis"; title: string }
+  | { w?: number; h?: number; id: string; type: "cashflow"; title: string }
+  | { w?: number; h?: number; id: string; type: "aged"; which: "rec" | "pay"; title: string };
+/** How many of the section's 12 columns a block takes: its own width, else a third for key numbers and the full width for the rest. */
+export const spanOf = (b: Block): number => (b.type === "line" || b.type === "page" ? 12 : Math.max(2, Math.min(12, Math.round(b.w || (b.type === "key" ? 4 : 12)))));
+export const CHART_H = 340;
+export const chartH = (b: Block): number => Math.max(160, Math.min(700, Math.round(b.h || CHART_H)));
 export type Section = { id: string; title: string; blocks: Block[] };
 export type ReportDoc = {
   id: string; name: string; kind: PeriodKind; /** the month the period ends in; empty = the latest month read */ anchor: string;
