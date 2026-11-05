@@ -37,14 +37,14 @@ function KpiView({ c }: { c: Ctx }) {
   return (
     <div>
       <p style={T.p}><strong>{on}</strong> of {on + off} KPIs are on track{off ? `, ${off} off track` : ""}.</p>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
         <thead><tr><th style={{ ...T.th, textAlign: "left" }}>KPI</th><th style={T.th}>Result</th><th style={T.th}>Target</th><th style={{ ...T.th, textAlign: "center" }}>Status</th></tr></thead>
         <tbody>
           {res.map((r) => {
             const head = r.def.category !== last; last = r.def.category;
             return (
               <Fragment key={r.def.id}>
-                {head && <tr style={{ borderBottom: "1px solid #111" }}><td colSpan={4} style={{ padding: "10px 6px 4px", fontWeight: 700, fontSize: 12, letterSpacing: 0.3, color: "#111" }}>{r.def.category.toUpperCase()}</td></tr>}
+                {head && <tr style={{ borderBottom: "1px solid #111" }}><td colSpan={4} style={{ padding: "8px 4px 3px", fontWeight: 700, fontSize: 10, letterSpacing: 0.3, color: "#111" }}>{r.def.category.toUpperCase()}</td></tr>}
                 <tr style={{ borderBottom: "1px solid #e6e6ea" }}>
                   <td style={{ ...T.td, textAlign: "left", paddingLeft: 14 }}>{r.def.name}</td><td style={T.td}>{r.note && r.value === undefined ? "–" : formatKpi(r.def.unit, r.value)}</td><td style={T.td}>{formatKpi(r.def.unit, r.target)}</td>
                   <td style={{ ...T.td, textAlign: "center", color: r.onTrack === undefined ? "#9aa5b1" : r.onTrack ? "#5b8a2d" : "#d4300f", fontWeight: 700 }}>{r.onTrack === undefined ? "–" : r.onTrack ? "On track" : "Off track"}</td>
@@ -62,7 +62,7 @@ function CashFlowView({ c }: { c: Ctx }) {
   const cf = cashFlow(c.d, c.kind, c.anchor, c.endMonth);
   if (!cf) return <p style={{ ...T.p, color: "#7a8591" }}>The cash flow needs the balance sheet for this period and the month before it.</p>;
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
       <tbody>
         {cf.lines.map((l, i) => (
           <Fragment key={l.label}>
@@ -78,17 +78,17 @@ function CashFlowView({ c }: { c: Ctx }) {
 type Edit = { change: (b: Block) => void };
 function BlockView({ b, c, edit, tone }: { b: Block; c?: Ctx; edit?: Edit; tone?: number }) {
   const field = (value: string, set: (v: string) => void, rows = 4, label = "Text") => (edit
-    ? <textarea aria-label={label} value={value} rows={rows} placeholder="Write here…" onChange={(e) => set(e.target.value)} style={{ width: "100%", boxSizing: "border-box", font: "inherit", fontSize: 14, lineHeight: 1.5, padding: 8, border: "1px dashed #cbd5e1", borderRadius: 4, resize: "vertical" }} />
+    ? <textarea aria-label={label} value={value} rows={rows} placeholder="Write here…" onChange={(e) => set(e.target.value)} style={{ width: "100%", boxSizing: "border-box", font: "inherit", fontSize: 12.5, lineHeight: 1.5, padding: 8, border: "1px dashed #cbd5e1", borderRadius: 4, resize: "vertical" }} />
     : <div style={T.p}>{value}</div>);
   if (b.type === "line") return <hr style={{ border: 0, borderTop: "1px solid #cbd5e1", margin: "16px 0" }} />;
   if (b.type === "page") return edit ? <div style={{ borderTop: "2px dashed #b8c2cc", margin: "18px 0", textAlign: "center", fontSize: 11, color: "#7a8591" }}>Page break</div> : <div style={{ pageBreakAfter: "always", breakAfter: "page" }} />;
   if (b.type === "columns") return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>{field(b.left, (v) => edit?.change({ ...b, left: v }), 5, "Left column")}{field(b.right, (v) => edit?.change({ ...b, right: v }), 5, "Right column")}</div>;
   if (b.type === "text") {
-    if (b.style === "heading") return edit ? <input aria-label="Heading" value={b.text} placeholder="Heading" onChange={(e) => edit.change({ ...b, text: e.target.value })} style={{ width: "100%", boxSizing: "border-box", fontSize: 16, fontWeight: 600, border: "1px dashed #cbd5e1", padding: 6 }} /> : <h3 style={{ margin: "22px 0 8px", fontSize: 22, fontWeight: 500, color: "#111" }}>{b.text}</h3>;
+    if (b.style === "heading") return edit ? <input aria-label="Heading" value={b.text} placeholder="Heading" onChange={(e) => edit.change({ ...b, text: e.target.value })} style={{ width: "100%", boxSizing: "border-box", fontSize: 16, fontWeight: 600, border: "1px dashed #cbd5e1", padding: 6 }} /> : <h3 style={{ margin: "18px 0 6px", fontSize: 17, fontWeight: 500, color: "#111" }}>{b.text}</h3>;
     const box = b.style === "observation" || b.style === "summary";
     return (
-      <div style={box ? { margin: "22px 0" } : undefined}>
-        {box && b.title !== undefined && <div style={{ fontSize: 17, letterSpacing: 0.3, textTransform: "uppercase", color: "#8a8d94", marginBottom: 4 }}>{edit ? <input aria-label="Title" value={b.title} onChange={(e) => edit.change({ ...b, title: e.target.value })} style={{ font: "inherit", textTransform: "inherit", border: 0, background: "transparent", width: "100%" }} /> : b.title}</div>}
+      <div style={box ? { margin: "18px 0" } : undefined}>
+        {box && b.title !== undefined && <div style={{ fontSize: 12.5, letterSpacing: 0.3, textTransform: "uppercase", color: "#8a8d94", marginBottom: 4 }}>{edit ? <input aria-label="Title" value={b.title} onChange={(e) => edit.change({ ...b, title: e.target.value })} style={{ font: "inherit", textTransform: "inherit", border: 0, background: "transparent", width: "100%" }} /> : b.title}</div>}
         {field(b.text, (v) => edit?.change({ ...b, text: v }), box ? 4 : 5)}
       </div>
     );
@@ -114,21 +114,22 @@ const REPORT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Figtre
 .rp *{box-sizing:border-box}
 .rp-cover{position:relative;container-type:inline-size;aspect-ratio:210/297;background:#fff;overflow:hidden;page:cover}
 .rp-land .rp-cover{aspect-ratio:297/210}
-.rp-cover-body{position:absolute;left:17%;right:17%;top:30%}
-.rp-land .rp-cover-body{top:18%}
-.rp-logo{font-size:7.2cqw;font-weight:800;letter-spacing:-.045em;line-height:1;color:#111;margin-bottom:11cqw}
-.rp-land .rp-logo{font-size:5.4cqw;margin-bottom:5cqw}
+.rp-cover-body{position:absolute;left:17%;right:17%;top:24%}
+.rp-land .rp-cover-body{top:14%}
+.rp-logo{font-size:5.2cqw;font-weight:800;letter-spacing:-.045em;line-height:1;color:#111;margin-bottom:9cqw}
+.rp-land .rp-logo{font-size:3.8cqw;margin-bottom:4cqw}
 .rp-rule{border:0;border-top:1px solid #333;margin:0}
-.rp-title{font-size:3.1cqw;font-weight:500;margin:0;padding:3.2cqw 0;letter-spacing:-.01em}
-.rp-sub{font-size:2.5cqw;font-weight:300;line-height:1.55;margin-top:3.2cqw}
+.rp-title{font-size:3.1cqw;font-weight:500;margin:0;padding:2.6cqw 0;letter-spacing:-.01em}
+.rp-sub{font-size:2.5cqw;font-weight:300;line-height:1.5;margin-top:2.6cqw}
 .rp-band{position:absolute;left:0;right:0;bottom:0;height:33%;background:#141b2f}
 .rp-land .rp-band{height:28%}
 .rp-band svg{width:100%;height:100%;display:block}
-.rp-in{padding:0 7%}
+.rp-in{padding:0 9%}
+.rp-land .rp-in{padding:0 6.3%}
 .rp-sec{padding:40px 0 18px}
-.rp-keys{display:flex;gap:4%;margin:6px 0 10px}
+.rp-keys{display:flex;gap:3.5%;margin:6px 0 10px}
 .rp-keys>.rb-block{flex:1 1 0;min-width:0}
-.rp-foot{font-size:11px;color:#8a8d94;border-top:1px solid #dcdde1;padding-top:10px;margin:30px 0 20px}`;
+.rp-foot{font-size:9.5px;color:#8a8d94;border-top:1px solid #dcdde1;padding-top:10px;margin:30px 0 20px}`;
 
 const NET = (() => {
   let seed = 11;
@@ -155,6 +156,7 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
   sectionTools?: (s: Section, i: number) => ReactNode; blockTools?: (s: Section, b: Block, i: number) => ReactNode; addButtons?: (s: Section) => ReactNode;
 }) {
   const words = periodWords(doc.kind, c?.anchor || doc.anchor);
+  if (c) c = { ...c, land: doc.orientation === "landscape" };
   return (
     <div className={`rp${doc.orientation === "landscape" ? " rp-land" : ""}`}>
       <style>{REPORT_CSS}</style>
@@ -205,8 +207,8 @@ export function publishedHtml(doc: ReportDoc, c: Ctx, clientName: string): strin
   const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch] as string));
   const land = doc.orientation === "landscape";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(doc.name)} – ${esc(clientName)}</title>
-<style>@page{size:A4 ${doc.orientation};margin:16mm 0}@page cover{size:A4 ${doc.orientation};margin:0}body{margin:0;background:#e9ecef}main{max-width:${land ? 1180 : 840}px;margin:0 auto;background:#fff}.noprint{max-width:${land ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}.rp-sec{border-top:1px solid #e3e5e9}
-@media print{body{background:#fff}main{max-width:none}.noprint{display:none}.rp-cover{aspect-ratio:auto;width:100%;height:${land ? 209 : 296}mm}.rp-sec{break-before:page;padding:0;border:0}.rp-in{padding:0 16mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
+<style>@page{size:A4 ${doc.orientation};margin:19mm 0}@page cover{size:A4 ${doc.orientation};margin:0}body{margin:0;background:#e9ecef}main{max-width:${land ? 1180 : 840}px;margin:0 auto;background:#fff}.noprint{max-width:${land ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}.rp-sec{border-top:1px solid #e3e5e9}
+@media print{body{background:#fff}main{max-width:none}.noprint{display:none}.rp-cover{aspect-ratio:auto;width:100%;height:${land ? 209 : 296}mm}.rp-sec{break-before:page;padding:0;border:0}.rp-in{padding:0 19mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
 <body><div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div><main>${body}</main></body></html>`;
 }
 
