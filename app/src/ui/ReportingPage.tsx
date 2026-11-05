@@ -1,57 +1,21 @@
 // The reporting centre: for one client, the figures from Xero laid out as reports. This first part is Financials: the profit and loss and
 // balance sheet for a month, quarter or year, set beside the period before or the same period last year, or month by month across the year.
 // The figures are read from Xero once (Refresh reads them again), kept on OneDrive, and worked out from the months.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { todayIso } from "../lib/domain";
-import { Compare, Detail, PeriodKind, ReportData, bsStatement, lastCompleteMonth, monthLong, periodCols, plStatement, readReportData, reportItem } from "../lib/reportData";
-import { XeroError } from "../lib/xero";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Compare, Detail, PeriodKind, bsStatement, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { href, useRoute } from "./bits";
 import { useData } from "./data";
-import { useXero, useXeroLinks } from "./XeroSettings";
+import { KpiScreen } from "./ReportingKpis";
+import { useReportData } from "./reportingKit";
+import { useXeroLinks } from "./XeroSettings";
 
 const TOOLS: [string, string, boolean][] = [
-  ["financials", "Financials", true], ["kpis", "KPIs", false], ["explorer", "KPI Explorer", false], ["profitability", "Profitability", false],
+  ["financials", "Financials", true], ["kpis", "KPIs", true], ["explorer", "KPI Explorer", false], ["profitability", "Profitability", false],
   ["cashflow", "Cash Flow", false], ["growth", "Growth", false], ["trend", "Trend", false], ["goalseek", "Goalseek", false],
 ];
 
 const fmt = (n?: number) => (n === undefined ? "" : n === 0 ? "–" : n < 0 ? `(${Math.abs(Math.round(n)).toLocaleString("en-GB")})` : Math.round(n).toLocaleString("en-GB"));
 const pct = (a?: number, b?: number) => (a === undefined || b === undefined || b === 0 ? "" : `${Math.round(((a - b) / Math.abs(b)) * 100)}%`);
-
-type Load = { data?: ReportData; busy: string; error?: string; checked: boolean };
-
-/** The saved figures for a client, and a way to read them again from Xero. */
-function useReportData(clientKey: string, tenant?: { tenantId: string; tenantName: string }) {
-  const { store } = useData();
-  const api = useXero();
-  const [s, setS] = useState<Load>({ busy: "", checked: false });
-  const tenantId = tenant?.tenantId;
-
-  useEffect(() => {
-    let live = true;
-    setS({ busy: "Opening the saved figures…", checked: false });
-    store.graph.download(reportItem(clientKey)).then(
-      (bytes) => {
-        if (!live) return;
-        try { const saved = JSON.parse(new TextDecoder().decode(bytes)) as ReportData; setS({ data: saved.v === 3 ? saved : undefined, busy: "", checked: true }); } catch { setS({ busy: "", checked: true }); } // an older layout of the saved figures is read again
-      },
-      () => live && setS({ busy: "", checked: true }),
-    );
-    return () => { live = false; };
-  }, [clientKey, store]);
-
-  const refresh = useCallback(async () => {
-    if (!tenant || !tenantId) return;
-    setS((x) => ({ ...x, busy: "Reading from Xero…", error: undefined }));
-    try {
-      const d = await readReportData(api, tenant, lastCompleteMonth(todayIso()), 36, (m) => setS((x) => ({ ...x, busy: m })));
-      await store.graph.put(`${reportItem(clientKey)}:/content`, new TextEncoder().encode(JSON.stringify(d)), "application/json");
-      setS({ data: d, busy: "", checked: true });
-    } catch (e) {
-      setS((x) => ({ ...x, busy: "", error: e instanceof XeroError ? e.message : "The figures couldn't be read from Xero or saved. Try again." }));
-    }
-  }, [api, store, clientKey, tenant, tenantId]); // eslint-disable-line react-hooks/exhaustive-deps
-  return { ...s, refresh };
-}
 
 export function ReportingPage() {
   const { data } = useData();
@@ -80,7 +44,9 @@ export function ReportingPage() {
               ? <a key={k} href={href("reporting", client.Key, k)} aria-current={tool === k ? "page" : undefined} style={{ padding: "6px 10px", borderRadius: 6, fontWeight: tool === k ? 600 : 400, background: tool === k ? "var(--soft, #eef2f7)" : "none" }}>{label}</a>
               : <span key={k} className="muted" style={{ padding: "6px 10px", fontSize: 13 }}>{label} <span style={{ fontSize: 11 }}>· next</span></span>)}
           </nav>
-          <Financials clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
+          {tool === "kpis"
+            ? <KpiScreen clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />
+            : <Financials clientKey={client.Key} clientName={String(client.Title)} yearEnd={client.YearEnd as string | undefined} tenant={tenantFor(client.Key)!} />}
         </div>
       )}
       {client && !tenantFor(client.Key) && <div className="alert amber"><strong>This client isn't linked to Xero</strong><span>Link it in Settings › Xero first.</span></div>}
