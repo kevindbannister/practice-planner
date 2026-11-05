@@ -27,6 +27,7 @@ import { PageBoundary } from "./ErrorBoundary";
 import { CommsPage } from "./Comms";
 import { PapersPage } from "./PapersPage";
 import { TaxPage } from "./TaxPage";
+import { ReportingPage } from "./ReportingPage";
 import { PracticePage } from "./PracticePage";
 import { CompliancePage } from "./CompliancePage";
 import { PayrollPage, setPayrollDemo } from "./Payroll";
@@ -123,6 +124,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <PapersPage />;
   } else if (section === "tax") {
     body = <TaxPage />;
+  } else if (section === "reporting") {
+    body = <ReportingPage />;
   } else if (section === "practice") {
     body = <PracticePage />;
   } else if (section === "compliance") {
@@ -173,7 +176,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
   const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
   const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"], ["advisory", "Advisory", "flag"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["tax", "Tax", "calc"], ["payroll", "Payroll", "coins"], ["practice", "Practice", "layout"], ["settings", "Settings", "settings"],
+    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"], ["advisory", "Advisory", "flag"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["tax", "Tax", "calc"], ["payroll", "Payroll", "coins"], ["reporting", "Reporting", "chart"], ["practice", "Practice", "layout"], ["settings", "Settings", "settings"],
   ];
   return (
     <header className="topbar">

@@ -5,7 +5,7 @@ import { Icon, IconName } from "./bits";
 
 const ITEMS: [string, string, IconName][] = [
   ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"],
-  ["advisory", "Advisory", "flag"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["tax", "Tax", "calc"], ["payroll", "Payroll", "coins"], ["practice", "Practice", "layout"], ["settings", "Settings", "settings"],
+  ["advisory", "Advisory", "flag"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["tax", "Tax", "calc"], ["payroll", "Payroll", "coins"], ["reporting", "Reporting", "chart"], ["practice", "Practice", "layout"], ["settings", "Settings", "settings"],
 ];
 
 export function BannerMenu({ current = "papers" }: { current?: string }) {
