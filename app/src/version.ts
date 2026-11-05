@@ -1,3 +1,2 @@
-// The build version, shown top left so you can see which commit you're on. Each commit adds 1 to the second number. A major
-// change adds 1 to the first number and sets the second back to 0. P is for prototype.
-export const VERSION = "1.51";
+// The build version, shown top left so you can see which commit you're on. Each commit adds 0.1 (12.1, 12.2, 12.3...). P is for prototype.
+export const VERSION = "12.1";

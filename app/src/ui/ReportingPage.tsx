@@ -1,7 +1,7 @@
 // The reporting centre: for one client, the figures from Xero laid out as reports. This first part is Financials: the profit and loss and
 // balance sheet for a month, quarter or year, set beside the period before or the same period last year, or month by month across the year.
 // The figures are read from Xero once (Refresh reads them again), kept on OneDrive, and worked out from the months.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { todayIso } from "../lib/domain";
 import { Compare, Detail, PeriodKind, ReportData, bsStatement, lastCompleteMonth, monthLong, periodCols, plStatement, readReportData, reportItem } from "../lib/reportData";
 import { XeroError } from "../lib/xero";
@@ -97,6 +97,11 @@ function Financials({ clientKey, clientName, yearEnd, tenant }: { clientKey: str
   const [anchor, setAnchor] = useState("");
   const endMonth = Number((/^(\d{2})-/.exec(yearEnd || "") || [])[1]) || 12;
   const d = r.data;
+  // nothing saved yet for this client: read it from Xero straight away (once)
+  const tried = useRef("");
+  useEffect(() => {
+    if (r.checked && !r.data && !r.busy && !r.error && tried.current !== clientKey) { tried.current = clientKey; void r.refresh(); }
+  }, [r.checked, r.data, r.busy, r.error, clientKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const months = d?.months || [];
   const at = anchor && months.includes(anchor) ? anchor : months[months.length - 1] || "";
 
