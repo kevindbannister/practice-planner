@@ -14,6 +14,7 @@ import { todayIso } from "../lib/domain";
 import { href } from "./bits";
 import { readSetting, useData } from "./data";
 import { AgedView, useAgedData } from "./ReportingAged";
+import { ChartView, ComponentEditor, Ctx, KeyView, ObservationView, T, TableView, TopView, observationHidden } from "./ReportingComponents";
 import { Seg, useReportData } from "./reportingKit";
 
 type Tenant = { tenantId: string; tenantName: string };
@@ -22,78 +23,11 @@ const endMonthOf = (yearEnd?: string) => Number((/^(\d{2})-/.exec(yearEnd || "")
 const gbp = (n?: number) => (n === undefined ? "" : n === 0 ? "–" : n < 0 ? `(${Math.abs(Math.round(n)).toLocaleString("en-GB")})` : Math.round(n).toLocaleString("en-GB"));
 const money = (n?: number) => (n === undefined ? "–" : `${n < 0 ? "-" : ""}£${Math.abs(Math.round(n)).toLocaleString("en-GB")}`);
 const short = (n: number) => { const a = Math.abs(n), s = n < 0 ? "-" : ""; return a >= 1e6 ? `${s}£${+(a / 1e6).toFixed(2)}M` : a >= 1e3 ? `${s}£${+(a / 1e3).toFixed(1)}K` : `${s}£${Math.round(a)}`; };
-const LINE = ["#3b82c4", "#d0342c", "#8fb35a", "#7a3b8f", "#f0a020", "#2b2f33"];
 const GREEN = "#6f9a3a";
 const fileOf = (clientKey: string, id: string) => `/me/drive/root:/${encodeURIComponent(REPORT_FOLDER)}/${encodeURIComponent(clientKey)}/reports/${encodeURIComponent(id)}.html`;
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 
 // ------------------------------------------------------------------ drawing the report (used on screen and in the published copy)
-
-type Ctx = { d: ReportData; kind: PeriodKind; anchor: string; endMonth: number; kpi: KpiSettings; aged?: AgedData };
-const T: Record<string, React.CSSProperties> = {
-  h2: { margin: "28px 0 10px", fontSize: 20, fontWeight: 600, borderBottom: "2px solid #e3e7eb", paddingBottom: 6 },
-  cap: { margin: "18px 0 6px", fontSize: 13, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", color: "#4a5560" },
-  p: { margin: "8px 0", fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" },
-  th: { textAlign: "right", padding: "6px 8px", fontWeight: 600, whiteSpace: "nowrap", borderBottom: "2px solid #cbd5e1" },
-  td: { textAlign: "right", padding: "4px 8px", fontVariantNumeric: "tabular-nums" },
-};
-
-function ChartView({ b, c }: { b: Extract<Block, { type: "chart" }>; c: Ctx }) {
-  const unit = measureById(b.measures[0])?.unit || "money";
-  const ids = b.measures.filter((id) => measureById(id)?.unit === unit && (!measureById(id)?.balance || c.d.bs.length));
-  const range = c.d.months.filter((m) => m <= c.anchor).slice(-b.months);
-  const series = ids.map((id) => { const s = monthlySeries(c.d, id); return range.map((m) => s.find((x) => x.month === m)?.value); });
-  const all = series.flat().filter((v): v is number => v !== undefined);
-  if (!all.length || !range.length) return <p style={{ ...T.p, color: "#7a8591" }}>There are no figures for this chart{ids.length < b.measures.length || !c.d.bs.length ? " yet (balance sheet measures need the balance sheet read from Xero)" : ""}.</p>;
-  const W = 700, H = 240, L = 54, Tp = 10, B = 26, R = 22;
-  const bars = b.bars && ids.length === 1;
-  const lo0 = Math.min(...all, bars ? 0 : Infinity), hi0 = Math.max(...all), pad = (hi0 - lo0 || Math.abs(hi0) || 1) * 0.08;
-  const lo = bars ? Math.min(0, lo0) : lo0 - pad, hi = hi0 + pad;
-  const X = (i: number) => L + (range.length < 2 ? (W - L - R) / 2 : (i / (range.length - 1)) * (W - L - R)), Y = (v: number) => H - B - ((v - lo) / (hi - lo)) * (H - Tp - B);
-  const fmt = (v: number) => (unit === "percent" ? `${+v.toFixed(1)}%` : short(v));
-  const bw = Math.max(4, ((W - L - R) / range.length) * 0.6);
-  return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }} role="img" aria-label={b.title}>
-        {[0, 1, 2, 3, 4].map((i) => { const v = lo + ((hi - lo) * i) / 4; return <g key={i}><line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke="#eef1f4" /><text x={L - 6} y={Y(v)} fontSize={9} fill="#6b7785" textAnchor="end" dominantBaseline="middle">{fmt(v)}</text></g>; })}
-        {range.map((m, i) => (range.length <= 13 || i % 2 === 0) && <text key={m} x={X(i)} y={H - 8} fontSize={9} fill="#59636e" textAnchor="middle">{monthLabel(m)}</text>)}
-        {bars ? series[0].map((v, i) => v !== undefined && <rect key={i} x={X(i) - bw / 2} y={Math.min(Y(v), Y(0))} width={bw} height={Math.abs(Y(v) - Y(0))} fill={v < 0 ? "#d0342c" : "#8fb35a"} />)
-          : series.map((s, k) => (
-            <g key={ids[k]}>
-              <polyline fill="none" stroke={LINE[k % LINE.length]} strokeWidth={2} points={s.map((v, i) => (v === undefined ? "" : `${X(i)},${Y(v)}`)).filter(Boolean).join(" ")} />
-              {s.map((v, i) => v !== undefined && <circle key={i} cx={X(i)} cy={Y(v)} r={2.5} fill="#fff" stroke={LINE[k % LINE.length]} strokeWidth={1.5} />)}
-            </g>
-          ))}
-      </svg>
-      {ids.length > 1 && <div style={{ display: "flex", gap: 14, fontSize: 12, flexWrap: "wrap" }}>{ids.map((id, k) => <span key={id}><span style={{ color: LINE[k % LINE.length] }}>●</span> {measureById(id)?.label}</span>)}</div>}
-    </div>
-  );
-}
-
-function TableView({ b, c }: { b: Extract<Block, { type: "table" }>; c: Ctx }) {
-  const cols = periodCols(c.kind, c.anchor, c.endMonth, b.compare);
-  const rows = (b.statement === "pl" ? plStatement(c.d, cols, b.detail) : bsStatement(c.d, cols, b.detail)).filter((r) => r.kind !== "line" || r.code === undefined || r.vals.some((v) => v));
-  const showVar = b.compare === "prior" || b.compare === "lastYear";
-  return (
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-      <thead><tr><th style={{ ...T.th, textAlign: "left" }}>{b.statement === "pl" ? "PROFIT & LOSS" : "BALANCE SHEET"}</th>{cols.map((col) => <th key={col.key} style={T.th}>{col.label}</th>)}{showVar && <><th style={T.th}>Variance £</th><th style={T.th}>Variance %</th></>}</tr></thead>
-      <tbody>
-        {rows.map((row, i) => {
-          const strong = row.kind !== "line";
-          const v = showVar && row.vals.length >= 2 && row.vals[0] !== undefined && row.vals[1] !== undefined ? Math.round((row.vals[0] as number) - (row.vals[1] as number)) : undefined;
-          const pc = row.vals[1] ? `${Math.round((((row.vals[0] as number) - (row.vals[1] as number)) / Math.abs(row.vals[1] as number)) * 100)}%` : "";
-          return (
-            <tr key={i} style={{ fontWeight: strong ? 600 : 400, borderTop: row.kind === "total" || row.kind === "sub" ? "1px solid #cbd5e1" : "1px solid #f0f3f6", background: row.kind === "total" ? "#f4f7fb" : undefined }}>
-              <td style={{ ...T.td, textAlign: "left", paddingLeft: row.kind === "line" && b.detail === "detailed" ? 20 : 8 }}>{row.label}</td>
-              {cols.map((col, j) => <td key={col.key} style={T.td}>{row.kind === "head" ? "" : gbp(row.vals[j])}</td>)}
-              {showVar && <><td style={T.td}>{row.kind === "head" ? "" : gbp(v)}</td><td style={T.td}>{row.kind === "head" ? "" : pc}</td></>}
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
 
 function KpiView({ c }: { c: Ctx }) {
   const res = computeKpis(c.d, c.kind, c.anchor, c.endMonth, c.kpi);
@@ -162,10 +96,12 @@ function BlockView({ b, c, edit }: { b: Block; c?: Ctx; edit?: Edit }) {
     ? <input aria-label="Block title" value={t} onChange={(e) => edit.change({ ...b, title: e.target.value } as Block)} style={{ ...T.cap, width: "100%", boxSizing: "border-box", border: 0, background: "transparent" }} />
     : <div style={T.cap}>{t}</div>);
   if (!c) return null;
+  const hidden = b.type === "observation" && observationHidden(b, c);
+  if (hidden && !edit) return null;
   return (
-    <div style={{ margin: "8px 0", pageBreakInside: "avoid", breakInside: "avoid" }}>
-      {title(b.title)}
-      {b.type === "aged" ? (c.aged ? <AgedView data={c.aged} kind={b.which} limit={15} /> : <p style={{ ...T.p, color: "#7a8591" }}>The unpaid invoices and bills haven't been read from Xero yet (Reporting › Receivables).</p>) : b.type === "chart" ? <ChartView b={b} c={c} /> : b.type === "table" ? <TableView b={b} c={c} /> : b.type === "kpis" ? <KpiView c={c} /> : <CashFlowView c={c} />}
+    <div style={{ margin: "8px 0", pageBreakInside: "avoid", breakInside: "avoid", opacity: hidden ? 0.45 : 1 }} title={hidden ? "Hidden in the published report by its extra condition" : undefined}>
+      {b.type !== "observation" && title(b.title)}
+      {b.type === "key" ? <KeyView b={b} c={c} /> : b.type === "observation" ? <ObservationView b={b} c={c} /> : b.type === "top" ? <TopView b={b} c={c} /> : b.type === "aged" ? (c.aged ? <AgedView data={c.aged} kind={b.which} limit={15} /> : <p style={{ ...T.p, color: "#7a8591" }}>The unpaid invoices and bills haven't been read from Xero yet (Reporting › Receivables).</p>) : b.type === "chart" ? <ChartView b={b} c={c} /> : b.type === "table" ? <TableView b={b} c={c} /> : b.type === "kpis" ? <KpiView c={c} /> : <CashFlowView c={c} />}
     </div>
   );
 }
@@ -312,6 +248,7 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
   const [target, setTarget] = useState(initial.sections[initial.sections.length - 1]?.id || "");
   const [state, setState] = useState<"" | "saving" | "saved">("");
   const [publishing, setPublishing] = useState(""), [problem, setProblem] = useState("");
+  const [editId, setEditId] = useState("");
   const dirty = useRef(false), docRef = useRef(doc); docRef.current = doc;
   const persist = async (x: ReportDoc) => { dirty.current = false; setState("saving"); try { await save(listRef.current.map((y) => (y.id === x.id ? x : y))); setState("saved"); } catch { setState(""); setProblem("The change couldn't be saved. Try again."); } };
   const update = (fn: (x: ReportDoc) => ReportDoc) => { dirty.current = true; setState(""); setDoc((x) => ({ ...fn(x), updatedAt: new Date().toISOString() })); };
@@ -327,6 +264,7 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
     if (id) sec(id, (s) => ({ ...s, blocks: [...s.blocks, ...blocks] }));
   };
   const addSection = () => { const s: Section = { id: uid("s"), title: "New section", blocks: [] }; update((x) => ({ ...x, sections: [...x.sections, s] })); setTarget(s.id); };
+  const editing = doc.sections.flatMap((s) => s.blocks.map((b) => ({ s, b }))).find((x) => x.b.id === editId);
   const targetTitle = doc.sections.find((s) => s.id === target)?.title;
 
   const publish = async () => {
@@ -368,8 +306,9 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
       {!d && <div className="alert amber"><span>{busy || "The figures haven't been read from Xero yet, so charts and tables can't be drawn."}</span></div>}
       <div style={{ display: "grid", gridTemplateColumns: "260px minmax(0, 1fr)", gap: 14, alignItems: "start" }}>
         <aside className="card pad stack" style={{ gap: 10, position: "sticky", top: 8 }}>
-          <select aria-label="Panel" value={panel} onChange={(e) => setPanel(e.target.value as PanelId)}>{PANELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-          {panel === "outline" && (
+          {editing && <ComponentEditor key={editing.b.id} block={editing.b} c={c} onCancel={() => setEditId("")} onSave={(nb) => { sec(editing.s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === nb.id ? nb : y)) })); setEditId(""); }} />}
+          {!editing && <select aria-label="Panel" value={panel} onChange={(e) => setPanel(e.target.value as PanelId)}>{PANELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}
+          {!editing && panel === "outline" && (
             <div className="stack" style={{ gap: 6 }}>
               {doc.sections.map((s, i) => (
                 <div key={s.id} style={{ display: "flex", gap: 4, alignItems: "center", padding: 4, borderRadius: 4, background: s.id === target ? "var(--soft, #eef2f7)" : undefined }}>
@@ -380,16 +319,16 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
               <button type="button" className="btn small" onClick={addSection}>New section</button>
             </div>
           )}
-          {panel === "text" && picks(TEXT_BLOCKS)}
-          {panel === "charts" && picks(CHART_BLOCKS)}
-          {panel === "tables" && picks(TABLE_BLOCKS)}
-          {panel === "layouts" && (
+          {!editing && panel === "text" && picks(TEXT_BLOCKS)}
+          {!editing && panel === "charts" && picks(CHART_BLOCKS)}
+          {!editing && panel === "tables" && picks(TABLE_BLOCKS)}
+          {!editing && panel === "layouts" && (
             <div className="stack" style={{ gap: 6 }}>
               <p className="muted" style={{ margin: 0, fontSize: 12 }}>A ready-made set of blocks, added to the “{targetTitle || "last"}” section.</p>
               {LAYOUTS.map((l) => <button key={l.name} type="button" className="card pad" style={{ textAlign: "left", cursor: "pointer", padding: "8px 10px" }} onClick={() => add(l.make())}><strong style={{ fontSize: 13 }}>{l.name}</strong><div className="muted" style={{ fontSize: 11 }}>{l.note}</div></button>)}
             </div>
           )}
-          {panel === "settings" && (
+          {!editing && panel === "settings" && (
             <div className="stack" style={{ gap: 10 }}>
               <label className="stack" style={{ gap: 2, fontSize: 12 }}>Period<Seg value={doc.kind} set={(k) => update((x) => ({ ...x, kind: k }))} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" /></label>
               <label className="stack" style={{ gap: 2, fontSize: 12 }}>Ending in<select aria-label="Month" value={anchor} onChange={(e) => update((x) => ({ ...x, anchor: e.target.value }))}>{[...months].reverse().map((m) => <option key={m} value={m}>{monthLong(m)}</option>)}</select></label>
@@ -413,7 +352,7 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
               )}
               blockTools={(s, b, i) => (
                 <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 6 }}>
-                  <BlockOptions b={b} onChange={(nb) => sec(s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === b.id ? nb : y)) }))} />
+                  {["key", "observation", "top", "chart", "table", "kpis", "cashflow", "aged"].includes(b.type) && <button type="button" aria-label="Edit component" title="Edit component" onClick={() => setEditId(b.id)} style={{ border: "1px solid #d5dbe1", background: "#fff", borderRadius: 4, height: 24, padding: "0 8px", cursor: "pointer", fontSize: 12 }}>Edit</button>}
                   {mini("Move up", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i - 1) })), i === 0)}{mini("Move down", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i + 1) })), i === s.blocks.length - 1)}{mini("Delete", () => sec(s.id, (x) => ({ ...x, blocks: x.blocks.filter((y) => y.id !== b.id) })))}
                 </div>
               )}
@@ -429,18 +368,4 @@ function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth, kpi, a
       </div>
     </section>
   );
-}
-
-function BlockOptions({ b, onChange }: { b: Block; onChange: (b: Block) => void }) {
-  const sel = (label: string, value: string, opts: [string, string][], set: (v: string) => void) => <select aria-label={label} value={value} onChange={(e) => set(e.target.value)} style={{ fontSize: 12 }}>{opts.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>;
-  if (b.type === "table") return <>
-    {sel("Statement", b.statement, [["pl", "Profit & Loss"], ["bs", "Balance Sheet"]], (v) => onChange({ ...b, statement: v as "pl" | "bs" }))}
-    {sel("Compare with", b.compare, [["none", "No comparison"], ["prior", "Last period"], ["lastYear", "Last year"], ["months", "Every month"]], (v) => onChange({ ...b, compare: v as typeof b.compare }))}
-    {sel("Detail", b.detail, [["summary", "Summary"], ["detailed", "Detailed"]], (v) => onChange({ ...b, detail: v as typeof b.detail }))}
-  </>;
-  if (b.type === "chart") return <>
-    {sel("Months", String(b.months), [["13", "13 months"], ["24", "24 months"], ["36", "36 months"]], (v) => onChange({ ...b, months: Number(v) as 13 | 24 | 36 }))}
-    {b.measures.length === 1 && sel("Style", b.bars ? "bars" : "line", [["bars", "Bars"], ["line", "Line"]], (v) => onChange({ ...b, bars: v === "bars" }))}
-  </>;
-  return null;
 }

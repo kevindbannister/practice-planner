@@ -7,13 +7,24 @@ const fullMonth = (ym: string) => `${FULL[Number(ym.slice(5, 7)) - 1]} ${ym.slic
 
 export type Orientation = "portrait" | "landscape";
 export type TextStyle = "heading" | "paragraph" | "observation" | "summary";
+export type Op = "gt" | "lt" | "gte" | "lte" | "eq";
+export type When = "this" | "prior" | "lastYear";
+export type Operand = { measure: string; when: When } | { value: number };
+export type Icon = "up" | "down" | "none";
+export type Fmt = { rounded?: boolean; decimals?: boolean; /** default true */ symbol?: boolean };
+export type TopGroup = "income" | "cos" | "expense" | "other" | "bank" | "curAsset" | "fixed" | "curLiab" | "ltLiab" | "equity";
+export type ChartOpts = { highlight?: boolean; trim?: boolean; stack?: boolean; zero?: boolean; legend?: boolean; labels?: boolean };
+export type Freq = "month" | "quarter" | "year";
 export type Block =
   | { id: string; type: "text"; style: TextStyle; title?: string; text: string }
+  | { id: string; type: "key"; title: string; measure: string; compare: "none" | "prior" | "lastYear"; spark: boolean; showDesc: boolean; desc: string; fmt: Fmt; period?: PeriodKind }
+  | { id: string; type: "observation"; title: string; left: { measure: string; when: When }; op: Op; right: Operand; thenIcon: Icon; thenText: string; elseIcon: Icon; elseText: string; hideWhen: "never" | "true" | "false"; period?: PeriodKind }
+  | { id: string; type: "top"; title: string; group: TopGroup; n: number; order: "top" | "bottom"; hideNil: boolean; period?: PeriodKind }
   | { id: string; type: "columns"; left: string; right: string }
   | { id: string; type: "line" }
   | { id: string; type: "page" }
-  | { id: string; type: "chart"; title: string; measures: string[]; months: 13 | 24 | 36; bars?: boolean }
-  | { id: string; type: "table"; statement: "pl" | "bs"; compare: "none" | "prior" | "lastYear" | "months"; detail: "summary" | "detailed"; title: string }
+  | { id: string; type: "chart"; title: string; measures: string[]; months: 13 | 24 | 36; bars?: boolean; freq?: Freq; previous?: number; opts?: ChartOpts }
+  | { id: string; type: "table"; statement: "pl" | "bs" | "both"; compare: "none" | "prior" | "lastYear" | "months"; detail: "summary" | "detailed"; title: string; cols?: string[]; hidden?: string[]; fmt?: Fmt; hideTitles?: boolean; period?: PeriodKind }
   | { id: string; type: "kpis"; title: string }
   | { id: string; type: "cashflow"; title: string }
   | { id: string; type: "aged"; which: "rec" | "pay"; title: string };
@@ -47,7 +58,11 @@ export const moveItem = <T,>(list: T[], from: number, to: number): T[] => {
 // ------------------------------------------------------------------ what can be added
 
 export type Pick = { name: string; note: string; make: () => Block };
+const keyNumber = (title: string, measure: string): Block => ({ id: uid(), type: "key", title, measure, compare: "none", spark: false, showDesc: false, desc: "", fmt: {} });
+const observation = (): Block => ({ id: uid(), type: "observation", title: "Revenue", left: { measure: "revenue", when: "this" }, op: "gt", right: { measure: "revenue", when: "lastYear" }, thenIcon: "up", thenText: "Positive trend upwards.", elseIcon: "down", elseText: "Negative trend downwards.", hideWhen: "never" });
+const top = (title: string, group: TopGroup): Block => ({ id: uid(), type: "top", title, group, n: 10, order: "top", hideNil: true });
 export const TEXT_BLOCKS: Pick[] = [
+  { name: "Observation with a rule", note: "Says one thing or another depending on the numbers", make: observation },
   { name: "Text", note: "Write your own commentary", make: () => ({ id: uid(), type: "text", style: "paragraph", text: "" }) },
   { name: "Heading", note: "A heading to introduce what follows", make: () => ({ id: uid(), type: "text", style: "heading", text: "" }) },
   { name: "Two columns of text", note: "Text beside text", make: () => ({ id: uid(), type: "columns", left: "", right: "" }) },
@@ -66,6 +81,9 @@ export const CHART_BLOCKS: Pick[] = [
   { name: "Costs", note: "Cost of sales and expenses", make: () => chart("Costs", ["cos", "expenses"], 13, true) },
   { name: "Cash on hand", note: "Bank balances month by month", make: () => chart("Cash on hand", ["cash"], 13, true) },
   { name: "Debtors and creditors", note: "What is owed to and by the business", make: () => chart("Debtors and creditors", ["debtors", "creditors"]) },
+  { name: "Key number", note: "One figure, with an optional comparison and sparkline", make: () => keyNumber("Total revenue", "revenue") },
+  { name: "Top 10 Expense accounts", note: "The biggest costs, as bars", make: () => top("Top 10 Expense Accounts", "expense") },
+  { name: "Top 10 Revenue accounts", note: "Where the income comes from", make: () => top("Top 10 Revenue Accounts", "income") },
   { name: "KPI results", note: "Every KPI against its target", make: () => ({ id: uid(), type: "kpis", title: "KPI results" }) },
   { name: "Cash flow", note: "Where the cash came from and went", make: () => ({ id: uid(), type: "cashflow", title: "Cash flow" }) },
 ];
@@ -76,6 +94,7 @@ export const TABLE_BLOCKS: Pick[] = [
   { name: "Profit & Loss vs last year", note: "The same period a year earlier", make: () => table("Profit & Loss vs last year", "pl", "lastYear") },
   { name: "Profit & Loss by month", note: "Every month of the year", make: () => table("Profit & Loss by month", "pl", "months") },
   { name: "Detailed Profit & Loss", note: "Every account", make: () => table("Detailed Profit & Loss", "pl", "prior", "detailed") },
+  { name: "Both statements", note: "Profit & Loss and Balance Sheet, with last year", make: () => ({ ...table("Financials", "pl", "lastYear"), statement: "both" as const, cols: ["this", "lastYear", "varPct"] }) },
   { name: "Balance Sheet", note: "At the end of the period", make: () => table("Balance Sheet", "bs", "none") },
   { name: "Balance Sheet vs last period", note: "With the movement", make: () => table("Balance Sheet vs last period", "bs", "prior") },
 ];
@@ -86,17 +105,20 @@ TABLE_BLOCKS.push(
   { name: "Aged Payables", note: "Who the business owes, by how late", make: () => aged("pay") },
 );
 
+const tableNamed = (name: string): Pick => TABLE_BLOCKS.find((p) => p.name === name) as Pick;
+const chartNamed = (name: string): Pick => CHART_BLOCKS.find((p) => p.name === name) as Pick;
+
 export type Layout = { name: string; note: string; make: () => Block[] };
 export const LAYOUTS: Layout[] = [
   { name: "Monthly summary", note: "Summary, profit and loss, revenue and margins", make: () => [
     { id: uid(), type: "text", style: "summary", title: "Executive summary", text: "" }, TABLE_BLOCKS[1].make(), CHART_BLOCKS[0].make(), CHART_BLOCKS[4].make()] },
-  { name: "KPI summary", note: "KPI results with a comment", make: () => [CHART_BLOCKS[8].make(), { id: uid(), type: "text", style: "observation", title: "Observation", text: "" }] },
-  { name: "Cash flow analysis", note: "Cash flow, cash on hand and the balance sheet", make: () => [CHART_BLOCKS[9].make(), CHART_BLOCKS[6].make(), TABLE_BLOCKS[6].make()] },
+  { name: "KPI summary", note: "KPI results with a comment", make: () => [chartNamed("KPI results").make(), { id: uid(), type: "text", style: "observation", title: "Observation", text: "" }] },
+  { name: "Cash flow analysis", note: "Cash flow, cash on hand and the balance sheet", make: () => [chartNamed("Cash flow").make(), CHART_BLOCKS[6].make(), tableNamed("Balance Sheet vs last period").make()] },
   { name: "Aged Accounts Receivable", note: "Ageing bar and table of customers", make: () => [aged("rec"), { id: uid(), type: "text", style: "observation", title: "Observation", text: "" }] },
   { name: "Aged Accounts Payable", note: "Ageing bar and table of suppliers", make: () => [aged("pay"), { id: uid(), type: "text", style: "observation", title: "Observation", text: "" }] },
   { name: "Revenue charts", note: "Revenue over 13 and 24 months and profit", make: () => [CHART_BLOCKS[0].make(), CHART_BLOCKS[1].make(), CHART_BLOCKS[3].make()] },
   { name: "Full month pack", note: "Everything above, in order", make: () => [
-    { id: uid(), type: "text", style: "summary", title: "Executive summary", text: "" }, TABLE_BLOCKS[1].make(), CHART_BLOCKS[2].make(), CHART_BLOCKS[8].make(), { id: uid(), type: "page" }, CHART_BLOCKS[9].make(), TABLE_BLOCKS[6].make(), { id: uid(), type: "page" }, TABLE_BLOCKS[3].make()] },
+    { id: uid(), type: "text", style: "summary", title: "Executive summary", text: "" }, TABLE_BLOCKS[1].make(), CHART_BLOCKS[2].make(), chartNamed("KPI results").make(), { id: uid(), type: "page" }, chartNamed("Cash flow").make(), tableNamed("Balance Sheet vs last period").make(), { id: uid(), type: "page" }, TABLE_BLOCKS[3].make()] },
 ];
 
 /** A copy to work on from a published report: new ids, back to a draft. */
