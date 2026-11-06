@@ -245,9 +245,9 @@ export function TrendScreen({ clientKey, clientName, yearEnd, tenant }: Props) {
         </div>
       )}
       <div className="card" style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead><tr style={{ borderBottom: "2px solid var(--line, #cbd5e1)" }}><th style={{ textAlign: "left", padding: "8px 12px" }}>Month</th>{ids.map((id, i) => <th key={id} style={{ textAlign: "right", padding: "8px 12px" }}><span style={{ color: LINE[i % LINE.length] }}>●</span> {measureById(id)?.label}</th>)}</tr></thead>
-          <tbody>{range.map((m, i) => <tr key={m} style={{ borderTop: "1px solid var(--line-soft, #eef2f7)" }}><td style={{ padding: "6px 12px", fontWeight: 600 }}>{monthLong(m)}</td>{ids.map((id, k) => <td key={id} className="num mono" style={{ textAlign: "right", padding: "6px 12px" }}>{fmt(series[k]?.[i])}</td>)}</tr>)}</tbody>
+        <table className="grid">
+          <thead><tr><th style={{ textAlign: "left" }}>Month</th>{ids.map((id, i) => <th key={id} style={{ textAlign: "right" }}><span style={{ color: LINE[i % LINE.length] }}>●</span> {measureById(id)?.label}</th>)}</tr></thead>
+          <tbody>{range.map((m, i) => <tr key={m} style={{ borderTop: "1px solid var(--line-soft, #eef2f7)" }}><td style={{ fontWeight: 600 }}>{monthLong(m)}</td>{ids.map((id, k) => <td key={id} className="num mono" style={{ textAlign: "right" }}>{fmt(series[k]?.[i])}</td>)}</tr>)}</tbody>
         </table>
       </div>
     </Frame>

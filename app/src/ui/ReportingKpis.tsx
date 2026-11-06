@@ -78,15 +78,15 @@ export function KpiScreen({ clientKey, clientName, yearEnd, tenant }: { clientKe
           </div>
 
           <div className="card" style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <table className="grid">
               <thead>
-                <tr style={{ borderBottom: "2px solid var(--line, #cbd5e1)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px" }}>KPI</th>
-                  <th className="num" style={{ textAlign: "right", padding: "8px 10px" }}>Result</th>
-                  <th className="num" style={{ textAlign: "right", padding: "8px 10px" }}>Target{kind !== "month" ? " (for the period)" : ""}</th>
-                  <th style={{ textAlign: "center", padding: "8px 10px" }}>Status</th>
-                  <th className="num" style={{ textAlign: "right", padding: "8px 10px" }}>vs target</th>
-                  {edit && <th style={{ padding: "8px 10px" }}>Monthly target</th>}
+                <tr>
+                  <th style={{ textAlign: "left" }}>KPI</th>
+                  <th className="num" style={{ textAlign: "right" }}>Result</th>
+                  <th className="num" style={{ textAlign: "right" }}>Target{kind !== "month" ? " (for the period)" : ""}</th>
+                  <th style={{ textAlign: "center" }}>Status</th>
+                  <th className="num" style={{ textAlign: "right" }}>vs target</th>
+                  {edit && <th>Monthly target</th>}
                 </tr>
               </thead>
               <tbody>
@@ -94,16 +94,16 @@ export function KpiScreen({ clientKey, clientName, yearEnd, tenant }: { clientKe
                   const list = shown.filter((x) => x.def.category === cat);
                   if (!list.length) return null;
                   return [
-                    <tr key={cat} style={{ background: "var(--soft, #f4f7fb)" }}><td colSpan={edit ? 6 : 5} style={{ padding: "6px 12px", fontWeight: 700, fontSize: 12, letterSpacing: 0.4 }}>{cat.toUpperCase()}</td></tr>,
+                    <tr key={cat} style={{ background: "var(--surface-2)" }}><td colSpan={edit ? 6 : 5} style={{ fontWeight: 700, fontSize: 12, letterSpacing: 0.4 }}>{cat.toUpperCase()}</td></tr>,
                     ...list.map((x) => (
-                      <tr key={x.def.id} style={{ borderTop: "1px solid var(--line-soft, #eef2f7)", opacity: off.has(x.def.id) ? 0.45 : 1 }} title={x.def.how}>
-                        <td style={{ padding: "6px 12px" }}>{x.def.name}{x.def.lowerIsBetter ? "*" : ""}</td>
-                        <td className="num mono" style={{ textAlign: "right", padding: "6px 10px" }}>{x.note && x.value === undefined ? <span className="muted" style={{ fontSize: 11 }}>{x.note}</span> : formatKpi(x.def.unit, x.value)}</td>
-                        <td className="num mono muted" style={{ textAlign: "right", padding: "6px 10px" }}>{formatKpi(x.def.unit, x.target)}</td>
-                        <td style={{ textAlign: "center", padding: "6px 10px", color: x.onTrack === undefined ? "var(--muted)" : x.onTrack ? "#2f8f4e" : "#c0392b", fontWeight: 700 }} aria-label={x.onTrack === undefined ? "No result" : x.onTrack ? "On track" : "Off track"}>{x.onTrack === undefined ? "–" : x.onTrack ? "✓" : "✕"}</td>
-                        <td className="num mono" style={{ textAlign: "right", padding: "6px 10px" }}>{x.gap === undefined ? "–" : `${x.gap > 0 ? "+" : ""}${formatKpi(x.def.unit === "days" ? "days" : x.def.unit, x.gap)}`}</td>
+                      <tr key={x.def.id} style={{ opacity: off.has(x.def.id) ? 0.45 : 1 }} title={x.def.how}>
+                        <td>{x.def.name}{x.def.lowerIsBetter ? "*" : ""}</td>
+                        <td className="num mono" style={{ textAlign: "right" }}>{x.note && x.value === undefined ? <span className="muted" style={{ fontSize: 11 }}>{x.note}</span> : formatKpi(x.def.unit, x.value)}</td>
+                        <td className="num mono muted" style={{ textAlign: "right" }}>{formatKpi(x.def.unit, x.target)}</td>
+                        <td style={{ textAlign: "center", color: x.onTrack === undefined ? "var(--muted)" : x.onTrack ? "#2f8f4e" : "#c0392b", fontWeight: 700 }} aria-label={x.onTrack === undefined ? "No result" : x.onTrack ? "On track" : "Off track"}>{x.onTrack === undefined ? "–" : x.onTrack ? "✓" : "✕"}</td>
+                        <td className="num mono" style={{ textAlign: "right" }}>{x.gap === undefined ? "–" : `${x.gap > 0 ? "+" : ""}${formatKpi(x.def.unit === "days" ? "days" : x.def.unit, x.gap)}`}</td>
                         {edit && (
-                          <td style={{ padding: "4px 10px", whiteSpace: "nowrap" }}>
+                          <td style={{ whiteSpace: "nowrap" }}>
                             <input aria-label={`Target for ${x.def.name}`} type="number" step="any" disabled={saving} defaultValue={settings.targets?.[x.def.id] ?? x.def.target} style={{ width: 90 }} onBlur={(e) => setTarget(x.def.id, e.target.value)} />
                             <label style={{ marginLeft: 8, fontSize: 12 }}><input type="checkbox" checked={!off.has(x.def.id)} disabled={saving} onChange={() => toggle(x.def.id)} /> Show</label>
                           </td>

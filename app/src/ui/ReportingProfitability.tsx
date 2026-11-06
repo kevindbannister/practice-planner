@@ -114,5 +114,5 @@ function Stat({ colour, label, value, link, onLink }: { colour: string; label: s
   );
 }
 function Top({ rows }: { rows: { name: string; amount: number }[] }) {
-  return <table style={{ fontSize: 12, width: "100%" }}><tbody>{rows.map((x) => <tr key={x.name}><td>{x.name}</td><td className="num mono" style={{ textAlign: "right" }}>{gbp(x.amount)}</td></tr>)}</tbody></table>;
+  return <table className="grid"><tbody>{rows.map((x) => <tr key={x.name}><td>{x.name}</td><td className="num mono" style={{ textAlign: "right" }}>{gbp(x.amount)}</td></tr>)}</tbody></table>;
 }

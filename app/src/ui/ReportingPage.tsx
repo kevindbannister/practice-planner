@@ -188,12 +188,12 @@ function Financials({ clientKey, clientName, yearEnd, tenant }: { clientKey: str
           </div>
 
           <div className="card" style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <table className="grid">
               <thead>
-                <tr style={{ borderBottom: "2px solid var(--line, #cbd5e1)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", position: "sticky", left: 0, background: "var(--card, #fff)" }}>{statement === "pl" ? "PROFIT & LOSS" : "BALANCE SHEET"}</th>
-                  {cols.map((c) => <th key={c.key} className="num" style={{ textAlign: "right", padding: "8px 10px", whiteSpace: "nowrap", fontWeight: c.total ? 700 : 600 }}>{c.label}</th>)}
-                  {showVar && <><th className="num" style={{ textAlign: "right", padding: "8px 10px" }}>Variance £</th><th className="num" style={{ textAlign: "right", padding: "8px 10px" }}>Variance %</th></>}
+                <tr>
+                  <th style={{ textAlign: "left", position: "sticky", left: 0, background: "var(--surface)" }}>{statement === "pl" ? "PROFIT & LOSS" : "BALANCE SHEET"}</th>
+                  {cols.map((c) => <th key={c.key} className="num" style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: c.total ? 700 : 600 }}>{c.label}</th>)}
+                  {showVar && <><th className="num" style={{ textAlign: "right" }}>Variance £</th><th className="num" style={{ textAlign: "right" }}>Variance %</th></>}
                 </tr>
               </thead>
               <tbody>
@@ -201,10 +201,10 @@ function Financials({ clientKey, clientName, yearEnd, tenant }: { clientKey: str
                   const strong = row.kind === "total" || row.kind === "sub" || row.kind === "head";
                   const v = showVar && row.vals.length >= 2 && row.vals[0] !== undefined && row.vals[1] !== undefined ? Math.round((row.vals[0] as number) - (row.vals[1] as number)) : undefined;
                   return (
-                    <tr key={i} style={{ borderTop: row.kind === "total" || row.kind === "sub" ? "1px solid var(--line, #cbd5e1)" : "1px solid var(--line-soft, #eef2f7)", fontWeight: strong ? 600 : 400, background: row.kind === "total" ? "var(--soft, #f4f7fb)" : "none" }}>
-                      <td style={{ padding: "5px 12px", paddingLeft: row.kind === "line" && detail === "detailed" ? 24 : 12, position: "sticky", left: 0, background: row.kind === "total" ? "var(--soft, #f4f7fb)" : "var(--card, #fff)" }}>{row.label}</td>
-                      {cols.map((c, j) => <td key={c.key} className="num mono" style={{ textAlign: "right", padding: "5px 10px", fontWeight: c.total ? 700 : undefined }}>{row.kind === "head" ? "" : fmt(row.vals[j])}</td>)}
-                      {showVar && <><td className="num mono" style={{ textAlign: "right", padding: "5px 10px" }}>{row.kind === "head" ? "" : fmt(v)}</td><td className="num mono" style={{ textAlign: "right", padding: "5px 10px" }}>{row.kind === "head" ? "" : pct(row.vals[0], row.vals[1])}</td></>}
+                    <tr key={i} style={{ fontWeight: strong ? 600 : 400, background: row.kind === "total" ? "var(--surface-2)" : "none" }}>
+                      <td style={{ paddingLeft: row.kind === "line" && detail === "detailed" ? 32 : 16, position: "sticky", left: 0, background: row.kind === "total" ? "var(--surface-2)" : "var(--surface)" }}>{row.label}</td>
+                      {cols.map((c, j) => <td key={c.key} className="num mono" style={{ textAlign: "right", fontWeight: c.total ? 700 : undefined }}>{row.kind === "head" ? "" : fmt(row.vals[j])}</td>)}
+                      {showVar && <><td className="num mono" style={{ textAlign: "right" }}>{row.kind === "head" ? "" : fmt(v)}</td><td className="num mono" style={{ textAlign: "right" }}>{row.kind === "head" ? "" : pct(row.vals[0], row.vals[1])}</td></>}
                     </tr>
                   );
                 })}
