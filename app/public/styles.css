@@ -1364,8 +1364,6 @@ tr.tb-check td { border-top: 1px dashed var(--line); font-size: 12.5px; }
 /* Working papers: colour. Last year's (comparative) figures are red; headings, sub-totals and totals are tinted. */
 .paper-main table .prior, .paper-main table .prior input, .paper-main table .prior .mono { color: var(--red-ink); }
 .paper-main table.lead th.prior, .paper-main table.lines th.prior { color: var(--red-ink); }
-.paper-main table.grid thead th { background: var(--blue-soft); color: var(--blue-ink); border-bottom: 2px solid var(--blue-line); }
-.paper-main table.grid thead th.prior { background: var(--red-soft); border-bottom-color: var(--red-line); }
 .paper-main .lead-label td { color: var(--blue); background: var(--surface-2); }
 .paper-main .lead-sub td { background: var(--blue-soft); color: var(--blue-ink); border-top: 1px solid var(--blue-line); }
 .paper-main .lead-sub td.prior { color: var(--red-ink); background: var(--red-soft); }
@@ -1383,8 +1381,6 @@ tr.tb-check td { border-top: 1px dashed var(--line); font-size: 12.5px; }
 .paper-main .check-list li { border-left: 4px solid var(--green); padding-left: 8px; }
 .paper-main .check-list li.warn { border-left-color: var(--red-solid); background: var(--red-soft); }
 .paper-side .paper-group-name { color: var(--blue); border-bottom: 1px solid var(--blue-line); margin: 0 8px; padding-left: 2px; }
-.paper-main > .card:first-child, .paper-main > section.card:first-child { border-top: 4px solid var(--blue); }
-.paper-main > .card:first-child h2, .paper-main > .card:first-child h1 { color: var(--blue-ink); }
 .paper-item.done .paper-name { color: var(--green); }
 
 /* Working papers: a compact top */
@@ -1396,12 +1392,6 @@ tr.tb-check td { border-top: 1px dashed var(--line); font-size: 12.5px; }
 .paper-side-head .paper-bar { flex: 1 1 100%; width: 100%; }
 button.paper-group-name { border: 0; border-bottom: 1px solid var(--blue-line); box-shadow: none; display: flex; align-items: center; gap: 8px; width: calc(100% - 16px); background: transparent; border-radius: 0; min-height: 0; cursor: pointer; text-align: left; }
 .paper-group-n { margin-left: auto; font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; }
-.paper-main > .card:first-child { padding-top: 12px; padding-bottom: 12px; gap: 8px; }
-.paper-main > .card:first-child .eyebrow { font-size: 10px; }
-.paper-main > .card:first-child h2 { font-size: 17px; }
-.paper-main > .card:first-child .seg { align-self: center; }
-.paper-main > .card:first-child .seg button { padding: 4px 12px; min-height: 30px; font-size: 13px; }
-.paper-main > .card:first-child .signoff { padding: 4px 12px; }
 .paper { gap: 12px; }
 
 /* Lead schedules: a line can open under itself or in a panel beside the lead */
@@ -2480,25 +2470,11 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 
 /* working papers: tighter main sections (desktop and tablet; phones keep their larger tap targets) */
 @media (min-width: 721px) {
-  .paper-main { gap: 10px; }
-  .paper-main .card.pad { padding: 14px 16px; }
-  .paper-main .card-head { padding: 10px 16px; }
-  .paper-main .stack { gap: 8px; }
-  .paper-main table.grid:not(.ledger-table) { font-size: 13px; line-height: 1.3; }
-  .paper-main table.grid:not(.ledger-table) th { padding: 6px 10px; font-size: 11.5px; }
-  .paper-main table.grid:not(.ledger-table) td { padding: 4px 10px; }
-  .paper-main table.grid:not(.ledger-table) th:first-child, .paper-main table.grid:not(.ledger-table) td:first-child { padding-left: 12px; }
   .paper-main table.lines .input.cell { min-height: 28px; padding: 2px 8px; font-size: 13px; border-radius: 6px; }
   .paper-main table.lines select.input.cell { padding-right: 22px; }
   .paper-main .lead-label td { padding-top: 8px; padding-bottom: 3px; }
-  .paper-main .paper-stat { padding: 5px 10px; min-width: 130px; }
-  .paper-main .paper-stat strong { font-size: 14px; }
-  .paper-main .stat-row, .paper-main .setup-row { gap: 8px; }
-  .paper-main .setup-field { gap: 2px; }
   .paper-main table.grid:not(.ledger-table) .input { min-height: 28px; padding-top: 2px; padding-bottom: 2px; font-size: 13px; border-radius: 6px; }
   .paper-main table.grid:not(.ledger-table) td .input.money, .paper-main table.lead td .input { max-width: 150px; }
-  .paper-main .seg button { min-height: 30px; padding: 0 12px; font-size: 13px; }
-  .paper-main .seg { border-radius: 8px; }
   .paper-main .lead-mode { gap: 6px; }
   .paper-main textarea.input { min-height: 0; }
   .paper-main .lead-toggle { min-height: 26px; }
@@ -2698,9 +2674,7 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 .paper-top .paper-tool { min-height: 34px; font-size: 12.5px; }
 .paper-side { top: 92px; border-radius: 24px; box-shadow: 0 8px 28px rgba(20, 90, 150, 0.10); border-color: transparent; background: color-mix(in srgb, var(--surface) 94%, transparent); }
 .paper-main > .card, .paper-main > section.card, .paper-main > .stack > .card { border-radius: 24px; border-color: transparent; box-shadow: 0 8px 28px rgba(20, 90, 150, 0.08); background: color-mix(in srgb, var(--surface) 94%, transparent); }
-.paper-main > .card:first-child, .paper-main > section.card:first-child { border-top: 0; }
 .paper-main > .card:first-child h1, .paper-main > .card:first-child h2 { font-size: 24px; letter-spacing: -0.01em; }
-.paper-main > .card:first-child .eyebrow { font-size: 11px; letter-spacing: 0.08em; }
 .paper-main table thead th, .paper-main table.grid thead th { border-radius: 0; }
 .paper-main .lead-total td, .paper-main .lead-sub td { font-weight: 700; }
 .paper-main .btn.primary { border-radius: 16px; min-height: 52px; padding: 0 28px; font-size: 16px; box-shadow: 0 10px 24px rgba(12, 100, 150, 0.28); }
@@ -2771,7 +2745,6 @@ table.grid.ledger-table td:nth-child(-n+2) { white-space: nowrap; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .paper-main > .card, :root:not([data-theme="light"]) .paper-top, :root:not([data-theme="light"]) .paper-side { background: rgba(16, 28, 46, 0.78); border-color: rgba(255, 255, 255, 0.06); } }
 /* headings */
 .paper-main > .card:first-child h1, .paper-main > .card:first-child h2 { font-size: 30px; font-weight: 700; color: #14263f; letter-spacing: -0.02em; line-height: 1.1; }
-.paper-main > .card:first-child .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: #6b7c93; }
 .paper-main .card h2, .paper-main .card h3 { color: #14263f; letter-spacing: -0.01em; }
 .paper-main .card h3:not(.card-title) { font-size: 19px; font-weight: 700; margin: 0; }
 .card-title { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 19px; font-weight: 700; color: #14263f; }
@@ -3269,3 +3242,8 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 
 /* one section heading size for every screen (cards, report centre, settings) */
 .sec-h { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.025em; }
+
+
+/* working papers share the app's card, heading, table-header, button and stat sizes; only the top bar and the sidebar differ */
+.paper { gap: 16px; }
+.paper-main .paper-stat { border-left: 4px solid var(--blue); }
