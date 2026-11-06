@@ -73,7 +73,7 @@ function Overview() {
       </div>
       <div className="card" style={{ padding: 14, marginBottom: 16 }}>
         <h2 style={{ marginTop: 0 }}>By stage</h2>
-        <table className="table"><tbody>
+        <table className="grid"><tbody>
           {s.stages.map((st) => (
             <tr key={st.key}><td>{st.label}</td><td>{t.byStage[st.key]?.count || 0}</td><td>{money(t.byStage[st.key]?.value)}</td></tr>
           ))}
@@ -116,7 +116,7 @@ function Leads() {
       </div>
       {adding && <NewLead onClose={() => setAdding(false)} />}
       {rows.length ? (
-        <div className="card table-wrap"><table className="table">
+        <div className="card table-wrap"><table className="grid">
           <thead><tr><th>Name</th><th>Source</th><th>Received</th><th>Owner</th><th>Opportunities</th><th>Status</th></tr></thead>
           <tbody>{rows.map((l) => (
             <tr key={l.Key}>
@@ -235,7 +235,7 @@ function LeadDetail({ leadKey }: { leadKey: string }) {
       <p><a href="#/sales/leads">← Leads</a></p>
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div className="row-wrap" style={{ justifyContent: "space-between", gap: 8 }}>
-          <h2 style={{ margin: 0 }}>{lead.Title}</h2>
+          <h2 className="sec-h">{lead.Title}</h2>
           {lead.Status === "converted" ? <span className="chip green">Linked to a client</span> : lead.Status === "closed" ? <span className="chip">Closed</span> : <span className="chip blue">Open</span>}
         </div>
         <dl className="kv" style={{ display: "grid", gridTemplateColumns: "max-content 1fr", gap: "4px 14px", marginTop: 12 }}>
@@ -261,7 +261,7 @@ function LeadDetail({ leadKey }: { leadKey: string }) {
         )}
       </div>
       <div className="card" style={{ padding: 16 }}>
-        <div className="row-wrap" style={{ justifyContent: "space-between" }}><h2 style={{ margin: 0 }}>Opportunities</h2>
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}><h2 className="sec-h">Opportunities</h2>
           {work && !adding && <button type="button" className="btn small" onClick={() => setAdding(true)}>+ New opportunity</button>}</div>
         {adding && <div className="row-wrap" style={{ gap: 8, marginTop: 10 }}>
           <input className="input" style={{ maxWidth: 360 }} aria-label="Opportunity name" placeholder="What are they asking for?" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
@@ -417,7 +417,7 @@ function OppDetail({ oppKey }: { oppKey: string }) {
       <p><a href="#/sales/pipeline">← Pipeline</a></p>
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div className="row-wrap" style={{ justifyContent: "space-between", gap: 8 }}>
-          <h2 style={{ margin: 0 }}>{o.Title}</h2>
+          <h2 className="sec-h">{o.Title}</h2>
           {out === "open" ? <span className="chip blue">{s.stages.find((x) => x.key === o.Stage)?.label || o.Stage}</span> : <span className={`chip ${outcomeChip(o)!.cls}`}>{outcomeChip(o)!.label}{o.LostReason ? `: ${o.LostReason}` : ""}{out === "deferred" && o.DeferUntil ? ` until ${fmtDate(String(o.DeferUntil))}` : ""}</span>}
         </div>
         <p className="muted" style={{ margin: "6px 0 0" }}>
@@ -508,7 +508,7 @@ export function ClientOpportunities({ clientKey }: { clientKey: string }) {
   return (
     <section className="card" style={{ padding: 16 }} aria-label="Opportunities">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>Opportunities</h2>
+        <h2 className="sec-h">Opportunities</h2>
         {s.can("work") && !adding && <button type="button" className="btn small" onClick={() => setAdding(true)}>+ New opportunity</button>}
       </div>
       {adding && <div className="row-wrap" style={{ gap: 8, marginTop: 10 }}>

@@ -70,7 +70,7 @@ export function DisengageTab({ client }: { client: Client }) {
     <div className="stack" style={{ maxWidth: 820 }}>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>A letter to {client.Title} confirming we are stopping. Choose what applies; you can edit every word afterwards. The wording is a starting point to check, not legal advice.</p>
       <section className="card pad stack" aria-label="Mark as ceased">
-        <h2 style={{ margin: 0, fontSize: 16 }}>{ceased ? "This client has ceased" : "Mark as ceased"}</h2>
+        <h2 className="sec-h">{ceased ? "This client has ceased" : "Mark as ceased"}</h2>
         {ceased ? (
           <>
             <p style={{ margin: 0 }}>Last day {String(client.CeasedOn || "not recorded")}{client.CeasedReason ? `: ${String(client.CeasedReason)}` : ""}. They are left out of the active client counts. Their records can be reviewed for deletion under <a href="#/compliance/retention">Compliance › Retention</a>.</p>

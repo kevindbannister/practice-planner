@@ -131,7 +131,7 @@ function PayrollList() {
       })()}
       {can && (
         <section className="card pad stack" aria-label="Set up a payroll">
-          <h2 style={{ margin: 0, fontSize: 16 }}>Set up a payroll</h2>
+          <h2 className="sec-h">Set up a payroll</h2>
           <div className="cf-grid">
             <label className="field"><span>Client</span><select className="input" value={f.clientKey} onChange={(e) => pickClient(e.target.value)}><option value="">Choose</option>{companies.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}</select></label>
             <label className="field"><span>Kind of payroll</span><select className="input" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as rec.PayrollKind })}><option value="directors">Directors' payroll</option><option value="standard">Standard payroll (employees)</option></select></label>
@@ -247,7 +247,7 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
   return (
     <div className="stack">
       <section className="card pad stack" aria-label="Paydays">
-        <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Paydays for {yearLabel(y.year)}</h2>
+        <div className="card-title-row"><h2 className="sec-h">Paydays for {yearLabel(y.year)}</h2>
           {can && <div className="row-wrap" style={{ gap: 6 }}>
             {scheme.freq === "M1" && <><label className="row-wrap" style={{ gap: 4, fontSize: 13 }}>Usual day <input className="input" type="number" min={6} max={31} value={day} onChange={(e) => setDay(Number(e.target.value) || 28)} style={{ width: 70 }} /></label>
               <button className="btn small" type="button" onClick={() => setPaydays(paydays.map((d, i) => (locked.has(i + 1) ? d : rec.defaultPaydays(y.year, scheme.freq, { kind: "day", day })[i])))}>Fill usual paydays</button>
@@ -270,7 +270,7 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
       </section>
 
       <section className="card pad stack" aria-label="Planned pay">
-        <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Planned pay</h2>
+        <div className="card-title-row"><h2 className="sec-h">Planned pay</h2>
           {can && <div className="row-wrap" style={{ gap: 6 }}>
             <select className="input" style={{ width: "auto" }} aria-label="How the salary is paid" value={pattern} onChange={(e) => setPattern(e.target.value as typeof pattern)}><option value="spread">Spread across the paydays</option><option value="yearEnd">All in the last month</option></select>
             <button className="btn small" type="button" onClick={fromPlan}>Fill from agreed tax plan</button>
@@ -300,7 +300,7 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
       {can && dirty && <div className="row-wrap" style={{ gap: 8 }}><button className="btn primary" type="button" onClick={() => save()}>Save the year</button><span className="muted">Unsaved changes</span></div>}
 
       <section className="card pad stack" aria-label="The year ahead">
-        <h2 style={{ margin: 0, fontSize: 16 }}>The year ahead</h2>
+        <h2 className="sec-h">The year ahead</h2>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Every period worked out now from the paydays and pay above, carrying the year to date from one to the next. Approved periods show what was approved.</p>
         <div className="table-wrap"><table className="grid">
           <thead><tr><th>Period</th><th>Payday</th><th className="num">Gross</th><th className="num">Tax</th><th className="num">Employee NI</th><th className="num">Employer NI</th><th className="num">Loans</th><th className="num">Net pay</th><th className="num">Due to HMRC</th><th>State</th></tr></thead>
@@ -367,7 +367,7 @@ function ExtrasCard({ can, scheme, people, paydays, locked, extras, setExtras, y
   if (!people.length) return null;
   return (
     <section className="card pad stack" aria-label="One-off and statutory pay">
-      <h2 style={{ margin: 0, fontSize: 16 }}>One-off and statutory pay</h2>
+      <h2 className="sec-h">One-off and statutory pay</h2>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>Bonuses, expenses, deductions and statutory pay for one period, on top of the usual pay. Family payments are claimed back on an EPS automatically when the period is approved; SSP can't be claimed back.</p>
       <div className="row-wrap" style={{ gap: 8 }}>
         <label className="field"><span>Person</span><select className="input" value={pk} onChange={(e) => setPk(e.target.value)}>{people.map((p) => <option key={p.key} value={p.key}>{rec.fullName(p)}</option>)}</select></label>
@@ -413,7 +413,7 @@ function PensionsTab({ P, scheme, people, view, year }: { P: PP; scheme: rec.Sch
   const addMonths = (iso: string, n: number) => { const d = new Date(`${iso}T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 10); };
   return (
     <section className="card pad stack" aria-label="Workplace pensions">
-      <h2 style={{ margin: 0, fontSize: 16 }}>Workplace pensions (automatic enrolment)</h2>
+      <h2 className="sec-h">Workplace pensions (automatic enrolment)</h2>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>Assessed on {report[0]?.period ? `period ${report[0].period}${report[0].payday ? ` (paid ${fmt(report[0].payday)})` : ""}` : "the next period"}. Pension is only taken once someone is enrolled; people marked "not tracked" have their pension taken as set on People. Writing to staff, the declaration of compliance and re-enrolment every three years are done with the pension provider.</p>
       <div className="table-wrap"><table className="grid">
         <thead><tr><th>Person</th><th>Status</th><th>Assessment</th><th /></tr></thead>
@@ -473,7 +473,7 @@ function RunsTab({ P, scheme, people, y, runs, subs, view }: { P: PP; scheme: re
   return (
     <div className="stack">
       <section className="card pad stack" aria-label="Pay runs">
-        <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Pay runs for {yearLabel(y.year)}</h2>
+        <div className="card-title-row"><h2 className="sec-h">Pay runs for {yearLabel(y.year)}</h2>
           {can && next && <button className="btn primary" type="button" disabled={busy} onClick={() => approve(next.period)}>Approve period {next.period} (paid {fmt(next.payday)})</button>}
         </div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Approving a period fixes its figures and queues its FPS to be sent on payday. Until it is sent, the approval can be undone.</p>
@@ -493,7 +493,7 @@ function RunsTab({ P, scheme, people, y, runs, subs, view }: { P: PP; scheme: re
         </table></div>
       </section>
       <section className="card pad stack" aria-label="P60 and P45">
-        <h2 style={{ margin: 0, fontSize: 16 }}>P60 and P45</h2>
+        <h2 className="sec-h">P60 and P45</h2>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>P60s go to everyone employed on 5 April, by 31 May. A leaver's P45 details are made from their last approved run (the leaving date goes to HMRC on that FPS). A P45 on plain paper needs HMRC's approval as a substitute form.</p>
         <div className="table-wrap"><table className="grid"><tbody>{people.map((p) => { const l = lastLine(p.key); return (
           <tr key={p.key}><td>{rec.fullName(p)}</td>
@@ -510,7 +510,7 @@ function Payslip({ scheme, period, line, person, year, onClose }: { scheme: rec.
   const rows: [string, number][] = [["Pay", l.gross - l.statutory], ...(l.statutory ? [["Statutory pay", l.statutory] as [string, number]] : []), ["Income tax", -l.tax], ["National Insurance", -l.ee], ...(l.sl ? [["Student loan", -l.sl] as [string, number]] : []), ...(l.pgl ? [["Postgraduate loan", -l.pgl] as [string, number]] : []), ...(l.eePension ? [["Pension (net pay)", -l.eePension] as [string, number]] : []), ...(l.eePensionRas ? [["Pension", -l.eePensionRas] as [string, number]] : []), ...(l.orders || []).flatMap((o) => [[o.label, -o.amount] as [string, number], ...(o.fee ? [["Order admin fee", -o.fee] as [string, number]] : [])]), ...(l.deductions - (l.orders || []).reduce((a, o) => a + o.amount + o.fee, 0) > 0.004 ? [["Other deductions", -(l.deductions - (l.orders || []).reduce((a, o) => a + o.amount + o.fee, 0))] as [string, number]] : []), ...(l.nonTaxable ? [["Expenses and other", l.nonTaxable] as [string, number]] : [])];
   return (
     <section className="card pad stack payslip" aria-label="Payslip" style={{ maxWidth: 620 }}>
-      <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Payslip</h2><div className="row-wrap" style={{ gap: 6 }}><button className="btn small" type="button" onClick={() => window.print()}>Print</button><button className="btn small" type="button" onClick={onClose}>Close</button></div></div>
+      <div className="card-title-row"><h2 className="sec-h">Payslip</h2><div className="row-wrap" style={{ gap: 6 }}><button className="btn small" type="button" onClick={() => window.print()}>Print</button><button className="btn small" type="button" onClick={onClose}>Close</button></div></div>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}><div><strong>{scheme.name}</strong><div className="muted" style={{ fontSize: 12 }}>PAYE {scheme.officeNo}/{scheme.payeRef}</div></div><div style={{ textAlign: "right" }}><strong>{line.name}</strong><div className="muted" style={{ fontSize: 12 }}>{person?.nino || ""} · Tax code {l.code.regime}{l.code.fps}{l.code.nonCum ? " M1" : ""} · NI {person?.niLetter || "A"}</div></div></div>
       <div className="muted" style={{ fontSize: 13 }}>Paid {fmt(period.payday)} · {yearLabel(year)} period {period.period}</div>
       {l.benefits ? <p className="muted" style={{ margin: 0, fontSize: 12 }}>Includes £{l.benefits.toFixed(2)} of benefits taxed through the payroll (not paid in cash).</p> : null}
@@ -554,7 +554,7 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
   return (
     <div className="stack">
       <section className="card pad stack" aria-label="People">
-        <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>People on this payroll</h2>{can && <button className="btn small" type="button" onClick={() => startEdit()}>Add a person</button>}</div>
+        <div className="card-title-row"><h2 className="sec-h">People on this payroll</h2>{can && <button className="btn small" type="button" onClick={() => startEdit()}>Add a person</button>}</div>
         {can && officers.filter((o) => !people.some((p) => (o.PersonClientKey && p.personClientKey === o.PersonClientKey) || `${p.first} ${p.last}`.toLowerCase() === `${s(o.First)} ${s(o.Last)}`.toLowerCase())).map((o) => (
           <div key={s(o.Key)} className="row-wrap" style={{ gap: 8 }}><span className="muted">Director in Co Sec, not on the payroll:</span> {s(o.First)} {s(o.Last)} <button className="linkbtn" type="button" onClick={() => fromOfficer(o)}>Add</button></div>
         ))}
@@ -572,7 +572,7 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
       </section>
       {edit && (
         <section className="card pad stack" aria-label="Person">
-          <h2 style={{ margin: 0, fontSize: 16 }}>{edit.Key ? "Edit" : "Add"} a person</h2>
+          <h2 className="sec-h">{edit.Key ? "Edit" : "Add"} a person</h2>
           <div className="cf-grid">
             {field("Title", "Title")}{field("First", "First name")}{field("Middle", "Middle name")}{field("Last", "Surname")}
             {field("NINO", "NI number")}{field("DOB", "Date of birth", "date")}
@@ -676,7 +676,7 @@ function HmrcTab({ P, scheme, people, y, runs, subs }: { P: PP; scheme: rec.Sche
   return (
     <div className="stack">
       <section className="card pad stack" aria-label="Submissions">
-        <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Submissions for {yearLabel(y.year)}</h2>{can && scheme.freq === "M1" && <button className="btn small" type="button" onClick={queueNil}>Queue nil EPS for months with no pay</button>}</div>
+        <div className="card-title-row"><h2 className="sec-h">Submissions for {yearLabel(y.year)}</h2>{can && scheme.freq === "M1" && <button className="btn small" type="button" onClick={queueNil}>Queue nil EPS for months with no pay</button>}</div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Queued submissions go automatically on their date (checked every half hour from early morning). "Send now" sends straight away. Every submission is sent as agent.</p>
         <span role="status" className="warn">{msg}</span>
         <div className="table-wrap"><table className="grid">

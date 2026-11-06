@@ -18,7 +18,7 @@ function Tile({ label, value, sub, to, tone }: { label: string; value: string; s
 function Card({ title, to, link, children }: { title: string; to?: string; link?: string; children: ReactNode }) {
   return (
     <section className="card pad stack" style={{ gap: 10, breakInside: "avoid", marginBottom: 16 }} aria-label={title}>
-      <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>{title}</h2>{to && <a className="linkbtn" href={to}>{link || "Open"}</a>}</div>
+      <div className="card-title-row"><h2 className="sec-h">{title}</h2>{to && <a className="linkbtn" href={to}>{link || "Open"}</a>}</div>
       {children}
     </section>
   );

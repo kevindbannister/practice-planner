@@ -68,7 +68,7 @@ export function ChasePage() {
       <PlanTabs current="chase" />
       <div className="page-head">
         <div>
-          <h2 style={{ margin: 0 }}>Chase records</h2>
+          <h2 className="sec-h">Chase records</h2>
           <p className="muted" style={{ margin: "4px 0 0" }}>
             {groups.length ? `${groups.length - recent.length} client${groups.length - recent.length === 1 ? "" : "s"} to chase · ${lateCount} late` : "Nobody to chase"}
             {recent.length ? ` · ${recent.length} chased in the last ${RECENT_DAYS} days` : ""}

@@ -48,7 +48,7 @@ export function KpiScreen({ clientKey, clientName, yearEnd, tenant }: { clientKe
     <section className="stack" style={{ gap: 12, minWidth: 0 }} aria-label="KPIs">
       <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
         <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}>
-          <h2 style={{ margin: 0 }}>KPIs</h2>
+          <h2 className="sec-h">KPIs</h2>
           <span className="muted" style={{ fontSize: 13 }}>{clientName}</span>
         </div>
         <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>

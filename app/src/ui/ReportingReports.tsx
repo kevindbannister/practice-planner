@@ -269,7 +269,7 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
   return (
     <section className="stack" style={{ gap: 12, minWidth: 0 }} aria-label="Reports">
       <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
-        <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}><h2 style={{ margin: 0 }}>Reports</h2><span className="muted" style={{ fontSize: 13 }}>{clientName}</span></div>
+        <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}><h2 className="sec-h">Reports</h2><span className="muted" style={{ fontSize: 13 }}>{clientName}</span></div>
         <button type="button" className="btn primary" disabled={!d} onClick={() => setCreating(true)}>Create report</button>
       </div>
       {error && <div className="alert red"><strong>Couldn't read the figures</strong><span>{error}</span></div>}

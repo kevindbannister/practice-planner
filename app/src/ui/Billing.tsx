@@ -421,7 +421,7 @@ export function BillingPage() {
       </div>
       {err && <p role="alert" style={{ color: "var(--red-ink)", margin: 0 }}>{err}</p>}
       {!shown.length ? <p className="muted">Nothing to show.</p> : (
-        <div className="card" style={{ overflowX: "auto" }}><table className="tbl">
+        <div className="card" style={{ overflowX: "auto" }}><table className="grid">
           <thead><tr><th>Client</th><th>Service</th><th>Fee</th><th>Billing</th><th>Next invoice</th><th>Attention</th></tr></thead>
           <tbody>{shown.map((x) => (
             <tr key={x.line.key}>

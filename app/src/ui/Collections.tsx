@@ -211,7 +211,7 @@ function ToInvoice({ name }: { name: (k: string) => string }) {
     <div className="stack" style={{ gap: 6 }}>
       <strong>{title}</strong>
       {!rows.length ? <p className="muted" style={{ margin: 0 }}>{empty}</p> : (
-        <div className="card" style={{ overflowX: "auto" }}><table className="tbl" style={{ width: "100%" }}>
+        <div className="card" style={{ overflowX: "auto" }}><table className="grid" style={{ width: "100%" }}>
           <thead><tr><th>Client</th><th>Charge</th><th>Amount</th><th>Agreed</th><th>Invoice</th></tr></thead>
           <tbody>{rows.map((r) => { const c = readCharge(r); const client = data.clients.find((x) => x.Key === c.clientKey); return (
             <tr key={c.key}><td><a href={href("clients", c.clientKey)}>{name(c.clientKey)}</a></td><td>{c.label}</td><td>{gbp(c.amount)} <span className="muted">{c.vat === "standard" ? `+ VAT ${gbp(chargeGross(c.amount, settings.vatRate))}` : c.vat === "zero" ? "no VAT" : "VAT not set"}</span></td><td>{fmt(c.agreedOn)}</td>
@@ -283,7 +283,7 @@ function Collections({ debts, books, age, name, unmatchedCount }: { debts: Debt[
       {note && <p role="status" style={{ margin: 0 }}>{note}</p>}
       {preview && <div className="import-list"><strong>{preview.subject}</strong><pre style={{ whiteSpace: "pre-wrap", margin: "6px 0 0", font: "inherit" }}>{preview.body}</pre></div>}
       {!rows.length ? <p className="muted">{only === "late" ? "Nothing is overdue." : "Nobody owes anything."}</p> : (
-        <div className="card" style={{ overflowX: "auto" }}><table className="tbl" style={{ width: "100%" }}>
+        <div className="card" style={{ overflowX: "auto" }}><table className="grid" style={{ width: "100%" }}>
           <thead><tr><th>Client</th><th>Owed</th><th>Overdue</th><th>Oldest</th><th>Usually pays in</th><th>Chasing</th><th /></tr></thead>
           <tbody>{rows.map((b) => {
             const hist = data.billingChases.filter((r) => str(r.ClientKey) === b.clientKey);
@@ -299,7 +299,7 @@ function Collections({ debts, books, age, name, unmatchedCount }: { debts: Debt[
                 {isOpen && (
                   <tr><td colSpan={7}>
                     <div className="stack" style={{ gap: 8 }}>
-                      <table className="tbl" style={{ width: "100%" }}><thead><tr><th>Invoice</th><th>Raised</th><th>Due</th><th>Balance</th><th>Late</th><th /></tr></thead>
+                      <table className="grid" style={{ width: "100%" }}><thead><tr><th>Invoice</th><th>Raised</th><th>Due</th><th>Balance</th><th>Late</th><th /></tr></thead>
                         <tbody>{b.open.map((r) => <tr key={r.id}><td>{r.number}{r.reference ? <span className="muted"> · {r.reference}</span> : null}</td><td>{fmt(r.date)}</td><td>{fmt(r.due)}</td><td>{gbp(r.balance)}</td><td>{daysLate(r, today) ? `${daysLate(r, today)} days` : "—"}</td><td>{r.url && <a className="linkbtn" href={r.url} target="_blank" rel="noopener noreferrer">View in Xero</a>}</td></tr>)}</tbody></table>
                       {can && b.late.length > 0 && (
                         <div className="row-wrap" style={{ gap: 8, alignItems: "flex-end" }}>
@@ -359,7 +359,7 @@ function Check({ books, name }: { books: ClientBook[]; name: (k: string) => stri
         <button type="button" className="btn small" aria-pressed={all} onClick={() => setAll(true)}>Everyone ({rec.filter((r) => r.state !== "none").length})</button>
       </div>
       {!shown.length ? <p className="muted">Nothing differs.</p> : (
-        <div className="card" style={{ overflowX: "auto" }}><table className="tbl" style={{ width: "100%" }}>
+        <div className="card" style={{ overflowX: "auto" }}><table className="grid" style={{ width: "100%" }}>
           <thead><tr><th>Client</th><th>Agreed, a year</th><th>Invoiced, 12 months</th><th>Difference</th><th /></tr></thead>
           <tbody>{shown.map((r) => <tr key={r.clientKey}>
             <td><a href={href("clients", r.clientKey)}>{name(r.clientKey)}</a></td><td>{gbp(r.expected)}</td><td>{gbp(r.billed)}</td><td>{r.diff > 0 ? "+" : ""}{gbp(r.diff)}</td>

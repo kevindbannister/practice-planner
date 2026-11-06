@@ -47,7 +47,7 @@ export function ProposalsList() {
         {s.pcan("configure") && <a className="btn" style={{ marginLeft: "auto" }} href="#/settings/services">Services & pricing</a>}
       </div>
       {rows.length ? (
-        <div className="card table-wrap"><table className="table">
+        <div className="card table-wrap"><table className="grid">
           <thead><tr><th>Reference</th><th>For</th><th>Title</th><th>Version</th><th>Status</th><th>First year (inc. VAT)</th><th>Valid until</th></tr></thead>
           <tbody>{rows.map(({ p, v, status }) => (
             <tr key={String(p.Key)}>
@@ -293,7 +293,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
       <p><a href="#/sales/proposals">← Proposals</a></p>
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div className="row-wrap" style={{ justifyContent: "space-between", gap: 8 }}>
-          <h2 style={{ margin: 0 }}>{String(proposal.Ref)}: {content.title || String(proposal.Title)}</h2>
+          <h2 className="sec-h">{String(proposal.Ref)}: {content.title || String(proposal.Title)}</h2>
           <span>{chip(status)}</span>
         </div>
         <p className="muted" style={{ margin: "6px 0 0" }}>
@@ -381,7 +381,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
 
       <div className="cols">
         <section className="card pad stack" style={{ flex: "2 1 520px" }} aria-label="Proposal">
-          <h2 style={{ margin: 0 }}>{editable ? "Proposal" : "What was offered"}</h2>
+          <h2 className="sec-h">{editable ? "Proposal" : "What was offered"}</h2>
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
             <label className="doc-field"><span>Title</span><input className="input" disabled={!editable} value={content.title} onChange={(e) => change({ title: e.target.value })} /></label>
             <label className="doc-field"><span>Client type</span><select className="input" disabled={!editable} value={content.clientType} onChange={(e) => change({ clientType: e.target.value as ClientType })}>{CLIENT_TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
@@ -411,7 +411,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
         </section>
 
         <aside className="card pad stack" style={{ flex: "1 1 280px", maxWidth: 380, alignSelf: "flex-start" }} aria-label="Totals">
-          <h2 style={{ margin: 0 }}>Totals</h2>
+          <h2 className="sec-h">Totals</h2>
           <TotalsTable t={totals} />
           {optionalLines(content).length > 0 && <><h3 style={{ marginBottom: 0 }}>Optional services (not included above)</h3><TotalsTable t={optTotals} /></>}
           <p className="muted" style={{ fontSize: 12, margin: 0 }}>Amounts excluding VAT are shown as "net". VAT is worked out at {Math.round(content.vatRate * 1000) / 10}% on standard-rated services. These are agreed fees, not invoices or money received.</p>
@@ -427,7 +427,7 @@ function TotalsTable({ t }: { t: ReturnType<typeof contentTotals> }) {
     ["First year (net)", gbp(t.firstYearNet)], ["VAT, first year", gbp(t.firstYearVat)], ["First year (inc. VAT)", gbp(t.firstYearGross), true],
     ["Each year after (net)", gbp(t.ongoingNet)], ["Each year after (inc. VAT)", gbp(t.ongoingGross), true],
   ];
-  return <table className="table"><tbody>{rows.map(([k, v, b]) => <tr key={k}><td style={b ? { fontWeight: 700 } : undefined}>{k}</td><td style={{ textAlign: "right", fontWeight: b ? 700 : 400 }}>{v}</td></tr>)}</tbody></table>;
+  return <table className="grid"><tbody>{rows.map(([k, v, b]) => <tr key={k}><td style={b ? { fontWeight: 700 } : undefined}>{k}</td><td style={{ textAlign: "right", fontWeight: b ? 700 : 400 }}>{v}</td></tr>)}</tbody></table>;
 }
 
 function LineEditor({ line: l, editable, rate, onChange, onRemove, onMove, first, last }: { line: Line; editable: boolean; rate: number; onChange: (p: Partial<Line>) => void; onRemove: () => void; onMove: (d: number) => void; first: boolean; last: boolean }) {

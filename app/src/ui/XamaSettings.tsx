@@ -132,7 +132,7 @@ export function XamaSettings() {
               {data.clients.length - rows.length > 0 && <span className="muted"> ({data.clients.length - rows.length} ceased clients skipped.)</span>}
             </p>
             <div style={{ overflowX: "auto" }}>
-              <table className="table" style={{ width: "100%" }}>
+              <table className="grid" style={{ width: "100%" }}>
                 <thead><tr><th scope="col">Client</th><th scope="col">Now</th><th scope="col">From Xama</th><th scope="col"></th></tr></thead>
                 <tbody>
                   {rows.filter((r) => r.changed || r.error || !r.xamaId).map((r) => {

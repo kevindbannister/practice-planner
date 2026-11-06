@@ -107,12 +107,12 @@ export function MeetingsTable({ clientKey }: { clientKey?: string }) {
     <div className="stack">
       {upcoming.length > 0 && (
         <section className="card" aria-label="Coming up">
-          <div className="card-head"><h2 style={{ margin: 0 }}>Coming up</h2></div>
+          <div className="card-head"><h2 className="sec-h">Coming up</h2></div>
           <ul className="comms-list">{upcoming.map(item)}</ul>
         </section>
       )}
       <section className="card" aria-label="Meetings and calls">
-        <div className="card-head"><h2 style={{ margin: 0 }}>{upcoming.length ? "Earlier" : "Meetings and calls"}</h2></div>
+        <div className="card-head"><h2 className="sec-h">{upcoming.length ? "Earlier" : "Meetings and calls"}</h2></div>
         {rest.length ? <ul className="comms-list">{rest.map(item)}</ul> : (
           <div className="empty" style={{ padding: 24 }}>{clientKey ? "No meetings or calls with this client yet." : "No meetings or calls yet."}</div>
         )}

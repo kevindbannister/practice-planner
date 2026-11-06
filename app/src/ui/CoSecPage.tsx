@@ -55,7 +55,7 @@ function Overview() {
       <Portfolio />
       <section className="card pad stack" aria-label="What needs attention">
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-          <h2 style={{ margin: 0 }}>What needs attention</h2>
+          <h2 className="sec-h">What needs attention</h2>
           <button type="button" className="btn" disabled={busy || !k.can("edit")} onClick={async () => { setBusy(true); setMsg(""); try { const n = await k.scan(); setMsg(n ? `${n} difference${n === 1 ? "" : "s"} found; draft${n === 1 ? "" : "s"} prepared.` : "No new differences from Companies House."); } catch { setMsg("Couldn't check. Try again."); } finally { setBusy(false); } }}>{busy ? "Checking…" : "Look for changes"}</button>
         </div>
         <p className="muted" style={{ margin: 0 }}>Change a company's details anywhere in the planner and anything that affects the statutory record is prepared here as a draft. Nothing is sent to Companies House until a manager or partner approves it.</p>
@@ -123,7 +123,7 @@ function Portfolio() {
   return (
     <section className="card pad stack" aria-label="Portfolio">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>Portfolio <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>{current.length} {current.length === 1 ? "company" : "companies"}</span></h2>
+        <h2 className="sec-h">Portfolio <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>{current.length} {current.length === 1 ? "company" : "companies"}</span></h2>
         <span className="row-wrap">
           <select className="input" aria-label="Filter by the practice's role" value={level} onChange={(e) => setLevelFilter(e.target.value as Level | "")} style={{ width: "auto" }}><option value="">All roles</option>{LEVELS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}</select>
           <input className="input" placeholder="Find by name, number or VAT" aria-label="Find a company" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
@@ -295,7 +295,7 @@ function FilingDetail({ txKey }: { txKey: string }) {
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Filing">
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-          <h2 style={{ margin: 0 }}>{form}: {formTitle(form)}</h2>
+          <h2 className="sec-h">{form}: {formTitle(form)}</h2>
           <span className={`chip ${chipFor(st)}`}>{STATUS_LABEL[st]}</span>
         </div>
         {(st !== "accepted" && st !== "external" && st !== "completed" && !formDef(form)?.noFiling) && <p role="note" className="chip amber" style={{ alignSelf: "flex-start" }}>{NOT_FILED}</p>}

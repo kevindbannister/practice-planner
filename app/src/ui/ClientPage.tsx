@@ -792,7 +792,7 @@ function ClientSettings({ client: c, onClose }: { client: Client; onClose: () =>
   return (
     <section className="card pad stack" aria-label="Client settings">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>Client settings</h2>
+        <h2 className="sec-h">Client settings</h2>
         <button type="button" className="btn small" onClick={onClose}>Close</button>
       </div>
       <div className="kv" style={{ alignItems: "center" }}><span>Logo</span><LogoPicker client={c} /></div>

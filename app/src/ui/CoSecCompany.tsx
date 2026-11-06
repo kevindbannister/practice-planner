@@ -36,7 +36,7 @@ export function CoSecCompany({ clientKey, tab: tabIn }: { clientKey: string; tab
   return (
     <div className="stack" style={{ gap: 14 }}>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>{s(client.Title)} <span className="muted">{s(client.CompanyNumber)} · {kind === "llp" ? "LLP" : "Limited company"}</span> <LevelChip client={client} /></h2>
+        <h2 className="sec-h">{s(client.Title)} <span className="muted">{s(client.CompanyNumber)} · {kind === "llp" ? "LLP" : "Limited company"}</span> <LevelChip client={client} /></h2>
         <a href={href("clients", clientKey)}>Open the client record</a>
       </div>
       {SCREENS[tab] ? (

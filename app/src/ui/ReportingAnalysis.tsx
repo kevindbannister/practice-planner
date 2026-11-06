@@ -25,7 +25,7 @@ function Frame({ title, clientName, r, children }: { title: string; clientName: 
   return (
     <section className="stack" style={{ gap: 12, minWidth: 0 }} aria-label={title}>
       <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
-        <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}><h2 style={{ margin: 0 }}>{title}</h2><span className="muted" style={{ fontSize: 13 }}>{clientName}</span></div>
+        <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}><h2 className="sec-h">{title}</h2><span className="muted" style={{ fontSize: 13 }}>{clientName}</span></div>
         <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
           <span className="muted" style={{ fontSize: 12 }} aria-live="polite">{r.busy || (d ? `Read from Xero ${new Date(d.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : "")}</span>
           <button type="button" className="btn small" disabled={!!r.busy} onClick={() => void r.refresh()}>{d ? "Refresh from Xero" : "Read from Xero"}</button>

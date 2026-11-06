@@ -136,7 +136,7 @@ function Details({ a, set, commit, facts, officers }: Common & { facts: Accounts
       </div>
       <label className="row-wrap" style={{ gap: 8 }}><input type="checkbox" checked={a.auditExempt} onChange={(e) => set({ auditExempt: e.target.checked })} /> Audit exempt (small company exemption)</label>
       <h3 style={{ margin: 0 }}>{a.type === "llp" ? "Members" : "Directors"}</h3>
-      <table className="table">
+      <table className="grid">
         <thead><tr><th>Name</th><th>Appointed</th><th>Resigned</th><th /></tr></thead>
         <tbody>
           {a.directors.map((d, i) => (

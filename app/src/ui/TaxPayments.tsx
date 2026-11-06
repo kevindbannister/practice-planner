@@ -108,7 +108,7 @@ export function TaxPaymentsTab({ client: c }: { client: Client }) {
           <section key={y} className="card" aria-label={`${y} Self Assessment`}>
             <div className="card-head">
               <div className="stack" style={{ gap: 2 }}>
-                <h2 style={{ margin: 0 }}>{y} tax return</h2>
+                <h2 className="sec-h">{y} tax return</h2>
                 {bal && Number(bal.Bill) > 0 && (
                   <span className="muted" style={{ fontSize: 13 }}>
                     Bill {money(Number(bal.Bill))}{Number(bal.OtherTax) ? ` + ${money(Number(bal.OtherTax))} other` : ""} · payments on account already made {money(Number(bal.PoaPaid))}
@@ -132,13 +132,13 @@ export function TaxPaymentsTab({ client: c }: { client: Client }) {
 
       {ct.length > 0 && (
         <section className="card" aria-label="Corporation tax">
-          <div className="card-head"><h2 style={{ margin: 0 }}>Corporation tax</h2></div>
+          <div className="card-head"><h2 className="sec-h">Corporation tax</h2></div>
           <div className="table-wrap"><table className="grid pay-table"><tbody>{ct.map(row)}</tbody></table></div>
         </section>
       )}
       {other.length > 0 && (
         <section className="card" aria-label="Other payments">
-          <div className="card-head"><h2 style={{ margin: 0 }}>Other payments</h2></div>
+          <div className="card-head"><h2 className="sec-h">Other payments</h2></div>
           <div className="table-wrap"><table className="grid pay-table"><tbody>{other.map(row)}</tbody></table></div>
         </section>
       )}
@@ -436,7 +436,7 @@ export function PaymentReminders() {
       {[...byDate.entries()].map(([due, list]) => (
         <section key={due} className="card" aria-label={`Due ${fmtLong(due)}`}>
           <div className="card-head">
-            <h2 style={{ margin: 0 }}>Due {fmtDate(due, { weekday: true })}</h2>
+            <h2 className="sec-h">Due {fmtDate(due, { weekday: true })}</h2>
             <span className="muted" style={{ fontSize: 13 }}>
               {due < today ? `${days(due, today)} days overdue` : `in ${days(today, due)} days`} · {list.length} client{list.length === 1 ? "" : "s"} · {fmtMoney(list.reduce((t, g) => t + g.total, 0))}
             </span>

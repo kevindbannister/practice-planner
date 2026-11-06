@@ -34,7 +34,7 @@ export function AmlTab({ client }: { client: Client }) {
   return (
     <div className="stack">
       <section className="card pad stack" aria-label="AML status">
-        <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Manual AML assessment</h2><span className={`chip ${POSITION_CHIP[pos.state]}`}>{POSITION_LABEL[pos.state]}</span></div>
+        <div className="card-title-row"><h2 className="sec-h">Manual AML assessment</h2><span className={`chip ${POSITION_CHIP[pos.state]}`}>{POSITION_LABEL[pos.state]}</span></div>
         <div className="kv"><span>Risk rating</span><span>{RISK[pos.risk]}</span></div>
         <div className="kv"><span>Assessment done</span><span>{pos.doneOn ? `${fmtDate(pos.doneOn)}${pos.by ? ` · approved by ${pos.by}` : ""}` : "—"}</span></div>
         <div className="kv"><span>Next review</span><span style={pos.state === "overdue" || pos.state === "soon" ? { color: pos.state === "overdue" ? "var(--red-ink, #b42318)" : "var(--amber-ink)", fontWeight: 600 } : undefined}>{pos.reviewDate ? `${fmtDate(pos.reviewDate)}${pos.daysToReview !== null ? (pos.daysToReview < 0 ? ` (${-pos.daysToReview} days overdue)` : ` (in ${pos.daysToReview} days)`) : ""}` : "—"}</span></div>
@@ -46,14 +46,14 @@ export function AmlTab({ client }: { client: Client }) {
       {open && <Editor client={client} row={open} all={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} today={today} s={s} clientRow={clientRow()} />}
 
       <section className="card pad stack" aria-label="Xama">
-        <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Xama</h2><span className={`chip ${xama.warn ? "amber" : "green"}`}>{xama.text}</span></div>
+        <div className="card-title-row"><h2 className="sec-h">Xama</h2><span className={`chip ${xama.warn ? "amber" : "green"}`}>{xama.text}</span></div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Identity verification through Xama is kept separate from the manual assessment above. Either can be the record you rely on.</p>
         <XamaClientPanel client={client} />
       </section>
 
       {mine.some((r) => !open || r.Key !== open.Key) && (
         <section className="card pad stack" aria-label="Earlier assessments">
-          <h2 style={{ margin: 0, fontSize: 16 }}>History</h2>
+          <h2 className="sec-h">History</h2>
           {mine.filter((r) => !open || r.Key !== open.Key).map((r) => { const a = readAssessment(r); const st = asStatus(r.Status); return (
             <div key={String(r.Key)} className="row-wrap" style={{ justifyContent: "space-between" }}>
               <span>{RISK[a.risk]} risk · {a.doneOn ? `done ${fmtDate(a.doneOn)}` : `started ${fmtDate(String(r.Created).slice(0, 10))}`}{a.approvedBy ? ` · approved by ${a.approvedBy}` : ""}{a.evidence.length ? ` · ${a.evidence.length} file${a.evidence.length === 1 ? "" : "s"}` : ""}</span>
@@ -121,7 +121,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
 
   return (
     <section className="card pad stack" aria-label="Assessment in progress">
-      <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>{row.Source === "review" ? "Review in progress" : "Assessment in progress"}</h2>{asStatus(row.Status) === "declined" && <span className="chip red">Not approved: {saved.declinedReason}</span>}</div>
+      <div className="card-title-row"><h2 className="sec-h">{row.Source === "review" ? "Review in progress" : "Assessment in progress"}</h2>{asStatus(row.Status) === "declined" && <span className="chip red">Not approved: {saved.declinedReason}</span>}</div>
       <fieldset disabled={!edit || busy} style={{ border: 0, padding: 0, margin: 0 }} className="stack">
         <div className="row-wrap">
           <label className="doc-field"><span>Risk rating</span><select className="input" value={risk} onChange={(e) => setRisk(e.target.value as Risk)}><option value="">Not assessed</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
@@ -186,7 +186,7 @@ export function AmlCard({ client }: { client: Client }) {
   const xama = amlLabel(client.XamaStatus);
   return (
     <section className="card pad stack" aria-label="AML">
-      <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>AML</h2><span className={`chip ${POSITION_CHIP[pos.state]}`}>{POSITION_LABEL[pos.state]}</span></div>
+      <div className="card-title-row"><h2 className="sec-h">AML</h2><span className={`chip ${POSITION_CHIP[pos.state]}`}>{POSITION_LABEL[pos.state]}</span></div>
       <div className="kv"><span>Risk</span><span>{RISK[pos.risk]}</span></div>
       <div className="kv"><span>Done</span><span>{pos.doneOn ? fmtDate(pos.doneOn) : "—"}</span></div>
       <div className="kv"><span>Next review</span><span style={pos.state === "overdue" ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : pos.state === "soon" ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{pos.reviewDate ? fmtDate(pos.reviewDate) : "—"}</span></div>

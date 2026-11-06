@@ -74,7 +74,7 @@ export function EngagementsList({ existing = false }: { existing?: boolean }) {
       {adding && <UploadEngagement onDone={() => setAdding(false)} />}
       {!rows.length ? <div className="card empty"><p>No engagement letters yet.</p></div> : (
         <div className="card" style={{ overflowX: "auto" }}>
-          <table className="tbl">
+          <table className="grid">
             <thead><tr><th>Letter</th><th>Client</th><th>Services</th><th>Status</th><th>Review</th></tr></thead>
             <tbody>{rows.map((e) => (
               <tr key={String(e.Key)}>
@@ -315,7 +315,7 @@ export function EngagementDetail({ engKey }: { engKey: string }) {
       <p><a href="#/sales/engagements">← Engagements</a></p>
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div className="row-wrap" style={{ justifyContent: "space-between", gap: 8 }}>
-          <h2 style={{ margin: 0 }}>{String(e.Ref)}: {String(e.Title)}</h2>
+          <h2 className="sec-h">{String(e.Ref)}: {String(e.Title)}</h2>
           <span>{chip(e)}</span>
         </div>
         <p className="muted" style={{ margin: "6px 0 0" }}>
@@ -452,7 +452,7 @@ function Block({ b }: { b: ReturnType<typeof readBody>["blocks"][number] }) {
   if (b.type === "p") return <p>{runs(b.runs)}</p>;
   if (b.type === "list") return <ul>{b.items.map((it, i) => <li key={i}>{runs(it)}</li>)}</ul>;
   if (b.type === "break") return <hr />;
-  if (b.type === "table") return <div style={{ overflowX: "auto" }}><table className="tbl"><tbody>{b.rows.map((row, i) => <tr key={i}>{row.map((c, j) => (b.header && i === 0 ? <th key={j}>{runs(c.runs)}</th> : <td key={j} style={{ textAlign: c.align === "right" ? "right" : undefined }}>{runs(c.runs)}</td>))}</tr>)}</tbody></table></div>;
+  if (b.type === "table") return <div style={{ overflowX: "auto" }}><table className="grid"><tbody>{b.rows.map((row, i) => <tr key={i}>{row.map((c, j) => (b.header && i === 0 ? <th key={j}>{runs(c.runs)}</th> : <td key={j} style={{ textAlign: c.align === "right" ? "right" : undefined }}>{runs(c.runs)}</td>))}</tr>)}</tbody></table></div>;
   return null;
 }
 
@@ -485,7 +485,7 @@ export function ClientEngagements({ clientKey }: { clientKey: string }) {
   return (
     <section className="card pad stack" aria-label="Engagements">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>Engagement letters</h2>
+        <h2 className="sec-h">Engagement letters</h2>
         {s.pcan("edit") && <button type="button" className="btn small" onClick={() => setAdding(!adding)}>{adding ? "Close" : "File a letter"}</button>}
       </div>
       {!mine.length && <p className="muted" style={{ margin: 0 }}>No engagement letters on file.</p>}

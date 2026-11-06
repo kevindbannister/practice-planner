@@ -37,7 +37,7 @@ export function ReportsPage() {
       <p className="muted" style={{ margin: 0 }}>Counts records created in the period. Values are contracted fees before VAT, from what proposals agreed: not invoices and not cash. Fee and revenue totals are under Fees & revenue.</p>
 
       <section className="card pad stack" aria-label="Sales funnel">
-        <h2 style={{ margin: 0, fontSize: 16 }}>Sales funnel</h2>
+        <h2 className="sec-h">Sales funnel</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10 }}>
           {([["Leads", f.leads], ["Opportunities", f.opportunities], ["Proposals made", f.proposalsMade], ["Proposals sent", f.proposalsSent], ["Accepted", f.proposalsAccepted], ["Onboarding started", f.onboardingStarted], ["Activated", f.activated]] as [string, number][]).map(([k, v]) => <div key={k} className="card" style={{ padding: 12 }}><div className="muted" style={{ fontSize: 12 }}>{k}</div><div style={{ fontSize: 22, fontWeight: 700 }}>{v}</div></div>)}
         </div>
@@ -48,20 +48,20 @@ export function ReportsPage() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: 14 }}>
         <section className="card pad stack" aria-label="By source">
-          <h2 style={{ margin: 0, fontSize: 16 }}>Leads by source</h2>
-          {!sr.bySource.length ? <p className="muted" style={{ margin: 0 }}>No leads in this period.</p> : <table className="tbl"><thead><tr><th>Source</th><th>Leads</th><th>Won</th><th>Won value</th></tr></thead><tbody>{sr.bySource.map((x) => <tr key={x.source}><td>{x.source}</td><td>{x.leads}</td><td>{x.won}</td><td>{x.wonValue ? gbp(x.wonValue) : "—"}</td></tr>)}</tbody></table>}
+          <h2 className="sec-h">Leads by source</h2>
+          {!sr.bySource.length ? <p className="muted" style={{ margin: 0 }}>No leads in this period.</p> : <table className="grid"><thead><tr><th>Source</th><th>Leads</th><th>Won</th><th>Won value</th></tr></thead><tbody>{sr.bySource.map((x) => <tr key={x.source}><td>{x.source}</td><td>{x.leads}</td><td>{x.won}</td><td>{x.wonValue ? gbp(x.wonValue) : "—"}</td></tr>)}</tbody></table>}
         </section>
         <section className="card pad stack" aria-label="Lost reasons">
-          <h2 style={{ margin: 0, fontSize: 16 }}>Why opportunities were lost</h2>
-          {!sr.lostReasons.length ? <p className="muted" style={{ margin: 0 }}>None lost in this period.</p> : <table className="tbl"><tbody>{sr.lostReasons.map((x) => <tr key={x.reason}><td>{x.reason}</td><td>{x.count}</td></tr>)}</tbody></table>}
+          <h2 className="sec-h">Why opportunities were lost</h2>
+          {!sr.lostReasons.length ? <p className="muted" style={{ margin: 0 }}>None lost in this period.</p> : <table className="grid"><tbody>{sr.lostReasons.map((x) => <tr key={x.reason}><td>{x.reason}</td><td>{x.count}</td></tr>)}</tbody></table>}
         </section>
       </div>
 
       <section className="card pad stack" aria-label="Onboarding report">
-        <h2 style={{ margin: 0, fontSize: 16 }}>Onboarding</h2>
+        <h2 className="sec-h">Onboarding</h2>
         <p style={{ margin: 0 }}>{or.inProgress} in progress ({or.blocked} blocked, {or.awaitingApproval} awaiting approval, {or.readyToActivate} ready to activate) · {or.activated} activated in the period{or.avgDaysToActivate !== undefined ? `, averaging ${or.avgDaysToActivate} days` : ""} · {or.heldServices} service{or.heldServices === 1 ? "" : "s"} held for an authorisation.</p>
         {!!or.stageCounts.length && <p className="muted" style={{ margin: 0 }}>Waiting on: {or.stageCounts.map((x) => `${x.label} (${x.waiting})`).join(", ")}.</p>}
-        {!or.open.length ? <p className="muted" style={{ margin: 0 }}>Nobody is being onboarded.</p> : <table className="tbl"><thead><tr><th>Onboarding</th><th>Client</th><th>Days open</th><th>Waiting on</th></tr></thead><tbody>{or.open.map((x) => <tr key={x.key}><td><a href={href("sales", "onboard", x.key)}>{x.ref}</a></td><td>{x.client}</td><td>{x.days}</td><td>{x.blocked ? <span className="chip red">Blocked</span> : null} {x.waitingOn}</td></tr>)}</tbody></table>}
+        {!or.open.length ? <p className="muted" style={{ margin: 0 }}>Nobody is being onboarded.</p> : <table className="grid"><thead><tr><th>Onboarding</th><th>Client</th><th>Days open</th><th>Waiting on</th></tr></thead><tbody>{or.open.map((x) => <tr key={x.key}><td><a href={href("sales", "onboard", x.key)}>{x.ref}</a></td><td>{x.client}</td><td>{x.days}</td><td>{x.blocked ? <span className="chip red">Blocked</span> : null} {x.waitingOn}</td></tr>)}</tbody></table>}
       </section>
     </div>
   );

@@ -443,7 +443,7 @@ export function ClientPortalUsers({ client }: { client: Client }) {
         <dl className="pt-kv">{LEVELS.map((l) => <div key={l.key}><dt>{l.label}</dt><dd>{l.blurb}</dd></div>)}</dl>
         <p className="muted" style={{ margin: 0 }}>Being listed as a director or contact doesn't give anyone access. Only people you add here can see this business, and signing always needs the person to be named on the document.</p>
       </section>
-      <section className="card pad stack"><h2 style={{ margin: 0, fontSize: 16 }}>History</h2><ClientHistory clientKey={client.Key} /></section>
+      <section className="card pad stack"><h2 className="sec-h">History</h2><ClientHistory clientKey={client.Key} /></section>
     </div>
   );
 }
@@ -543,7 +543,7 @@ function SetupInfo() {
   return (
     <div className="stack">
       <section className="card pad stack">
-        <h2 style={{ margin: 0, fontSize: 16 }}>{status?.configured ? "The client portal is switched on" : "The client portal needs setting up"}</h2>
+        <h2 className="sec-h">{status?.configured ? "The client portal is switched on" : "The client portal needs setting up"}</h2>
         <p className="muted" style={{ margin: 0 }}>Clients register and sign in through Microsoft Entra External ID, a separate sign-in service for customers, so no passwords are kept here and two-step sign-in comes with it. Their browser only talks to the portal server, never to SharePoint. The server needs these Azure application settings; the full steps are in <code>docs/client-portal.md</code>.</p>
         <table className="bank-table">
           <thead><tr><th>Setting</th><th>What it is</th><th>Status</th></tr></thead>

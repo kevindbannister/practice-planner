@@ -31,9 +31,9 @@ export function OnboardingSettingsPage() {
   return (
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Onboarding stages">
-        <h2 style={{ margin: 0 }}>Onboarding stages</h2>
+        <h2 className="sec-h">Onboarding stages</h2>
         <p className="muted" style={{ margin: 0 }}>A client can only be approved and activated when every required stage that applies to them is done. Proposal accepted, internal approval and activation are always required. Switching off "Agent authorisations" means services that need one are no longer held back at activation.</p>
-        <table className="tbl">
+        <table className="grid">
           <thead><tr><th>Stage</th><th>Used</th><th>Required</th><th>Applies to</th></tr></thead>
           <tbody>{draft.stages.map((d) => {
             const fixed = FIXED_MANDATORY.includes(d.key);
@@ -50,14 +50,14 @@ export function OnboardingSettingsPage() {
         </table>
       </section>
       <section className="card pad stack" aria-label="AML re-verification">
-        <h2 style={{ margin: 0 }}>AML re-verification</h2>
+        <h2 className="sec-h">AML re-verification</h2>
         <p className="muted" style={{ margin: 0 }}>When AML is approved, the client's AML review date is set this many months ahead, by risk rating. Set these to match your own AML policy.</p>
         <div className="row-wrap">
           {(["low", "medium", "high"] as const).map((k) => <label key={k} className="doc-field"><span>{k[0].toUpperCase() + k.slice(1)} risk (months)</span><input className="input" type="number" min={1} max={120} disabled={!allowed} value={draft.amlMonths[k]} onChange={(e) => months(k, e.target.value)} /></label>)}
         </div>
       </section>
       <section className="card pad stack" aria-label="Fee schedules">
-        <h2 style={{ margin: 0 }}>Fee schedules</h2>
+        <h2 className="sec-h">Fee schedules</h2>
         <p className="muted" style={{ margin: 0 }}>New agreed fees are given a review date this many months after they start. Reviews coming due show in the Action Centre.</p>
         <label className="doc-field" style={{ maxWidth: 220 }}><span>Review fees every (months)</span><input className="input" type="number" min={1} max={60} disabled={!allowed} value={reviewMonths} onChange={(e) => setReviewMonths(Number(e.target.value))} /></label>
       </section>

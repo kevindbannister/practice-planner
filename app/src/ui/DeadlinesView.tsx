@@ -180,7 +180,7 @@ export function DeadlinesView() {
       {theGroup && (
         <section className="card pad stack group-strip" aria-label={`${theGroup.Title} group`} style={{ gap: 8 }}>
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-            <h2 style={{ margin: 0 }}>{theGroup.Title as string}</h2>
+            <h2 className="sec-h">{theGroup.Title as string}</h2>
             <button type="button" className="linkbtn no-print" onClick={() => setGroup("")}>Show every client</button>
           </div>
           <div className="row-wrap" style={{ gap: 8 }}>

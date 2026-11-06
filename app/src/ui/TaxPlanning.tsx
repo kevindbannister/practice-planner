@@ -139,7 +139,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
       <div className="tp-layout" style={{ display: "grid", gridTemplateColumns: "minmax(280px, 360px) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
         <div className="stack">
           <section className="card pad stack" aria-label="The company">
-            <h2 style={{ margin: 0, fontSize: 16 }}>The company</h2>
+            <h2 className="sec-h">The company</h2>
             {money("Profit before directors' pay and corporation tax (£)", plan.profit, (n) => set({ profit: n }), "After all other costs, including other staff.")}
             {money("Profits kept from earlier years (£)", plan.reservesBf, (n) => set({ reservesBf: n }), "From the latest balance sheet. Used to check dividends can be paid.")}
             <label className="field"><span>Associated companies</span><input className="input" type="number" min={0} value={plan.associated} onChange={(e) => set({ associated: Math.max(0, Number(e.target.value) || 0) })} /><small className="muted">Other companies under the same control. They share the £50,000 and £250,000 limits.</small></label>
@@ -153,7 +153,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
           </section>
 
           <section className="card pad stack" aria-label="Directors and shareholders">
-            <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Directors and shareholders</h2><button className="btn small" type="button" onClick={() => set({ people: [...plan.people, tp.newPerson(newKey("TP"))] })}>Add a person</button></div>
+            <div className="card-title-row"><h2 className="sec-h">Directors and shareholders</h2><button className="btn small" type="button" onClick={() => set({ people: [...plan.people, tp.newPerson(newKey("TP"))] })}>Add a person</button></div>
             {plan.people.length === 0 && <p className="muted" style={{ margin: 0 }}>No directors or shareholders found in Co Sec. Add them here.</p>}
             {plan.people.map((x) => {
               const removed = ctx.removed.get(x.id) || [];
@@ -208,7 +208,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
           {problems.length > 0 && <section className="card pad">{problems.map((p) => <p key={p} className="warn" style={{ margin: 0 }}>{p}</p>)}</section>}
           {options.length > 0 && (
             <section className="card pad stack" aria-label="Salary options">
-              <h2 style={{ margin: 0, fontSize: 16 }}>Salary options</h2>
+              <h2 className="sec-h">Salary options</h2>
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>Take-home is everyone's salary and dividends from this company after their income tax and NI, on whether Employment Allowance can be claimed (at least two people paid over £5,000); the other case is shown underneath. "Kept" is profit left in the company after corporation tax.</p>
               <div className="table-wrap"><table className="grid">
                 <thead><tr><th /><th>Option</th><th>Salaries</th><th>Employment Allowance</th><th className="num">Take-home</th><th className="num">Kept in company</th><th className="num">All tax</th></tr></thead>
@@ -231,7 +231,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
           {pick && shown && (
             <section className="card pad stack" aria-label="The chosen option">
               <div className="card-title-row">
-                <h2 style={{ margin: 0, fontSize: 16 }}>{pick.label}</h2>
+                <h2 className="sec-h">{pick.label}</h2>
                 <select className="input" style={{ width: "auto" }} aria-label="Employment Allowance" value={ea} onChange={(e) => setEa(e.target.value as typeof ea)}>
                   <option value="likely">{pick.eligible ? "With Employment Allowance (can claim)" : "Without Employment Allowance (can't claim)"}</option>
                   <option value="with">If Employment Allowance is claimed</option>

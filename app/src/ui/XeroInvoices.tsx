@@ -62,7 +62,7 @@ export function XeroInvoices({ client }: { client: Client }) {
   if (!connected || !practice) {
     return (
       <div className="card pad stack">
-        <h2 style={{ margin: 0, fontSize: 16 }}>Invoices</h2>
+        <h2 className="sec-h">Invoices</h2>
         <p className="muted" style={{ margin: 0 }}>{!connected ? "Xero isn't connected yet." : "Practice Planner doesn't know which Xero organisation is your own practice."} Connect Xero, then in the list of organisations choose <strong>Our own practice</strong> for yours. Invoices to this client are then read from it.</p>
         <div><a className="btn primary" href={href("settings", "xero")}>Open Xero settings</a></div>
       </div>
@@ -96,7 +96,7 @@ export function XeroInvoices({ client }: { client: Client }) {
         </>
       ) : (
         <div className="card pad stack">
-          <h2 style={{ margin: 0, fontSize: 16 }}>Which Xero contact is {client.Title}?</h2>
+          <h2 className="sec-h">Which Xero contact is {client.Title}?</h2>
           {options && !options.length && <p className="muted" style={{ margin: 0 }}>No contact matching "{client.Title}" was found in {practice.tenantName}. Check the name in Xero, or the client hasn't been invoiced yet.</p>}
           {options && options.length > 0 && <>
             <p className="muted" style={{ margin: 0 }}>No single clear match. Choose the right one:</p>

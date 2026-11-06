@@ -56,7 +56,7 @@ export function OnboardingList() {
       </div>
       {!rows.length ? <div className="card empty"><p>Nobody is being onboarded. Open an accepted proposal and choose "Start onboarding".</p></div> : (
         <div className="card" style={{ overflowX: "auto" }}>
-          <table className="tbl">
+          <table className="grid">
             <thead><tr><th>Onboarding</th><th>Client</th><th>Progress</th><th>Waiting on</th><th>Status</th></tr></thead>
             <tbody>{rows.map((x) => {
               const v = o.viewFor(x);
@@ -175,7 +175,7 @@ export function OnboardingDetail({ onbKey }: { onbKey: string }) {
     <div className="stack" style={{ gap: 14 }}>
       <div className="card pad stack" style={{ gap: 6 }}>
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-          <h2 style={{ margin: 0 }}>{str(onb.Ref)}: {str(client.Title)}</h2>
+          <h2 className="sec-h">{str(onb.Ref)}: {str(client.Title)}</h2>
           <span className={`chip ${onb.Status === "activated" ? "green" : onb.Status === "cancelled" ? "" : "amber"}`}>{onb.Status === "activated" ? "Activated" : onb.Status === "cancelled" ? "Cancelled" : "In progress"}</span>
         </div>
         <p className="muted" style={{ margin: 0 }}>
@@ -211,7 +211,7 @@ export function OnboardingDetail({ onbKey }: { onbKey: string }) {
       <section className="card pad stack" aria-label="History">
         <h3 style={{ margin: 0, fontSize: 15 }}>History</h3>
         {!history.length ? <p className="muted" style={{ margin: 0 }}>Nothing yet.</p> : (
-          <table className="tbl"><tbody>{history.map((h) => <tr key={str(h.Key)}><td>{str(h.At).slice(0, 16).replace("T", " ")}</td><td>{str(h.Actor)}</td><td>{str(h.Action)}</td><td className="muted">{(() => { try { return Object.entries(JSON.parse(str(h.Detail) || "{}")).map(([k, x]) => `${k}: ${typeof x === "object" ? JSON.stringify(x) : x}`).join("; "); } catch { return ""; } })()}</td></tr>)}</tbody></table>
+          <table className="grid"><tbody>{history.map((h) => <tr key={str(h.Key)}><td>{str(h.At).slice(0, 16).replace("T", " ")}</td><td>{str(h.Actor)}</td><td>{str(h.Action)}</td><td className="muted">{(() => { try { return Object.entries(JSON.parse(str(h.Detail) || "{}")).map(([k, x]) => `${k}: ${typeof x === "object" ? JSON.stringify(x) : x}`).join("; "); } catch { return ""; } })()}</td></tr>)}</tbody></table>
         )}
       </section>
     </div>
@@ -308,7 +308,7 @@ function PortalPanel({ v }: { v: View }) {
   return (
     <div className="stack" style={{ gap: 8 }}>
       {rows.length > 0 && (
-        <table className="tbl"><thead><tr><th>Person</th><th>Access</th><th>Status</th><th /></tr></thead>
+        <table className="grid"><thead><tr><th>Person</th><th>Access</th><th>Status</th><th /></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.person.id}>
               <td>{r.person.name || r.person.email}<div className="muted">{r.person.email}</div></td>
@@ -449,7 +449,7 @@ function ActivationPanel(p: Body) {
         <li>Link the engagement letter and record the activation in the audit trail.</li>
       </ul>
       {plan.length > 0 && (
-        <table className="tbl"><thead><tr><th>Service</th><th>Fee</th><th>What happens</th></tr></thead>
+        <table className="grid"><thead><tr><th>Service</th><th>Fee</th><th>What happens</th></tr></thead>
           <tbody>{plan.map((x) => (
             <tr key={x.serviceKey + x.name}>
               <td>{x.name}</td><td>{money(x.fee)} {x.period || "one-off"}</td>
@@ -497,7 +497,7 @@ export function ClientOnboardingCard({ clientKey }: { clientKey: string }) {
   if (!rows.length) return null;
   return (
     <section className="card pad stack" aria-label="Onboarding">
-      <h2 style={{ margin: 0, fontSize: 16 }}>Onboarding</h2>
+      <h2 className="sec-h">Onboarding</h2>
       <ul className="plain">{rows.map((x) => <li key={str(x.Key)}><a href={href("sales", "onboard", str(x.Key))}>{str(x.Ref)}</a> {x.Status === "activated" ? <span className="chip green">Activated {str(x.ActivatedOn).slice(0, 10)}</span> : x.Status === "cancelled" ? <span className="chip">Cancelled</span> : <span className="chip amber">In progress</span>}</li>)}</ul>
     </section>
   );

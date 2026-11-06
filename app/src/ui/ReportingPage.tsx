@@ -156,7 +156,7 @@ function Financials({ clientKey, clientName, yearEnd, tenant }: { clientKey: str
     <section className="stack" style={{ gap: 12, minWidth: 0 }} aria-label="Financials">
       <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
         <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}>
-          <h2 style={{ margin: 0 }}>Financials</h2>
+          <h2 className="sec-h">Financials</h2>
           <span className="muted" style={{ fontSize: 13 }}>{clientName}</span>
         </div>
         <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>

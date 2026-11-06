@@ -60,7 +60,7 @@ export function ClientFees({ client }: { client: Row }) {
   return (
     <section className="card pad stack" aria-label="Fee schedule" style={{ gap: 10 }}>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>Fee schedule</h2>
+        <h2 className="sec-h">Fee schedule</h2>
         <span className="muted">{recurring.length ? `${gbp(contrib.revenue)} a year recurring` : "No fees agreed yet"}{oneOffTotal ? ` · ${gbp(oneOffTotal)} one-off` : ""}{heldAnnual ? ` · ${gbp(heldAnnual)} agreed but held` : ""}</span>
       </div>
       <p className="muted" style={{ margin: 0 }}>{CAVEAT}</p>
@@ -76,7 +76,7 @@ export function ClientFees({ client }: { client: Row }) {
 
       {!lines.length ? <p className="muted" style={{ margin: 0 }}>No services or fees on this client yet.</p> : (
         <div style={{ overflowX: "auto" }}>
-          <table className="tbl">
+          <table className="grid">
             <thead><tr><th>Service</th><th>Agreed fee</th><th>Frequency</th><th>Effective</th><th>Next review</th><th>Status</th><th>Discount</th><th>VAT</th><th /></tr></thead>
             <tbody>{lines.map(({ row, line }) => (
               <tr key={line.key}>
@@ -101,7 +101,7 @@ export function ClientFees({ client }: { client: Row }) {
 
       <div className="stack" style={{ gap: 6 }}>
         <strong>One-off charges</strong>
-        {charges.length ? <table className="tbl"><tbody>{charges.map(({ row, c }) => (
+        {charges.length ? <table className="grid"><tbody>{charges.map(({ row, c }) => (
           <tr key={c.key}><td>{c.label}</td><td>{gbp(c.amount)}</td><td>{c.agreedOn ? fmtDate(c.agreedOn) : ""}</td><td>{c.vat ? vatLabel(c.vat) : ""}</td><td><span className={`chip ${c.status === "agreed" ? "green" : c.status === "proposed" ? "amber" : ""}`}>{c.status === "agreed" ? "Agreed" : c.status === "proposed" ? "Proposed" : "Cancelled"}</span></td>
             <td><ChargeBilling client={client} row={row} busy={busy} doW={doW} />{f.can && c.status !== "cancelled" && !["unpaid", "paid", "draft"].includes(str(row.BillStatus)) && <CancelCharge disabled={busy} onCancel={(why) => doW(cancelCharge(row, client, why, s.pcan, s.ctx()))} />}</td></tr>
         ))}</tbody></table> : <span className="muted">None.</span>}
@@ -111,7 +111,7 @@ export function ClientFees({ client }: { client: Row }) {
 
       <div className="stack" style={{ gap: 6 }} role="group" aria-label="Direct costs and contribution">
         <strong>Direct costs and estimated contribution</strong>
-        {costs.length ? <table className="tbl"><tbody>{costs.map(({ row, c }) => (
+        {costs.length ? <table className="grid"><tbody>{costs.map(({ row, c }) => (
           <tr key={c.key} style={c.active ? undefined : { opacity: 0.55 }}><td>{c.label}<div className="muted">{costKindLabel(c.kind)}{c.estimate ? " · estimate" : ""}{c.notes ? ` · ${c.notes}` : ""}</div></td><td>{gbp(c.amount)} {c.oneOff ? "one-off" : periodLabel(c.period).toLowerCase()}</td><td>{c.active ? (f.can && <button type="button" className="linkbtn" disabled={busy} onClick={() => doW(stopCost(row, s.pcan, s.ctx()))}>Stop counting</button>) : <span className="muted">Stopped</span>}</td></tr>
         ))}</tbody></table> : <span className="muted">No costs entered.</span>}
         {f.can && <AddCost disabled={busy} onAdd={(c) => doW(addCost(client, c, s.pcan, s.ctx()), "Cost added.")} />}
@@ -129,7 +129,7 @@ export function ClientFees({ client }: { client: Row }) {
       <details>
         <summary>Fee history ({history.length})</summary>
         {!history.length ? <p className="muted">No changes recorded yet.</p> : (
-          <table className="tbl"><tbody>{history.map((h) => {
+          <table className="grid"><tbody>{history.map((h) => {
             const o = (() => { try { return JSON.parse(str(h.Old) || "null"); } catch { return null; } })(); const n = (() => { try { return JSON.parse(str(h.New) || "null"); } catch { return null; } })();
             const what = o?.fee !== undefined || n?.fee !== undefined ? `${o?.fee !== undefined ? gbp(o.fee) : "—"} to ${n?.fee !== undefined ? gbp(n.fee) : "—"}` : n?.label ? `${n.label}: ${gbp(n.amount)}` : o?.label ? `${o.label}: ${gbp(o.amount)}` : "";
             return <tr key={str(h.Key)}><td>{str(h.At).slice(0, 10)}</td><td>{str(h.Actor)}</td><td>{f.svcName(str(h.ServiceKey))}</td><td>{str(h.Action)}</td><td>{what}</td><td className="muted">{str(h.Reason)}</td></tr>;
@@ -253,12 +253,12 @@ export function RevenuePage() {
         <button type="button" className="btn" aria-pressed={view === "pricing"} onClick={() => setView("pricing")}>Pricing check</button>
       </div>
       {view === "pricing" ? <PricingCheckList /> : view === "service" ? (
-        <div className="card" style={{ overflowX: "auto" }}><table className="tbl">
+        <div className="card" style={{ overflowX: "auto" }}><table className="grid">
           <thead><tr><th>Service</th><th>Clients</th><th>Annual recurring</th><th>One-off</th></tr></thead>
           <tbody>{r.byService.map((x) => <tr key={x.serviceKey}><td>{f.svcName(x.serviceKey)}</td><td>{x.clients}</td><td>{gbp(x.arr)}</td><td>{x.oneOff ? gbp(x.oneOff) : "—"}</td></tr>)}</tbody>
         </table></div>
       ) : (
-        <div className="card" style={{ overflowX: "auto" }}><table className="tbl">
+        <div className="card" style={{ overflowX: "auto" }}><table className="grid">
           <thead><tr><th>Client</th><th>Annual recurring</th><th>One-off</th><th>Estimated contribution</th></tr></thead>
           <tbody>{r.byClient.map((x) => (
             <tr key={x.clientKey}><td><a href={href("clients", x.clientKey)}>{clientName(x.clientKey)}</a></td><td>{gbp(x.arr)}</td><td>{x.oneOff ? gbp(x.oneOff) : "—"}</td>

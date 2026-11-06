@@ -716,7 +716,7 @@ function WeekView() {
       <div className="plan-body">
         <aside className={`tray${dropTarget === "tray" ? " drop" : ""}`} aria-label="Unplanned work" data-drop="tray">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-            <h2 style={{ margin: 0, fontSize: 16 }}>Unplanned <span className="muted" style={{ fontWeight: 500 }}>({unplanned.length})</span></h2>
+            <h2 className="sec-h">Unplanned <span className="muted" style={{ fontWeight: 500 }}>({unplanned.length})</span></h2>
             <label>
               <span className="sr-only">Due within</span>
               <select className="input" value={horizon} onChange={(e) => setHorizon(e.target.value as Horizon)} style={{ minHeight: 36, padding: "4px 8px", width: "auto", fontSize: 13 }}>
@@ -817,7 +817,7 @@ function WeekView() {
                 style={{ ["--dt" as string]: dayHours(d, settings).type.colour }}
               >
                 <div className="day-title">
-                  <h2 style={{ margin: 0, fontSize: 16 }}>{fmtDate(d, { weekday: true, year: false })}</h2>
+                  <h2 className="sec-h">{fmtDate(d, { weekday: true, year: false })}</h2>
                   <span className="mono" style={{ fontSize: 12, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>
                     {fmtHours(used) || "0h"} / {fmtHours(cap) || "0h"}{over ? ` · ${fmtHours(used - cap)} over` : ""}
                   </span>

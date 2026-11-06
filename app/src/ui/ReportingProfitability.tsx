@@ -39,7 +39,7 @@ export function Profitability({ clientKey, clientName, yearEnd, tenant }: { clie
     <section className="stack" style={{ gap: 12, minWidth: 0 }} aria-label="Profitability">
       <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
         <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}>
-          <h2 style={{ margin: 0 }}>Profitability</h2>
+          <h2 className="sec-h">Profitability</h2>
           <span className="muted" style={{ fontSize: 13 }}>{clientName}</span>
         </div>
         <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>

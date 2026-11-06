@@ -80,7 +80,7 @@ export function ServicesSettings() {
         </aside>
         {f && current ? (
           <section className="card pad stack" style={{ flex: "2 1 460px" }} aria-label={`${current.name} settings`}>
-            <h2 style={{ margin: 0 }}>{current.name}</h2>
+            <h2 className="sec-h">{current.name}</h2>
             <p className="muted" style={{ margin: 0 }}>This is also a type of work in the planner. Its repeat and deadline rules are under Types of work; this page is what a proposal says and charges.</p>
             <div className="row-wrap" style={{ gap: 16 }}>
               <label className="row-wrap" style={{ gap: 6 }}><input type="checkbox" checked={f.offered} onChange={(e) => set("offered", e.target.checked)} /> Offer in proposals</label>
@@ -162,7 +162,7 @@ function ProposalSettings() {
   };
   return (
     <section className="card pad stack" style={{ marginTop: 16 }} aria-label="Proposal layout and limits">
-      <h2 style={{ margin: 0 }}>Proposal layout and limits</h2>
+      <h2 className="sec-h">Proposal layout and limits</h2>
       <p className="muted" style={{ margin: 0 }}>Logo, colours and fonts come from your document branding. You can use {"{{client}}"}, {"{{practice}}"}, {"{{contact}}"}, {"{{validUntil}}"}, {"{{startDate}}"}, {"{{reference}}"} and {"{{date}}"} in the wording.</p>
       <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
         <label className="doc-field"><span>Branding</span><select className="input" value={t.brandingId} onChange={(e) => set("brandingId", e.target.value)}><option value="">Your default</option>{brands.map((b) => <option key={b.id} value={b.id}>{b.name || b.practiceName || b.id}</option>)}</select></label>

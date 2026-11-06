@@ -64,7 +64,7 @@ export function ElementsImport() {
         <div className="search-wrap" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && close()}>
           <div className="search-dialog" role="dialog" aria-modal="true" aria-label="Import Elements links" style={{ maxWidth: 760, maxHeight: "86vh", overflow: "auto", padding: 18 }}>
             <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-              <h2 style={{ margin: 0 }}>Elements links</h2>
+              <h2 className="sec-h">Elements links</h2>
               <button type="button" className="linkbtn" onClick={close}>Close</button>
             </div>
             <p className="muted" style={{ fontSize: 13 }}>

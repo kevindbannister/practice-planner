@@ -64,7 +64,7 @@ export function ReportingSettings({ clientKey, clientName, yearEnd, tenant, tab 
   return (
     <section className="stack" style={{ gap: 12, minWidth: 0 }} aria-label="Reporting settings">
       <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
-        <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}><h2 style={{ margin: 0 }}>Reporting settings</h2><span className="muted" style={{ fontSize: 13 }}>{clientName}</span></div>
+        <div className="row-wrap" style={{ gap: 10, alignItems: "center" }}><h2 className="sec-h">Reporting settings</h2><span className="muted" style={{ fontSize: 13 }}>{clientName}</span></div>
         <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
           {saving && <span className="muted" style={{ fontSize: 12 }} aria-live="polite">Saving…</span>}
           {others.length > 0 && <>

@@ -122,7 +122,7 @@ function Request({ client, row, update, remove, create, prefs, today, user, s }:
   return (
     <section className="card pad stack" aria-label="Clearance request">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>{form.firm || prev.firm || "Previous accountant"}</h2>
+        <h2 className="sec-h">{form.firm || prev.firm || "Previous accountant"}</h2>
         <span className={`chip ${STATUS_CHIP[status]}`}>{STATUS_LABEL[status]}</span>
       </div>
       <div className="muted" style={{ fontSize: 13 }}>Started {fmtDate(String(row.Created).slice(0, 10))}{row.SentOn ? ` · sent ${fmtDate(String(row.SentOn).slice(0, 10))}` : ""}{row.ReceivedOn && status !== "requested" ? ` · answered ${fmtDate(String(row.ReceivedOn).slice(0, 10))}` : ""}{row.GeneratedOn ? ` · letter built ${fmtDate(String(row.GeneratedOn).slice(0, 10))}` : ""}</div>
@@ -184,7 +184,7 @@ export function ClearanceCard({ client, openHref }: { client: Client; openHref: 
   const sum = latest(data.clearances, client.Key, todayIso());
   return (
     <section className="card pad stack" aria-label="Professional clearance">
-      <div className="card-title-row"><h2 style={{ margin: 0, fontSize: 16 }}>Professional clearance</h2>{sum.status !== "none" && <span className={`chip ${STATUS_CHIP[sum.status]}`}>{STATUS_LABEL[sum.status]}</span>}</div>
+      <div className="card-title-row"><h2 className="sec-h">Professional clearance</h2>{sum.status !== "none" && <span className={`chip ${STATUS_CHIP[sum.status]}`}>{STATUS_LABEL[sum.status]}</span>}</div>
       <p className="muted" style={{ margin: 0 }}>{sum.line}</p>
       <div><a className="btn small" href={openHref}>{sum.status === "none" ? "Start a request" : "Open"}</a></div>
     </section>

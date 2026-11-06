@@ -26,7 +26,7 @@ function useRun() {
   return { run, error, setError, sales };
 }
 const Err = ({ text }: { text: string }) => (text ? <p role="alert" className="warn" style={{ margin: 0 }}>{text}</p> : null);
-const Panel = ({ title, children }: { title: string; children: ReactNode }) => <section className="card pad stack" aria-label={title}><h2 style={{ margin: 0, fontSize: 16 }}>{title}</h2>{children}</section>;
+const Panel = ({ title, children }: { title: string; children: ReactNode }) => <section className="card pad stack" aria-label={title}><h2 className="sec-h">{title}</h2>{children}</section>;
 
 export function CompliancePage() {
   const { parts } = useRoute();

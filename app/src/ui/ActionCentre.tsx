@@ -187,7 +187,7 @@ function PrefsPanel({ prefs, user, seeAll, items, onSave }: { prefs: Prefs; user
   };
   return (
     <section className="card pad stack" aria-label="Notification preferences" style={{ marginBottom: 12 }}>
-      <h2 style={{ margin: 0, fontSize: 16 }}>Your notification preferences</h2>
+      <h2 className="sec-h">Your notification preferences</h2>
       <label className="row-wrap"><input type="checkbox" checked={p.inApp} onChange={(e) => setP({ ...p, inApp: e.target.checked })} /> Show the outstanding count beside "View Action Centre" in the bell</label>
       <label className="row-wrap"><input type="checkbox" checked={p.assignedOnly} onChange={(e) => setP({ ...p, assignedOnly: e.target.checked })} /> Only show actions assigned to me</label>
       <label className="row-wrap"><input type="checkbox" checked={p.practiceWide} disabled={!seeAll} onChange={(e) => setP({ ...p, practiceWide: e.target.checked })} /> Open on "All practice actions"{seeAll ? "" : " (managers and partners only)"}</label>

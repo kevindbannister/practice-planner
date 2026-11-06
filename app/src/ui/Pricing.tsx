@@ -147,7 +147,7 @@ export function PricingSettings() {
 function Working({ fee, steps, missing, period }: { fee: number; steps: { label: string; amount: number }[]; missing: string[]; period: string }) {
   return (
     <div className="stack" style={{ gap: 4, marginTop: 8 }}>
-      <table className="tbl"><tbody>
+      <table className="grid"><tbody>
         {steps.map((s, i) => <tr key={i}><td>{s.label}</td><td style={{ textAlign: "right" }}>{gbp(s.amount)}</td></tr>)}
         <tr><td><strong>Suggested fee{period ? ` (${periodLabel(period).toLowerCase()})` : ""}</strong></td><td style={{ textAlign: "right" }}><strong>{gbp(fee)}</strong></td></tr>
       </tbody></table>
@@ -208,7 +208,7 @@ export function PricingCheckList() {
         <button type="button" className="btn small" disabled={!shown.length} onClick={() => downloadFile(new TextEncoder().encode("﻿" + checkCsv(shown, svc)), `Pricing check ${todayIso()}.csv`, "text/csv")}>Export CSV</button>
       </div>
       {!shown.length ? <p className="muted">Nothing to show.</p> : (
-        <div className="card" style={{ overflowX: "auto" }}><table className="tbl">
+        <div className="card" style={{ overflowX: "auto" }}><table className="grid">
           <thead><tr><th>Client</th><th>Service</th><th>Pays</th><th>Rule says</th><th>Gap</th><th>A year</th><th /></tr></thead>
           <tbody>{shown.map((r) => (
             <tr key={`${r.clientKey}${r.serviceKey}`}>
