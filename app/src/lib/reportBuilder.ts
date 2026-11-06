@@ -25,7 +25,7 @@ export const PALETTES: { name: string; colors: string[] }[] = [
 export type Freq = "month" | "quarter" | "year";
 export type Block =
   | { w?: number; h?: number; id: string; type: "text"; style: TextStyle; title?: string; text: string }
-  | { w?: number; h?: number; id: string; type: "key"; color?: string; title: string; measure: string; compare: "none" | "prior" | "lastYear"; spark: boolean; showDesc: boolean; desc: string; fmt: Fmt; period?: PeriodKind }
+  | { w?: number; h?: number; id: string; type: "key"; color?: string; /** shade under the sparkline (default on) */ shade?: boolean; shadeColor?: string; /** draw a line at zero under the sparkline (default on) */ zeroLine?: boolean; title: string; measure: string; compare: "none" | "prior" | "lastYear"; spark: boolean; showDesc: boolean; desc: string; fmt: Fmt; period?: PeriodKind }
   | { w?: number; h?: number; id: string; type: "observation"; thenColor?: string; elseColor?: string; title: string; left: { measure: string; when: When }; op: Op; right: Operand; thenIcon: Icon; thenText: string; elseIcon: Icon; elseText: string; hideWhen: "never" | "true" | "false"; period?: PeriodKind }
   | { w?: number; h?: number; id: string; type: "top"; color?: string; color2?: string; title: string; group: TopGroup; n: number; order: "top" | "bottom"; hideNil: boolean; period?: PeriodKind }
   | { w?: number; h?: number; id: string; type: "columns"; left: string; right: string }

@@ -163,7 +163,7 @@ const labelFor = (kind: PeriodKind, months: string[], endMonth: number, full: bo
   if (kind === "month") return monthLabel(months[0]);
   const last = months[months.length - 1];
   if (kind === "quarter") return months.length === 3 ? `${monthLabel(months[0])} – ${monthLabel(last)}` : `${monthLabel(months[0])} – ${monthLabel(last)} (to date)`;
-  return `${fyLabel(yearOf(last, endMonth).last)}${full ? "" : " (YTD)"}`;
+  return `${fyLabel(yearOf(last, endMonth).last)}${full ? "" : " YTD"}`;
 };
 
 /** The columns for a report: the period, and what it is set beside. "months" is every month of the financial year with a total. */

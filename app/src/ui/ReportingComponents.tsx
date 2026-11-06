@@ -174,14 +174,14 @@ export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
 
 // ------------------------------------------------------------------ key number, observation, top accounts
 
-function Spark({ values, color }: { values: (number | undefined)[]; color: string }) {
+function Spark({ values, color, shade = true, shadeColor, zeroLine = true }: { values: (number | undefined)[]; color: string; shade?: boolean; shadeColor?: string; zeroLine?: boolean }) {
   const v = values.filter((x): x is number => x !== undefined);
   if (v.length < 2) return null;
-  const lo = Math.min(...v), hi = Math.max(...v), W = 90, H = 18;
+  const lo = Math.min(...v, zeroLine ? 0 : Infinity), hi = Math.max(...v, zeroLine ? 0 : -Infinity), W = 90, H = 18;
   const y = (x: number) => H - 3 - ((x - lo) / (hi - lo || 1)) * (H - 6);
   const pts = values.map((x, i) => (x === undefined ? undefined : [(i / (values.length - 1)) * W, y(x)] as [number, number])).filter(Boolean) as [number, number][];
   const line = pts.map((q) => q.join(",")).join(" ");
-  return <svg viewBox={`0 0 ${W} ${H}`} style={{ width: 90, height: 18, display: "block", margin: "12px 0" }} aria-hidden="true"><polygon fill={color} opacity={0.14} points={`0,${H} ${line} ${W},${H}`} /><polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" points={line} /></svg>;
+  return <svg viewBox={`0 0 ${W} ${H}`} style={{ width: 90, height: 18, display: "block", margin: "12px 0" }} aria-hidden="true">{zeroLine && <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="#c9ccd2" strokeWidth={0.8} />}{shade && <polygon fill={shadeColor || color} opacity={shadeColor ? 0.35 : 0.14} points={`0,${y(0)} ${line} ${W},${y(0)}`} />}<polyline fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" points={line} /></svg>;
 }
 
 export function KeyView({ b, c, label, tone = 0 }: { b: B<"key">; c: Ctx; label?: ReactNode; tone?: number }) {
@@ -199,7 +199,7 @@ export function KeyView({ b, c, label, tone = 0 }: { b: B<"key">; c: Ctx; label?
       {head}
       <div style={{ fontSize: 24, fontWeight: 500, letterSpacing: -0.25, lineHeight: 1.1, color: "#111" }}>{fmtValue(m.unit, k.value, b.fmt)}</div>
       {diff !== undefined && <div style={{ fontSize: 9.3, color: MUTED, marginTop: 8 }}><span style={{ color: up ? "#7ea34f" : RED }}>{up ? "▲" : "▼"} {m.unit === "money" ? fmtValue(m.unit, Math.abs(diff), b.fmt) : fmtValue(m.unit, diff, b.fmt)}</span> from {cmpLabel}</div>}
-      {b.spark && <Spark values={k.spark} color={b.color || pal(cc)[tone % 3]} />}
+      {b.spark && <Spark values={k.spark} color={b.color || pal(cc)[tone % 3]} shade={b.shade !== false} shadeColor={b.shadeColor} zeroLine={b.zeroLine !== false} />}
       {b.showDesc && b.desc && <div style={{ fontSize: 10.7, lineHeight: 1.4, color: "#222", marginTop: 4, whiteSpace: "pre-wrap" }}>{b.desc}</div>}
     </div>
   );
@@ -308,8 +308,13 @@ export function ComponentEditor({ block, c, onSave, onCancel, preview, onDraft }
         </Sec>
         <FmtSec f={b.fmt} set={(fmt) => upd({ fmt })} only />
         <Sec title="Show comparative"><select aria-label="Comparative" value={b.compare} onChange={(e) => upd({ compare: e.target.value as typeof b.compare })}><option value="none">None</option><option value="prior">Last period</option><option value="lastYear">Same period last year</option></select></Sec>
-        <Sec title="Sparkline"><Check label="Show sparkline (last 13 months)" on={b.spark} set={(v) => upd({ spark: v })} />{b.spark && <Swatch label="Sparkline colour" value={b.color} fallback={P[0]} set={(color) => upd({ color })} />}</Sec>
-        <Sec title="Description"><Check label="Show description" on={b.showDesc} set={(v) => upd({ showDesc: v })} />{b.showDesc && <textarea aria-label="Description" rows={4} maxLength={300} value={b.desc} onChange={(e) => upd({ desc: e.target.value })} />}</Sec>
+        <Sec title="Sparkline"><Check label="Show sparkline (last 13 months)" on={b.spark} set={(v) => upd({ spark: v })} />{b.spark && <>
+          <Swatch label="Line colour" value={b.color} fallback={P[0]} set={(color) => upd({ color })} />
+          <Check label="Shade under sparkline" on={b.shade !== false} set={(v) => upd({ shade: v })} />
+          {b.shade !== false && <Swatch label="Shade colour" value={b.shadeColor} fallback={b.color || P[0]} set={(shadeColor) => upd({ shadeColor })} />}
+          <Check label="Show zero line" on={b.zeroLine !== false} set={(v) => upd({ zeroLine: v })} />
+        </>}</Sec>
+        <Sec title="Description"><Check label="Show description" on={b.showDesc} set={(v) => upd({ showDesc: v })} />{b.showDesc && <><textarea aria-label="Description" rows={4} maxLength={200} value={b.desc} onChange={(e) => upd({ desc: e.target.value })} /><div style={{ textAlign: "right", fontSize: 11, color: "#8a8d94" }}>{200 - b.desc.length} characters remaining</div></>}</Sec>
       </>}
 
       {b.type === "observation" && (() => {
