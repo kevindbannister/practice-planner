@@ -112,7 +112,9 @@ function BlockView({ b, c, edit, tone }: { b: Block; c?: Ctx; edit?: Edit; tone?
 const REPORT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap');
 .rp{font-family:Figtree,"Avenir Next","Segoe UI",system-ui,-apple-system,Arial,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rp *{box-sizing:border-box}
-.rp-cover{position:relative;container-type:inline-size;aspect-ratio:210/297;background:#fff;overflow:hidden;page:cover}
+.rp{container-type:inline-size;--ph:141.42cqw}
+.rp-land{--ph:70.71cqw}
+.rp-cover{position:relative;container-type:inline-size;aspect-ratio:210/297;background:#fff;overflow:hidden;page:cover;box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 20px rgba(0,0,0,.08)}
 .rp-land .rp-cover{aspect-ratio:297/210}
 .rp-cover-body{position:absolute;left:17%;right:17%;top:24%}
 .rp-land .rp-cover-body{top:14%}
@@ -126,7 +128,12 @@ const REPORT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Figtre
 .rp-band svg{width:100%;height:100%;display:block}
 .rp-in{padding:0 9%}
 .rp-land .rp-in{padding:0 6.3%}
-.rp-sec{padding:40px 0 18px}
+.rp-sec{position:relative;padding:40px 0 40px;background:#fff;aspect-ratio:210/297;box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 20px rgba(0,0,0,.08);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--ph) - 2px),#b9c9e0 calc(var(--ph) - 2px),#b9c9e0 var(--ph))}
+.rp-land .rp-sec{aspect-ratio:297/210}
+.rp{counter-reset:pg 1}.rp-sec{counter-increment:pg}
+.rp-sec::after{content:"Page " counter(pg);position:absolute;right:4%;top:calc(var(--ph) - 24px);font-size:10px;color:#9aa4b2}
+.rp-break{display:flex;align-items:center;gap:12px;height:44px;color:#8a95a1;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.rp-break::before,.rp-break::after{content:"";flex:1;border-top:1px dashed #aab4c2}
 .rp-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:3%;align-items:start}
 .rp-foot{font-size:8.4px;color:#8a8d94;border-top:1px solid #dcdde1;padding-top:10px;margin:30px 0 20px}`;
 
@@ -184,16 +191,19 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
           );
         });
         return (
-          <section key={s.id} className="rp-sec rb-section">
-            <div className="rp-in">
-              {sectionTools ? sectionTools(s, si) : <h2 style={T.h2}>{s.title}</h2>}
-              <div className="rp-grid">{items}</div>
-              {addButtons?.(s)}
-            </div>
-          </section>
+          <Fragment key={s.id}>
+            <div className="rp-break" aria-hidden="true"><span>Page break</span></div>
+            <section className="rp-sec rb-section">
+              <div className="rp-in">
+                {sectionTools ? sectionTools(s, si) : <h2 style={T.h2}>{s.title}</h2>}
+                <div className="rp-grid">{items}</div>
+                {addButtons?.(s)}
+                {doc.disclaimer && si === doc.sections.length - 1 && <p className="rp-foot">{doc.disclaimerText}</p>}
+              </div>
+            </section>
+          </Fragment>
         );
       })}
-      {doc.disclaimer && <div className="rp-in"><p className="rp-foot">{doc.disclaimerText}</p></div>}
     </div>
   );
 }
@@ -204,8 +214,7 @@ export function publishedHtml(doc: ReportDoc, c: Ctx, clientName: string): strin
   const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch] as string));
   const land = doc.orientation === "landscape";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(doc.name)} – ${esc(clientName)}</title>
-<style>@page{size:A4 ${doc.orientation};margin:19mm 0}@page cover{size:A4 ${doc.orientation};margin:0}body{margin:0;background:#e9ecef}main{max-width:${land ? 1180 : 840}px;margin:0 auto;background:#fff}.noprint{max-width:${land ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}.rp-sec{border-top:1px solid #e3e5e9}
-@media print{body{background:#fff}main{max-width:none}.noprint{display:none}.rp-cover{aspect-ratio:auto;width:100%;height:${land ? 209 : 296}mm}.rp-sec{break-before:page;padding:0;border:0}.rp-in{padding:0 19mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
+<style>@page{size:A4 ${doc.orientation};margin:19mm 0}@page cover{size:A4 ${doc.orientation};margin:0}body{margin:0;background:#e9ecef}main{max-width:${land ? 1180 : 840}px;margin:0 auto;padding-bottom:40px}.noprint{max-width:${land ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}@media print{body{background:#fff}main{max-width:none}.noprint{display:none}.rp-cover{aspect-ratio:auto;width:100%;height:${land ? 209 : 296}mm}.rp-sec{break-before:page;padding:0;border:0;aspect-ratio:auto;box-shadow:none;background:none}.rp-sec::after,.rp-break{display:none}.rp-cover{box-shadow:none}.rp-in{padding:0 19mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
 <body><div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div><main>${body}</main></body></html>`;
 }
 
