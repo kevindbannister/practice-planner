@@ -9,4 +9,4 @@ export const AUTHORITY = `https://login.microsoftonline.com/${TENANT_ID}/oauth2/
 // Only what the extension needs: read and write the planner's lists, and know who is signed in.
 export const SCOPES = ["openid", "profile", "offline_access", "User.Read", "Sites.ReadWrite.All"];
 // The planner's lists, by their SharePoint display names.
-export const LISTS = { clients: "PP Clients", jobs: "PP Jobs", services: "PP Services", time: "PP Job Time" };
+export const LISTS = { clients: "PP Clients", jobs: "PP Jobs", services: "PP Services", time: "PP Job Time", stages: "PP Stage Templates" };

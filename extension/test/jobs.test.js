@@ -52,3 +52,19 @@ test("clock and lengths", () => {
   assert.equal(J.lengthText(1.5), "1h 30m");
   assert.equal(J.lengthText(0.25), "15m");
 });
+
+test("editing a job: only changed fields are sent", () => {
+  const job = { Deadline: "2026-12-01", PlannedDate: "", Priority: "", CardNote: "" };
+  assert.deepEqual(J.editPatch(job, { deadline: "2026-12-01", planned: "", urgent: false, card: "" }), {});
+  const p = J.editPatch(job, { deadline: "2026-12-05", planned: "2026-11-20", urgent: true, card: "Chase" });
+  assert.equal(p.Deadline, "2026-12-05"); assert.equal(p.DeadlineSource, "Manual");
+  assert.equal(p.PlannedDate, "2026-11-20"); assert.equal(p.Priority, "urgent"); assert.equal(p.CardNote, "Chase");
+});
+test("stage moves: not into or out of a client stage, nor once waiting to finalise", () => {
+  const st = [{ ServiceKey: "S", StageNo: 1, Title: "Records" }, { ServiceKey: "S", StageNo: 2, Title: "Records received" }, { ServiceKey: "S", StageNo: 3, Title: "With client", WaitClient: true }];
+  const job = { StageNo: 1 };
+  assert.deepEqual(J.stagePatch(job, st, 2, "2026-11-07"), { StageNo: 2, StageName: "Records received", RecordsReceived: "2026-11-07" });
+  assert.equal(J.stagePatch(job, st, 3, "2026-11-07"), undefined);
+  assert.equal(J.stagePatch({ StageNo: 3 }, st, 2, "2026-11-07"), undefined);
+  assert.equal(J.stagePatch({ StageNo: 1, WaitingSince: "2026-11-01" }, st, 2, "2026-11-07"), undefined);
+});

@@ -92,7 +92,8 @@ function clean(fields) {
 
 export const FIELDS = {
   clients: ["Key", "TradingName", "Kind", "Status", "CompanyNumber", "Notes"],
-  jobs: ["Key", "ClientKey", "ClientName", "ServiceKey", "PeriodEnd", "StageNo", "StageName", "Deadline", "InternalDeadline", "Status", "Priority", "Notes", "HoldReason", "HoldUntil", "HeldOn", "HoldKind", "RecordsExpected", "RecordsReceived", "EstimateHours", "PlannedDate"],
+  jobs: ["Key", "ClientKey", "ClientName", "ServiceKey", "PeriodEnd", "StageNo", "StageName", "Deadline", "InternalDeadline", "Status", "Priority", "Notes", "HoldReason", "HoldUntil", "HeldOn", "HoldKind", "RecordsExpected", "RecordsReceived", "EstimateHours", "PlannedDate", "CardNote", "WaitingSince", "DeadlineSource"],
   services: ["Key"],
+  stages: ["Key", "ServiceKey", "StageNo", "WaitClient"],
   time: ["Key", "JobKey", "ClientKey", "StageNo", "StageName", "Started", "Ended", "Hours", "Kind", "Note", "CreatedBy", "Created"],
 };

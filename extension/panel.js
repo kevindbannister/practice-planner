@@ -9,8 +9,9 @@ const $app = document.getElementById("app");
 const store = new Store(auth.getToken);
 const S = {
   signedIn: false, loading: false, error: "", flash: "", tab: "jobs", user: "",
-  data: { clients: [], jobs: [], services: [], time: [] },
+  data: { clients: [], jobs: [], services: [], time: [], stages: [] },
   client: null, how: "", searching: false, query: "", page: null, shortCode: "",
+  edit: null, // the job being edited, and its form
   forms: {}, // which job's hold form is open
   busy: false,
 };
@@ -31,20 +32,21 @@ const serviceName = (k) => { const s = S.data.services.find((x) => x.Key === k);
 const entries = () => S.data.time.map(J.readTime);
 const running = () => J.runningTimer(entries());
 const jobByKey = (k) => S.data.jobs.find((j) => j.Key === k);
-const jobTitle = (j) => `${serviceName(j.ServiceKey)}${j.PeriodEnd ? ` · ${J.fmtDate(j.PeriodEnd)}` : ""}`;
+const jobTitle = (j) => `${j.Title || serviceName(j.ServiceKey)}${j.PeriodEnd ? ` · ${J.fmtDate(j.PeriodEnd)}` : ""}`;
 
 // ---------- data ----------
 async function load() {
   const { cache } = await chrome.storage.local.get("cache");
-  if (cache?.data) { S.data = cache.data; render(); }
+  if (cache?.data) { S.data = { stages: [], ...cache.data }; render(); }
   S.loading = true; render();
   try {
     await store.connect();
-    const [clients, jobs, services, time] = await Promise.all([
+    const [clients, jobs, services, time, stages] = await Promise.all([
       store.readAll("clients", FIELDS.clients), store.readAll("jobs", FIELDS.jobs),
       store.has("services") ? store.readAll("services", FIELDS.services) : [], store.has("time") ? store.readAll("time", FIELDS.time) : [],
+      store.has("stages") ? store.readAll("stages", FIELDS.stages) : [],
     ]);
-    S.data = { clients, jobs, services, time };
+    S.data = { clients, jobs, services, time, stages };
     S.error = "";
     await chrome.storage.local.set({ cache: { at: Date.now(), data: S.data } });
     if (!S.user) { try { S.user = (await store.request("GET", "/me?$select=displayName")).displayName || ""; } catch { /* the name is only for notes */ } }
@@ -151,6 +153,21 @@ async function recordsIn(job) {
     await store.update("jobs", job._id, p); Object.assign(job, p);
   }, "Records marked as received today.");
 }
+async function saveEdit(job, form) {
+  await act(async () => {
+    await refreshJob(job); // compare with what is saved now, not what was on screen
+    const p = { ...J.editPatch(job, form) };
+    const to = Number(form.stage);
+    if (to && to !== (Number(job.StageNo) || 1)) {
+      const sp = J.stagePatch(job, J.stagesFor(S.data.stages, job.ServiceKey), to, J.todayIso());
+      if (!sp) throw new Error("That stage needs the planner (it involves the client). Change it there.");
+      Object.assign(p, sp);
+    }
+    if (!Object.keys(p).length) { S.edit = null; return; }
+    await store.update("jobs", job._id, p); Object.assign(job, p);
+    S.edit = null;
+  }, "Job updated.");
+}
 async function addNote(target, text) {
   if (!text.trim()) return flash("Write a note first.", true);
   await act(async () => {
@@ -201,7 +218,17 @@ function jobCard(j) {
     hrs ? `<span class="chip">${esc(J.lengthText(hrs))} logged</span>` : "",
     mine ? '<span class="chip run">Timer running</span>' : "",
   ].join("");
-  const f = S.forms[j.Key];
+  const f = S.forms[j.Key], ed = S.edit?.key === j.Key ? S.edit : null;
+  const stages = J.stagesFor(S.data.stages, j.ServiceKey), cur = Number(j.StageNo) || 1;
+  const locked = !!j.WaitingSince || J.isWaitStage(stages.find((x) => Number(x.StageNo) === cur));
+  const editForm = ed ? `<div style="margin-top:8px">
+    <label>Stage</label><select data-e="stage" ${locked || !stages.length ? "disabled" : ""}>${stages.map((x) => `<option value="${esc(x.StageNo)}" ${Number(ed.stage) === Number(x.StageNo) ? "selected" : ""} ${J.isWaitStage(x) && Number(x.StageNo) !== cur ? "disabled" : ""}>${esc(`${x.StageNo}. ${x.Title || ""}${J.isWaitStage(x) ? " (with the client: use the planner)" : ""}`)}</option>`).join("") || `<option>${esc(j.StageName || "No stages found")}</option>`}</select>
+    ${locked ? '<div class="muted">This job is with the client or waiting to be finalised, so its stage is changed in the planner.</div>' : ""}
+    <label>Deadline</label><input type="date" data-e="deadline" value="${esc(ed.deadline)}">
+    <label>Planned for</label><input type="date" data-e="planned" value="${esc(ed.planned)}">
+    <label><input type="checkbox" data-e="urgent" style="width:auto" ${ed.urgent ? "checked" : ""}> Urgent</label>
+    <label>Note on card</label><input data-e="card" value="${esc(ed.card)}">
+    <div class="row"><button class="btn pri" data-do="editsave" data-k="${esc(j.Key)}">Save changes</button><button class="btn" data-do="editcancel">Cancel</button></div></div>` : "";
   const form = f ? `<div style="margin-top:8px"><label>Why is it on hold?</label><input data-f="reason" value="${esc(f.reason)}">
     <label>Waiting on</label><select data-f="kind"><option value="">Nobody in particular</option>${J.WAIT_KINDS.map((k) => `<option ${f.kind === k ? "selected" : ""}>${esc(k)}</option>`).join("")}</select>
     <label>Until (optional)</label><input type="date" data-f="until" value="${esc(f.until)}">
@@ -212,7 +239,8 @@ function jobCard(j) {
       ${mine ? '<button class="btn stop" data-do="stop">Stop timer</button>' : `<button class="btn pri" data-do="start" data-k="${esc(j.Key)}">Start timer</button>`}
       ${held ? `<button class="btn" data-do="resume" data-k="${esc(j.Key)}">Resume</button>` : `<button class="btn" data-do="holdopen" data-k="${esc(j.Key)}">Hold</button>`}
       ${j.RecordsExpected && !j.RecordsReceived ? `<button class="btn" data-do="records" data-k="${esc(j.Key)}">Records received</button>` : ""}
-    </div>${form}</div>`;
+      <button class="btn" data-do="editopen" data-k="${esc(j.Key)}">Edit</button>
+    </div>${j.CardNote ? `<div class="muted" style="margin-top:6px">${esc(j.CardNote)}</div>` : ""}${form}${editForm}</div>`;
 }
 function jobsView() {
   if (!S.client) return `<div class="empty">Choose a client to see their jobs.</div>`;
@@ -272,7 +300,7 @@ document.addEventListener("click", async (ev) => {
   const k = t.dataset.k, job = k && jobByKey(k);
   switch (t.dataset.do) {
     case "signin": S.busy = true; S.error = ""; render(); try { await auth.signIn(); S.signedIn = true; S.busy = false; load(); } catch (e) { S.busy = false; S.error = e.message; render(); } break;
-    case "signout": await auth.signOut(); await chrome.storage.local.remove(["cache", "running"]); S.signedIn = false; S.data = { clients: [], jobs: [], services: [], time: [] }; S.client = null; render(); break;
+    case "signout": await auth.signOut(); await chrome.storage.local.remove(["cache", "running"]); S.signedIn = false; S.data = { clients: [], jobs: [], services: [], time: [], stages: [] }; S.client = null; render(); break;
     case "refresh": load(); break;
     case "forget": await chrome.storage.local.remove("xeroMap"); flash("Forgotten."); break;
     case "search": S.searching = true; S.query = ""; render(); break;
@@ -283,6 +311,9 @@ document.addEventListener("click", async (ev) => {
     case "holdopen": S.forms = { [k]: { reason: "", kind: "", until: "" } }; render(); break;
     case "holdcancel": S.forms = {}; render(); break;
     case "holdsave": job && hold(job, S.forms[k]); break;
+    case "editopen": if (job) { S.edit = { key: k, stage: Number(job.StageNo) || 1, deadline: job.Deadline || "", planned: job.PlannedDate || "", urgent: job.Priority === "urgent", card: job.CardNote || "" }; render(); } break;
+    case "editcancel": S.edit = null; render(); break;
+    case "editsave": job && S.edit && saveEdit(job, S.edit); break;
     case "resume": job && resume(job); break;
     case "records": job && recordsIn(job); break;
     case "manual": addManual(document.getElementById("mjob")?.value, document.getElementById("mlen")?.value || "", document.getElementById("mnote")?.value || ""); break;
@@ -295,9 +326,10 @@ document.addEventListener("click", async (ev) => {
 document.addEventListener("input", (ev) => {
   const t = ev.target;
   if (t.id === "q") { S.query = t.value; render(); }
+  if (t.dataset.e && S.edit) S.edit[t.dataset.e] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.f) { const form = Object.values(S.forms)[0]; if (form) form[t.dataset.f] = t.value; } // no re-render: keeps the cursor where it is
 });
-document.addEventListener("change", (ev) => { const t = ev.target; if (t.dataset.f) { const form = Object.values(S.forms)[0]; if (form) form[t.dataset.f] = t.value; } });
+document.addEventListener("change", (ev) => { const t = ev.target; if (t.dataset.e && S.edit) S.edit[t.dataset.e] = t.type === "checkbox" ? t.checked : t.value; if (t.dataset.f) { const form = Object.values(S.forms)[0]; if (form) form[t.dataset.f] = t.value; } });
 
 // The clock ticks without redrawing the page.
 setInterval(() => {

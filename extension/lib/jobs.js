@@ -108,3 +108,28 @@ export function hoursByJob(entries, now) {
   }
   return out;
 }
+
+// ---- editing a job ----
+/** The stages of a type of work, in order. */
+export const stagesFor = (stages, serviceKey) => stages.filter((s) => s.ServiceKey === serviceKey).sort((a, b) => Number(a.StageNo) - Number(b.StageNo));
+export const isWaitStage = (s) => !!s && (s.WaitClient === true || s.WaitClient === "true" || s.WaitClient === 1);
+/**
+ * Moving a job to another stage. Stages where the job is with the client, and jobs already waiting to be finalised, carry extra steps in the
+ * planner (who speaks to the client, when), so those are left to the planner: this returns undefined for them.
+ */
+export function stagePatch(job, stages, toNo, today) {
+  const target = stages.find((s) => Number(s.StageNo) === toNo);
+  const here = stages.find((s) => Number(s.StageNo) === (Number(job.StageNo) || 1));
+  if (!target || isWaitStage(target) || isWaitStage(here) || job.WaitingSince) return undefined;
+  const name = target.Title || "";
+  return { StageNo: toNo, StageName: name, ...(/received/i.test(name) && !job.RecordsReceived ? { RecordsReceived: today } : {}) };
+}
+/** Only what changed, so a stale form never overwrites someone else's edit of a different field. */
+export function editPatch(job, form) {
+  const out = {};
+  if ((form.deadline || "") !== (job.Deadline || "")) { out.Deadline = form.deadline || ""; out.DeadlineSource = "Manual"; }
+  if ((form.planned || "") !== (job.PlannedDate || "")) Object.assign(out, { PlannedDate: form.planned || "", DayOrder: "", StartTime: "" });
+  if ((form.urgent ? "urgent" : "") !== (job.Priority === "urgent" ? "urgent" : "")) out.Priority = form.urgent ? "urgent" : "";
+  if ((form.card || "") !== (job.CardNote || "")) out.CardNote = form.card || "";
+  return out;
+}
