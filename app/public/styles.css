@@ -3380,9 +3380,16 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .nv-grid a { display: flex; align-items: center; gap: 10px; white-space: nowrap; padding: 11px 14px; border-radius: 16px; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; background: rgba(255, 255, 255, 0.10); transition: background 0.15s; }
 .nv-grid a:hover, .nv-grid a:focus-visible { background: rgba(255, 255, 255, 0.26); outline: none; }
 @media (prefers-reduced-motion: reduce) { .nv-panel, .nv-caret { transition: none; transform: none; } }
-@media (max-width: 720px) { .nv-nav { overflow-x: auto; margin-left: 0; } .nv-link { padding: 0 10px; font-size: 13px; } .nv-panel { position: fixed; left: 12px; right: 12px; top: calc(var(--topbar-h) + 4px); width: auto; } .nv-grid { flex-wrap: wrap; } .topbar-right { display: none; } }
+@media (max-width: 720px) { .nv-nav { overflow-x: auto; margin-left: 0; } .nv-link { padding: 0 10px; font-size: 13px; } .nv-panel { position: fixed; left: 12px; right: 12px; top: calc(var(--topbar-h) + 4px); width: auto; } .nv-grid { flex-wrap: wrap; } }
 
 /* a pointer from the panel up to the button that opened it, so the two read as one piece */
 .nv-grid::before { content: ""; position: absolute; top: -7px; left: 50%; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); border-radius: 3px 0 0 0; background: #1295b8; }
 @media (prefers-reduced-motion: reduce) { .nv-panel { transform: translateX(-50%) !important; } }
 @media (max-width: 720px) { .nv-panel { transform: none; left: 12px; } .nv-item.open .nv-panel { transform: none; } .nv-grid::before { display: none; } }
+
+/* the word menu is the desktop menu; phones keep the tab bars at the bottom */
+.phone-nav { display: none; }
+@media (max-width: 720px) { .phone-nav { display: contents; } }
+.nv-item.here > .nv-link, .nv-link[aria-current="page"] { background: var(--grad); color: #fff; font-weight: 600; box-shadow: 0 6px 20px rgba(17, 168, 195, 0.27); }
+.nv-item.open:not(.here) > .nv-link { background: var(--blue-soft); color: var(--blue-ink); box-shadow: inset 0 0 0 1.5px var(--blue-line); }
+.nv-grid a[aria-current="page"] { background: rgba(255, 255, 255, 0.30); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7); }
