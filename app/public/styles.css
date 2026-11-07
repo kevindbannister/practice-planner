@@ -3373,11 +3373,11 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .nv-item.open > .nv-link { background: var(--grad); color: #fff; box-shadow: 0 6px 20px rgba(17, 168, 195, 0.27); }
 .nv-caret { transition: transform 0.2s; }
 .nv-item.open .nv-caret { transform: rotate(180deg); }
-.nv-panel { position: absolute; top: 100%; left: -6px; padding-top: 16px; width: max-content; min-width: 300px; max-width: 86vw; visibility: hidden; opacity: 0; transform: translateY(-10px) scale(0.98); transform-origin: top left; pointer-events: none;
+.nv-panel { position: absolute; top: 100%; left: -6px; padding-top: 16px; width: max-content; min-width: 0; max-width: 96vw; visibility: hidden; opacity: 0; transform: translateY(-10px) scale(0.98); transform-origin: top left; pointer-events: none;
   transition: opacity 0.2s ease, transform 0.22s ease, visibility 0s linear 0.22s; z-index: 30; }
 .nv-item.open .nv-panel { visibility: visible; opacity: 1; transform: none; pointer-events: auto; transition-delay: 0s; }
-.nv-grid { display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 6px; padding: 12px; border-radius: 24px; background: var(--grad); box-shadow: 0 18px 40px rgba(12, 90, 140, 0.35); }
-.nv-grid a { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 16px; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; background: rgba(255, 255, 255, 0.10); transition: background 0.15s; }
+.nv-grid { display: flex; flex-wrap: nowrap; gap: 6px; padding: 12px; border-radius: 24px; background: var(--grad); box-shadow: 0 18px 40px rgba(12, 90, 140, 0.35); }
+.nv-grid a { display: flex; align-items: center; gap: 10px; white-space: nowrap; padding: 11px 14px; border-radius: 16px; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; background: rgba(255, 255, 255, 0.10); transition: background 0.15s; }
 .nv-grid a:hover, .nv-grid a:focus-visible { background: rgba(255, 255, 255, 0.26); outline: none; }
 @media (prefers-reduced-motion: reduce) { .nv-panel, .nv-caret { transition: none; transform: none; } }
-@media (max-width: 720px) { .nv-nav { overflow-x: auto; margin-left: 0; } .nv-link { padding: 0 10px; font-size: 13px; } .nv-panel { position: fixed; left: 12px; right: 12px; top: calc(var(--topbar-h) + 4px); } .topbar-right { display: none; } }
+@media (max-width: 720px) { .nv-nav { overflow-x: auto; margin-left: 0; } .nv-link { padding: 0 10px; font-size: 13px; } .nv-panel { position: fixed; left: 12px; right: 12px; top: calc(var(--topbar-h) + 4px); width: auto; } .nv-grid { flex-wrap: wrap; } .topbar-right { display: none; } }
