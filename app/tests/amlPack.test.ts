@@ -23,15 +23,9 @@ test("the suspicious activity forms are never stored", () => {
   assert.ok(p.FORMS.filter((f) => f.stored).every((f) => !f.restricted));
 });
 
-test("the policy and risk assessment start from the firm's own draft, without leftover placeholders in short fields", () => {
-  const fw = p.formById("fwra")!.seed!();
-  assert.match(String(fw["r0.risk"]), /Provisional: Medium/);
-  assert.equal((fw.actions as unknown[]).length, 6);
-});
-
 test("standing: not started, draft, overdue, soon, in date", () => {
-  const def = p.formById("fwra")!;
-  const rec = (status: "Draft" | "Approved", next?: string): p.Rec => ({ id: "x", created: "2026-01-01", status, values: next ? { nextReview: next } : {} });
+  const def = p.formById("mlro")!;
+  const rec = (status: "Draft" | "Approved", next?: string): p.Rec => ({ id: "x", created: "2026-01-01", status, values: next ? { nextReport: next } : {} });
   assert.equal(p.standing(def, { records: [] }, today).state, "none");
   assert.equal(p.standing(def, { records: [rec("Draft")] }, today).state, "draft");
   assert.equal(p.standing(def, { records: [rec("Approved", "2026-10-01")] }, today).state, "overdue");
@@ -51,11 +45,11 @@ test("ticks show which options were chosen", () => {
 });
 
 test("a blank copy ignores any saved values", () => {
-  const def = p.formById("fwra")!;
+  const def = p.formById("screening")!;
   const rec = p.newRec(def, today);
+  rec.values = { client: "K1", notes: "Secret note" };
   const meta = { firm: "F", title: "t", status: "", date: today, blank: true, today };
-  const text = JSON.stringify(p.docBlocks(def, rec, meta, name));
-  assert.ok(!text.includes("Provisional: Medium"));
+  assert.ok(!JSON.stringify(p.docBlocks(def, rec, meta, name)).includes("Secret note"));
 });
 
 test("free text turns into paragraphs and bullet lists", () => {

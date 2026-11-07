@@ -1,7 +1,9 @@
 // The AML policy builder screen. The firm answers questions one area at a time and the policy is written from the answers. Each area has
 // to be confirmed by the person, gaps show in the text, and versions are kept. See lib/amlBuilder.ts.
 import { useEffect, useMemo, useRef, useState } from "react";
+import { position } from "../lib/amlAssessment";
 import * as b from "../lib/amlBuilder";
+import { FWRA_STEPS } from "../lib/amlFwra";
 import * as p from "../lib/amlPack";
 import { DOCX_TYPE } from "../lib/docx";
 import { todayIso } from "../lib/domain";
@@ -9,10 +11,14 @@ import { Row } from "../lib/schema";
 import { readSetting, useData } from "./data";
 import { useFirm } from "./FirmSettings";
 
-const KEY = "aml.builder";
-const VKEY = "aml.builder.versions";
-const snapKey = (v: string) => `aml.builder.v${v}`;
-const TITLE = "Anti-money laundering policy and procedures";
+export type Cfg = {
+  id: string; title: string; docTitle: string; intro: string; steps: b.Step[]; prefillFirm?: boolean;
+  /** Answers and facts from elsewhere that the questions can use (never stored here). */
+  extra?: (data: ReturnType<typeof useData>["data"]) => b.Answers;
+};
+const stateKey = (c: Cfg) => `aml.${c.id}`;
+const versionsKey = (c: Cfg) => `aml.${c.id}.versions`;
+const snapKey = (c: Cfg, v: string) => `aml.${c.id}.v${v}`;
 type Snap = { head: { version: string; updated: string; approvedBy: string }; built: { title: string; text: string }[] };
 
 function download(name: string, bytes: Uint8Array | Blob, type: string) {
@@ -69,18 +75,36 @@ function QuestionView({ q, a, set }: { q: b.Q; a: b.Answers; set: (k: string, v:
   );
 }
 
-export function PolicyBuilder() {
+export const POLICY_CFG: Cfg = {
+  id: "builder", title: "Policies and procedures", docTitle: "Anti-money laundering policy and procedures", steps: b.STEPS, prefillFirm: true,
+  intro: "Answer the questions area by area and the policy is written from your answers, following ACCA's AML policy and procedures factsheet. Your own words are used wherever you give them. Anything missing shows as a gap, and each area must be confirmed by you before the policy is complete.",
+};
+export const FWRA_CFG: Cfg = {
+  id: "fwra2", title: "Firm-wide risk assessment", docTitle: "Firm-wide risk assessment", steps: FWRA_STEPS,
+  intro: "Answer the questions for each of ACCA's six risk areas and the assessment is written from your answers. Facts you gave in the policy builder are reused, and the client percentages come from the risk ratings in the planner. The ratings are your own judgement: nothing here rates a risk for you.",
+  extra: (data) => {
+    const pol = b.readState(readSetting<unknown>(data.settings, stateKey(POLICY_CFG))).answers;
+    const today = todayIso();
+    const cl = (data.clients as Row[]).filter((c) => !c.CeasedOn);
+    let high = 0, med = 0, lowN = 0;
+    for (const c of cl) { const r = position(c, data.amlAssessments, data.onboardings, today).risk; if (r === "high") high++; else if (r === "medium") med++; else if (r === "low") lowN++; }
+    return { ...pol, _n: String(cl.length), _high: String(high), _med: String(med), _low: String(lowN), _unrated: String(cl.length - high - med - lowN) };
+  },
+};
+
+export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
   const { data, saveSetting } = useData();
   const firm = useFirm();
   const firmName = String(firm.firmName || "").trim() || "The practice";
-  const stored = useMemo(() => b.readState(readSetting<unknown>(data.settings, KEY)), [data.settings]);
+  const stored = useMemo(() => b.readState(readSetting<unknown>(data.settings, stateKey(cfg))), [data.settings, cfg]);
+  const extra = useMemo(() => (cfg.extra ? cfg.extra(data) : {}), [data, cfg]);
   const versions = useMemo(() => {
-    const v = readSetting<b.Version[]>(data.settings, VKEY);
+    const v = readSetting<b.Version[]>(data.settings, versionsKey(cfg));
     return Array.isArray(v) ? v : [];
-  }, [data.settings]);
+  }, [data.settings, cfg]);
   const [local, setLocal] = useState<b.State | null>(null);
   const [status, setStatus] = useState<"" | "saving" | "saved" | "failed">("");
-  const [stepId, setStepId] = useState<string>(b.STEPS[0].id);
+  const [stepId, setStepId] = useState<string>(cfg.steps[0].id);
   const [view, setView] = useState<"steps" | "policy" | "versions">("steps");
   const [msg, setMsg] = useState("");
   const [note, setNote] = useState("");
@@ -94,12 +118,13 @@ export function PolicyBuilder() {
 
   const cur = local ?? stored;
   // Start the firm name from the firm's own settings the first time only.
-  const answers = cur.answers.firmName === undefined && firmName !== "The practice" ? { ...cur.answers, firmName } : cur.answers;
-  const state: b.State = { ...cur, answers };
+  const own = cfg.prefillFirm && cur.answers.firmName === undefined && firmName !== "The practice" ? { ...cur.answers, firmName } : cur.answers;
+  const state: b.State = { ...cur, answers: own };
+  const merged: b.State = { ...cur, answers: { ...extra, ...own } };
 
   const persist = (next: b.State, n: number) => {
     chain.current = chain.current.then(async () => {
-      try { await saveRef.current(KEY, next); if (counter.current === n) { setLocal(null); latest.current = null; setStatus("saved"); } } catch { setStatus("failed"); }
+      try { await saveRef.current(stateKey(cfg), next); if (counter.current === n) { setLocal(null); latest.current = null; setStatus("saved"); } } catch { setStatus("failed"); }
     });
   };
   const edit = (next: b.State, now = false) => {
@@ -110,12 +135,12 @@ export function PolicyBuilder() {
   };
   useEffect(() => () => { if (latest.current) { window.clearTimeout(timer.current); persist(latest.current, counter.current); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const built = useMemo(() => b.build(state), [state.answers, state.edits, state.confirmed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const built = useMemo(() => b.build(merged, cfg.steps), [merged.answers, state.edits, state.confirmed, cfg]); // eslint-disable-line react-hooks/exhaustive-deps
   const out = b.outstanding(built);
-  const step = b.stepById(stepId)!;
+  const step = cfg.steps.find((x) => x.id === stepId)!;
   const bs = built.find((x) => x.id === stepId)!;
-  const idx = b.STEPS.findIndex((x) => x.id === stepId);
-  const qs = b.shown(step, state.answers);
+  const idx = cfg.steps.findIndex((x) => x.id === stepId);
+  const qs = b.shown(step, merged.answers);
   const setAnswer = (k: string, v: string | string[]) => edit({ ...state, answers: { ...state.answers, [k]: v }, confirmed: { ...state.confirmed, [stepId]: false } });
   const gapsOf = (x: (typeof built)[number]) => x.gaps.length + x.unanswered.length;
   const stepState = (x: (typeof built)[number]) => (x.confirmed ? { t: "Confirmed", c: "green" } : gapsOf(x) ? { t: `${gapsOf(x)} to answer`, c: "amber" } : { t: "To confirm", c: "blue" });
@@ -127,11 +152,11 @@ export function PolicyBuilder() {
   const head = { version: latestV?.v || "", updated: latestV?.date || "", approvedBy: latestV?.approved ? latestV.by : "" };
   const word = async () => {
     setMsg("");
-    try { download(p.fileName(TITLE, todayIso(), "docx"), await p.toDocx(blocksFor(built, head), meta(TITLE, todayIso())), DOCX_TYPE); } catch { setMsg("Couldn't make the Word file."); }
+    try { download(p.fileName(cfg.docTitle, todayIso(), "docx"), await p.toDocx(blocksFor(built, head), meta(cfg.docTitle, todayIso())), DOCX_TYPE); } catch { setMsg("Couldn't make the Word file."); }
   };
   const pdf = () => {
     setMsg("");
-    const url = URL.createObjectURL(new Blob([p.toHtml(blocksFor(built, head), meta(TITLE, todayIso()))], { type: "text/html" }));
+    const url = URL.createObjectURL(new Blob([p.toHtml(blocksFor(built, head), meta(cfg.docTitle, todayIso()))], { type: "text/html" }));
     if (!window.open(url, "_blank")) setMsg("The print page was blocked. Allow pop-ups for this site and try again.");
     window.setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
@@ -143,17 +168,17 @@ export function PolicyBuilder() {
     const entry: b.Version = { v, date: todayIso(), note: note.trim() || (versions.length ? "Updated" : "First version"), by: by.trim(), approved };
     const snap: Snap = { head: { version: v, updated: entry.date, approvedBy: approved ? entry.by : "" }, built: built.map((x) => ({ title: x.title, text: x.text })) };
     try {
-      await saveSetting(snapKey(v), snap);
-      await saveSetting(VKEY, [...versions, entry]);
+      await saveSetting(snapKey(cfg, v), snap);
+      await saveSetting(versionsKey(cfg), [...versions, entry]);
       setNote(""); setApproved(false); setMsg(`Saved as version ${v}.`);
     } catch { setMsg("Couldn't save the version. Try again."); }
   };
   const exportVersion = async (v: b.Version, kind: "word" | "pdf") => {
-    const snap = readSetting<Snap>(data.settings, snapKey(v.v));
+    const snap = readSetting<Snap>(data.settings, snapKey(cfg, v.v));
     if (!snap || !Array.isArray(snap.built)) { setMsg("That version's text wasn't found."); return; }
     const list = b.policyBlocks(snap.built, { firm: firmName, ...snap.head }, versions.filter((x) => Number(x.v) <= Number(v.v)));
-    const m = meta(`${TITLE}, version ${v.v}`, v.date);
-    if (kind === "word") download(p.fileName(`${TITLE} v${v.v}`, v.date, "docx"), await p.toDocx(list, m), DOCX_TYPE);
+    const m = meta(`${cfg.docTitle}, version ${v.v}`, v.date);
+    if (kind === "word") download(p.fileName(`${cfg.docTitle} v${v.v}`, v.date, "docx"), await p.toDocx(list, m), DOCX_TYPE);
     else { const url = URL.createObjectURL(new Blob([p.toHtml(list, m)], { type: "text/html" })); window.open(url, "_blank"); window.setTimeout(() => URL.revokeObjectURL(url), 60000); }
   };
 
@@ -166,15 +191,15 @@ export function PolicyBuilder() {
     <>
       <div className="page-head">
         <div>
-          <h1>Policies and procedures</h1>
-          <p className="muted" style={{ margin: "4px 0 0", maxWidth: 780 }}>Answer the questions area by area and the policy is written from your answers, following ACCA's AML policy and procedures factsheet. Your own words are used wherever you give them. Anything missing shows as a gap, and each area must be confirmed by you before the policy is complete.</p>
+          <h1>{cfg.title}</h1>
+          <p className="muted" style={{ margin: "4px 0 0", maxWidth: 780 }}>{cfg.intro}</p>
         </div>
       </div>
       <section className="card pad stack" aria-label="Progress">
         <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
           <div className="row-wrap" style={{ gap: 8 }}>
             <span className={`chip ${out.gaps ? "amber" : "green"}`}>{out.gaps ? `${out.gaps} gap${out.gaps === 1 ? "" : "s"} to fill` : "No gaps"}</span>
-            <span className={`chip ${out.unconfirmed.length ? "amber" : "green"}`}>{b.STEPS.length - out.unconfirmed.length} of {b.STEPS.length} areas confirmed</span>
+            <span className={`chip ${out.unconfirmed.length ? "amber" : "green"}`}>{cfg.steps.length - out.unconfirmed.length} of {cfg.steps.length} areas confirmed</span>
             <span className="chip">{latestV ? `Saved version ${latestV.v}${latestV.approved ? ", approved" : ", draft"}` : "No version saved yet"}</span>
             <span className="muted" role="status" aria-live="polite">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "failed" ? "Couldn't save. Your changes are still on screen: try again." : "Saves as you type."}</span>
           </div>
@@ -185,14 +210,14 @@ export function PolicyBuilder() {
         </div>
         {msg && <div role="alert" className="warn">{msg}</div>}
         <div className="row-wrap no-print" role="tablist" style={{ gap: 8 }}>
-          {([["steps", "Questions"], ["policy", "The whole policy"], ["versions", "Save and versions"]] as const).map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={view === k} className={`btn small${view === k ? " primary" : ""}`} onClick={() => setView(k)}>{l}</button>)}
+          {([["steps", "Questions"], ["policy", "The whole document"], ["versions", "Save and versions"]] as const).map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={view === k} className={`btn small${view === k ? " primary" : ""}`} onClick={() => setView(k)}>{l}</button>)}
         </div>
       </section>
 
       {view === "steps" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 16, alignItems: "start" }}>
           <nav className="card pad stack" aria-label="Areas" style={{ gap: 4 }}>
-            {b.STEPS.map((s, i) => {
+            {cfg.steps.map((s, i) => {
               const x = built.find((y) => y.id === s.id)!;
               const st = stepState(x);
               return (
@@ -209,14 +234,14 @@ export function PolicyBuilder() {
               <p className="muted" style={{ margin: 0 }}>{step.intro}</p>
               <div className="muted" style={{ fontSize: 13 }}>Covers: {step.covers}</div>
               {step.id === "firm" && <div className="muted" style={{ fontSize: 13 }}>The planner currently holds {facts.clients} active client{facts.clients === 1 ? "" : "s"}.</div>}
-              {qs.map((q) => <QuestionView key={q.k} q={q} a={state.answers} set={setAnswer} />)}
+              {qs.map((q) => <QuestionView key={q.k} q={q} a={merged.answers} set={setAnswer} />)}
               {qs.some((q) => q.suggest !== undefined) && (
-                <div><button type="button" className="btn small" onClick={() => edit({ ...state, answers: b.withSuggestions(step, state.answers), confirmed: { ...state.confirmed, [stepId]: false } }, true)}>Fill the blanks with ACCA's suggested answers</button>
+                <div><button type="button" className="btn small" onClick={() => { const sug = b.withSuggestions(step, merged.answers); const add: b.Answers = {}; for (const q of qs) if (sug[q.k] !== undefined && sug[q.k] !== merged.answers[q.k]) add[q.k] = sug[q.k]; edit({ ...state, answers: { ...state.answers, ...add }, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Fill the blanks with ACCA's suggested answers</button>
                   <span className="muted" style={{ marginLeft: 8, fontSize: 13 }}>Only questions you haven't answered. Check them: they are examples, not your decisions.</span></div>
               )}
             </section>
             <section className="card pad stack" aria-label="What this area says">
-              <div className="card-title-row"><h2 className="sec-h">What the policy says</h2>
+              <div className="card-title-row"><h2 className="sec-h">What it says</h2>
                 {bs.edited ? <button type="button" className="btn small" onClick={() => { const e = { ...state.edits }; delete e[stepId]; edit({ ...state, edits: e, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Go back to the written text</button>
                   : <button type="button" className="btn small" onClick={() => edit({ ...state, edits: { ...state.edits, [stepId]: bs.text }, confirmed: { ...state.confirmed, [stepId]: false } }, true)}>Edit the wording by hand</button>}
               </div>
@@ -232,9 +257,9 @@ export function PolicyBuilder() {
                 <span>I have read this and it describes what the firm really does</span>
               </label>
               <div className="row-wrap" style={{ gap: 8 }}>
-                {idx > 0 && <button type="button" className="btn small" onClick={() => setStepId(b.STEPS[idx - 1].id)}>Back</button>}
-                {idx < b.STEPS.length - 1 && <button type="button" className="btn small primary" onClick={() => setStepId(b.STEPS[idx + 1].id)}>Next area</button>}
-                {idx === b.STEPS.length - 1 && <button type="button" className="btn small primary" onClick={() => setView("versions")}>Go to save and versions</button>}
+                {idx > 0 && <button type="button" className="btn small" onClick={() => setStepId(cfg.steps[idx - 1].id)}>Back</button>}
+                {idx < cfg.steps.length - 1 && <button type="button" className="btn small primary" onClick={() => setStepId(cfg.steps[idx + 1].id)}>Next area</button>}
+                {idx === cfg.steps.length - 1 && <button type="button" className="btn small primary" onClick={() => setView("versions")}>Go to save and versions</button>}
               </div>
             </section>
           </div>
@@ -242,7 +267,7 @@ export function PolicyBuilder() {
       )}
 
       {view === "policy" && (
-        <section className="card pad stack" aria-label="The whole policy">
+        <section className="card pad stack" aria-label="The whole document">
           <div className="muted" style={{ fontSize: 13 }}>Highlighted text is a gap. Fix it in the area it comes from.</div>
           {built.map((x, i) => (
             <div key={x.id} className="stack" style={{ gap: 6 }}>

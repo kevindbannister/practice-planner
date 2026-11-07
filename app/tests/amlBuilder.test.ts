@@ -54,3 +54,24 @@ test("versions count up and the export has a contents list and a version table",
   assert.ok(blocks.some((x) => x.t === "bullets"));
   assert.ok(!blocks.some((x) => x.t === "p" && /\[\[/.test(x.text)));
 });
+
+import { FWRA_STEPS } from "../src/lib/amlFwra";
+const fw = (a: b.Answers, id: string) => b.build({ ...b.EMPTY, answers: a }, FWRA_STEPS).find((x) => x.id === id)!;
+
+test("the risk assessment reuses policy answers and works out client percentages from the facts", () => {
+  const t = fw({ _n: "10", _high: "1", _med: "6", _low: "3", _unrated: "0", f_overallRating: "Medium", f_newRisks: "none" }, "f_overall").text;
+  assert.match(t, /10% are rated high risk, 60% medium and 30% low/);
+  const geo = fw({ overseas: "none", f_geoPlace: "UK", f_geoHigh: "no", f_geoRating: "Low" }, "f_geo").text;
+  assert.match(geo, /No clients are known to have links outside the UK/);
+  assert.match(geo, /Rating: Low/);
+});
+
+test("risk areas without a rating show a gap, and unrated clients are never guessed", () => {
+  assert.ok(fw({}, "f_client").gaps.includes("client risk rating"));
+  assert.ok(fw({ _n: "4", _high: "0", _med: "0", _low: "0", _unrated: "4" }, "f_overall").gaps.some((g) => /client risk ratings/.test(g)));
+});
+
+test("a firm with no client money says so, and one with client money asks how it is used", () => {
+  assert.match(fw({ clientMoney: "none", f_payroll: "no", f_transRating: "Low" }, "f_trans").text, /No client money passes through/);
+  assert.ok(fw({ clientMoney: "some" }, "f_trans").gaps.includes("what client money is used for"));
+});

@@ -3,7 +3,6 @@
 // filled in, saved with its date, and exported to Word or PDF. The suspicious activity forms are only ever printed blank: the firm's own
 // policy says reports and the register are restricted and must not sit in general files, so the planner does not store them.
 // Nothing here is evidence that a control has been carried out: the pack records what the firm says it has done.
-import { AML_SEED as SEED } from "./amlSeed";
 import { zip } from "./xlsx";
 
 // ------------------------------------------------------------------ the forms
@@ -39,48 +38,7 @@ const YNN = ["Yes", "No", "N/A"];
 const LMH = ["Low", "Medium", "High"];
 const info = (k: string, label: string): Field => ({ k, label, type: "info" });
 
-const S = SEED as unknown as {
-  fwra: { control: Record<string, string>; purpose: string[]; risks: { area: string; risk: string; controls: string; verify: string }[]; conclusion: string; actions: string[][]; approval: Record<string, string>; reference: string };
-  policies: { control: Record<string, string>; sections: { title: string; text: string }[]; changelog: string[][]; reference: string };
-};
-
-const RISK_ORDER = ["Client risk", "Geography risk", "Products and services risk", "Transactions risk", "Delivery channel risk", "Proliferation financing risk"];
-const risksSections: Section[] = S.fwra.risks.map((r, i) => ({
-  title: `Risk assessment: ${RISK_ORDER[i] || r.area}`,
-  fields: [
-    one(`r${i}.rating`, "Rating", [...LMH, "Not yet assessed"]),
-    long(`r${i}.risk`, "Risk identified from current facts"),
-    long(`r${i}.controls`, "Mitigating controls to adopt and evidence"),
-    long(`r${i}.verify`, "Open verification"),
-  ],
-}));
-const fwraSeed = (): Values => {
-  const v: Values = { owner: S.fwra.control["Assessment owner"] || "", purpose: S.fwra.purpose.join("\n\n"), conclusion: S.fwra.conclusion, reference: S.fwra.reference, preparedBy: S.fwra.approval["Prepared by"] || "" };
-  S.fwra.risks.forEach((r, i) => { v[`r${i}.risk`] = r.risk; v[`r${i}.controls`] = r.controls; v[`r${i}.verify`] = r.verify; v[`r${i}.rating`] = ""; });
-  v.actions = S.fwra.actions.map((a) => ({ action: a[0], owner: a[1], due: a[2], evidence: a[3] }));
-  return v;
-};
-
 export const FORMS: FormDef[] = [
-  {
-    id: "fwra", title: "Firm-wide risk assessment", noun: "assessment", stored: true, reviewKey: "nextReview", seed: fwraSeed,
-    blurb: "The firm's exposure to money laundering, terrorist financing and proliferation financing, and the controls that answer it. Review at least once a year and when anything material changes.",
-    sections: [
-      { title: "Document control", fields: [text("owner", "Assessment owner"), date("assessed", "Assessment date"), text("approvedBy", "Approved by"), date("nextReview", "Next review")] },
-      { title: "Purpose and method", fields: [{ k: "purpose", label: "Purpose, method and the firm's known profile", type: "long", flow: true }] },
-      ...risksSections,
-      {
-        title: "Overall conclusion and actions",
-        fields: [
-          one("inherent", "Overall inherent risk", LMH), one("residual", "Residual risk after controls", [...LMH, "Cannot be rated yet"]),
-          { k: "conclusion", label: "Conclusion", type: "long", flow: true },
-          { k: "actions", label: "Actions", type: "table", blank: 3, cols: [{ k: "action", label: "Action" }, { k: "owner", label: "Owner" }, { k: "due", label: "Due date", type: "date" }, { k: "evidence", label: "Completion evidence" }] },
-        ],
-      },
-      { title: "Approval and review", fields: [text("preparedBy", "Prepared by"), text("directorApproval", "Director approval", "Sign and date after verifying the content"), long("trigger", "Review triggers", "Annual review, and after a material change in client profile, services, geography, delivery systems, law or guidance, a control failure, or relevant intelligence")] },
-      { title: "Reference material", fields: [{ k: "reference", label: "Reference material", type: "long", flow: true }] },
-    ],
-  },
   {
     id: "reviews", title: "Ongoing client reviews", noun: "review", stored: true, reviewKey: "next",
     blurb: "One record for each periodic review of a client: are the facts still true, have the checks been refreshed, has the risk changed. Proposed intervals: high risk every six months, medium every year, low every two years.",

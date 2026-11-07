@@ -23,26 +23,26 @@ export type Q = {
 export type Step = { id: string; title: string; covers: string; intro: string; questions: Q[]; write: (a: Answers) => string };
 
 export const GAP = (label: string) => `[[Answer needed: ${label}]]`;
-const str = (a: Answers, k: string): string => { const v = a[k]; return Array.isArray(v) ? v.join(", ") : (v || "").trim(); };
-const arr = (a: Answers, k: string): string[] => { const v = a[k]; return Array.isArray(v) ? v : v ? [v] : []; };
-const has = (a: Answers, k: string, v: string) => arr(a, k).includes(v);
+export const str = (a: Answers, k: string): string => { const v = a[k]; return Array.isArray(v) ? v.join(", ") : (v || "").trim(); };
+export const arr = (a: Answers, k: string): string[] => { const v = a[k]; return Array.isArray(v) ? v : v ? [v] : []; };
+export const has = (a: Answers, k: string, v: string) => arr(a, k).includes(v);
 /** The answer, or a visible gap that says what is missing. */
-const need = (a: Answers, k: string, label: string) => str(a, k) || GAP(label);
-const o = (...pairs: [string, string][]): Opt[] => pairs.map(([v, label]) => ({ v, label }));
-const mid = (s: string) => s.replace(/^The /, "the ").replace(/^Only /, "only ");
-const list = (items: string[]) => items.map((i) => `- ${i}`).join("\n");
-const join = (parts: (string | false | undefined | "")[]) => parts.filter(Boolean).join("\n\n");
-const labelOf = (q: Q, v: string) => q.options?.find((x) => x.v === v)?.label || v;
+export const need = (a: Answers, k: string, label: string) => str(a, k) || GAP(label);
+export const o = (...pairs: [string, string][]): Opt[] => pairs.map(([v, label]) => ({ v, label }));
+export const mid = (s: string) => s.replace(/^The /, "the ").replace(/^Only /, "only ");
+export const list = (items: string[]) => items.map((i) => `- ${i}`).join("\n");
+export const join = (parts: (string | false | undefined | "")[]) => parts.filter(Boolean).join("\n\n");
+export const labelOf = (q: Q, v: string) => q.options?.find((x) => x.v === v)?.label || v;
 
 // ------------------------------------------------------------------ who works here: decides how much of the policy is about staff
 
 export type Team = "alone" | "others" | "relevant" | "";
 export const teamOf = (a: Answers): Team => (a.team === "alone" || a.team === "others" || a.team === "relevant" ? a.team : "");
 const solo = (a: Answers) => teamOf(a) !== "relevant";
-const fmtDate = (d: string) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }) : d);
+export const fmtDate = (d: string) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }) : d);
 
-const SERVICES = o(["bookkeeping", "Bookkeeping"], ["accounts", "Accounts preparation"], ["tax", "Tax returns and tax advice"], ["payroll", "Payroll"], ["cosec", "Company secretarial work"], ["formation", "Company formation"], ["registered", "Registered office, or acting as director, secretary or nominee"], ["advisory", "Business advice or advisory work"]);
-const SECTORS = o(
+export const SERVICES = o(["bookkeeping", "Bookkeeping"], ["accounts", "Accounts preparation"], ["tax", "Tax returns and tax advice"], ["payroll", "Payroll"], ["cosec", "Company secretarial work"], ["formation", "Company formation"], ["registered", "Registered office, or acting as director, secretary or nominee"], ["advisory", "Business advice or advisory work"]);
+export const SECTORS = o(
   ["cash", "Cash-intensive businesses (takeaways, retail, scrap metal, car washes, nail bars)"], ["highvalue", "High-value goods (jewellers, car dealers, art, antiques)"], ["property", "Property (selling and renting)"],
   ["import", "Import and export, haulage, freight and shipping"], ["msb", "Money service businesses"], ["crypto", "Cryptocurrency"], ["visa", "Visa and immigration services"], ["metals", "Precious metals"],
   ["charity", "Charities"], ["investment", "Investment services"], ["gambling", "Gambling"], ["dual", "Dual-use goods"],
@@ -415,8 +415,8 @@ const answered = (q: Q, a: Answers) => (Array.isArray(a[q.k]) ? (a[q.k] as strin
 export const unanswered = (step: Step, a: Answers): string[] => shown(step, a).filter((q) => q.need && !answered(q, a)).map((q) => q.label);
 const GAPS = /\[\[Answer needed: ([^\]]+)\]\]/g;
 
-export function build(state: State): Built[] {
-  return STEPS.map((step) => {
+export function build(state: State, steps: Step[] = STEPS): Built[] {
+  return steps.map((step) => {
     const generated = step.write(state.answers);
     const edited = typeof state.edits[step.id] === "string" && state.edits[step.id] !== "";
     const text = edited ? state.edits[step.id] : generated;
