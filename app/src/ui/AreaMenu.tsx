@@ -22,7 +22,7 @@ export function AreaMenu({ section, chase = 0, children }: { section: string; ch
   }, [open]);
   return (
     <nav className="nv-nav" aria-label="Main" ref={box} onBlur={(e) => { if (!box.current?.contains(e.relatedTarget as Node | null)) setOpen(null); }}>
-      <a className="nv-link" href="#/home" aria-current={section === "home" ? "page" : undefined}>Home</a>
+      <a className="nv-link nv-home" href="#/home" aria-label="Home" title="Home" aria-current={section === "home" ? "page" : undefined}><Icon name="home" size={20} /></a>
       {AREAS.map((a) => (
         <div key={a.id} className={`nv-item${open === a.id ? " open" : ""}${here === a.id ? " here" : ""}`} onMouseEnter={() => { if (open) setOpen(a.id); }}>
           <button type="button" className="nv-link" aria-expanded={open === a.id} aria-controls={`nv-panel-${a.id}`} onClick={() => setOpen(open === a.id ? null : a.id)}>
@@ -60,7 +60,7 @@ export function TwoLineAreas({ section, area, onPick }: { section: string; area:
   const here = areaOf(section);
   return (
     <nav className="nv-nav" aria-label="Areas">
-      <a className="nv-link" href="#/home" aria-current={section === "home" ? "page" : undefined}>Home</a>
+      <a className="nv-link nv-home" href="#/home" aria-label="Home" title="Home" aria-current={section === "home" ? "page" : undefined}><Icon name="home" size={20} /></a>
       {AREAS.map((a) => (
         <button key={a.id} type="button" className={`nv-link${a.id === area.id ? " tl-on" : ""}${a.id === here ? " tl-here" : ""}`} aria-pressed={a.id === area.id} onClick={() => onPick(a.id)}>{a.name}</button>
       ))}
@@ -98,7 +98,7 @@ export function AreaPicker({ section, area, onPick, chase = 0 }: { section: stri
   }, [open]);
   return (
     <div className="pk" ref={box}>
-      <a className="nv-link" href="#/home" aria-current={section === "home" ? "page" : undefined}>Home</a>
+      <a className="nv-link nv-home" href="#/home" aria-label="Home" title="Home" aria-current={section === "home" ? "page" : undefined}><Icon name="home" size={20} /></a>
       <div className={`nv-item${open ? " open" : ""}`}>
         <button type="button" className="nv-link pk-btn" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
           {area.name}

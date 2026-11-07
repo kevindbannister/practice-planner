@@ -230,8 +230,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
             <>
               <button type="button" className="btn small hide-phone" onClick={assistant.toggle} aria-expanded={assistant.open}><Icon name="spark" size={16} /> Ask</button>
               <button type="button" className="btn topbar-icon only-phone" aria-label="Ask the assistant" onClick={assistant.toggle}><Icon name="spark" size={20} /></button>
-              <button type="button" className="btn small primary hide-phone" onClick={() => open({ kind: "task" })}>+ New task</button>
-              <button type="button" className="btn primary topbar-icon only-phone" aria-label="New task" onClick={() => open({ kind: "task" })}>
+              <button type="button" className="btn primary topbar-icon" aria-label="New task" title="New task" onClick={() => open({ kind: "task" })}>
                 <Icon name="plus" size={20} />
               </button>
             </>
