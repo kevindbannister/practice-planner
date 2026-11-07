@@ -3428,3 +3428,16 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
   .topbar.two .topbar-right { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
   .topbar.two .tl-row { grid-column: 2; grid-row: 2; }
 }
+
+/* area picker: Home, one drop-down for the area, then that area's modules */
+.profile-sub { padding: 8px 12px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.pk { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
+.pk-btn { box-shadow: inset 0 0 0 1.5px var(--blue-line); background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--blue-ink); font-weight: 600; }
+.nv-item.open > .pk-btn { background: var(--grad); color: #fff; box-shadow: 0 6px 20px rgba(17, 168, 195, 0.27); }
+.pk-list { flex-direction: column; min-width: 190px; }
+.pk-list button { display: flex; align-items: center; padding: 11px 14px; border: 0; border-radius: 16px; color: #fff; font: 600 14px var(--sans); text-align: left; cursor: pointer; background: rgba(255, 255, 255, 0.10); transition: background 0.15s; }
+.pk-list button:hover, .pk-list button:focus-visible { background: rgba(255, 255, 255, 0.26); outline: none; }
+.pk-list button[aria-selected="true"] { background: rgba(255, 255, 255, 0.30); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7); }
+.pk-mods { display: flex; align-items: center; gap: 4px; margin-left: 6px; padding-left: 12px; border-left: 1px solid var(--line-strong); min-width: 376px; }
+.pk-mods .nv-link[aria-current="page"] { background: var(--grad); color: #fff; font-weight: 600; box-shadow: 0 6px 20px rgba(17, 168, 195, 0.27); }
+@media (max-width: 900px) { .pk-mods { min-width: 0; } }

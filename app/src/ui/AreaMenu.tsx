@@ -47,8 +47,8 @@ export function AreaMenu({ section, chase = 0, children }: { section: string; ch
 }
 
 /** Which menu is showing: the drop-down one, or the two-line trial. Kept in this browser. */
-export type MenuKind = "drop" | "two";
-const read = (): MenuKind => { try { return localStorage.getItem("pp.menu") === "two" ? "two" : "drop"; } catch { return "drop"; } };
+export type MenuKind = "drop" | "two" | "pick";
+const read = (): MenuKind => { try { const v = localStorage.getItem("pp.menu"); return v === "two" || v === "pick" ? v : "drop"; } catch { return "drop"; } };
 const subscribe = (cb: () => void) => { window.addEventListener("pp-menu", cb); return () => window.removeEventListener("pp-menu", cb); };
 export function useMenuKind(): [MenuKind, (k: MenuKind) => void] {
   const kind = useSyncExternalStore(subscribe, read, () => "drop" as MenuKind);
@@ -80,5 +80,46 @@ export function TwoLineModules({ section, area, chase = 0 }: { section: string; 
         </a>
       ))}
     </nav>
+  );
+}
+
+/** Area picker trial: one drop-down chooses the area, and the modules beside it change to match. */
+export function AreaPicker({ section, area, onPick, chase = 0 }: { section: string; area: NavArea; onPick: (id: AreaId) => void; chase?: number }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const current = navKeyOf(section);
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const away = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("keydown", key);
+    document.addEventListener("mousedown", away);
+    return () => { document.removeEventListener("keydown", key); document.removeEventListener("mousedown", away); };
+  }, [open]);
+  return (
+    <div className="pk" ref={box}>
+      <a className="nv-link" href="#/home" aria-current={section === "home" ? "page" : undefined}>Home</a>
+      <div className={`nv-item${open ? " open" : ""}`}>
+        <button type="button" className="nv-link pk-btn" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {area.name}
+          <svg className="nv-caret" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <div className="nv-panel" aria-hidden={!open}>
+          <div className="nv-grid pk-list" role="listbox" aria-label="Area">
+            {AREAS.map((a) => (
+              <button key={a.id} type="button" role="option" aria-selected={a.id === area.id} tabIndex={open ? 0 : -1} onClick={() => { onPick(a.id); setOpen(false); }}>{a.name}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <nav className="pk-mods" aria-label={`${area.name} modules`}>
+        {area.modules.map((k) => (
+          <a key={k} className="nv-link" href={`#/${k}`} aria-current={current === k ? "page" : undefined}>
+            {MODULE_LABELS[k]}
+            {k === "plan" && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
+          </a>
+        ))}
+      </nav>
+    </div>
   );
 }
