@@ -1,4 +1,4 @@
-// A trial of a different top menu: Home, then the three areas as words. Hover or click an area and a gradient panel
+// A trial of a different top menu: Home, then the three areas as words. Click an area and a gradient panel
 // drops down under it with that area's modules, the way the working papers menu button does.
 import { useEffect, useRef, useState } from "react";
 import { Brand, Icon, IconName } from "./bits";
@@ -10,11 +10,8 @@ const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sale
 export function NavPreview() {
   const [open, setOpen] = useState<AreaId | null>(null);
   const bar = useRef<HTMLElement>(null);
-  const timer = useRef<number>();
   const chase = useChaseCount();
-  const show = (id: AreaId) => { window.clearTimeout(timer.current); setOpen(id); };
-  const hideSoon = () => { window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setOpen(null), 260); };
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const show = (id: AreaId) => setOpen(id);
   useEffect(() => {
     if (!open) return;
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
@@ -25,13 +22,13 @@ export function NavPreview() {
   }, [open]);
   return (
     <>
-      <header className="topbar nv-bar" ref={bar} onMouseLeave={hideSoon} onBlur={(e) => { if (!bar.current?.contains(e.relatedTarget as Node | null)) setOpen(null); }}>
+      <header className="topbar nv-bar" ref={bar} onBlur={(e) => { if (!bar.current?.contains(e.relatedTarget as Node | null)) setOpen(null); }}>
         <div className="topbar-left">
           <Brand />
           <nav className="nv-nav" aria-label="Main">
             <a className="nv-link" href="#/home" onMouseEnter={() => setOpen(null)}>Home</a>
             {AREAS.map((a) => (
-              <div key={a.id} className={`nv-item${open === a.id ? " open" : ""}`} onMouseEnter={() => show(a.id)}>
+              <div key={a.id} className={`nv-item${open === a.id ? " open" : ""}`} onMouseEnter={() => { if (open) show(a.id); }}>
                 <button type="button" className="nv-link" aria-expanded={open === a.id} aria-controls={`nv-panel-${a.id}`} onClick={() => (open === a.id ? setOpen(null) : show(a.id))}>
                   {a.name}
                   <svg className="nv-caret" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -57,13 +54,13 @@ export function NavPreview() {
       <main className="page">
         <div className="page-head">
           <h1>Menu trial</h1>
-          <p className="muted">Hover over, or click, Run Practice, Deliver Work or Grow &amp; Advise above. The panel slides down with that area's modules, like the menu button in working papers.</p>
+          <p className="muted">Click Run Practice, Deliver Work or Grow &amp; Advise above. A panel slides down with that area's modules, like the menu button in working papers.</p>
         </div>
         <section className="card pad stack">
           <h2 className="sec-h">What to look at</h2>
           <ul className="muted" style={{ margin: 0, paddingLeft: 20 }}>
             <li>Home is a plain link. Settings and the Development Hub stay in the profile menu on the normal pages.</li>
-            <li>Moving to another area switches the panel; moving away or pressing Escape closes it.</li>
+            <li>Once a panel is open, moving to another area switches it. Click the button again, click elsewhere, or press Escape to close it.</li>
             <li>The links go to the real pages, which show the normal menu. This trial is only this page.</li>
           </ul>
         </section>
