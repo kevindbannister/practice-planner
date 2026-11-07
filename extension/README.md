@@ -8,11 +8,11 @@ A side panel on the right of Chrome with a thin icon rail: **Jobs**, **Timer**, 
 3. Pin the icon. Clicking it opens the side panel.
 
 ## Allow sign-in (once, in Entra)
-App registration (the planner's own) → Authentication → **Add a platform → Mobile and desktop applications** → custom redirect URI:
+App registration (the planner's own) → Authentication → **Add a platform → Single-page application** → custom redirect URI:
 
 `https://gliilejbmomjkcffbcjbcmbblocjnlan.chromiumapp.org/`
 
-(Not "Single-page application": Chrome extensions fail that type's origin check.) The panel's Account tab shows the same address.
+The panel's Account tab shows the same address.
 
 ## How the client is found
 1. A Xero organisation you've already linked (remembered by its short code in the URL).
