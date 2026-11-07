@@ -3330,3 +3330,26 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .dh-th:hover { color: var(--blue); }
 .dh-board { grid-template-columns: repeat(6, minmax(190px, 1fr)); }
 .card .dh-h, .dh-detail .dh-h, .dh-modal-box .dh-h { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0; }
+
+/* ---------- three areas: circle buttons, then the modules of the area you are in ---------- */
+.areas { display: flex; align-items: center; gap: 8px; margin-left: 4px; flex: none; }
+.area-btn { width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid var(--blue-line); background: color-mix(in srgb, var(--surface) 70%, transparent); color: var(--blue-ink); display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font: 600 13px var(--sans); transition: background 0.15s, color 0.15s; }
+.area-btn:hover { background: var(--blue-soft); }
+.area-btn[aria-pressed="true"] { background: var(--grad); color: #fff; border-color: transparent; box-shadow: 0 6px 20px rgba(17, 168, 195, 0.27); }
+.area-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.area-label { flex: none; margin: 0 4px 0 6px; padding-left: 14px; border-left: 1px solid var(--line-strong); font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); white-space: nowrap; line-height: 28px; }
+@media (min-width: 721px) and (max-width: 1100px) { .area-label { display: none; } }
+@media (max-width: 720px) {
+  body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(124px + env(safe-area-inset-bottom)); }
+  .save.error { bottom: calc(120px + env(safe-area-inset-bottom)); }
+  .area-label { display: none; }
+  .nav { grid-template-columns: none !important; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  .areas { position: fixed; left: 0; right: 0; bottom: calc(60px + env(safe-area-inset-bottom)); z-index: 20; margin: 0; padding: 6px 12px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--topbar-bg); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-top: 0.5px solid var(--line-strong); }
+  .area-btn { width: auto; height: 40px; border-radius: 999px; }
+  .area-btn svg { display: none; }
+  .area-name { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+}
+
+/* the menu that opens from a banner: grouped by area */
+.banner-menu-grid .bm-head { grid-column: 1 / -1; padding: 4px 8px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(255, 255, 255, 0.8); }

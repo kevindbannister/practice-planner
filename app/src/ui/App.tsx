@@ -11,6 +11,7 @@ import { addDays } from "../lib/planning";
 import { signOut } from "../lib/auth";
 import { Brand, ClientBadge, Icon, IconName, href, useRoute } from "./bits";
 import { useTheme } from "./theme";
+import { AREAS, MODULE_LABELS, areaOf, isAreaId, navKeyOf, type AreaId } from "../lib/navAreas";
 import { ClientPage } from "./ClientPage";
 import { ClientsPage } from "./ClientsPage";
 import { useData, useIndex } from "./data";
@@ -178,20 +179,35 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const portalWaiting = usePortal().overview?.attention.length || 0;
   const [tools, setTools] = useState(() => { try { return localStorage.getItem("pp.bar.tools") === "1"; } catch { return false; } });
   const toggleTools = () => setTools((v) => { try { localStorage.setItem("pp.bar.tools", v ? "0" : "1"); } catch { /* still works this visit */ } return !v; });
-  const nav: [string, string, IconName][] = [
-    ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"], ["advisory", "Advisory", "flag"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["tax", "Tax", "calc"], ["payroll", "Payroll", "coins"], ["reporting", "Reporting", "chart"], ["practice", "Practice", "layout"], ["settings", "Settings", "settings"],
-  ];
+  const here = areaOf(section);
+  const [picked, setPicked] = useState<AreaId | undefined>(() => { try { const v = localStorage.getItem("pp.nav.area"); return isAreaId(v) ? v : undefined; } catch { return undefined; } });
+  const [shown, setShown] = useState<AreaId | undefined>(undefined);
+  // landing on a page in an area shows that area; picking a circle shows another one until the next page
+  useEffect(() => { setShown(undefined); if (here) { setPicked(here); try { localStorage.setItem("pp.nav.area", here); } catch { /* fine */ } } }, [section, here]);
+  const area = AREAS.find((a) => a.id === (shown || here || picked)) || AREAS[0];
+  const current = navKeyOf(section);
+  const pickArea = (id: AreaId) => { setShown(id); setPicked(id); try { localStorage.setItem("pp.nav.area", id); } catch { /* fine */ } };
+  const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag" };
+  const AREA_ICONS: Record<AreaId, IconName> = { run: "layout", deliver: "check", grow: "chart" };
   return (
     <header className="topbar">
       <div className="topbar-left">
         <Brand />
-        <nav className="nav" aria-label="Main">
-          {nav.map(([k, label, icon]) => (
-            <a key={k} href={`#/${k}`} aria-current={section === k || (k === "clients" && section === "groups") || (k === "settings" && (section === "checklists" || section === "portal")) || (k === "practice" && section === "compliance") || (k === "plan" && section === "chase") ? "page" : undefined}>
-              <Icon name={icon} size={22} />
-              {label}
+        <div className="areas" role="group" aria-label="Areas">
+          {AREAS.map((a) => (
+            <button key={a.id} type="button" className="area-btn" aria-pressed={a.id === area.id} aria-label={a.name} title={a.name} onClick={() => pickArea(a.id)}>
+              <Icon name={AREA_ICONS[a.id]} size={20} />
+              <span className="area-name">{a.short}</span>
+            </button>
+          ))}
+        </div>
+        <span className="area-label" aria-hidden="true">{area.name}</span>
+        <nav className="nav" aria-label={`${area.name} modules`}>
+          {area.modules.map((k) => (
+            <a key={k} href={`#/${k}`} aria-current={current === k ? "page" : undefined}>
+              <Icon name={ICONS[k] || "list"} size={22} />
+              {MODULE_LABELS[k]}
               {k === "plan" && ready && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
-              {k === "settings" && ready && portalWaiting > 0 && <span className="nav-count" aria-label={`${portalWaiting} waiting in the portal`}>{portalWaiting}</span>}
             </a>
           ))}
         </nav>
@@ -221,7 +237,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform: tools ? "rotate(180deg)" : "none", transformOrigin: "8px 8px", transition: "transform .2s" }} /></svg>
           </button>
         )}
-        <ProfileMenu user={user} demo={demo} />
+        <ProfileMenu user={user} demo={demo} waiting={ready ? portalWaiting : 0} />
       </div>
     </header>
   );
@@ -233,7 +249,7 @@ const initialsOf = (name?: string) => {
 };
 
 /** The profile icon: your name, the save status, light or dark, and sign out. */
-function ProfileMenu({ user, demo }: { user?: string; demo: boolean }) {
+function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean; waiting?: number }) {
   const { save } = useData();
   const { dark, set } = useTheme();
   const [shown, setShown] = useState(false);
@@ -264,7 +280,7 @@ function ProfileMenu({ user, demo }: { user?: string; demo: boolean }) {
           <button type="button" role="menuitem" onClick={() => { set(dark ? "light" : "dark"); setShown(false); }}>
             <Icon name={dark ? "sun" : "moon"} size={16} /> {dark ? "Light mode" : "Dark mode"}
           </button>
-          <a role="menuitem" href="#/settings" onClick={() => setShown(false)}><Icon name="settings" size={16} /> Settings</a>
+          <a role="menuitem" href="#/settings" onClick={() => setShown(false)}><Icon name="settings" size={16} /> Settings{waiting > 0 && <span className="nav-count" aria-label={`${waiting} waiting in the portal`}>{waiting}</span>}</a>
           <a role="menuitem" href="#/devhub" onClick={() => setShown(false)}><Icon name="cog" size={16} /> Development Hub</a>
           {!demo && <button type="button" role="menuitem" onClick={signOut}><Icon name="left" size={16} /> Sign out</button>}
         </div>

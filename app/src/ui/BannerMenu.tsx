@@ -1,14 +1,13 @@
 // The menu icon at the right of a banner (working papers): hover it, or click it, and the main menu slides down on a
 // gradient panel under the banner. It slides away again when the pointer leaves, on Escape, or when focus moves out.
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Icon, IconName } from "./bits";
+import { AREAS, MODULE_LABELS, navKeyOf } from "../lib/navAreas";
 
-const ITEMS: [string, string, IconName][] = [
-  ["home", "Home", "home"], ["plan", "Plan", "plan"], ["clients", "Clients", "clients"], ["sales", "Sales", "chart"], ["cosec", "Co Sec", "building"],
-  ["advisory", "Advisory", "flag"], ["comms", "Email", "mail"], ["papers", "Papers", "list"], ["tax", "Tax", "calc"], ["payroll", "Payroll", "coins"], ["reporting", "Reporting", "chart"], ["practice", "Practice", "layout"], ["settings", "Settings", "settings"],
-];
+const ICONS: Record<string, IconName> = { home: "home", plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", settings: "settings" };
 
 export function BannerMenu({ current = "papers" }: { current?: string }) {
+  const cur = navKeyOf(current);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const timer = useRef<number>();
@@ -31,9 +30,24 @@ export function BannerMenu({ current = "papers" }: { current?: string }) {
       </button>
       <nav className="banner-menu-panel" id="banner-menu-panel" aria-label="Main" aria-hidden={!open}>
         <div className="banner-menu-grid">
-          {ITEMS.map(([k, label, icon]) => (
-            <a key={k} href={`#/${k}`} tabIndex={open ? 0 : -1} aria-current={k === current ? "page" : undefined} onClick={() => setOpen(false)}>
-              <Icon name={icon} size={18} /> {label}
+          {["home"].map((k) => (
+            <a key={k} href={`#/${k}`} tabIndex={open ? 0 : -1} aria-current={k === cur ? "page" : undefined} onClick={() => setOpen(false)}>
+              <Icon name={ICONS[k] || "list"} size={18} /> {MODULE_LABELS[k]}
+            </a>
+          ))}
+          {AREAS.map((a) => (
+            <Fragment key={a.id}>
+              <div className="bm-head">{a.name}</div>
+              {a.modules.map((k) => (
+                <a key={k} href={`#/${k}`} tabIndex={open ? 0 : -1} aria-current={k === cur ? "page" : undefined} onClick={() => setOpen(false)}>
+              <Icon name={ICONS[k] || "list"} size={18} /> {MODULE_LABELS[k]}
+            </a>
+              ))}
+            </Fragment>
+          ))}
+          {["settings"].map((k) => (
+            <a key={k} href={`#/${k}`} tabIndex={open ? 0 : -1} aria-current={k === cur ? "page" : undefined} onClick={() => setOpen(false)}>
+              <Icon name={ICONS[k] || "list"} size={18} /> {MODULE_LABELS[k]}
             </a>
           ))}
         </div>
