@@ -3,6 +3,7 @@ import { VERSION } from "../version";
 import { ChecklistsPage } from "./Checklists";
 import { PortalPage } from "./PortalAdmin";
 import { DevHubPage } from "./DevHub";
+import { NavPreview } from "./NavPreview";
 import { PortalProvider, usePortal } from "./portalKit";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
@@ -128,6 +129,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <TaxPage />;
   } else if (section === "reporting") {
     body = <ReportingPage />;
+  } else if (section === "menu") {
+    body = <NavPreview />;
   } else if (section === "devhub") {
     body = <DevHubPage />;
   } else if (section === "practice") {
@@ -152,7 +155,7 @@ export function App({ demo }: { demo: boolean }) {
             <AssistantProvider>
               <PortalProvider>
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
-                {!(section === "devhub" || (section === "advisory" || section === "papers" || section === "tax" || section === "reporting") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
+                {!(section === "devhub" || section === "menu" || (section === "advisory" || section === "papers" || section === "tax" || section === "reporting") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
                 <span className="version-badge" title={`Prototype, version ${VERSION}`}>P V{VERSION}</span>
                 {status === "ready" && <ActionSync />}
                 {status === "ready" && <CoSecSync />}
@@ -281,6 +284,7 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
           </button>
           <a role="menuitem" href="#/settings" onClick={() => setShown(false)}><Icon name="settings" size={16} /> Settings{waiting > 0 && <span className="nav-count" aria-label={`${waiting} waiting in the portal`}>{waiting}</span>}</a>
           <a role="menuitem" href="#/devhub" onClick={() => setShown(false)}><Icon name="cog" size={16} /> Development Hub</a>
+          <a role="menuitem" href="#/menu" onClick={() => setShown(false)}><Icon name="layout" size={16} /> Menu trial</a>
           {!demo && <button type="button" role="menuitem" onClick={signOut}><Icon name="left" size={16} /> Sign out</button>}
         </div>
       )}
