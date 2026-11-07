@@ -27,7 +27,7 @@ export function DeadlinesView() {
   const [range, setRange] = useState<Range>("90");
   const [picked, setPicked] = useRememberedTypes("pp.deadlines.types");
   const [tasks, setTasks] = useState(true);
-  const [held, setHeld] = useState(true);
+  const [held, setHeld] = useState(false); // jobs on hold are hidden until asked for
   const [search, setSearch] = useState("");
   // one group's clients together (remembered on this device)
   const [group, setGroupState] = useState(() => { try { return localStorage.getItem("pp.deadlines.group") || ""; } catch { return ""; } });
@@ -104,15 +104,10 @@ export function DeadlinesView() {
     window.setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
-  /** Statutory deadlines first within each date. */
-  const byDate = (list: Line[]) => {
-    const m = new Map<string, Line[]>();
-    for (const l of list) { if (!m.has(l.deadline)) m.set(l.deadline, []); m.get(l.deadline)!.push(l); }
-    return [...m.entries()].map(([d, ls]) => [d, [...ls].sort((a, b) => Number(b.statutory) - Number(a.statutory) || a.client.localeCompare(b.client))] as const);
-  };
+  /** Statutory deadlines first, then the other deadlines; soonest first within each. */
   const row = (l: Line) => (
     <tr key={l.key} className="clickable" onClick={() => open(l.kind === "job" ? { kind: "job", key: l.key } : { kind: "task", key: l.key })}>
-      <td className="c-kind"><span className={`chip ${l.statutory ? "blue" : ""}`}>{l.statutory ? "Statutory" : l.kind === "task" ? "Task" : "Deadline"}</span></td>
+      <td className="c-date mono" style={{ whiteSpace: "nowrap" }}>{fmtDate(l.deadline, { weekday: true, year: l.deadline.slice(0, 4) !== today.slice(0, 4) })}</td>
       <td className="c-client cell-title">
         {l.client || "—"}
         {l.kind === "job" && <div><ElementsLink client={idx.clientByKey.get((l.row as Job).ClientKey)} /></div>}
@@ -127,32 +122,28 @@ export function DeadlinesView() {
       <td className="c-status"><span className="row-wrap" style={{ gap: 4 }}>{status(l, today).map((s) => <span key={s.text} className={`chip ${s.tone}`}>{s.text}</span>)}</span></td>
     </tr>
   );
-  const table = (list: Line[], dated = true) => (
-    <table className="grid deadlines">
-      <thead>
-        <tr>
-          <th scope="col">Kind</th><th scope="col">Client</th><th scope="col">Work</th><th scope="col">Stage</th>
-          <th scope="col">Planned</th><th scope="col">Records</th><th scope="col">Status</th>
-        </tr>
-      </thead>
-      {byDate(list).map(([d, ls]) => {
-        const stat = ls.filter((l) => l.statutory).length;
-        return (
-          <tbody key={d}>
-            {dated && (
-              <tr className="date-row">
-                <th scope="colgroup" colSpan={7}>
-                  <span className="mono">{fmtDate(d, { weekday: true, year: d.slice(0, 4) !== today.slice(0, 4) })}</span>
-                  <span className="muted"> · {ls.length} due{stat ? `, ${stat} statutory` : ""}</span>
-                </th>
-              </tr>
-            )}
-            {ls.map(row)}
-          </tbody>
-        );
-      })}
-    </table>
-  );
+  const table = (list: Line[]) => {
+    const sorted = (xs: Line[]) => [...xs].sort((a, b) => a.deadline.localeCompare(b.deadline) || a.client.localeCompare(b.client));
+    const stat = sorted(list.filter((l) => l.statutory)), other = sorted(list.filter((l) => !l.statutory));
+    const block = (name: string, tone: string, xs: Line[]) => xs.length > 0 && (
+      <tbody key={name}>
+        <tr className="date-row"><th scope="colgroup" colSpan={7}><span className={`chip ${tone}`}>{name}</span><span className="muted"> · {xs.length}</span></th></tr>
+        {xs.map(row)}
+      </tbody>
+    );
+    return (
+      <table className="grid deadlines">
+        <thead>
+          <tr>
+            <th scope="col">Deadline</th><th scope="col">Client</th><th scope="col">Work</th><th scope="col">Stage</th>
+            <th scope="col">Planned</th><th scope="col">Records</th><th scope="col">Status</th>
+          </tr>
+        </thead>
+        {block("Statutory deadlines", "blue", stat)}
+        {block("Other deadlines", "", other)}
+      </table>
+    );
+  };
 
   return (
     <div className="page">
@@ -224,7 +215,7 @@ export function DeadlinesView() {
             <h2 id="dl-today">Due today: action needed</h2>
             <span style={{ fontSize: 13, fontWeight: 600 }}>{dueToday.length} due{dueToday.filter((l) => l.statutory).length ? `, ${dueToday.filter((l) => l.statutory).length} statutory` : ""}</span>
           </div>
-          <div className="table-wrap">{table(dueToday, false)}</div>
+          <div className="table-wrap">{table(dueToday)}</div>
         </section>
       ) : (
         <p className="muted no-print" style={{ margin: 0, fontSize: 13 }}>Nothing is due today.</p>
