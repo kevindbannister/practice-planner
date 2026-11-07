@@ -3419,3 +3419,4 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
   .topbar.two .topbar-right { justify-self: end; margin-left: 0; }
   .topbar.two .tl-row { grid-column: 1 / -1; justify-content: center; padding-left: 0; }
 }
+@media (min-width: 721px) { .topbar.two .tl-row { justify-self: center; width: fit-content; padding-inline: 18px; } }
