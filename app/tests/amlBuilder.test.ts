@@ -75,3 +75,43 @@ test("a firm with no client money says so, and one with client money asks how it
   assert.match(fw({ clientMoney: "none", f_payroll: "no", f_transRating: "Low" }, "f_trans").text, /No client money passes through/);
   assert.ok(fw({ clientMoney: "some" }, "f_trans").gaps.includes("what client money is used for"));
 });
+
+import { returnLive } from "../src/lib/amlReturn";
+import * as pk from "../src/lib/amlPack";
+
+test("the new policy areas exist, start with gaps, and depend on the answers", () => {
+  for (const id of ["staff", "reliance", "ch", "tcsp", "trustreg", "cfa", "dp"]) assert.ok(b.stepById(id), id);
+  assert.match(get({ ...b.EMPTY, answers: { team: "alone", future: "The MLRO" } }, "staff").text, /no relevant employees, so there is nobody to screen/);
+  assert.match(get({ ...b.EMPTY, answers: { team: "relevant", screen: ["id", "refs"], screenOngoing: "Yearly", contractors: "yes" } }, "staff").text, /identity and right to work; references/);
+  const ch = get({ ...b.EMPTY, answers: { files: "yes", acsp: "applied", idMethod: ["own"], codes: "Locked away", discrep: "Report it" } }, "ch").text;
+  assert.match(ch, /will not rely on that status until it is confirmed/);
+  assert.match(ch, /seven years/);
+  assert.match(get({ ...b.EMPTY, answers: { files: "no", discrep: "x" } }, "ch").text, /does not file at Companies House/);
+  assert.match(get({ ...b.EMPTY, answers: { tcspWhich: ["formation"], tcspSup: "no" } }, "tcsp").text, /does not register separately with HMRC/);
+  assert.match(get({ ...b.EMPTY, answers: { trusts: "no" } }, "trustreg").text, /does not act for trusts/);
+  assert.ok(get(b.EMPTY, "cfa").gaps.length > 0);
+});
+
+test("the ACCA return takes only figures the planner holds, and never invents a risk percentage", () => {
+  const ctx = { clients: [{ Key: "A", CeasedOn: "" }, { Key: "B", CeasedOn: "2020-01-01" }] as never, clientServices: [{ ClientKey: "A", ServiceKey: "S1" }] as never, services: [{ Key: "S1", Title: "Payroll" }] as never, amlAssessments: [], onboardings: [], today: "2026-11-07", policy: { services: ["formation"], portal: "yes", clientMoney: "none" }, policyVersions: 2, fwraVersions: 0, trainingTwoYears: "Yes" };
+  const l = returnLive(ctx);
+  assert.equal(l.clients12.value, "1");
+  assert.equal(l.payroll.value, "1");
+  assert.equal(l.form.value, "Yes");
+  assert.equal(l.portal.value, "Yes");
+  assert.equal(l.pol.value, "Yes, updated periodically");
+  assert.equal(l.mlroTrain.value, "Yes");
+  assert.equal(l.highPct, undefined);
+  assert.equal(l.fwra, undefined);
+});
+
+test("the registrations register and the ACCA return are real forms that export", async () => {
+  const reg = pk.formById("registrations")!;
+  assert.ok(reg.stored && reg.single);
+  const rows = (reg.seed!().items as { item: string }[]).map((r) => r.item).join("|");
+  assert.match(rows, /ACCA supervision/);
+  assert.match(rows, /authorised corporate service provider/);
+  const ret = pk.formById("annualreturn")!;
+  const keys = ret.sections.flatMap((s) => s.fields.map((f) => f.k));
+  for (const k of ["clients12", "highPct", "fwra", "onboard", "c_pep", "formN"]) assert.ok(keys.includes(k), k);
+});

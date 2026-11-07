@@ -363,6 +363,123 @@ export const STEPS: Step[] = [
     ].filter(Boolean) as string[]),
   },
   {
+    id: "staff", title: "Screening of staff", covers: "Screening of relevant employees (regulation 21)",
+    intro: "Before taking on anyone whose work is relevant to AML, and while they work for the firm, the regulations expect you to assess their skills, knowledge, conduct and integrity. If nobody else works in the firm, the policy says so and says what happens when you recruit.",
+    questions: [
+      { k: "screen", label: "What do you check before someone starts?", type: "many", show: (a) => teamOf(a) === "relevant", need: true, options: o(["id", "Identity and right to work"], ["refs", "References from previous employers"], ["quals", "Qualifications and relevant experience"], ["criminal", "Criminal record check where the law allows it"], ["conduct", "A declaration of any conflicts of interest or past conduct issues"], ["train", "AML training before they handle client files"]), suggest: ["id", "refs", "quals", "criminal", "conduct", "train"], source: "Regulation 21 of the Money Laundering Regulations 2017: screen relevant employees for skills, knowledge and expertise, and for conduct and integrity, before and during their work." },
+      { k: "screenOngoing", label: "How do you keep checking after they start?", type: "long", show: (a) => teamOf(a) === "relevant", need: true, suggest: "Performance and conduct are reviewed at least once a year, the MLRO is told of any concern about integrity, and training and understanding are re-checked each year." },
+      { k: "contractors", label: "Do subcontractors, locums or outsourced staff who work on client files follow the same checks?", type: "one", show: (a) => teamOf(a) === "relevant", need: true, options: o(["yes", "Yes"], ["no", "No"], ["none", "The firm doesn't use any"]) },
+      { k: "future", label: "If you take someone on later, who will do the screening?", type: "text", show: (a) => solo(a), suggest: "The MLRO" },
+    ],
+    write: (a) => join([
+      "## Screening of staff",
+      teamOf(a) === "relevant"
+        ? `Before a relevant employee starts, and while they work for the firm, the firm assesses their skills, knowledge, conduct and integrity. Before they start it checks: ${arr(a, "screen").length ? arr(a, "screen").map((v) => labelOf(STEPS[11].questions[0], v).replace(/^A /, "a ").replace(/^An /, "an ").replace(/^Identity/, "identity").replace(/^References/, "references").replace(/^Qualifications/, "qualifications").replace(/^Criminal/, "criminal").replace(/^AML/, "AML")).join("; ") : GAP("what is checked before someone starts")}. After they start: ${str(a, "screenOngoing") || GAP("how staff are checked after they start")}${a.contractors === "yes" ? " Subcontractors and outsourced staff who work on client files follow the same checks." : a.contractors === "no" ? " Subcontractors and outsourced staff are not currently covered by these checks, and the firm will review this." : ""}`
+        : teamOf(a) ? `The firm has no relevant employees, so there is nobody to screen at present. If the firm takes anyone on whose work bears on AML, ${mid(str(a, "future") || "the MLRO")} will check their identity, right to work, references, qualifications and conduct before they start, and they will be trained before they handle client files.` : GAP("who works in the practice"),
+    ]),
+  },
+  {
+    id: "reliance", title: "Reliance on others", covers: "Reliance on third parties and outsourced checks (regulation 39)",
+    intro: "Some firms rely on another regulated firm's due diligence, or use a provider for identity checks. The regulations allow this only on conditions, and the firm remains responsible for the result.",
+    questions: [
+      { k: "rely", label: "Do you ever rely on another firm's customer due diligence instead of doing your own?", type: "one", need: true, options: o(["never", "No. We always do our own"], ["sometimes", "Sometimes"]), suggest: "never", source: "Regulation 39: reliance is allowed only on another regulated firm, with a written agreement, and the relying firm stays liable for any failure." },
+      { k: "relyWho", label: "Who do you rely on, and for what?", type: "long", show: (a) => a.rely === "sometimes", need: true },
+      { k: "relyTerms", label: "What conditions apply?", type: "many", show: (a) => a.rely === "sometimes", need: true, options: o(["supervised", "The other firm is supervised for AML in the UK or an equivalent country"], ["agreement", "There is a written agreement"], ["copies", "Copies of the evidence are available straight away on request"], ["responsible", "We stay responsible and check the quality of what we are given"]), suggest: ["supervised", "agreement", "copies", "responsible"] },
+      { k: "outsource", label: "Do you use a provider for identity checks or screening?", type: "one", need: true, options: o(["no", "No"], ["yes", "Yes"]) },
+      { k: "outsourceWho", label: "Which provider, and what do you do to check it works?", type: "long", show: (a) => a.outsource === "yes", need: true },
+    ],
+    write: (a) => join([
+      "## Reliance on third parties and outsourcing",
+      a.rely === "never" ? "The firm does not rely on another firm's customer due diligence. It carries out its own checks on every client." : a.rely === "sometimes" ? `The firm sometimes relies on another firm's customer due diligence: ${need(a, "relyWho", "who is relied on")}. It does so only when ${arr(a, "relyTerms").length ? arr(a, "relyTerms").map((v) => labelOf(STEPS[12].questions[2], v).replace(/^The /, "the ").replace(/^There /, "there ").replace(/^Copies/, "copies").replace(/^We /, "we ")).join("; ") : GAP("conditions for reliance")}. The firm remains responsible for any failure in the checks.` : GAP("whether the firm relies on others"),
+      a.outsource === "yes" ? `The firm uses an outside provider for identity checks or screening: ${need(a, "outsourceWho", "which provider")}. Using a provider does not transfer responsibility: the firm checks that the results are reliable and keeps the records.` : a.outsource === "no" ? "The firm does not use an outside provider for identity checks or screening." : GAP("whether a provider is used"),
+    ]),
+  },
+  {
+    id: "ch", title: "Companies House filing and identity verification", covers: "Companies House filings, authorised corporate service provider status, identity verification and register discrepancies",
+    intro: "Since 18 November 2025 directors and people with significant control have had to verify their identity with Companies House, and Companies House has said that firms filing for clients as an agent must register as an authorised corporate service provider. The date for agents is one to check on GOV.UK. If you file for clients, the policy needs to say how.",
+    questions: [
+      { k: "files", label: "Do you file at Companies House for clients?", type: "one", need: true, options: o(["yes", "Yes, using the firm's own login or authentication codes"], ["some", "Some clients only"], ["no", "No. Clients file themselves"]), },
+      { k: "acsp", label: "Where is the firm with authorised corporate service provider (ACSP) registration?", type: "one", show: (a) => a.files === "yes" || a.files === "some", need: true, options: o(["registered", "Registered"], ["applied", "Applied, waiting"], ["planned", "Not yet. I will register before it is required"], ["unsure", "I'm not sure"]), source: "To register the firm must be supervised for AML (ACCA), and the person registering must first verify their own identity with Companies House. Check the current dates and conditions on GOV.UK." },
+      { k: "acspRef", label: "ACSP reference or date registered", type: "text", show: (a) => a.acsp === "registered" },
+      { k: "idMethod", label: "How do you verify a director's or owner's identity for Companies House?", type: "many", show: (a) => a.files === "yes" || a.files === "some", need: true, options: o(["own", "Checks done by the firm as an ACSP, with the evidence kept"], ["chservice", "The person verifies directly with Companies House and gives us their code and statement"], ["both", "A mix, depending on the client"]), },
+      { k: "codes", label: "Who holds authentication codes and personal codes, and how are they protected?", type: "long", show: (a) => a.files === "yes" || a.files === "some", need: true, suggest: "Only the MLRO holds the firm's authentication codes. They are kept in a password manager, never emailed, and changed when someone leaves. A client's personal code is used only for the filing it was given for and not kept afterwards." },
+      { k: "discrep", label: "What do you do if the Companies House register disagrees with what you find about a company's ownership or control?", type: "long", need: true, suggest: "The MLRO checks the difference with the client, records the explanation, and where it is a material discrepancy reports it to Companies House as required. The report and date are recorded on the Registrations and returns tab.", source: "Regulation 30A of the Money Laundering Regulations 2017 requires material discrepancies in beneficial ownership information to be reported to Companies House." },
+    ],
+    write: (a) => join([
+      "## Companies House filings and identity verification",
+      a.files === "no" ? "The firm does not file at Companies House on clients' behalf. Clients make their own filings. If that changes, the firm will register as an authorised corporate service provider (ACSP) first and add the procedures below." : a.files === "yes" || a.files === "some" ? `The firm files at Companies House ${a.files === "yes" ? "for clients" : "for some clients"}. ${a.acsp === "registered" ? `It is registered as an authorised corporate service provider${str(a, "acspRef") ? ` (${str(a, "acspRef")})` : ""}.` : a.acsp === "applied" ? "It has applied to register as an authorised corporate service provider and will not rely on that status until it is confirmed." : a.acsp === "planned" ? "It will register as an authorised corporate service provider before it is required." : a.acsp === "unsure" ? GAP("whether the firm is registered as an ACSP") : GAP("ACSP status")} Identity verification: ${arr(a, "idMethod").length ? arr(a, "idMethod").map((v) => labelOf(STEPS[13].questions[3], v).replace(/^Checks/, "checks").replace(/^The person/, "the person").replace(/^A mix/, "a mix")).join("; ") : GAP("how identity is verified for Companies House")}. Records of identity checks done as an ACSP, including copies of the documents, are kept for seven years from the date the checks were completed. Codes: ${str(a, "codes") || GAP("how codes are protected")}` : GAP("whether the firm files at Companies House"),
+      `Register discrepancies: ${str(a, "discrep") || GAP("what happens when the register disagrees")}`,
+    ]),
+  },
+  {
+    id: "tcsp", title: "Company and trust services", covers: "Trust or company service provider work and supervision",
+    intro: "Company formation, a registered office address, acting or arranging for someone to act as director or secretary, nominee services and acting as a trustee are 'trust or company service provider' work. A firm already supervised by ACCA does not register with HMRC for this: ACCA supervises the work and asks about it in the annual return.",
+    questions: [
+      { k: "tcspWhich", label: "Which of these does the firm provide?", type: "many", need: true, options: o(["formation", "Company formation"], ["office", "A registered office or business address"], ["director", "Acting or arranging for someone to act as director or secretary"], ["nominee", "Nominee shareholder services"], ["trustee", "Acting as a trustee, or trust formation"], ["none", "None of these"]), source: "ACCA's annual return asks how many clients received each of these in the past two years, so the firm needs to be able to count them." },
+      { k: "tcspCount", label: "Roughly how many clients a year receive these services?", type: "text", show: (a) => arr(a, "tcspWhich").some((v) => v !== "none") && arr(a, "tcspWhich").length > 0 },
+      { k: "tcspApproval", label: "What must happen before the firm accepts company or trust work?", type: "long", show: (a) => arr(a, "tcspWhich").some((v) => v !== "none") && arr(a, "tcspWhich").length > 0, need: true, suggest: "Full due diligence on the client and everyone who owns or controls it is complete first. The MLRO approves the purpose, the expected activity and the reason for using the firm, and records the decision. The firm does not act as nominee, director, secretary or trustee, or provide an address, unless the MLRO has assessed it separately and recorded the approval." },
+      { k: "tcspDecline", label: "When would you decline?", type: "long", show: (a) => arr(a, "tcspWhich").some((v) => v !== "none") && arr(a, "tcspWhich").length > 0, suggest: "Ownership is hidden or unnecessarily complex, the purpose isn't clear, the client is in a high-risk country or is sanctioned, or the client won't give the information needed." },
+      { k: "tcspSup", label: "Has ACCA confirmed how it treats the firm's company formation work?", type: "one", show: (a) => arr(a, "tcspWhich").some((v) => v !== "none") && arr(a, "tcspWhich").length > 0, need: true, options: o(["yes", "Yes"], ["no", "Not yet. I will check with ACCA"]) },
+    ],
+    write: (a) => join([
+      "## Company and trust services",
+      arr(a, "tcspWhich").length === 0 ? GAP("which company or trust services the firm provides") : arr(a, "tcspWhich").every((v) => v === "none") ? "The firm does not provide company formation, a registered office, director or secretary services, nominee services or trustee services." : `The firm provides: ${arr(a, "tcspWhich").filter((v) => v !== "none").map((v) => labelOf(STEPS[14].questions[0], v).replace(/^Acting/, "acting").replace(/^Company/, "company").replace(/^A registered/, "a registered").replace(/^Nominee/, "nominee")).join("; ")}.${str(a, "tcspCount") ? ` Roughly ${str(a, "tcspCount")} clients a year receive these services.` : ""} These are trust or company service provider services. The firm is supervised for AML by ACCA, so it does not register separately with HMRC for this work, and it reports its volumes to ACCA in the annual AML return. ${a.tcspSup === "no" ? "The MLRO will confirm with ACCA how the firm's company formation work is treated." : ""}`.trim(),
+      arr(a, "tcspWhich").some((v) => v !== "none") ? `Before accepting this work: ${str(a, "tcspApproval") || GAP("what must happen before accepting company or trust work")}` : "",
+      str(a, "tcspDecline") && arr(a, "tcspWhich").some((v) => v !== "none") ? `The firm declines if: ${str(a, "tcspDecline")}` : "",
+    ].filter(Boolean) as string[]),
+  },
+  {
+    id: "trustreg", title: "Trusts and the Trust Registration Service", covers: "Trusts and HMRC's Trust Registration Service",
+    intro: "If the firm acts for trusts, the trustees may have to register the trust and keep it up to date on HMRC's Trust Registration Service. The firm needs to know who is responsible for that.",
+    questions: [
+      { k: "trusts", label: "Does the firm act for trusts?", type: "one", need: true, options: o(["no", "No"], ["yes", "Yes"]) },
+      { k: "trustWho", label: "Who registers and updates the trust?", type: "one", show: (a) => a.trusts === "yes", need: true, options: o(["trustees", "The trustees do it themselves"], ["firm", "The firm does it as their agent"], ["varies", "It varies"]) },
+      { k: "trustCheck", label: "How do you check the trust is registered and the details are current?", type: "long", show: (a) => a.trusts === "yes", need: true, suggest: "At onboarding and at each annual review the MLRO asks for the trust's registration reference and a copy of the registered details, compares them to the trust deed and to what the client has told us, and records any difference." },
+    ],
+    write: (a) => join([
+      "## Trusts and the Trust Registration Service",
+      a.trusts === "no" ? "The firm does not act for trusts at present. If that changes, the MLRO will identify the settlor, trustees, beneficiaries and anyone else who controls the trust, and check its registration on HMRC's Trust Registration Service, before work starts." : a.trusts === "yes" ? `The firm acts for trusts. Registration and updates to the Trust Registration Service are done by ${a.trustWho === "firm" ? "the firm as the trustees' agent" : a.trustWho === "trustees" ? "the trustees themselves" : a.trustWho === "varies" ? "either the trustees or the firm, agreed in each engagement" : GAP("who registers the trust")}. ${str(a, "trustCheck") || GAP("how registration is checked")}` : GAP("whether the firm acts for trusts"),
+    ]),
+  },
+  {
+    id: "cfa", title: "Preventing the facilitation of tax evasion", covers: "Criminal Finances Act 2017: failure to prevent the facilitation of tax evasion",
+    intro: "This is separate from money laundering. A firm commits an offence if someone working for it, such as an employee or subcontractor, facilitates a client's tax evasion and the firm had no reasonable prevention procedures. HMRC's guidance sets out six principles: risk assessment, proportionate procedures, top-level commitment, due diligence, communication and training, and monitoring and review.",
+    questions: [
+      { k: "cfaLead", label: "Who is responsible at the top of the firm?", type: "text", need: true, suggest: "The director and MLRO" },
+      { k: "cfaRisk", label: "Where could someone working for the firm help a client evade tax?", type: "many", need: true, options: o(["advice", "Tax advice and planning"], ["returns", "Preparing tax returns and accounts"], ["payroll", "Payroll, including cash or off-payroll payments"], ["introducers", "Introducers, referrers and subcontractors"], ["overseas", "Work involving overseas structures or income"], ["cash", "Clients who deal mostly in cash"]), suggest: ["advice", "returns", "payroll", "introducers", "overseas", "cash"], source: "HMRC's guidance on the corporate offences of failure to prevent the criminal facilitation of tax evasion." },
+      { k: "cfaProc", label: "What does the firm do to prevent it?", type: "many", need: true, options: o(["accept", "Understand the client's affairs and why they want the work before accepting"], ["challenge", "Challenge anything that doesn't make commercial sense"], ["records", "Prepare returns only from records we can support"], ["decline", "Decline or stop work if a client won't correct a known error or omission"], ["report", "Report suspicions of evasion to the MLRO straight away"], ["fees", "No unusual fee arrangements or payments to introducers"]), suggest: ["accept", "challenge", "records", "decline", "report", "fees"] },
+      { k: "cfaTrain", label: "How are people who might be affected told and trained?", type: "text", need: true, suggest: "Covered in the annual AML training and the policy is shared with anyone who joins" },
+      { k: "cfaReview", label: "How is it monitored and reviewed?", type: "text", need: true, suggest: "Reviewed with the firm-wide risk assessment each year and after any concern about a client" },
+    ],
+    write: (a) => join([
+      "## Preventing the facilitation of tax evasion",
+      "Under the Criminal Finances Act 2017, the firm commits an offence if a person associated with it, such as an employee, subcontractor or agent, criminally facilitates a client's tax evasion and the firm did not have reasonable prevention procedures. The firm does not tolerate the facilitation of tax evasion.",
+      `Responsibility sits with ${mid(need(a, "cfaLead", "who is responsible"))}.`,
+      "Areas where the firm is exposed:",
+      arr(a, "cfaRisk").length ? list(arr(a, "cfaRisk").map((v) => labelOf(STEPS[16].questions[1], v))) : GAP("where the firm is exposed"),
+      "Procedures to prevent it:",
+      arr(a, "cfaProc").length ? list(arr(a, "cfaProc").map((v) => labelOf(STEPS[16].questions[2], v))) : GAP("what the firm does to prevent it"),
+      `People who work for the firm are told and trained: ${need(a, "cfaTrain", "how people are told and trained")}. Monitoring and review: ${need(a, "cfaReview", "how it is monitored and reviewed")}.`,
+    ]),
+  },
+  {
+    id: "dp", title: "Data protection and AML records", covers: "Personal data used for AML, client information, and requests for access",
+    intro: "Personal information collected to meet the AML rules has its own rules: clients must be told, it can only be used for AML unless another law allows, and a request for access must never reveal a suspicious activity report.",
+    questions: [
+      { k: "notice", label: "How are clients told their data is used for AML checks?", type: "one", need: true, options: o(["letter", "In the engagement letter"], ["notice", "In a privacy notice we give every new client"], ["both", "Both"], ["not", "Not yet"]), source: "Regulation 41 of the Money Laundering Regulations 2017: new clients must be told that their personal data will be processed for AML, and it may not be used for anything else unless the law allows it or the client agrees." },
+      { k: "basis", label: "What lawful basis does the firm record for AML processing?", type: "text", need: true, suggest: "Legal obligation (Money Laundering Regulations 2017)" },
+      { k: "sar", label: "What happens if a client asks to see their personal data?", type: "long", need: true, suggest: "The request is passed to the MLRO before any reply, so that nothing is disclosed that would reveal a suspicious activity report or an investigation. The firm does not confirm or deny that a report exists.", source: "Disclosing a report would risk the tipping-off offence." },
+      { k: "protect", label: "How are AML records protected?", type: "long", need: true, suggest: "Access is limited to the MLRO, files are stored on encrypted systems, and records are deleted at the end of the retention period." },
+    ],
+    write: (a) => join([
+      "## Data protection and AML records",
+      a.notice === "letter" ? "New clients are told in the engagement letter that their personal data will be used for the purpose of preventing money laundering and terrorist financing." : a.notice === "notice" ? "New clients are given a privacy notice that says their personal data will be used for the purpose of preventing money laundering and terrorist financing." : a.notice === "both" ? "New clients are told in the engagement letter and in the privacy notice that their personal data will be used for the purpose of preventing money laundering and terrorist financing." : a.notice === "not" ? "The firm will tell new clients, in the engagement letter or a privacy notice, that their personal data will be used for the purpose of preventing money laundering and terrorist financing." : GAP("how clients are told about AML use of data"),
+      `The firm uses personal data collected for AML only for AML unless the law allows otherwise or the client agrees. The lawful basis recorded is ${need(a, "basis", "lawful basis")}.`,
+      `Requests for access: ${str(a, "sar") || GAP("what happens to requests for access")}`,
+      `Protection: ${str(a, "protect") || GAP("how AML records are protected")}`,
+    ]),
+  },
+  {
     id: "records", title: "Record keeping", covers: "Record keeping",
     intro: "How long AML records are kept, where, who can see them, and how they are removed when the time is up.",
     questions: [

@@ -4,6 +4,7 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import * as bld from "../lib/amlBuilder";
 import * as p from "../lib/amlPack";
+import { returnLive, Live } from "../lib/amlReturn";
 import { DOCX_TYPE } from "../lib/docx";
 import { todayIso } from "../lib/domain";
 import { Row } from "../lib/schema";
@@ -13,7 +14,7 @@ import { Cfg, FWRA_CFG, PolicyBuilder, POLICY_CFG } from "./AmlBuilder";
 import { useFirm } from "./FirmSettings";
 
 const TABS: [string, string][] = [
-  ["overview", "Overview"], ["fwra", "Risk assessment"], ["policies", "Policies"], ["reviews", "Client reviews"], ["screening", "Screening"], ["training", "Training"],
+  ["overview", "Overview"], ["fwra", "Risk assessment"], ["policies", "Policies"], ["registrations", "Registrations"], ["annualreturn", "ACCA return"], ["reviews", "Client reviews"], ["screening", "Screening"], ["training", "Training"],
   ["actions", "Actions"], ["mlro", "MLRO report"], ["independent", "Independent review"], ["forms", "SAR and blank forms"],
 ];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
@@ -82,7 +83,7 @@ function Cell({ col, value, clients, onChange }: { col: p.Col; value: string; cl
   if (col.type === "date") return <input className="input" type="date" aria-label={col.label} value={value} onChange={(e) => onChange(e.target.value)} style={{ minWidth: 150 }} />;
   if (col.type === "one") return <select className="input" aria-label={col.label} value={value} onChange={(e) => onChange(e.target.value)} style={{ minWidth: 120 }}><option value="">Choose</option>{(col.options || []).map((o) => <option key={o}>{o}</option>)}</select>;
   if (col.type === "client") return <select className="input" aria-label={col.label} value={value} onChange={(e) => onChange(e.target.value)}><option value="">Choose</option>{clients.map((c) => <option key={s(c.Key)} value={s(c.Key)}>{s(c.Title)}</option>)}</select>;
-  return <textarea className="input" aria-label={col.label} rows={3} value={value} onChange={(e) => onChange(e.target.value)} style={{ minWidth: 150, resize: "vertical" }} />;
+  return <textarea className="input" aria-label={col.label} rows={Math.min(12, Math.max(3, Math.ceil(value.length / 30)))} value={value} onChange={(e) => onChange(e.target.value)} style={{ minWidth: 200, resize: "vertical" }} />;
 }
 
 function FieldView({ f, c }: { f: p.Field; c: Ctx }) {
@@ -135,6 +136,14 @@ function FieldView({ f, c }: { f: p.Field; c: Ctx }) {
       <div><button type="button" className="btn small" onClick={() => c.set(f.k, [...rows, {}])}>Add a row</button></div>
     </div>
   );
+}
+
+function liveFor(a: ReturnType<typeof useAml>): Live {
+  const { data } = a;
+  const pol = bld.readState(readSetting<unknown>(data.settings, "aml.builder")).answers;
+  const vs = (id: string) => { const v = readSetting<unknown[]>(data.settings, `aml.${id}.versions`); return Array.isArray(v) ? v.length : 0; };
+  const tr = a.storeOf("training").records[0];
+  return returnLive({ clients: data.clients as Row[], clientServices: data.clientServices as Row[], services: data.services as Row[], amlAssessments: data.amlAssessments, onboardings: data.onboardings, today: todayIso(), policy: pol, policyVersions: vs("builder"), fwraVersions: vs("fwra2"), trainingTwoYears: s(tr?.values.twoYears) });
 }
 
 // ------------------------------------------------------------------ one form
@@ -199,6 +208,7 @@ function FormScreen({ def }: { def: p.FormDef }) {
     );
   }
 
+  const live: Live = def.id === "annualreturn" ? liveFor(a) : {};
   const ctx: p.Values = rec.values;
   const c: Ctx = { clients: a.clients, get: (k) => ctx[k], set: (k, v) => patchRec(rec.id, (r) => ({ ...r, values: { ...r.values, [k]: v } })) };
 
@@ -229,7 +239,17 @@ function FormScreen({ def }: { def: p.FormDef }) {
         <section key={sec.title} className="card pad stack" aria-label={sec.title}>
           <h2 className="sec-h">{sec.title}</h2>
           {sec.intro && <p className="muted" style={{ margin: 0 }}>{sec.intro}</p>}
-          {sec.fields.map((f) => <FieldView key={f.k} f={f} c={c} />)}
+          {sec.fields.map((f) => {
+            const l = live[f.k];
+            const shown = l ? (Array.isArray(l.value) ? l.value.join(", ") : l.value) : "";
+            const same = l && JSON.stringify(c.get(f.k) ?? "") === JSON.stringify(l.value);
+            return (
+              <div key={f.k} className="stack" style={{ gap: 4 }}>
+                <FieldView f={f} c={c} />
+                {l && !same && <div className="muted" style={{ fontSize: 13 }}>The planner shows <strong>{shown}</strong> ({l.from}). <button type="button" className="btn small" onClick={() => c.set(f.k, l.value)}>Use this</button></div>}
+              </div>
+            );
+          })}
         </section>
       ))}
     </>
@@ -255,6 +275,9 @@ function Overview() {
     return { confirmed: built.filter((x) => x.confirmed).length, total: built.length, version: Array.isArray(vs) && vs.length ? vs[vs.length - 1].v : "" };
   };
   const rows2: [string, string, ReturnType<typeof builderRow>][] = [["fwra", "Firm-wide risk assessment", builderRow(FWRA_CFG)], ["policies", "Policies and procedures", builderRow(POLICY_CFG)]];
+  const regRows = ((a.storeOf("registrations").records[0]?.values.items || []) as Record<string, string>[]).filter((r) => r.item);
+  const regOpen = regRows.filter((r) => r.status !== "Done" && r.status !== "Not needed");
+  const regLate = regRows.filter((r) => r.next && r.next < today);
   const tone = (st: p.Standing) => (st === "overdue" ? "red" : st === "soon" || st === "draft" ? "amber" : st === "ok" ? "green" : "");
   return (
     <>
@@ -271,7 +294,7 @@ function Overview() {
           {stored.map(({ def, st }) => (
             <div role="listitem" key={def.id} className="row-wrap" style={{ gap: 10, justifyContent: "space-between", alignItems: "center" }}>
               <a href={href("aml", def.id)}><strong>{def.title}</strong></a>
-              <span className={`chip ${tone(st.state)}`}>{def.id === "actions" ? (rows.length ? `${open.length} open${late.length ? `, ${late.length} late` : ""}` : st.text) : def.id === "training" && refresh ? `Next refresher ${fmt(refresh)}` : st.text}</span>
+              <span className={`chip ${def.id === "registrations" && regRows.length ? (regLate.length ? "red" : regOpen.length ? "amber" : "green") : tone(st.state)}`}>{def.id === "actions" ? (rows.length ? `${open.length} open${late.length ? `, ${late.length} late` : ""}` : st.text) : def.id === "training" && refresh ? `Next refresher ${fmt(refresh)}` : def.id === "registrations" && regRows.length ? (regOpen.length || regLate.length ? `${regOpen.length} to do${regLate.length ? `, ${regLate.length} overdue` : ""}` : "All done") : st.text}</span>
             </div>
           ))}
         </div>
