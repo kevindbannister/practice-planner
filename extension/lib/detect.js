@@ -8,7 +8,9 @@ export function pageInfo() {
     '[class*="OrganisationName" i]', '[class*="orgName" i]', '[class*="org-name" i]', '[class*="organization" i]',
   ];
   for (const s of selectors) { try { document.querySelectorAll(s).forEach((e) => add(e.textContent)); } catch (e) { /* skip a selector the page can't use */ } }
+  // Xero shows the organisation's name in its top bar, so read the short text of buttons and links there too.
+  try { document.querySelectorAll('header button, header a, header span, [role="banner"] button, [role="banner"] a, [role="banner"] span, nav button').forEach((e) => { if (e.children.length <= 1) add(e.textContent); }); } catch (e) { /* ignore */ }
   const h1 = document.querySelector("h1");
   if (h1) add(h1.textContent);
-  return { url: location.href, title: document.title, texts: texts.slice(0, 14) };
+  return { url: location.href, title: document.title, texts: texts.slice(0, 40) };
 }

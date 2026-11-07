@@ -243,6 +243,7 @@ function notesView() {
 }
 function settingsView() {
   return `<div class="card"><h2>Account</h2><div class="muted">${esc(S.user || "Signed in")}</div><div class="row"><button class="btn" data-do="refresh">Refresh data</button><button class="btn" data-do="signout">Sign out</button></div></div>
+    <div class="card"><h2>What I can see on this page</h2><div class="muted">${S.page ? `Title: ${esc(S.page.title)}<br>Xero code: ${esc(S.shortCode || "none")}<br>Text found: ${esc((S.page.texts || []).join(" | ") || "none")}` : "The current tab isn't a Xero page."}</div></div>
     <div class="card"><h2>Remembered Xero organisations</h2><div class="muted">When you choose a client on a Xero page, I remember it for that organisation. <button class="link" data-do="forget">Forget them all</button></div></div>
     <div class="card"><h2>Redirect address</h2><div class="muted">If sign-in fails, this must be added in Entra under “Single-page application”:</div><div class="code">${esc(auth.redirectUri())}</div></div>`;
 }
