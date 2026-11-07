@@ -3420,3 +3420,11 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
   .topbar.two .tl-row { grid-column: 1 / -1; justify-content: center; padding-left: 0; }
 }
 @media (min-width: 721px) { .topbar.two .tl-row { justify-self: center; width: fit-content; padding-inline: 18px; } }
+
+/* two-line trial: the logo and the tools sit in the middle of the whole bar, level with the line between the two rows */
+@media (min-width: 721px) {
+  .topbar.two .brand { grid-column: 1; grid-row: 1 / span 2; align-self: center; }
+  .topbar.two .topbar-left > .hide-phone { grid-column: 2; grid-row: 1; }
+  .topbar.two .topbar-right { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
+  .topbar.two .tl-row { grid-column: 2; grid-row: 2; }
+}
