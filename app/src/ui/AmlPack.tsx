@@ -2,12 +2,14 @@
 // screening records, training, the actions register, the MLRO's annual report and the independent review, each a form with tick boxes
 // that saves as you type and exports to Word or PDF. The suspicious activity forms are only printed blank, never stored. See lib/amlPack.ts.
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import * as bld from "../lib/amlBuilder";
 import * as p from "../lib/amlPack";
 import { DOCX_TYPE } from "../lib/docx";
 import { todayIso } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
 import { readSetting, useData } from "./data";
+import { PolicyBuilder } from "./AmlBuilder";
 import { useFirm } from "./FirmSettings";
 
 const TABS: [string, string][] = [
@@ -246,6 +248,9 @@ function Overview() {
   const late = open.filter((r) => r.due && r.due < today);
   const training = a.storeOf("training").records[0];
   const refresh = ((Array.isArray(training?.values.people) ? training!.values.people : []) as Record<string, string>[]).map((r) => r.next).filter(Boolean).sort()[0];
+  const pb = bld.build(bld.readState(readSetting<unknown>(a.data.settings, "aml.builder")));
+  const pv = readSetting<bld.Version[]>(a.data.settings, "aml.builder.versions");
+  const policy = { confirmed: pb.filter((x) => x.confirmed).length, total: pb.length, version: Array.isArray(pv) && pv.length ? pv[pv.length - 1].v : "" };
   const tone = (st: p.Standing) => (st === "overdue" ? "red" : st === "soon" || st === "draft" ? "amber" : st === "ok" ? "green" : "");
   return (
     <>
@@ -253,6 +258,10 @@ function Overview() {
       <section className="card pad stack" aria-label="Where things stand">
         <h2 className="sec-h">Where things stand</h2>
         <div role="list" className="stack" style={{ gap: 8 }}>
+          <div role="listitem" className="row-wrap" style={{ gap: 10, justifyContent: "space-between", alignItems: "center" }}>
+            <a href={href("aml", "policies")}><strong>Policies and procedures</strong></a>
+            <span className={`chip ${policy.confirmed === policy.total ? (policy.version ? "green" : "amber") : "amber"}`}>{policy.confirmed === 0 && !policy.version ? "Not started" : `${policy.confirmed} of ${policy.total} areas confirmed${policy.version ? `, version ${policy.version} saved` : ""}`}</span>
+          </div>
           {stored.map(({ def, st }) => (
             <div role="listitem" key={def.id} className="row-wrap" style={{ gap: 10, justifyContent: "space-between", alignItems: "center" }}>
               <a href={href("aml", def.id)}><strong>{def.title}</strong></a>
@@ -290,6 +299,7 @@ export function AmlPage() {
   const def = p.formById(tab);
   let body: ReactNode;
   if (tab === "overview") body = <Overview />;
+  else if (tab === "policies") body = <PolicyBuilder />;
   else if (tab === "forms") body = <BlankForms />;
   else body = def ? <FormScreen key={def.id} def={def} /> : null;
   return (

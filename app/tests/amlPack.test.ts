@@ -24,9 +24,6 @@ test("the suspicious activity forms are never stored", () => {
 });
 
 test("the policy and risk assessment start from the firm's own draft, without leftover placeholders in short fields", () => {
-  const pol = p.formById("policies")!.seed!();
-  assert.match(String(pol.s2), /Before establishing a business relationship/);
-  assert.equal(pol.version, "Draft 0.1");
   const fw = p.formById("fwra")!.seed!();
   assert.match(String(fw["r0.risk"]), /Provisional: Medium/);
   assert.equal((fw.actions as unknown[]).length, 6);

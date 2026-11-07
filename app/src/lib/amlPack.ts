@@ -61,15 +61,6 @@ const fwraSeed = (): Values => {
   return v;
 };
 
-const POLICY_TITLES = S.policies.sections.map((s) => s.title);
-const policySeed = (): Values => {
-  const c = S.policies.control;
-  const v: Values = { mlro: c["MLRO"] || "", mlroEmail: c["MLRO email"] || "", version: c["Version"] || "Draft 0.1", reference: S.policies.reference };
-  S.policies.sections.forEach((s, i) => { v[`s${i}`] = s.text; });
-  v.log = S.policies.changelog.map((r) => ({ version: r[0].replace(/\s*\/\s*$/, ""), change: r[1], by: r[2], approved: r[3] }));
-  return v;
-};
-
 export const FORMS: FormDef[] = [
   {
     id: "fwra", title: "Firm-wide risk assessment", noun: "assessment", stored: true, reviewKey: "nextReview", seed: fwraSeed,
@@ -87,17 +78,6 @@ export const FORMS: FormDef[] = [
         ],
       },
       { title: "Approval and review", fields: [text("preparedBy", "Prepared by"), text("directorApproval", "Director approval", "Sign and date after verifying the content"), long("trigger", "Review triggers", "Annual review, and after a material change in client profile, services, geography, delivery systems, law or guidance, a control failure, or relevant intelligence")] },
-      { title: "Reference material", fields: [{ k: "reference", label: "Reference material", type: "long", flow: true }] },
-    ],
-  },
-  {
-    id: "policies", title: "Policies and procedures", noun: "version", stored: true, reviewKey: "nextReview", seed: policySeed,
-    blurb: "The firm's AML policy, section by section, with a checklist for adopting it. Keep each approved version; start a new one for the annual review.",
-    sections: [
-      { title: "Document control and adoption", fields: [text("mlro", "MLRO"), text("mlroEmail", "MLRO email"), text("mlroPhone", "MLRO telephone"), text("version", "Version"), date("effective", "Effective date"), text("approvedBy", "Approved by"), date("nextReview", "Next review")] },
-      { title: "Adoption checklist", intro: "Tick each section as it is reviewed, approved and actually in operation.", fields: [{ k: "adopt", label: "Sections", type: "grid", items: POLICY_TITLES, options: ["Reviewed", "Approved", "In operation"], multi: true, noteLabel: "Notes" }] },
-      ...POLICY_TITLES.map((t, i): Section => ({ title: t, fields: [{ k: `s${i}`, label: t, type: "long", flow: true }] })),
-      { title: "Approval and change log", fields: [{ k: "log", label: "Change log", type: "table", blank: 2, cols: [{ k: "version", label: "Version / date" }, { k: "change", label: "Change or review" }, { k: "by", label: "Prepared by" }, { k: "approved", label: "Approved by / date" }] }] },
       { title: "Reference material", fields: [{ k: "reference", label: "Reference material", type: "long", flow: true }] },
     ],
   },
@@ -164,24 +144,24 @@ export const FORMS: FormDef[] = [
     ],
   },
   {
-    id: "mlro", title: "MLRO annual effectiveness report", noun: "report", stored: true, reviewKey: "nextReport",
-    blurb: "Once a year, the MLRO reports on how well the controls worked, based on records and a sample of files for the period. A blank report is not evidence that a review took place.",
+    id: "mlro", title: "MLRO annual report", noun: "report", stored: true, reviewKey: "nextReport",
+    blurb: "ACCA's template for the MLRO's yearly report on how well the AML controls worked. Required when the firm has relevant employees; for a firm without them it is good practice and ACCA can still ask for it. A blank report is not evidence that a review took place.",
     seed: () => ({ preparedBy: "Kevin Bannister (ACCA 1543478)" }),
     sections: [
-      { title: "The report", fields: [text("period", "Reporting period", "From and to"), text("preparedBy", "Prepared by"), date("prepared", "Date prepared"), text("reviewedBy", "Reviewed by director or senior management"), long("previous", "Previous report and open actions")] },
-      ...[
-        ["1. Risk assessment", "Current FWRA and proliferation financing assessment date, review, material changes, client portfolio findings, open risk actions."],
-        ["2. AML policies and procedures", "Version, approval, review, implementation and staff communication; gaps and changes required."],
-        ["3. Client due diligence and risk ratings", "Client count sampled, completion rate, identity and ownership verification, risk ratings, EDD and exceptions."],
-        ["4. Ongoing monitoring and sanctions", "Reviews due, completed and overdue, screening records, matches, escalations and their outcomes."],
-        ["5. Suspicious activity reporting", "Internal reports received, MLRO self-reports, decisions, external SAR and DAML counts and confidentiality controls. Keep narrative details in restricted files."],
-        ["6. Training", "People in scope, training completed, formal MLRO training date and provider, assessments and outstanding needs."],
-        ["7. Record keeping and access", "Retention controls, record retrievability, access restrictions and any incidents."],
-        ["8. Independent review and breaches", "Review completed or due, findings, control failures, regulatory notifications considered and remediation."],
-        ["9. Overall conclusion", "Rate operation and effectiveness; state limitations and whether control design and operation are adequate for the firm's risk profile."],
-      ].map(([t, g], i): Section => ({ title: t, fields: [info(`g${i}`, g), long(`f${i}`, "Findings and evidence")] })),
-      { title: "10. Action plan", fields: [info("g9", "List each action with its owner, due date, priority and closure evidence."), { k: "plan", label: "Action plan", type: "table", blank: 3, cols: [{ k: "action", label: "Action" }, { k: "owner", label: "Owner" }, { k: "due", label: "Due date", type: "date" }, { k: "status", label: "Status or closure evidence" }] }] },
-      { title: "Sign-off", fields: [text("signed", "MLRO signature and date", "Complete after the report has genuinely been carried out"), text("directorReview", "Director or senior management review"), date("nextReport", "Next report due")] },
+      { title: "The report", fields: [text("period", "Compliance period", "From and to"), text("preparedBy", "MLRO"), date("prepared", "Date"), date("nextReport", "Date of next report")] },
+      { title: "1. MLRO", fields: [{ k: "q0", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Has there been a change in the identity of the MLRO within this period?", "Have all staff been reminded of the identity of the MLRO?", "Have all staff been reminded of the responsibilities of the MLRO?", "Has the MLRO completed any specific AML training within this period?", "Has the MLRO kept up to date with money-laundering risks and trends?", "Does the MLRO have the time, capacity and resources to fulfil their obligations?"] }, long("sum0", "Summary")] },
+      { title: "2. Firm-wide risk assessment (FWRA)", fields: [{ k: "q1", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Is the FWRA still relevant and up to date?", "Have any new risks been identified?", "Have actions been taken to mitigate these risks?", "Has the FWRA been shared with relevant stakeholders, for example directors or partners?"] }, long("sum1", "Summary")] },
+      { title: "3. AML policy and procedures (P&Ps)", fields: [{ k: "q2", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Are the P&Ps relevant and up to date?", "Have any changes been made to the P&Ps?", "Have employees, including new members of staff, confirmed they have read and understood the P&Ps?", "Do employees know where the P&Ps are kept?", "Do the P&Ps cover due diligence, firm-wide risk assessment, client risk assessment, training, record keeping, suspicious activity reports, ongoing monitoring, sanctions screening, the MLRO report and independent assessments?", "Have any new systems or processes been incorporated into the P&Ps?", "Has any new or updated legislation or guidance been incorporated into the P&Ps?", "Is it documented that the P&Ps have been reviewed and approved by the MLRO?", "Is it documented when the P&Ps will next be reviewed?"] }, long("sum2", "Summary")] },
+      { title: "4. Customer due diligence (CDD)", fields: [{ k: "q3", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Is the CDD process still relevant?", "Have there been any changes to the CDD process?", "Have any new clients been declined because of unsatisfactory information?"] }, long("sum3", "Summary")] },
+      { title: "5. Sample check of CDD files", fields: [{ k: "q4", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Do the CDD files contain all relevant information and documentation as per the CDD process?", "Is all information relevant and up to date (for example identification still valid, records match Companies House, all ultimate beneficial owners and directors identified)?", "Is the risk rating of each client appropriate?", "Have any process improvements been identified?", "Have any training needs been identified?"] }, long("sum4", "Summary")] },
+      { title: "6. Client risk assessment", fields: [{ k: "q5", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Is the client risk assessment process still relevant and up to date?", "Have there been any changes to the client risk assessment?", "Have any new clients been categorised as high risk?", "Has the risk rating of any existing clients changed?", "Have any new trends or risks been considered and applied to the client risk assessment process?"] }, long("sum5", "Summary")] },
+      { title: "7. Suspicious activity report (SAR)", fields: [{ k: "q6", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Is the current internal SAR process relevant and up to date?", "Have all staff, including new joiners, been reminded of the SAR process?", "Have any internal SARs been received?", "If none have been received, is the MLRO satisfied with the training provided to staff regarding suspicious activity?", "Has the MLRO submitted any SARs to the National Crime Agency?"] }, long("sum6", "Summary")] },
+      { title: "8. AML training", fields: [{ k: "q7", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Is the current AML training programme up to date and relevant?", "Have all new staff received AML training?", "Have all relevant staff received AML training within the past 12 months?", "Has evidence of AML training completion and understanding been obtained for all relevant staff?", "Have there been any issues identified within the AML training programme?", "Does the training programme cover red flags, relevant AML regulations, tipping off, CDD, SARs, how to deal with suspicious transactions and new trends and risks?"] }, long("sum7", "Summary")] },
+      { title: "9. Sanctions screening", fields: [{ k: "q8", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Is the current sanctions screening process relevant and up to date?", "Have there been any positive matches from the completed sanctions screening?"] }, long("sum8", "Summary")] },
+      { title: "10. Control assurance", fields: [{ k: "q9", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Has an independent audit of the firm's AML controls been completed?", "Were there any adverse findings from the report?", "Is an independent audit going to be completed periodically?"] }, long("sum9", "Summary")] },
+      { title: "11. Record keeping", fields: [{ k: "q10", label: "Questions", type: "grid", options: ["Yes", "No"], noteLabel: "Details", items: ["Is the firm's record-keeping process still relevant and up to date?", "Are records easily accessible?", "Have records been kept for the appropriate period of time?"] }, long("sum10", "Summary")] },
+      { title: "12. MLRO summary", fields: [info("g12", "The executive summary for the compliance period, highlighting any serious compliance deficiencies, together with remedial actions and any additional action points."), long("summary", "Executive summary")] },
+      { title: "Sign-off", fields: [text("signed", "Signed and date", "Complete after the report has genuinely been carried out"), { k: "directors", label: "Report read and understood by directors or partners", type: "table", blank: 2, cols: [{ k: "name", label: "Name" }, { k: "date", label: "Date", type: "date" }] }] },
     ],
   },
   {
