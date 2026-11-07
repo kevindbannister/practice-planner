@@ -3408,3 +3408,14 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
   .nv-link.tl-on.tl-here { background: var(--grad); color: #fff; box-shadow: 0 6px 20px rgba(17, 168, 195, 0.27); }
 }
 @media (min-width: 721px) { .topbar.two { width: min(1000px, calc(100% - 32px)); } }
+
+/* two-line trial, centred: logo left, areas in the middle, tools right; the modules centred underneath */
+@media (min-width: 721px) {
+  .topbar.two { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 6px 14px 4px 22px; }
+  .topbar.two .topbar-left { display: contents; }
+  .topbar.two .brand { justify-self: start; }
+  .topbar.two .topbar-left > .hide-phone { justify-self: center; }
+  .topbar.two .nv-nav { margin-left: 0; }
+  .topbar.two .topbar-right { justify-self: end; margin-left: 0; }
+  .topbar.two .tl-row { grid-column: 1 / -1; justify-content: center; padding-left: 0; }
+}
