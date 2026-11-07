@@ -201,7 +201,6 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
             </button>
           ))}
         </div>
-        <span className="area-label" aria-hidden="true">{area.name}</span>
         <nav className="nav" aria-label={`${area.name} modules`}>
           {area.modules.map((k) => (
             <a key={k} href={`#/${k}`} aria-current={current === k ? "page" : undefined}>

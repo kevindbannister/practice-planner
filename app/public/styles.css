@@ -3360,3 +3360,7 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
   .area-label { min-width: 118px; box-sizing: content-box; }
 }
 @media (min-width: 721px) and (max-width: 900px) { .nav { min-width: 0; } }
+
+/* no area name beside the modules: a thin divider after the circles instead */
+@media (min-width: 721px) { .nav { margin-left: 10px; padding-left: 16px; border-left: 1px solid var(--line-strong); } }
+@media (min-width: 721px) and (max-width: 900px) { .nav { padding-left: 12px; } }
