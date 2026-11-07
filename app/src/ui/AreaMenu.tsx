@@ -1,8 +1,8 @@
 // The top menu: Home, then the three areas as words. Click an area and a gradient panel drops down under it with that
 // area's modules, the way the working papers menu button does.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Icon, IconName } from "./bits";
-import { AREAS, MODULE_LABELS, areaOf, navKeyOf, type AreaId } from "../lib/navAreas";
+import { AREAS, MODULE_LABELS, areaOf, navKeyOf, type AreaId, type NavArea } from "../lib/navAreas";
 
 const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag" };
 
@@ -42,6 +42,43 @@ export function AreaMenu({ section, chase = 0, children }: { section: string; ch
         </div>
       ))}
       {children}
+    </nav>
+  );
+}
+
+/** Which menu is showing: the drop-down one, or the two-line trial. Kept in this browser. */
+export type MenuKind = "drop" | "two";
+const read = (): MenuKind => { try { return localStorage.getItem("pp.menu") === "two" ? "two" : "drop"; } catch { return "drop"; } };
+const subscribe = (cb: () => void) => { window.addEventListener("pp-menu", cb); return () => window.removeEventListener("pp-menu", cb); };
+export function useMenuKind(): [MenuKind, (k: MenuKind) => void] {
+  const kind = useSyncExternalStore(subscribe, read, () => "drop" as MenuKind);
+  return [kind, (k) => { try { localStorage.setItem("pp.menu", k); } catch { /* this visit only */ } window.dispatchEvent(new Event("pp-menu")); }];
+}
+
+/** Two-line trial, first line: Home and the three areas as words. Choosing one changes the second line. */
+export function TwoLineAreas({ section, area, onPick }: { section: string; area: NavArea; onPick: (id: AreaId) => void }) {
+  const here = areaOf(section);
+  return (
+    <nav className="nv-nav" aria-label="Areas">
+      <a className="nv-link" href="#/home" aria-current={section === "home" ? "page" : undefined}>Home</a>
+      {AREAS.map((a) => (
+        <button key={a.id} type="button" className={`nv-link${a.id === area.id ? " tl-on" : ""}${a.id === here ? " tl-here" : ""}`} aria-pressed={a.id === area.id} onClick={() => onPick(a.id)}>{a.name}</button>
+      ))}
+    </nav>
+  );
+}
+
+/** Two-line trial, second line: the modules of the chosen area. */
+export function TwoLineModules({ section, area, chase = 0 }: { section: string; area: NavArea; chase?: number }) {
+  const current = navKeyOf(section);
+  return (
+    <nav className="tl-row hide-phone" aria-label={`${area.name} modules`}>
+      {area.modules.map((k) => (
+        <a key={k} href={`#/${k}`} aria-current={current === k ? "page" : undefined}>
+          <Icon name={ICONS[k] || "list"} size={16} /> {MODULE_LABELS[k]}
+          {k === "plan" && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
+        </a>
+      ))}
     </nav>
   );
 }
