@@ -83,7 +83,7 @@ test("the new policy areas exist, start with gaps, and depend on the answers", (
   for (const id of ["staff", "reliance", "ch", "tcsp", "trustreg", "cfa", "dp"]) assert.ok(b.stepById(id), id);
   assert.match(get({ ...b.EMPTY, answers: { team: "alone", future: "The MLRO" } }, "staff").text, /no relevant employees, so there is nobody to screen/);
   assert.match(get({ ...b.EMPTY, answers: { team: "relevant", screen: ["id", "refs"], screenOngoing: "Yearly", contractors: "yes" } }, "staff").text, /identity and right to work; references/);
-  const ch = get({ ...b.EMPTY, answers: { files: "yes", acsp: "applied", idMethod: ["own"], codes: "Locked away", discrep: "Report it" } }, "ch").text;
+  const ch = get({ ...b.EMPTY, answers: { files: "yes", acsp: "applied", idMethod: "own", codes: "Locked away", discrep: "Report it" } }, "ch").text;
   assert.match(ch, /will not rely on that status until it is confirmed/);
   assert.match(ch, /seven years/);
   assert.match(get({ ...b.EMPTY, answers: { files: "no", discrep: "x" } }, "ch").text, /does not file at Companies House/);
@@ -114,4 +114,16 @@ test("the registrations register and the ACCA return are real forms that export"
   const ret = pk.formById("annualreturn")!;
   const keys = ret.sections.flatMap((s) => s.fields.map((f) => f.k));
   for (const k of ["clients12", "highPct", "fwra", "onboard", "c_pep", "formN"]) assert.ok(keys.includes(k), k);
+});
+
+test("a firm that only submits clients' codes gets wording that fits, and the chosen date is used", () => {
+  const t = get({ ...b.EMPTY, answers: { files: "yes", acsp: "no", idMethod: "chservice", codeUse: "Check the code", codes: "Locked", discrep: "Report" } }, "ch").text;
+  assert.match(t, /not registered as an authorised corporate service provider/);
+  assert.match(t, /does not verify identities for Companies House/);
+  assert.doesNotMatch(t, /seven years/);
+  const f = fw({ _date: "2026-12-01", f_by: "The MLRO", f_shared: "The director", f_next: "2027-12-01" }, "f_actions").text;
+  assert.match(f, /Completed on 1 December 2026/);
+  assert.ok(fw({ f_by: "x" }, "f_actions").gaps.some((g) => /assessment date/.test(g)));
+  assert.equal(b.readState({ date: "2026-12-01" }).date, "2026-12-01");
+  assert.equal(b.readState({ date: "nonsense" }).date, undefined);
 });

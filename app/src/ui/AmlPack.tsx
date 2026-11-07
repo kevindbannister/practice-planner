@@ -39,7 +39,8 @@ function download(name: string, bytes: Uint8Array | Blob, type: string) {
 function ExportButtons({ def, rec, blank, firm, clientName }: { def: p.FormDef; rec?: p.Rec; blank?: boolean; firm: string; clientName: (k: string) => string }) {
   const [err, setErr] = useState("");
   const today = todayIso();
-  const meta = (): p.Meta => ({ firm, title: def.title, status: rec?.status || "", date: rec?.created || today, restricted: def.restricted, blank, today });
+  const longD = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const meta = (): p.Meta => ({ firm, title: rec && !blank ? `${def.title}, ${longD(rec.created)}` : def.title, status: rec?.status || "", date: rec?.created || today, restricted: def.restricted, blank, today });
   const list = () => p.docBlocks(def, rec, meta(), clientName);
   const word = async () => {
     setErr("");
@@ -222,6 +223,7 @@ function FormScreen({ def }: { def: p.FormDef }) {
               <select className="input" value={rec.id} onChange={(e) => setSel(e.target.value)}>{sorted.map((r) => <option key={r.id} value={r.id}>{label(r)}</option>)}</select>
             </label>
           )}
+          <label className="field"><span>Date of this {def.noun}</span><input className="input" type="date" value={rec.created} onChange={(e) => e.target.value && patchRec(rec.id, (r) => ({ ...r, created: e.target.value }))} /></label>
           {!def.single && <label className="field"><span>Status</span>
             <select className="input" value={rec.status} onChange={(e) => patchRec(rec.id, (r) => ({ ...r, status: e.target.value === "Approved" ? "Approved" : "Draft" }), true)}><option>Draft</option><option>Approved</option></select>
           </label>}

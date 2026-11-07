@@ -320,7 +320,7 @@ export function docBlocks(def: FormDef, rec: Rec | undefined, meta: Meta, client
   const blank = !rec || !!meta.blank;
   const head: Block[] = [{ t: "p", text: def.blurb, small: true }];
   if (meta.restricted) head.push({ t: "p", text: "RESTRICTED. Keep completed copies in a restricted place. Do not store them in a general client or staff file.", bold: true });
-  if (!blank) head.push({ t: "p", text: `${rec!.status === "Approved" ? "Approved" : "Draft for completion and approval"}. Started ${fmtD(rec!.created)}.`, small: true });
+  if (!blank) head.push({ t: "p", text: `${rec!.status === "Approved" ? "Approved" : "Draft for completion and approval"}. Dated ${fmtD(rec!.created)}.`, small: true });
   else head.push({ t: "p", text: "Blank form. Complete, check against the firm's records, approve and put the controls into operation before relying on it as evidence.", small: true });
   return [...head, ...blocks(def, rec?.values || {}, clientName, blank)];
 }

@@ -120,7 +120,8 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
   // Start the firm name from the firm's own settings the first time only.
   const own = cfg.prefillFirm && cur.answers.firmName === undefined && firmName !== "The practice" ? { ...cur.answers, firmName } : cur.answers;
   const state: b.State = { ...cur, answers: own };
-  const merged: b.State = { ...cur, answers: { ...extra, ...own } };
+  const docDate = cur.date || todayIso();
+  const merged: b.State = { ...cur, answers: { ...extra, ...own, _date: cur.date || "" } };
 
   const persist = (next: b.State, n: number) => {
     chain.current = chain.current.then(async () => {
@@ -146,17 +147,18 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
   const stepState = (x: (typeof built)[number]) => (x.confirmed ? { t: "Confirmed", c: "green" } : gapsOf(x) ? { t: `${gapsOf(x)} to answer`, c: "amber" } : { t: "To confirm", c: "blue" });
   const latestV = versions.length ? versions[versions.length - 1] : undefined;
 
-  const meta = (title: string, date: string): p.Meta => ({ firm: firmName, title, status: "", date, today: todayIso() });
+  const longDate = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const meta = (title: string, date: string): p.Meta => ({ firm: firmName, title: `${title}, ${longDate(date)}`, status: "", date, today: todayIso() });
   const blocksFor = (src: { title: string; text: string }[], head: { version: string; updated: string; approvedBy: string }) =>
     b.policyBlocks(src, { firm: firmName, ...head }, versions);
-  const head = { version: latestV?.v || "", updated: latestV?.date || "", approvedBy: latestV?.approved ? latestV.by : "" };
+  const head = { version: latestV?.v || "", updated: docDate, approvedBy: latestV?.approved ? latestV.by : "" };
   const word = async () => {
     setMsg("");
-    try { download(p.fileName(cfg.docTitle, todayIso(), "docx"), await p.toDocx(blocksFor(built, head), meta(cfg.docTitle, todayIso())), DOCX_TYPE); } catch { setMsg("Couldn't make the Word file."); }
+    try { download(p.fileName(cfg.docTitle, docDate, "docx"), await p.toDocx(blocksFor(built, head), meta(cfg.docTitle, docDate)), DOCX_TYPE); } catch { setMsg("Couldn't make the Word file."); }
   };
   const pdf = () => {
     setMsg("");
-    const url = URL.createObjectURL(new Blob([p.toHtml(blocksFor(built, head), meta(cfg.docTitle, todayIso()))], { type: "text/html" }));
+    const url = URL.createObjectURL(new Blob([p.toHtml(blocksFor(built, head), meta(cfg.docTitle, docDate))], { type: "text/html" }));
     if (!window.open(url, "_blank")) setMsg("The print page was blocked. Allow pop-ups for this site and try again.");
     window.setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
@@ -165,7 +167,7 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
     setMsg("");
     if (out.unconfirmed.length || out.gaps) { if (!window.confirm(`The policy still has ${out.gaps} gap${out.gaps === 1 ? "" : "s"} and ${out.unconfirmed.length} unconfirmed section${out.unconfirmed.length === 1 ? "" : "s"}. Save it as a draft version anyway?`)) return; }
     const v = b.nextVersion(versions);
-    const entry: b.Version = { v, date: todayIso(), note: note.trim() || (versions.length ? "Updated" : "First version"), by: by.trim(), approved };
+    const entry: b.Version = { v, date: docDate, note: note.trim() || (versions.length ? "Updated" : "First version"), by: by.trim(), approved };
     const snap: Snap = { head: { version: v, updated: entry.date, approvedBy: approved ? entry.by : "" }, built: built.map((x) => ({ title: x.title, text: x.text })) };
     try {
       await saveSetting(snapKey(cfg, v), snap);
@@ -203,7 +205,8 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
             <span className="chip">{latestV ? `Saved version ${latestV.v}${latestV.approved ? ", approved" : ", draft"}` : "No version saved yet"}</span>
             <span className="muted" role="status" aria-live="polite">{status === "saving" ? "Saving…" : status === "saved" ? "Saved" : status === "failed" ? "Couldn't save. Your changes are still on screen: try again." : "Saves as you type."}</span>
           </div>
-          <div className="row-wrap" style={{ gap: 6 }}>
+          <div className="row-wrap" style={{ gap: 6, alignItems: "end" }}>
+            <label className="field" style={{ margin: 0 }}><span>Date of this document</span><input className="input" type="date" value={docDate} onChange={(e) => e.target.value && edit({ ...state, date: e.target.value })} /></label>
             <button type="button" className="btn small" onClick={word}>Word</button>
             <button type="button" className="btn small" onClick={pdf}>PDF</button>
           </div>

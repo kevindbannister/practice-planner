@@ -183,7 +183,6 @@ export const FWRA_STEPS: Step[] = [
     questions: [
       { k: "f_by", label: "Who carried out the assessment?", type: "text", need: true, suggest: "The MLRO" },
       { k: "f_shared", label: "Who was it shared with?", type: "text", need: true, suggest: "The director", placeholder: "For example the partners and directors" },
-      { k: "f_done", label: "Date completed", type: "date", need: true },
       { k: "f_next", label: "Next review date", type: "date", need: true, help: "ACCA: at least yearly, and when a trigger event happens." },
       { k: "f_actReview", label: "Annual compliance review (MLRO report) due", type: "date" },
       { k: "f_actTrain", label: "AML training due", type: "date" },
@@ -200,7 +199,7 @@ export const FWRA_STEPS: Step[] = [
         "## Actions",
         list([...acts, ...other]),
         "## Sign-off",
-        `Assessment carried out by ${need(a, "f_by", "who carried out the assessment")}. Shared with ${need(a, "f_shared", "who it was shared with").replace(/^The /, "the ")}. Completed on ${str(a, "f_done") ? fmtDate(str(a, "f_done")) : GAP("completion date")}. Next review: ${str(a, "f_next") ? fmtDate(str(a, "f_next")) : GAP("next review date")}.`,
+        `Assessment carried out by ${need(a, "f_by", "who carried out the assessment")}. Shared with ${need(a, "f_shared", "who it was shared with").replace(/^The /, "the ")}. Completed on ${str(a, "_date") ? fmtDate(str(a, "_date")) : GAP("assessment date (choose it at the top of the page)")}. Next review: ${str(a, "f_next") ? fmtDate(str(a, "f_next")) : GAP("next review date")}.`,
       ].filter(Boolean) as string[]);
     },
   },
