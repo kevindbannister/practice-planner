@@ -7,13 +7,14 @@ import { ElementsLink, Icon, PlanTabs, href } from "./bits";
 import { TypeFilter, useRememberedTypes } from "./TypeFilter";
 import { svcClass } from "../lib/serviceColour";
 import { inFinalise, waitingForClient } from "../lib/waiting";
+import { isStatutory } from "../lib/workGroups";
 import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 
 type Range = "30" | "60" | "90" | "180" | "all";
 type Line = {
   key: string; kind: "job" | "task"; row: Job | Task; deadline: string; client: string; clientKey?: string; groupKey?: string; work: string; type: string;
-  periodEnd?: string; stage?: string; planned?: string; records?: string; held: boolean; urgent: boolean; wait?: string;
+  periodEnd?: string; stage?: string; planned?: string; records?: string; held: boolean; urgent: boolean; wait?: string; statutory: boolean;
 };
 
 const monthLabel = (iso: string) => new Date(`${iso.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -47,6 +48,7 @@ export function DeadlinesView() {
         key: j.Key, kind: "job", row: j, deadline: j.Deadline, client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "", clientKey: j.ClientKey,
         work: j.Title, type: j.ServiceKey || "", periodEnd: j.PeriodEnd, stage: j.StageName ? `${j.StageNo || 1}. ${j.StageName}` : j.StageNo ? `Stage ${j.StageNo}` : "",
         planned: j.PlannedDate, records: j.RecordsReceived ? `In ${fmtDate(j.RecordsReceived, { year: false })}` : "", held: isOnHold(j), urgent: j.Priority === "urgent",
+        statutory: isStatutory(data.services.find((x) => x.Key === j.ServiceKey), j.ServiceKey),
         wait: waitingForClient(j, idx.stagesByService.get(j.ServiceKey || "") || []) ? `With the client${j.SpeakOn ? ` · speaking ${fmtDate(j.SpeakOn as string, { year: false })}` : ""}` : inFinalise(j) ? "Ready to finalise" : "",
       });
     }
@@ -54,11 +56,11 @@ export function DeadlinesView() {
       if (!t.DueDate) continue;
       out.push({
         key: t.Key, kind: "task", row: t, deadline: t.DueDate, client: (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "", clientKey: t.ClientKey || undefined, groupKey: (t.GroupKey as string) || undefined,
-        work: t.Title, type: "TASK", planned: t.PlannedDate, held: isOnHold(t), urgent: false,
+        work: t.Title, type: "TASK", planned: t.PlannedDate, held: isOnHold(t), urgent: false, statutory: false,
       });
     }
     return out.sort((a, b) => a.deadline.localeCompare(b.deadline) || a.client.localeCompare(b.client));
-  }, [idx]);
+  }, [idx, data.services]);
 
   const types = [...new Set(lines.map((l) => l.type))]
     .map((k) => [k, k === "TASK" ? "Tasks" : idx.serviceName.get(k) || k] as const)
@@ -75,8 +77,9 @@ export function DeadlinesView() {
     (!theGroup || inGroup(l.clientKey) || l.groupKey === group) &&
     (!search || `${l.client} ${l.work}`.toLowerCase().includes(search.toLowerCase())));
   const late = shown.filter((l) => l.deadline < today);
+  const dueToday = shown.filter((l) => l.deadline === today);
   const months = new Map<string, Line[]>();
-  for (const l of shown.filter((x) => x.deadline >= today)) {
+  for (const l of shown.filter((x) => x.deadline > today)) {
     const k = l.deadline.slice(0, 7);
     if (!months.has(k)) months.set(k, []);
     months.get(k)!.push(l);
@@ -85,10 +88,10 @@ export function DeadlinesView() {
   const typeText = (theGroup ? ` · ${theGroup.Title}` : "") + (chosen.length ? ` · ${chosen.map((k) => types.find(([t]) => t === k)?.[1]).join(", ")}` : "");
 
   const downloadCsv = () => {
-    const head = ["Deadline", "Client", "Work", "Type of work", "Period end", "Stage", "Planned", "Records", "Status"];
+    const head = ["Deadline", "Client", "Work", "Type of work", "Period end", "Stage", "Planned", "Records", "Kind", "Status"];
     const rows = shown.map((l) => [
       l.deadline, l.client, l.work, l.type === "TASK" ? "Task" : idx.serviceName.get(l.type) || l.type, l.periodEnd || "", l.stage || "",
-      l.planned || "", l.records || "", status(l, today).map((s) => s.text).join("; "),
+      l.planned || "", l.records || "", l.statutory ? "Statutory" : "Deadline", status(l, today).map((s) => s.text).join("; "),
     ]);
     const csv = [head, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
@@ -101,33 +104,53 @@ export function DeadlinesView() {
     window.setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
-  const table = (list: Line[]) => (
+  /** Statutory deadlines first within each date. */
+  const byDate = (list: Line[]) => {
+    const m = new Map<string, Line[]>();
+    for (const l of list) { if (!m.has(l.deadline)) m.set(l.deadline, []); m.get(l.deadline)!.push(l); }
+    return [...m.entries()].map(([d, ls]) => [d, [...ls].sort((a, b) => Number(b.statutory) - Number(a.statutory) || a.client.localeCompare(b.client))] as const);
+  };
+  const row = (l: Line) => (
+    <tr key={l.key} className="clickable" onClick={() => open(l.kind === "job" ? { kind: "job", key: l.key } : { kind: "task", key: l.key })}>
+      <td className="c-kind"><span className={`chip ${l.statutory ? "blue" : ""}`}>{l.statutory ? "Statutory" : l.kind === "task" ? "Task" : "Deadline"}</span></td>
+      <td className="c-client cell-title">
+        {l.client || "—"}
+        {l.kind === "job" && <div><ElementsLink client={idx.clientByKey.get((l.row as Job).ClientKey)} /></div>}
+      </td>
+      <td className="c-work">
+        <span className={`svc-dot ${svcClass(l.type)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />{l.work}
+        {l.periodEnd && <div className="cell-sub">Period to {fmtDate(l.periodEnd)}</div>}
+      </td>
+      <td className="c-stage">{l.stage || "—"}</td>
+      <td className="c-planned">{l.planned ? <>Planned {fmtDate(l.planned, { weekday: true, year: false })}</> : <span className="muted">Not planned</span>}</td>
+      <td className="c-records">{l.records || (l.kind === "task" ? "—" : <span className="muted">Not in</span>)}</td>
+      <td className="c-status"><span className="row-wrap" style={{ gap: 4 }}>{status(l, today).map((s) => <span key={s.text} className={`chip ${s.tone}`}>{s.text}</span>)}</span></td>
+    </tr>
+  );
+  const table = (list: Line[], dated = true) => (
     <table className="grid deadlines">
       <thead>
         <tr>
-          <th scope="col">Deadline</th><th scope="col">Client</th><th scope="col">Work</th><th scope="col">Stage</th>
+          <th scope="col">Kind</th><th scope="col">Client</th><th scope="col">Work</th><th scope="col">Stage</th>
           <th scope="col">Planned</th><th scope="col">Records</th><th scope="col">Status</th>
         </tr>
       </thead>
-      <tbody>
-        {list.map((l) => (
-          <tr key={l.key} className="clickable" onClick={() => open(l.kind === "job" ? { kind: "job", key: l.key } : { kind: "task", key: l.key })}>
-            <td className="c-date mono" style={{ whiteSpace: "nowrap" }}>{fmtDate(l.deadline, { weekday: true, year: l.deadline.slice(0, 4) !== today.slice(0, 4) })}</td>
-            <td className="c-client cell-title">
-              {l.client || "—"}
-              {l.kind === "job" && <div><ElementsLink client={idx.clientByKey.get((l.row as Job).ClientKey)} /></div>}
-            </td>
-            <td className="c-work">
-              <span className={`svc-dot ${svcClass(l.type)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />{l.work}
-              {l.periodEnd && <div className="cell-sub">Period to {fmtDate(l.periodEnd)}</div>}
-            </td>
-            <td className="c-stage">{l.stage || "—"}</td>
-            <td className="c-planned">{l.planned ? <>Planned {fmtDate(l.planned, { weekday: true, year: false })}</> : <span className="muted">Not planned</span>}</td>
-            <td className="c-records">{l.records || (l.kind === "task" ? "—" : <span className="muted">Not in</span>)}</td>
-            <td className="c-status"><span className="row-wrap" style={{ gap: 4 }}>{status(l, today).map((s) => <span key={s.text} className={`chip ${s.tone}`}>{s.text}</span>)}</span></td>
-          </tr>
-        ))}
-      </tbody>
+      {byDate(list).map(([d, ls]) => {
+        const stat = ls.filter((l) => l.statutory).length;
+        return (
+          <tbody key={d}>
+            {dated && (
+              <tr className="date-row">
+                <th scope="colgroup" colSpan={7}>
+                  <span className="mono">{fmtDate(d, { weekday: true, year: d.slice(0, 4) !== today.slice(0, 4) })}</span>
+                  <span className="muted"> · {ls.length} due{stat ? `, ${stat} statutory` : ""}</span>
+                </th>
+              </tr>
+            )}
+            {ls.map(row)}
+          </tbody>
+        );
+      })}
     </table>
   );
 
@@ -194,6 +217,17 @@ export function DeadlinesView() {
             {members.length} client{members.length === 1 ? "" : "s"} in the group. The number on each is how many deadlines it has in {rangeText}.
           </p>
         </section>
+      )}
+      {dueToday.length > 0 ? (
+        <section className="card deadline-group deadline-today" aria-labelledby="dl-today">
+          <div className="card-head">
+            <h2 id="dl-today">Due today: action needed</h2>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{dueToday.length} due{dueToday.filter((l) => l.statutory).length ? `, ${dueToday.filter((l) => l.statutory).length} statutory` : ""}</span>
+          </div>
+          <div className="table-wrap">{table(dueToday, false)}</div>
+        </section>
+      ) : (
+        <p className="muted no-print" style={{ margin: 0, fontSize: 13 }}>Nothing is due today.</p>
       )}
       {late.length > 0 && (
         <section className="card deadline-group" aria-labelledby="dl-late">

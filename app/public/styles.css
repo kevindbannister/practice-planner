@@ -3452,3 +3452,12 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
   .pk-mods::-webkit-scrollbar { display: none; }
   .pk-mods .nv-link { padding: 0 10px; font-size: 13.5px; flex: none; }
 }
+
+/* Deadlines: today is red so nobody can miss it; each date has its own header row */
+.deadline-today { border: 2px solid var(--red-solid); background: var(--red-soft); }
+.deadline-today .card-head { background: var(--red-solid); color: #fff; margin: 0; padding: 10px 16px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; }
+.deadline-today .card-head h2 { color: #fff; }
+.deadline-today table.grid tbody tr:not(.date-row) { background: var(--red-soft); }
+.deadline-today .c-kind .chip:not(.blue) { background: #fff; }
+table.deadlines .date-row th { text-align: left; background: var(--bg-soft, #f1f6fa); border-top: 1px solid var(--line); padding: 7px 14px; font-weight: 700; font-size: 13px; }
+table.deadlines .c-kind { white-space: nowrap; }
