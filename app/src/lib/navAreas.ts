@@ -5,13 +5,13 @@ export type AreaId = "run" | "deliver" | "grow";
 export interface NavArea { id: AreaId; name: string; short: string; modules: string[] }
 
 export const AREAS: NavArea[] = [
-  { id: "run", name: "Run Practice", short: "Run", modules: ["plan", "clients", "sales", "comms", "practice"] },
+  { id: "run", name: "Run Practice", short: "Run", modules: ["plan", "clients", "sales", "comms", "practice", "aml"] },
   { id: "deliver", name: "Deliver Work", short: "Deliver", modules: ["papers", "tax", "payroll", "cosec"] },
   { id: "grow", name: "Grow & Advise", short: "Grow", modules: ["reporting", "advisory"] },
 ];
 
 export const MODULE_LABELS: Record<string, string> = {
-  home: "Home", plan: "Plan", clients: "Clients", sales: "Sales", comms: "Email", practice: "Practice", papers: "Papers", tax: "Tax",
+  home: "Home", plan: "Plan", clients: "Clients", sales: "Sales", comms: "Email", practice: "Practice", aml: "AML", papers: "Papers", tax: "Tax",
   payroll: "Payroll", cosec: "Co Sec", reporting: "Reporting", advisory: "Advisory", settings: "Settings",
 };
 

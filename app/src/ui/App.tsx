@@ -33,6 +33,7 @@ import { TaxPage } from "./TaxPage";
 import { ReportingPage } from "./ReportingPage";
 import { PracticePage } from "./PracticePage";
 import { CompliancePage } from "./CompliancePage";
+import { AmlPage } from "./AmlPack";
 import { PayrollPage, setPayrollDemo } from "./Payroll";
 import { SalesPage } from "./SalesPage";
 import { CoSecPage } from "./CoSecPage";
@@ -133,6 +134,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <DevHubPage />;
   } else if (section === "practice") {
     body = <PracticePage />;
+  } else if (section === "aml") {
+    body = <AmlPage />;
   } else if (section === "compliance") {
     body = <CompliancePage />;
   } else if (section === "payroll") {
@@ -191,7 +194,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const area = AREAS.find((a) => a.id === (shown || here || picked)) || AREAS[0];
   const current = navKeyOf(section);
   const pickArea = (id: AreaId) => { setShown(id); setPicked(id); try { localStorage.setItem("pp.nav.area", id); } catch { /* fine */ } };
-  const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag" };
+  const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag" };
   const AREA_ICONS: Record<AreaId, IconName> = { run: "layout", deliver: "check", grow: "chart" };
   return (
     <header className={`topbar${two ? " two" : ""}`}>

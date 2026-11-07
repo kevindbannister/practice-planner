@@ -231,6 +231,7 @@ function Aml({ clients, today, name }: { clients: Row[]; today: string; name: (k
   void position;
   return (
     <Panel title="AML across the practice">
+      <p className="muted" style={{ margin: 0 }}>The practice's own AML policies, risk assessment, registers and forms are in <a href={href("aml")}>AML</a>.</p>
       <label className="field" style={{ maxWidth: 260 }}><span>Show</span><select className="input" value={f} onChange={(e) => setF(e.target.value)}><option value="gaps">Gaps (none, declined or overdue)</option><option value="soon">Review due soon</option><option value="high">High risk</option><option value="all">Everyone</option></select></label>
       <p className="muted" style={{ margin: 0 }}>{shown.length} of {rows.length} active clients</p>
       <table style={{ width: "100%", display: "block", overflowX: "auto" }}><tbody>{shown.map((r) => (
