@@ -68,7 +68,7 @@ export function returnLive(c: LiveCtx): Live {
   if (id.length) ob.push("Adverse media checks");
   set("onboard", ob, "the due diligence step in the policy builder");
 
-  if (c.policy.high && c.policy.medium) set("monitor", "Varies by risk", `reviews every ${s(c.policy.high)} for high risk and ${s(c.policy.medium)} for medium`);
+  if (c.policy.mHigh && c.policy.mMed) set("monitor", s(c.policy.mHigh) === s(c.policy.mMed) ? (Number(c.policy.mHigh) <= 12 ? "6-12 months" : "1-2 years") : "Varies by risk", `reviews every ${s(c.policy.mHigh)} months for high risk and every ${s(c.policy.mMed)} for medium`);
   if (c.policy.independent || c.policy.extraReview) set("independent", c.policy.independent || c.policy.extraReview === "yes" ? "Yes" : "No", "the MLRO report and independent review step in the policy builder");
   return out;
 }

@@ -27,9 +27,9 @@ test("questions follow the answers, and suggestions never overwrite what the per
   assert.ok(b.shown(step, { deputy: "yes" }).some((q) => q.k === "deputyName"));
   const out = b.withSuggestions(step, { mlro: "Kim", mlroSkills: "Mine" });
   assert.equal(out.mlroSkills, "Mine");
-  const out2 = b.withSuggestions(b.stepById("monitor")!, { high: "3 months" });
-  assert.equal(out2.high, "3 months");
-  assert.equal(out2.medium, "12 months");
+  const out2 = b.withSuggestions(b.stepById("monitor")!, { mHigh: "3" });
+  assert.equal(out2.mHigh, "3");
+  assert.equal(out2.mMed, "12");
 });
 
 test("service controls come from the services ticked, once each", () => {

@@ -3,6 +3,9 @@
 // that saves as you type and exports to Word or PDF. The suspicious activity forms are only printed blank, never stored. See lib/amlPack.ts.
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import * as bld from "../lib/amlBuilder";
+import { lastApprovedAt, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
+import { position } from "../lib/amlAssessment";
+import { readAml, readOnboardingSettings } from "../lib/onboarding";
 import * as p from "../lib/amlPack";
 import { returnLive, Live } from "../lib/amlReturn";
 import { DOCX_TYPE } from "../lib/docx";
@@ -280,10 +283,34 @@ function Overview() {
   const regRows = ((a.storeOf("registrations").records[0]?.values.items || []) as Record<string, string>[]).filter((r) => r.item);
   const regOpen = regRows.filter((r) => r.status !== "Done" && r.status !== "Not needed");
   const regLate = regRows.filter((r) => r.next && r.next < today);
+  const rpolicy = readReviewPolicy(a.data.settings, readOnboardingSettings(a.data.settings).amlMonths);
+  const needed: { key: string; name: string; why: string; chip: string }[] = [];
+  for (const cl of (a.data.clients as Row[]).filter((c) => !c.CeasedOn)) {
+    const pos = position(cl, a.data.amlAssessments, a.data.onboardings, today);
+    const trig = triggerOf(pos.row);
+    const seen = trig ? [] : seenTriggers(cl, a.data as never, rpolicy, lastApprovedAt(cl, a.data.amlAssessments, a.data.onboardings, readAml));
+    const name = String(cl.Title || cl.Key);
+    if (trig) needed.push({ key: `t${cl.Key}`, name, why: `Triggered: ${trig.label}${trig.due ? `, due ${fmt(trig.due)}` : ""}${trig.due && trig.due < today ? " (overdue)" : ""}`, chip: trig.due && trig.due < today ? "red" : "amber" });
+    else if (seen.length) needed.push({ key: `s${cl.Key}`, name, why: `${seen[0].label} on ${fmt(seen[0].at)}. A review has not been opened`, chip: "amber" });
+    if (pos.state === "overdue") needed.push({ key: `o${cl.Key}`, name, why: `Scheduled review overdue since ${fmt(pos.reviewDate)}`, chip: "red" });
+    else if (pos.state === "soon") needed.push({ key: `d${cl.Key}`, name, why: `Scheduled review due ${fmt(pos.reviewDate)}`, chip: "amber" });
+    else if (pos.state === "none") needed.push({ key: `n${cl.Key}`, name, why: "No AML assessment yet", chip: "red" });
+  }
+  needed.sort((x, y) => (x.chip === y.chip ? x.name.localeCompare(y.name) : x.chip === "red" ? -1 : 1));
   const tone = (st: p.Standing) => (st === "overdue" ? "red" : st === "soon" || st === "draft" ? "amber" : st === "ok" ? "green" : "");
   return (
     <>
       <div className="page-head"><div><h1>AML</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 760 }}>The practice's own anti-money-laundering records, in one place. Everything is based on your own draft documents: check it, complete it and approve it before relying on it as evidence. Nothing here is sent anywhere.</p></div></div>
+      <section className="card pad stack" aria-label="Client reviews needed">
+        <div className="card-title-row"><h2 className="sec-h">Client reviews needed</h2><span className={`chip ${needed.length ? (needed.some((x) => x.chip === "red") ? "red" : "amber") : "green"}`}>{needed.length ? `${needed.length} to do` : "None"}</span></div>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>Clients with a scheduled review due or overdue, a review opened by a trigger, a change your policy says should prompt one, or no assessment yet. Review periods and triggers come from your policy's monitoring step.</p>
+        {needed.length === 0 ? <p style={{ margin: 0 }}>Every client's review is up to date.</p> : (
+          <div role="list" className="stack" style={{ gap: 6 }}>
+            {needed.slice(0, 40).map((x) => <div role="listitem" key={x.key} className="row-wrap" style={{ justifyContent: "space-between", gap: 10 }}><span><a href={href("clients", x.key.slice(1), "aml")}>{x.name}</a>. {x.why}</span><span className={`chip ${x.chip}`}>{x.chip === "red" ? "Act" : "Soon"}</span></div>)}
+            {needed.length > 40 && <span className="muted">And {needed.length - 40} more.</span>}
+          </div>
+        )}
+      </section>
       <section className="card pad stack" aria-label="Where things stand">
         <h2 className="sec-h">Where things stand</h2>
         <div role="list" className="stack" style={{ gap: 8 }}>

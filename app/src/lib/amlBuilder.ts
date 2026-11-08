@@ -4,6 +4,7 @@
 // each section must say what this firm really does, so every section has to be confirmed by the person who answers it, and anything
 // unanswered shows as a gap. Nothing here is legal advice, and a built policy is not evidence that a control has been carried out.
 import { Block } from "./amlPack";
+import { TRIGGER_KINDS } from "./amlReview";
 
 export type Answers = Record<string, string | string[]>;
 export type Opt = { v: string; label: string; /** Where the person can read the source. */ url?: string };
@@ -286,23 +287,30 @@ export const STEPS: Step[] = [
     },
   },
   {
-    id: "monitor", title: "Ongoing monitoring", covers: "Ongoing monitoring",
-    intro: "How often each client is reviewed, what the review checks, and what makes the firm review a client sooner.",
+    id: "monitor", title: "Ongoing monitoring", covers: "Ongoing monitoring: how often each client is reviewed, and what makes a review happen sooner",
+    intro: "You set how often each risk level is reviewed, and what makes the firm review a client straight away. The planner uses your review periods to set each client's review date when their AML is approved, and your triggers to open a review when one happens.",
     questions: [
-      { k: "high", label: "Review high-risk clients every", type: "one", need: true, options: o(["3 months", "3 months"], ["6 months", "6 months"], ["12 months", "12 months"]), suggest: "6 months", source: "ACCA's example: high-risk clients every six months, medium and low every 12 months." },
-      { k: "medium", label: "Review medium-risk clients every", type: "one", need: true, options: o(["12 months", "12 months"], ["24 months", "24 months"]), suggest: "12 months" },
-      { k: "low", label: "Review low-risk clients every", type: "one", options: o(["12 months", "12 months"], ["24 months", "24 months"]), suggest: "12 months", show: (a) => a.lowUse === "rare" },
+      { k: "mHigh", label: "Review high-risk clients at least every (months)", type: "number", need: true, suggest: "6", source: "ACCA's example policy: high-risk clients every six months, medium and low every twelve. That is an example. Your frequency must be justified by your own risk assessment, and you must then follow it.", help: "A whole number of months. This sets the review date on each high-risk client." },
+      { k: "mMed", label: "Review medium-risk clients at least every (months)", type: "number", need: true, suggest: "12", help: "A whole number of months." },
+      { k: "mLow", label: "Review low-risk clients at least every (months)", type: "number", show: (a) => a.lowUse === "rare", need: true, suggest: "12", help: "Only asked because you said some clients are rated low risk." },
       { k: "checks", label: "What does a review check?", type: "many", need: true, options: o(["id", "Identification and address are still valid"], ["psc", "No discrepancies on the PSC register"], ["owners", "Directors, owners and controllers are unchanged"], ["turnover", "Turnover and activity are in line with what we expect"], ["screen", "Sanctions, PEP and adverse information are rechecked"], ["services", "The services and the risk rating are still right"]), suggest: ["id", "psc", "owners", "turnover", "screen", "services"] },
-      { k: "triggers", label: "What makes you review a client immediately?", type: "many", need: true, options: o(["identity", "A change in the client's identity"], ["owners", "A change in beneficial ownership"], ["service", "A change in the service provided"], ["inconsistent", "Information that doesn't fit what we know about the client"], ["unusual", "Unusual or unexplained activity"], ["adverse", "Adverse news, a sanctions alert or a PEP match"], ["bank", "A change to bank details or payment instructions"]), suggest: ["identity", "owners", "service", "inconsistent", "unusual", "adverse"] },
+      { k: "triggers", label: "What makes you review a client straight away, without waiting for the next date?", type: "many", need: true, options: TRIGGER_KINDS.map((t) => ({ v: t.v, label: t.label })), suggest: TRIGGER_KINDS.map((t) => t.v), help: "Changes to directors, owners and persons with significant control, and new services, are spotted by the planner. The rest are raised by a person on the client's AML record.", source: "The CCAB guidance for the accountancy sector expects ongoing monitoring to include scrutiny of activity and keeping due diligence up to date, with reviews prompted by changes in risk." },
+      { k: "triggerOwn", label: "Any other triggers specific to your clients?", type: "long", placeholder: "For example a client who changes the nature of their business quickly" },
+      { k: "triggerDays", label: "How many days do you allow to complete a triggered review?", type: "number", need: true, suggest: "14", help: "The review is given this due date when it is opened. The more serious the trigger, the shorter it should be." },
     ],
-    write: (a) => join([
-      "## Ongoing monitoring policy",
-      `The MLRO schedules and records ongoing reviews. High-risk clients are reviewed every ${need(a, "high", "how often high-risk clients are reviewed")}, medium-risk clients every ${need(a, "medium", "how often medium-risk clients are reviewed")}${a.lowUse === "rare" ? `, and low-risk clients every ${need(a, "low", "how often low-risk clients are reviewed")}` : ""}. A review ensures that the due diligence information is still relevant and up to date. It checks:`,
-      arr(a, "checks").length ? list(arr(a, "checks").map((c) => labelOf(STEPS[7].questions[3], c))) : GAP("what a review checks"),
-      "Even if nothing has changed, the review is recorded on the ongoing client review form.",
-      "Events that prompt an immediate review:",
-      arr(a, "triggers").length ? list(arr(a, "triggers").map((c) => labelOf(STEPS[7].questions[4], c))) : GAP("what prompts an immediate review"),
-    ]),
+    write: (a) => {
+      const num = (k: string, label: string) => (/^\d+/.test(str(a, k)) ? String(parseInt(str(a, k), 10)) : GAP(label));
+      return join([
+        "## Ongoing monitoring policy",
+        `The MLRO schedules and records ongoing reviews of every client. Reviews are set by risk rating: high-risk clients at least every ${num("mHigh", "months between high-risk reviews")} months, medium-risk clients at least every ${num("mMed", "months between medium-risk reviews")} months${a.lowUse === "rare" ? `, and low-risk clients at least every ${num("mLow", "months between low-risk reviews")} months` : ""}. The next review date is set when a client's assessment is approved and is recorded on the client's AML record. A review ensures that the due diligence information is still relevant and up to date. It checks:`,
+        arr(a, "checks").length ? list(arr(a, "checks").map((c) => labelOf(STEPS[7].questions[3], c))) : GAP("what a review checks"),
+        "Even if nothing has changed, the review is recorded, with the date and the next review date.",
+        "## Review triggers",
+        "A client is also reviewed straight away, without waiting for the next scheduled date, when any of the following happens:",
+        arr(a, "triggers").length || str(a, "triggerOwn") ? list([...arr(a, "triggers").map((c) => labelOf(STEPS[7].questions[4], c)), ...str(a, "triggerOwn").split(/\n+/).map((x) => x.trim()).filter(Boolean)]) : GAP("what prompts an immediate review"),
+        `When a trigger happens, a review is opened on the client's AML record with a due date. It must be completed within ${num("triggerDays", "days allowed to complete a triggered review")} days. The review looks at what changed, whether the risk rating is still right and whether extra due diligence is needed, and ends with a new approved assessment and a new next review date. Details of any suspicion are not recorded in the review: they go to the MLRO under the suspicious activity reporting procedure.`,
+      ]);
+    },
   },
   {
     id: "sanctions", title: "Sanctions screening", covers: "Sanctions screening",

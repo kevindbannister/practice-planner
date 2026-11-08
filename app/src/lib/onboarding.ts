@@ -2,6 +2,7 @@
 // Pure logic, like sales.ts, proposals.ts and engagements.ts. Onboarding is its own workflow with its own record and
 // stages, not a recurring job. Collecting identity documents is kept apart from verifying and approving the AML work,
 // and a client can only be activated once the mandatory controls are met.
+import { policyMonths } from "./amlPolicy";
 import { Config, Role, staffRole } from "./checklist";
 import { Agreed, readAgreed, isInForce, coverageGaps, asEng } from "./engagements";
 import { CatalogueService, ClientType, ProposalAction, clientTypeFor, proposalCan, typeLabel } from "./proposals";
@@ -38,6 +39,12 @@ export const DEFAULT_AML_MONTHS: AmlMonths = { low: 36, medium: 24, high: 12 };
 export const DEFAULT_ONBOARDING_SETTINGS: OnboardingSettings = { stages: DEFAULT_STAGES, amlMonths: DEFAULT_AML_MONTHS };
 
 export function readOnboardingSettings(settings: Row[]): OnboardingSettings {
+  const base = readOnboardingStored(settings);
+  const pm = policyMonths(settings);
+  return { ...base, amlMonths: { low: pm.low ?? base.amlMonths.low, medium: pm.medium ?? base.amlMonths.medium, high: pm.high ?? base.amlMonths.high } };
+}
+
+function readOnboardingStored(settings: Row[]): OnboardingSettings {
   const row = settings.find((r) => r.Key === "onboarding.settings");
   if (!row?.Value) return DEFAULT_ONBOARDING_SETTINGS;
   let o: any;

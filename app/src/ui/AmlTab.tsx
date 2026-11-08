@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
 import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
-import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan } from "../lib/onboarding";
+import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
+import { TRIGGER_KINDS, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
 import { clientFolder } from "../lib/comms";
 import { clientTypeFor } from "../lib/proposals";
 import { readOnboardingSettings } from "../lib/onboarding";
@@ -25,12 +26,18 @@ export function AmlTab({ client }: { client: Client }) {
   const mine = data.amlAssessments.filter((r) => r.ClientKey === client.Key).sort((a, b) => String(b.Created).localeCompare(String(a.Created)));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [rk, setRk] = useState("");
+  const [rwhy, setRwhy] = useState("");
   const canEdit = s.pcan("edit");
   const xama = amlLabel(client.XamaStatus);
   const clientRow = () => data.clients.find((c) => c.Key === client.Key) as unknown as Row;
 
   const go = async (w: ReturnType<typeof startAssessment>) => { setError(""); if ("error" in w) return setError(w.error); setBusy(true); try { await s.apply(w); } catch { setError("Couldn't save that. Try again."); } finally { setBusy(false); } };
   const open = pos.row;
+  const policy = readReviewPolicy(data.settings, settings.amlMonths);
+  const trig = triggerOf(open);
+  const seen = trig ? [] : seenTriggers(clientRow(), data as never, policy, lastApprovedAt(clientRow(), data.amlAssessments, data.onboardings, readAml));
+  const raise = (kind: string, why: string) => go(raiseReview(clientRow(), data.amlAssessments, kind, why, policy.triggerDays, today, s.pcan as never, s.ctx()));
   return (
     <div className="stack">
       <section className="card pad stack" aria-label="AML status">
@@ -41,6 +48,35 @@ export function AmlTab({ client }: { client: Client }) {
         {pos.source && <div className="kv"><span>Source</span><span>{pos.source === "onboarding" ? "Approved during onboarding" : pos.source === "client record" ? "Review date on the client record only" : "Recorded here"}</span></div>}
         {error && <p className="error-text" role="alert">{error}</p>}
         {!open && canEdit && <div><button type="button" className="btn primary" disabled={busy} onClick={() => void go(startAssessment(clientRow(), data.amlAssessments, s.ctx()))}>{pos.current || pos.source === "onboarding" || pos.source === "client record" ? "Start a review" : "Start an assessment"}</button></div>}
+      </section>
+
+      <section className="card pad stack" aria-label="Review triggers">
+        <h2 className="sec-h">Reviews outside the schedule</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+          {policy.fromPolicy ? `Your policy reviews high-risk clients every ${policy.high} months, medium every ${policy.medium}${policy.low ? ` and low every ${policy.low}` : ""}.` : "Your policy hasn't set review periods yet, so the Settings values are used."} A review is also opened when something happens that your policy lists as a trigger, due within {policy.triggerDays} days.
+        </p>
+        {trig && (
+          <div className="warn" role="status">
+            <strong>Review triggered: {trig.label}.</strong> Raised {trig.raised ? fmtDate(trig.raised) : "—"}, due {trig.due ? fmtDate(trig.due) : "—"}{trig.due && trig.due < today ? ", overdue" : ""}.
+            {trig.reason && <div style={{ whiteSpace: "pre-wrap" }}>{trig.reason}</div>}
+          </div>
+        )}
+        {seen.map((t, i) => (
+          <div key={i} className="row-wrap" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <span><strong>{t.label}</strong> on {fmtDate(t.at)}. {t.detail}</span>
+            {canEdit && <button type="button" className="btn small primary" disabled={busy} onClick={() => void raise(t.kind, t.detail)}>Open a review</button>}
+          </div>
+        ))}
+        {canEdit && pos.state !== "none" && (
+          <div className="inline-form">
+            <select className="input" aria-label="What happened" value={rk} onChange={(e) => setRk(e.target.value)}>
+              <option value="">What happened?</option>
+              {TRIGGER_KINDS.filter((t) => policy.triggers.includes(t.v)).map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
+            </select>
+            <input className="input" aria-label="Short description" placeholder="In a line. Don't record details of a suspicion" value={rwhy} onChange={(e) => setRwhy(e.target.value)} />
+            <button type="button" className="btn small" disabled={busy || !rk} onClick={() => void raise(rk, rwhy).then(() => { setRk(""); setRwhy(""); })}>Open a review</button>
+          </div>
+        )}
       </section>
 
       {open && <Editor client={client} row={open} all={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} today={today} s={s} clientRow={clientRow()} />}
@@ -63,7 +99,7 @@ export function AmlTab({ client }: { client: Client }) {
           {mine.filter((r) => asStatus(r.Status) === "approved").map((r) => <WithdrawRow key={String(r.Key)} row={r} s={s} clientRow={clientRow()} onGo={go} />)}
         </section>
       )}
-      <p className="muted" style={{ fontSize: 12, margin: 0 }}>Review periods for each risk rating are set in <a href={href("settings", "onboarding")}>Settings › Onboarding</a>. {onboardingCan(s.cfg, s.me, "approve") ? "" : "Approving AML work needs a manager or partner."}</p>
+      <p className="muted" style={{ fontSize: 12, margin: 0 }}>Review periods and triggers come from your <a href={href("aml", "policies")}>AML policy</a> (monitoring step). {onboardingCan(s.cfg, s.me, "approve") ? "" : "Approving AML work needs a manager or partner."}</p>
     </div>
   );
 }

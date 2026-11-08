@@ -1,4 +1,5 @@
 // Settings › Onboarding: which stages the practice uses, which are required, and how long AML approval lasts by risk.
+import { policyMonths } from "../lib/amlPolicy";
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_STAGES, FIXED_MANDATORY, OnboardingSettings, onboardingCan, readOnboardingSettings } from "../lib/onboarding";
 import { readFeeSettings } from "../lib/fees";
@@ -8,6 +9,7 @@ import { useSales } from "./salesKit";
 export function OnboardingSettingsPage() {
   const s = useSales();
   const { data, saveSetting } = useData();
+  const pm = policyMonths(data.settings);
   const current = useMemo(() => readOnboardingSettings(data.settings), [data.settings]);
   const [draft, setDraft] = useState<OnboardingSettings>(current);
   const [msg, setMsg] = useState<{ ok: boolean; text: string }>();
@@ -51,9 +53,9 @@ export function OnboardingSettingsPage() {
       </section>
       <section className="card pad stack" aria-label="AML re-verification">
         <h2 className="sec-h">AML re-verification</h2>
-        <p className="muted" style={{ margin: 0 }}>When AML is approved, the client's AML review date is set this many months ahead, by risk rating. Set these to match your own AML policy.</p>
+        <p className="muted" style={{ margin: 0 }}>When AML is approved, the client's AML review date is set this many months ahead, by risk rating. Your AML policy sets these: change them in its monitoring step. If the policy has not set them yet, these values are used.</p>
         <div className="row-wrap">
-          {(["low", "medium", "high"] as const).map((k) => <label key={k} className="doc-field"><span>{k[0].toUpperCase() + k.slice(1)} risk (months)</span><input className="input" type="number" min={1} max={120} disabled={!allowed} value={draft.amlMonths[k]} onChange={(e) => months(k, e.target.value)} /></label>)}
+          {(["low", "medium", "high"] as const).map((k) => <label key={k} className="doc-field"><span>{k[0].toUpperCase() + k.slice(1)} risk (months)</span><input className="input" type="number" min={1} max={120} disabled={!allowed || !!pm[k]} value={draft.amlMonths[k]} onChange={(e) => months(k, e.target.value)} /></label>)}
         </div>
       </section>
       <section className="card pad stack" aria-label="Fee schedules">
