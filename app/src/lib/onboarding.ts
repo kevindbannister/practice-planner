@@ -72,7 +72,7 @@ export type Check = { id: string; kind: string; result: "pass" | "fail" | "pendi
 export type Owner = { name: string; percent: number | null; note: string };
 export type Aml = { status: "notstarted" | "inprogress" | "approved" | "declined"; risk: Risk; riskBasis: string; owners: Owner[]; noOwnerNote: string; checks: Check[]; preparedBy: string; approvedBy: string; approvedAt: string; reviewDate: string; declinedReason: string };
 export const EMPTY_AML: Aml = { status: "notstarted", risk: "", riskBasis: "", owners: [], noOwnerNote: "", checks: [], preparedBy: "", approvedBy: "", approvedAt: "", reviewDate: "", declinedReason: "" };
-export const CHECK_KINDS = ["Identity verified", "Address verified", "Sanctions and PEP screening", "Companies House / registry check", "Source of funds or wealth", "Specialist AML provider", "Other"];
+export const CHECK_KINDS = ["Identity verified", "Address verified", "Beneficial owners or PSCs confirmed", "Sanctions and PEP screening", "Companies House / registry check", "Companies House discrepancy reported", "Source of funds or wealth", "Specialist AML provider", "Other"];
 export function readAml(v: unknown): Aml {
   try {
     const o = JSON.parse(str(v) || "{}");

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { POSITION_LABEL, position, startAssessment } from "../lib/amlAssessment";
 import { lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
+import { idCheckedOn } from "../lib/amlTimeline";
 import { fmtDate, todayIso } from "../lib/domain";
 import { readAml, readOnboardingSettings } from "../lib/onboarding";
 import { Row } from "../lib/schema";
@@ -12,7 +13,7 @@ import { useSales } from "./salesKit";
 
 type Item = {
   key: string; name: string; risk: string; doneOn: string; next: string; days: number | null; state: string; label: string; chip: string;
-  trigger: string; due: string; late: boolean; seen: string; seenKind: string; period: string; needs: boolean; sort: string;
+  idOn: string; trigger: string; due: string; late: boolean; seen: string; seenKind: string; period: string; needs: boolean; sort: string;
 };
 const RISK: Record<string, string> = { low: "Low", medium: "Medium", high: "High", "": "Not assessed" };
 const FILTERS: [string, string][] = [["all", "All"], ["action", "Needs action"], ["triggered", "Triggered"], ["overdue", "Overdue"], ["soon", "Due soon"], ["none", "No assessment"], ["progress", "In progress"], ["current", "Up to date"]];
@@ -43,7 +44,7 @@ export function AmlClients() {
       out.push({
         key: String(cl.Key), name: String(cl.Title || cl.Key), risk: pos.risk, doneOn: pos.doneOn, next: pos.reviewDate, days: pos.daysToReview, state,
         label: trig ? "Review triggered" : POSITION_LABEL[pos.state], chip: late || pos.state === "overdue" || pos.state === "none" || pos.state === "declined" ? "red" : trig || pos.state === "soon" || pos.state === "inprogress" || seen.length ? "amber" : "green",
-        trigger: trig ? trig.label : "", due: trig?.due || "", late, seen: seen[0] ? `${seen[0].label} on ${fmtDate(seen[0].at)}` : "", seenKind: seen[0]?.kind || "", period: months ? `${months} months` : "",
+        idOn: idCheckedOn(String(cl.Key), data.amlAssessments, data.onboardings), trigger: trig ? trig.label : "", due: trig?.due || "", late, seen: seen[0] ? `${seen[0].label} on ${fmtDate(seen[0].at)}` : "", seenKind: seen[0]?.kind || "", period: months ? `${months} months` : "",
         needs, sort: `${late || pos.state === "overdue" ? "0" : pos.state === "none" || pos.state === "declined" ? "1" : trig || seen.length ? "2" : pos.state === "soon" ? "3" : pos.state === "inprogress" ? "4" : "5"}${pos.reviewDate || "9999"}${String(cl.Title)}`,
       });
     }
@@ -63,8 +64,8 @@ export function AmlClients() {
   const open = (i: Item) => (i.seenKind ? run(i.key, raiseReview(clientRow(i.key), data.amlAssessments, i.seenKind, i.seen, policy.triggerDays, today, s.pcan as never, s.ctx())) : run(i.key, startAssessment(clientRow(i.key), data.amlAssessments, s.ctx())));
 
   const csv = () => {
-    const head = ["Client", "Risk", "Status", "Last done", "Next review", "Review period", "Trigger", "Trigger due", "Change seen, no review opened"];
-    const rows = shown.map((i) => [i.name, RISK[i.risk], i.label, i.doneOn, i.next, i.period, i.trigger, i.due, i.seen]);
+    const head = ["Client", "Risk", "Status", "Last done", "ID last checked", "Next review", "Review period", "Trigger", "Trigger due", "Change seen, no review opened"];
+    const rows = shown.map((i) => [i.name, RISK[i.risk], i.label, i.doneOn, i.idOn, i.next, i.period, i.trigger, i.due, i.seen]);
     const text = [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob(["﻿" + text], { type: "text/csv" }));
     const a = document.createElement("a"); a.href = url; a.download = `AML-client-tracker-${today}.csv`; document.body.appendChild(a); a.click(); a.remove();
@@ -91,7 +92,7 @@ export function AmlClients() {
       <section className="card pad" aria-label="Clients" style={{ overflowX: "auto" }}>
         {shown.length === 0 ? <p style={{ margin: 0 }}>No clients match.</p> : (
           <table className="table">
-            <thead><tr><th scope="col">Client</th><th scope="col">Risk</th><th scope="col">Status</th><th scope="col">Last done</th><th scope="col">Next review</th><th scope="col">Trigger</th><th scope="col"><span className="sr-only">Action</span></th></tr></thead>
+            <thead><tr><th scope="col">Client</th><th scope="col">Risk</th><th scope="col">Status</th><th scope="col">Last done</th><th scope="col">ID checked</th><th scope="col">Next review</th><th scope="col">Trigger</th><th scope="col"><span className="sr-only">Action</span></th></tr></thead>
             <tbody>
               {shown.map((i) => (
                 <tr key={i.key}>
@@ -99,6 +100,7 @@ export function AmlClients() {
                   <td>{RISK[i.risk]}{i.period && <div className="muted" style={{ fontSize: 12 }}>every {i.period}</div>}</td>
                   <td><span className={`chip ${i.chip}`}>{i.label}</span></td>
                   <td>{i.doneOn ? fmtDate(i.doneOn) : "—"}</td>
+                  <td>{i.idOn ? fmtDate(i.idOn) : "—"}</td>
                   <td style={i.state === "overdue" ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : undefined}>{i.next ? fmtDate(i.next) : "—"}{i.days !== null && i.days < 0 ? <div style={{ fontSize: 12 }}>{-i.days} days overdue</div> : i.days !== null && i.days <= 60 ? <div className="muted" style={{ fontSize: 12 }}>in {i.days} days</div> : null}</td>
                   <td>{i.trigger ? <><strong>{i.trigger}</strong><div className={i.late ? "" : "muted"} style={{ fontSize: 12, ...(i.late ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : {}) }}>due {i.due ? fmtDate(i.due) : "—"}{i.late ? ", overdue" : ""}</div></> : i.seen ? <span style={{ color: "var(--amber-ink)" }}>{i.seen}. No review opened</span> : "—"}</td>
                   <td>{s.pcan("edit") && !i.trigger && (i.seen || i.state === "overdue" || i.state === "soon") && <button type="button" className="btn small" disabled={busy === i.key} onClick={() => void open(i)}>Open a review</button>}</td>

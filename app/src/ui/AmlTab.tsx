@@ -5,6 +5,7 @@ import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
 import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
 import { TRIGGER_KINDS, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
+import { timeline } from "../lib/amlTimeline";
 import { clientFolder } from "../lib/comms";
 import { clientTypeFor } from "../lib/proposals";
 import { readOnboardingSettings } from "../lib/onboarding";
@@ -86,6 +87,15 @@ export function AmlTab({ client }: { client: Client }) {
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Identity verification through Xama is kept separate from the manual assessment above. Either can be the record you rely on.</p>
         <XamaClientPanel client={client} />
       </section>
+
+      {(() => { const tl = timeline(client.Key, data.amlAssessments, data.onboardings); return tl.length > 0 && (
+        <section className="card pad stack" aria-label="AML timeline">
+          <h2 className="sec-h">Timeline</h2>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Every check and review for this client, newest first. It is read from the reviews, so to add or correct an entry, edit the check's date in a review.</p>
+          <table className="table"><thead><tr><th scope="col">Date</th><th scope="col">What</th><th scope="col">Result</th><th scope="col">Note</th><th scope="col">By</th><th scope="col">From</th></tr></thead>
+            <tbody>{tl.map((e, i) => <tr key={i}><td>{e.date ? fmtDate(e.date) : "—"}</td><td>{e.title}</td><td>{e.result === "pass" ? "Passed" : e.result === "fail" ? "Failed" : "Pending"}</td><td>{e.note}</td><td>{e.by}</td><td>{e.where}</td></tr>)}</tbody></table>
+        </section>
+      ); })()}
 
       {mine.some((r) => !open || r.Key !== open.Key) && (
         <section className="card pad stack" aria-label="Earlier assessments">
@@ -180,12 +190,14 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
 
         <div className="stack" style={{ gap: 6 }}>
           <strong>Checks</strong>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Each check has its own date. It starts as today. Change it to the real date when you are recording something done earlier or in another system.</p>
           {checks.map((c, i) => (
             <div className="inline-form" key={c.id || i}>
               <select className="input" aria-label="Kind of check" value={c.kind} onChange={(e) => setCheck(i, { kind: e.target.value })}>{CHECK_KINDS.map((k) => <option key={k}>{k}</option>)}</select>
               <select className="input" aria-label="Result" value={c.result} onChange={(e) => setCheck(i, { result: e.target.value as Check["result"] })}><option value="pending">Pending</option><option value="pass">Passed</option><option value="fail">Failed</option></select>
               <input className="input" aria-label="Check note" placeholder="Evidence or note" value={c.note} onChange={(e) => setCheck(i, { note: e.target.value })} />
-              {c.by && <span className="muted">{c.by}{c.at ? `, ${fmtDate(c.at.slice(0, 10))}` : ""}</span>}
+              <input className="input" type="date" aria-label="Date of check" max={todayIso()} value={c.at ? c.at.slice(0, 10) : todayIso()} onChange={(e) => setCheck(i, { at: e.target.value })} />
+              {c.by && <span className="muted">{c.by}</span>}
               <button type="button" className="linkbtn danger-link" onClick={() => setChecks(checks.filter((_, j) => j !== i))}>Remove</button>
             </div>
           ))}
