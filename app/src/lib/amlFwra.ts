@@ -18,7 +18,12 @@ const HIGH_SERVICES: Record<string, string> = {
 
 const CLIENT_TYPES = o(["individuals", "Individuals and sole traders"], ["companies", "Limited companies"], ["partnerships", "Partnerships and LLPs"], ["landlords", "Landlords"], ["charities", "Charities and community groups"], ["trusts", "Trusts"]);
 const CLIENT_CTRL = o(["cdd", "Identify and verify the client and its beneficial owners before work starts"], ["rate", "Give every client a documented risk rating"], ["edd", "Apply enhanced due diligence to high-risk clients"], ["screen", "Screen for sanctions, PEP status and adverse information"], ["review", "Review clients periodically and when something changes"], ["train", "Train everyone who works on client files"]);
-const GEO_SOURCES = o(["hmt", "HM Treasury's high-risk third countries advisory notice"], ["fatf", "FATF's list of high-risk jurisdictions"], ["sanctions", "The UK Sanctions List"], ["cpi", "Transparency International's Corruption Perceptions Index"]);
+const GEO_SOURCES: Opt[] = [
+  { v: "hmt", label: "HM Treasury's high-risk third countries advisory notice", url: "https://www.gov.uk/government/publications/money-laundering-advisory-notice-high-risk-third-countries--2" },
+  { v: "fatf", label: "FATF's lists of high-risk and monitored jurisdictions", url: "https://www.fatf-gafi.org/en/countries/black-and-grey-lists.html" },
+  { v: "sanctions", label: "The UK Sanctions List", url: "https://www.gov.uk/government/publications/the-uk-sanctions-list" },
+  { v: "cpi", label: "Transparency International's Corruption Perceptions Index", url: "https://www.transparency.org/en/cpi" },
+];
 const SVC_CTRL = o(["accept", "Engagement acceptance and a client risk assessment before work"], ["owners", "Verify ownership, PSC and purpose for company services"], ["records", "Reconcile records to source documents and investigate unsupported entries"], ["payroll", "Check payroll changes and payment instructions through a second channel"], ["escalate", "Escalate unusual tax or company formation requests to the MLRO"], ["nominee", "Not act as a nominee or take control of client assets unless separately assessed and approved"], ["train", "Staff training covers the risks of these services"]);
 const CHAN_CTRL = o(["video", "Video meetings before acceptance"], ["eid", "Electronic identity verification"], ["contact", "Check the client controls the email and phone given"], ["docs", "Additional documents for clients not met in person"], ["resolve", "Resolve any discrepancy before accepting the client"], ["access", "Restrict access to client files and review access"]);
 

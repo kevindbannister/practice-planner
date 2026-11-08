@@ -6,7 +6,7 @@
 import { Block } from "./amlPack";
 
 export type Answers = Record<string, string | string[]>;
-export type Opt = { v: string; label: string };
+export type Opt = { v: string; label: string; /** Where the person can read the source. */ url?: string };
 export type Q = {
   k: string; label: string; type: "one" | "many" | "text" | "long" | "date" | "number";
   options?: Opt[];
@@ -15,6 +15,8 @@ export type Q = {
   help?: string;
   /** Where the question comes from, so the person can see it isn't ours. */
   source?: string;
+  /** Pages worth reading before answering. */
+  links?: { label: string; url: string }[];
   /** Needed before the section can be called complete. */
   need?: boolean;
   show?: (a: Answers) => boolean;
@@ -306,7 +308,7 @@ export const STEPS: Step[] = [
     id: "sanctions", title: "Sanctions screening", covers: "Sanctions screening",
     intro: "The firm must comply with UK sanctions. ACCA asks how the firm checks the lists, when, who is covered, and what happens when there is a match.",
     questions: [
-      { k: "method", label: "How do you check?", type: "one", need: true, options: o(["manual", "Search the UK Sanctions List on GOV.UK myself"], ["tool", "A screening service"]) },
+      { k: "method", label: "How do you check?", type: "one", need: true, links: [{ label: "The UK Sanctions List (GOV.UK)", url: "https://www.gov.uk/government/publications/the-uk-sanctions-list" }], options: o(["manual", "Search the UK Sanctions List on GOV.UK myself"], ["tool", "A screening service"]) },
       { k: "tool", label: "Which service?", type: "text", show: (a) => a.method === "tool", need: true },
       { k: "when", label: "When do you screen?", type: "many", need: true, options: o(["onboard", "Before accepting a client"], ["review", "At each ongoing review"], ["change", "When a client's ownership, control or activity changes"], ["alert", "When the sanctions list changes or an alert comes in"]), suggest: ["onboard", "review", "change", "alert"] },
       { k: "who", label: "Who do you screen?", type: "many", need: true, options: o(["client", "The client"], ["owners", "Beneficial owners"], ["controllers", "Directors and other controllers"], ["counterparties", "Significant counterparties, for higher-risk clients"]), suggest: ["client", "owners", "controllers"] },

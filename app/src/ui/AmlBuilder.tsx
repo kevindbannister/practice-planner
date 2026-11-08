@@ -59,7 +59,7 @@ function QuestionView({ q, a, set }: { q: b.Q; a: b.Answers; set: (k: string, v:
           <label key={opt.v} style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}>
             <input type={q.type === "one" ? "radio" : "checkbox"} name={q.k} checked={chosen.includes(opt.v)}
               onChange={() => set(q.k, q.type === "one" ? opt.v : chosen.includes(opt.v) ? chosen.filter((x) => x !== opt.v) : [...chosen, opt.v])} style={{ marginTop: 3 }} />
-            <span>{opt.label}</span>
+            <span>{opt.label}{opt.url && <> (<a href={opt.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>open the source<span className="sr-only"> for {opt.label}, opens in a new tab</span></a>)</>}</span>
           </label>
         ))}
       </div>
@@ -70,6 +70,7 @@ function QuestionView({ q, a, set }: { q: b.Q; a: b.Answers; set: (k: string, v:
     <div className="field" style={{ maxWidth: 760 }}>
       {q.type === "one" || q.type === "many" ? <div style={{ fontWeight: 600, marginBottom: 4 }}>{labelEl}</div> : <label><div style={{ fontWeight: 600, marginBottom: 4 }}>{labelEl}</div>{input}</label>}
       {(q.type === "one" || q.type === "many") && input}
+      {q.links && q.links.length > 0 && <div style={{ fontSize: 13 }}>{q.links.map((l, i) => <span key={l.url}>{i ? " · " : ""}<a href={l.url} target="_blank" rel="noopener noreferrer">{l.label}<span className="sr-only"> (opens in a new tab)</span></a></span>)}</div>}
       {q.help && <div className="muted" style={{ fontSize: 13 }}>{q.help}</div>}
       {q.source && <details style={{ fontSize: 13 }}><summary className="muted" style={{ cursor: "pointer" }}>Why we ask</summary><div className="muted">{q.source}</div></details>}
     </div>

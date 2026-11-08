@@ -127,3 +127,10 @@ test("a firm that only submits clients' codes gets wording that fits, and the ch
   assert.equal(b.readState({ date: "2026-12-01" }).date, "2026-12-01");
   assert.equal(b.readState({ date: "nonsense" }).date, undefined);
 });
+
+test("the sources the person is asked about carry links they can open", () => {
+  const geo = FWRA_STEPS.find((s) => s.id === "f_geo")!.questions.find((q) => q.k === "f_geoSources")!;
+  assert.equal(geo.options!.length, 4);
+  for (const x of geo.options!) assert.match(x.url || "", /^https:\/\//, x.label);
+  assert.ok(b.stepById("sanctions")!.questions.find((q) => q.k === "method")!.links!.length > 0);
+});
