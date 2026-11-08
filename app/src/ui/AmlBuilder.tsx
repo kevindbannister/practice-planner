@@ -20,7 +20,7 @@ export type Cfg = {
 const stateKey = (c: Cfg) => `aml.${c.id}`;
 const versionsKey = (c: Cfg) => `aml.${c.id}.versions`;
 const snapKey = (c: Cfg, v: string) => `aml.${c.id}.v${v}`;
-type Snap = { head: { version: string; updated: string; approvedBy: string }; built: { title: string; text: string }[] };
+type Snap = { head: { version: string; updated: string; approvedBy: string }; built: { title: string; text: string }[]; /** The answers, hand edits and confirmations behind this version, so it can be reopened. Versions saved before this existed have none. */ state?: b.State };
 
 function download(name: string, bytes: Uint8Array | Blob, type: string) {
   const url = URL.createObjectURL(bytes instanceof Blob ? bytes : new Blob([bytes as unknown as BlobPart], { type }));
@@ -113,6 +113,7 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
   const [note, setNote] = useState("");
   const [by, setBy] = useState("");
   const [approved, setApproved] = useState(false);
+  const [reopened, setReopened] = useState<string>("");
   const timer = useRef<number | undefined>(undefined);
   const latest = useRef<b.State | null>(null);
   const counter = useRef(0);
@@ -171,11 +172,43 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
     if (out.unconfirmed.length || out.gaps) { if (!window.confirm(`The policy still has ${out.gaps} gap${out.gaps === 1 ? "" : "s"} and ${out.unconfirmed.length} unconfirmed section${out.unconfirmed.length === 1 ? "" : "s"}. Save it as a draft version anyway?`)) return; }
     const v = b.nextVersion(versions);
     const entry: b.Version = { v, date: docDate, note: note.trim() || (versions.length ? "Updated" : "First version"), by: by.trim(), approved };
-    const snap: Snap = { head: { version: v, updated: entry.date, approvedBy: approved ? entry.by : "" }, built: built.map((x) => ({ title: x.title, text: x.text })) };
+    const snap: Snap = { head: { version: v, updated: entry.date, approvedBy: approved ? entry.by : "" }, built: built.map((x) => ({ title: x.title, text: x.text })), state };
     try {
       await saveSetting(snapKey(cfg, v), snap);
       await saveSetting(versionsKey(cfg), [...versions, entry]);
-      setNote(""); setApproved(false); setMsg(`Saved as version ${v}.`);
+      setNote(""); setApproved(false); setReopened(""); setMsg(`Saved as version ${v}.`);
+    } catch { setMsg("Couldn't save the version. Try again."); }
+  };
+  /** Put a saved version back into the questions so it can be changed. Replaces what is on screen now, so ask first. */
+  const reopen = (v: b.Version) => {
+    setMsg("");
+    const snap = readSetting<Snap>(data.settings, snapKey(cfg, v.v));
+    if (!snap || !Array.isArray(snap.built)) { setMsg("That version's text wasn't found, so it can't be reopened."); return; }
+    const lose = latestV && (stored.date !== undefined || Object.keys(stored.answers).length > 0);
+    if (lose && !window.confirm(`Reopening version ${v.v} replaces the answers and wording you have now. Save the current one as a version first if you want to keep it. Reopen version ${v.v}?`)) return;
+    let next: b.State;
+    if (snap.state) next = b.readState(snap.state);
+    else {
+      // Saved before answers were kept: bring back the written wording of each section as hand-edited text. The questions keep today's answers.
+      const edits = { ...state.edits }, confirmed = { ...state.confirmed };
+      for (const st of cfg.steps) { const hit = snap.built.find((x) => x.title === st.title); if (hit) { edits[st.id] = hit.text; confirmed[st.id] = true; } }
+      next = { ...state, edits, confirmed, date: v.date };
+    }
+    edit({ ...next, date: next.date || v.date }, true);
+    setReopened(v.v); setNote(v.note); setBy(v.by); setApproved(false); setView("steps");
+    setMsg(snap.state ? `Version ${v.v} is open. Change it, then save it back as version ${v.v} or as a new version.` : `Version ${v.v} was saved before answers were kept, so its written wording is open as hand-edited text. Your questions show today's answers.`);
+  };
+  /** Save the changes over the version that was reopened. Approved versions are never overwritten. */
+  const saveOver = async () => {
+    const old = versions.find((x) => x.v === reopened);
+    if (!old || old.approved) { setMsg("An approved version can't be changed. Save it as a new version instead."); return; }
+    if (out.unconfirmed.length || out.gaps) { if (!window.confirm(`The policy still has ${out.gaps} gap${out.gaps === 1 ? "" : "s"} and ${out.unconfirmed.length} unconfirmed section${out.unconfirmed.length === 1 ? "" : "s"}. Save it over version ${old.v} anyway?`)) return; }
+    const entry: b.Version = { v: old.v, date: docDate, note: note.trim() || old.note, by: by.trim() || old.by, approved };
+    const snap: Snap = { head: { version: old.v, updated: entry.date, approvedBy: approved ? entry.by : "" }, built: built.map((x) => ({ title: x.title, text: x.text })), state };
+    try {
+      await saveSetting(snapKey(cfg, old.v), snap);
+      await saveSetting(versionsKey(cfg), versions.map((x) => (x.v === old.v ? entry : x)));
+      setReopened(""); setMsg(`Saved over version ${old.v}.`);
     } catch { setMsg("Couldn't save the version. Try again."); }
   };
   const exportVersion = async (v: b.Version, kind: "word" | "pdf") => {
@@ -299,12 +332,14 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
         <>
           <section className="card pad stack" aria-label="Save a version">
             <h2 className="sec-h">Save a version</h2>
+            {reopened && <p className="import-list" style={{ margin: 0 }}>You reopened version {reopened}. {versions.find((x) => x.v === reopened)?.approved ? "It is approved, so it can't be overwritten: save your changes as a new version." : "Save your changes back to it, or as a new version."}</p>}
             <p className="muted" style={{ margin: 0 }}>A saved version is a fixed copy you can export later, even after the answers change. The version table at the end of the policy is built from these.</p>
             <div className="row-wrap" style={{ gap: 10, alignItems: "end" }}>
               <label className="field" style={{ minWidth: 280 }}><span>What changed, or why it was reviewed</span><input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={versions.length ? "For example annual review, no change" : "First version"} /></label>
               <label className="field"><span>Person responsible</span><input className="input" value={by} onChange={(e) => setBy(e.target.value)} /></label>
               <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={approved} onChange={(e) => setApproved(e.target.checked)} /> Approved</label>
-              <button type="button" className="btn primary" onClick={saveVersion}>Save as version {b.nextVersion(versions)}</button>
+              {reopened && !versions.find((x) => x.v === reopened)?.approved && <button type="button" className="btn primary" onClick={() => void saveOver()}>Save changes to version {reopened}</button>}
+              <button type="button" className={`btn${reopened && !versions.find((x) => x.v === reopened)?.approved ? "" : " primary"}`} onClick={saveVersion}>Save as version {b.nextVersion(versions)}</button>
             </div>
           </section>
           <section className="card pad stack" aria-label="Saved versions">
@@ -314,7 +349,7 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
                 {[...versions].reverse().map((v) => (
                   <div key={v.v} className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
                     <span><strong>Version {v.v}</strong>, {v.date}, {v.approved ? "approved" : "draft"}{v.by ? `, ${v.by}` : ""}. {v.note}</span>
-                    <span className="row-wrap" style={{ gap: 6 }}><button type="button" className="btn small" onClick={() => exportVersion(v, "word")}>Word</button><button type="button" className="btn small" onClick={() => exportVersion(v, "pdf")}>PDF</button></span>
+                    <span className="row-wrap" style={{ gap: 6 }}><button type="button" className="btn small" onClick={() => reopen(v)}>Reopen to edit</button><button type="button" className="btn small" onClick={() => exportVersion(v, "word")}>Word</button><button type="button" className="btn small" onClick={() => exportVersion(v, "pdf")}>PDF</button></span>
                   </div>
                 ))}
               </div>

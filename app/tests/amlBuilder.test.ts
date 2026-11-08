@@ -182,3 +182,8 @@ test("every empty text box has example wording, except identity details only the
   for (const st of [...b.STEPS, ...FWRA_STEPS]) for (const q of st.questions) if ((q.type === "text" || q.type === "long") && !q.example && typeof q.suggest !== "string" && !none.has(q.k)) missing.push(q.k);
   assert.deepEqual(missing, []);
 });
+
+test("a saved state reads back unchanged, so a version can be reopened", () => {
+  const st: b.State = { answers: { highFactors: ["pep"], signoff: "The MLRO" }, edits: { sar: "My wording" }, confirmed: { sar: true }, date: "2026-11-01" };
+  assert.deepEqual(b.readState(JSON.parse(JSON.stringify(st))), st);
+});
