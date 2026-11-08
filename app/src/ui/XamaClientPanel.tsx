@@ -6,7 +6,7 @@ import { getAccessToken } from "../lib/auth";
 import { Client } from "../lib/domain";
 import { FakeXama } from "../lib/fakeXama";
 import { HttpXama, XamaApi, XamaStatus } from "../lib/xama";
-import { IdOptions, NewAccount, Progress, askForIdCheck, createAccount, draftAccount, idOptions, missingForAml, missingForCreate, progress, progressText, runAmlCheck } from "../lib/xamaActions";
+import { IdOptions, NewAccount, Progress, askForIdCheck, createAccount, draftAccount, idOptions, missingForAml, missingForCreate, progress, progressText, runAmlCheck, idStamp } from "../lib/xamaActions";
 import { readClient, xamaLink } from "../lib/xamaSync";
 import { href } from "./bits";
 import { isDemo } from "./commsKit";
@@ -85,7 +85,11 @@ export function XamaClientPanel({ client }: { client: Client }) {
   const refresh = () => run(async () => {
     const r = await readClient(api, cfg, client, todayIso());
     if (r.error) throw new Error(r.error);
-    if (r.summary) await update("Clients", client, { XamaId: r.xamaId || xamaId, XamaStatus: r.summary.status, AMLReview: r.summary.review });
+    const idc = await progress(api, cfg, r.xamaId || xamaId).then((p) => idStamp(p, todayIso(), String(client.XamaIdCheck || ""))).catch(() => null);
+    const patch: Record<string, string> = {};
+    if (r.summary) Object.assign(patch, { XamaId: r.xamaId || xamaId, XamaStatus: r.summary.status, AMLReview: r.summary.review });
+    if (idc !== null && idc !== String(client.XamaIdCheck || "")) patch.XamaIdCheck = idc;
+    if (Object.keys(patch).length) await update("Clients", client, patch);
     return r.summary ? `Updated: ${r.summary.status}.` : "Nothing found in Xama yet.";
   });
 

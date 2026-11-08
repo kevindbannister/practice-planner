@@ -24,3 +24,14 @@ test("idCheckedOn returns the latest passed identity check only", () => {
   assert.equal(idCheckedOn("C1", rows, []), "2024-05-05");
   assert.equal(idCheckedOn("C9", rows, []), "");
 });
+
+import { idStamp, idStampRead } from "../src/lib/xamaActions";
+test("Xama ID stamp: completed is done, keeps first-seen date, rejections need checking", () => {
+  assert.equal(idStamp({ id: null, aml: null }, "2026-11-08"), "");
+  assert.equal(idStamp({ id: { status: "INITIATED" }, aml: null }, "2026-11-08"), "waiting|2026-11-08");
+  assert.equal(idStamp({ id: { status: "READY", document: "ACCEPT", face: "ACCEPT" }, aml: null }, "2026-11-08", "waiting|2026-11-01"), "done|2026-11-08");
+  assert.equal(idStamp({ id: { status: "READY", document: "ACCEPT" }, aml: null }, "2026-11-20", "done|2026-11-08"), "done|2026-11-08");
+  assert.equal(idStamp({ id: { status: "READY", document: "REJECT" }, aml: null }, "2026-11-08"), "check|2026-11-08");
+  assert.deepEqual(idStampRead("done|2026-11-08"), { state: "done", on: "2026-11-08" });
+  assert.deepEqual(idStampRead(undefined), { state: "", on: "" });
+});

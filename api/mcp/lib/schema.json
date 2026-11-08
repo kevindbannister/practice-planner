@@ -146,6 +146,10 @@
      "type": "text"
     },
     {
+     "name": "XamaIdCheck",
+     "type": "text"
+    },
+    {
      "name": "LoEStatus",
      "type": "text"
     },

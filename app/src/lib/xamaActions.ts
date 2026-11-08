@@ -155,3 +155,17 @@ export function progressText(p: Progress): { id: string; aml: string } {
     : "Running: this takes a few seconds.";
   return { id, aml };
 }
+
+/** What to remember on the client about Xama's ID verification: "done|<date>", "waiting|<date>" or "check|<date>", or "" if none was asked for.
+ *  A completed check whose decisions read as a rejection or referral is "check", never "done". The date is when the planner first saw that state. */
+export function idStamp(p: Progress, today: string, current = ""): string {
+  if (!p.id) return "";
+  const bad = /reject|fail|refer|alert|declin|error|suspect|unable/i;
+  const state = p.id.status === "READY" ? (bad.test(`${p.id.document || ""} ${p.id.face || ""}`) ? "check" : "done") : p.id.status === "INITIATED" ? "waiting" : "check";
+  const [was, on] = current.split("|");
+  return `${state}|${was === state && on ? on : today}`;
+}
+export function idStampRead(v: unknown): { state: "done" | "waiting" | "check" | ""; on: string } {
+  const [s, on] = String(v || "").split("|");
+  return { state: s === "done" || s === "waiting" || s === "check" ? s : "", on: on || "" };
+}
