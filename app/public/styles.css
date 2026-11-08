@@ -3463,5 +3463,5 @@ table.deadlines .date-row th { text-align: left; background: var(--bg-soft, #f1f
 table.deadlines .c-kind { white-space: nowrap; }
 
 /* The builder: the contents list and "What it says" stay in view while answering the questions. */
-@media (min-width: 900px) { .aml-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; } }
+@media (min-width: 900px) { .aml-side { position: sticky; top: calc(var(--topbar-h, 64px) + 28px); max-height: calc(100vh - var(--topbar-h, 64px) - 44px); overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain; } }
 @media print { .aml-side { position: static; max-height: none; overflow: visible; } }
