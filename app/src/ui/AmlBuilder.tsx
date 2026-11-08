@@ -266,7 +266,7 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
               {step.id === "firm" && <div className="muted" style={{ fontSize: 13 }}>The planner currently holds {facts.clients} active client{facts.clients === 1 ? "" : "s"}.</div>}
               {qs.map((q) => <QuestionView key={q.k} q={q} a={merged.answers} set={setAnswer} />)}
               {qs.some((q) => q.suggest !== undefined) && (
-                <div><button type="button" className="btn small" onClick={() => { const sug = b.withSuggestions(step, merged.answers); const add: b.Answers = {}; for (const q of qs) if (sug[q.k] !== undefined && sug[q.k] !== merged.answers[q.k]) add[q.k] = sug[q.k]; edit({ ...state, answers: { ...state.answers, ...add }, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Fill the blanks with ACCA's suggested answers</button>
+                <div><button type="button" className="btn small" onClick={() => { const sug = b.withSuggestions(step, merged.answers); const add: b.Answers = {}; for (const q of qs) if (sug[q.k] !== undefined && sug[q.k] !== merged.answers[q.k]) add[q.k] = sug[q.k]; edit({ ...state, answers: { ...state.answers, ...add }, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Fill the blanks with suggested answers</button>
                   <span className="muted" style={{ marginLeft: 8, fontSize: 13 }}>Only questions you haven't answered. Check them: they are examples, not your decisions.</span></div>
               )}
             </section>
