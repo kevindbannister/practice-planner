@@ -201,7 +201,8 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
   /** Save the changes over the version that was reopened. Approved versions are never overwritten. */
   const saveOver = async () => {
     const old = versions.find((x) => x.v === reopened);
-    if (!old || old.approved) { setMsg("An approved version can't be changed. Save it as a new version instead."); return; }
+    if (!old) { setMsg("That version wasn't found. Save it as a new version instead."); return; }
+    if (old.approved && !window.confirm(`Version ${old.v} is marked approved. Saving over it changes an approved record, and it will only stay approved if you tick Approved and name who approved it. Save over version ${old.v}?`)) return;
     if (out.unconfirmed.length || out.gaps) { if (!window.confirm(`The policy still has ${out.gaps} gap${out.gaps === 1 ? "" : "s"} and ${out.unconfirmed.length} unconfirmed section${out.unconfirmed.length === 1 ? "" : "s"}. Save it over version ${old.v} anyway?`)) return; }
     const entry: b.Version = { v: old.v, date: docDate, note: note.trim() || old.note, by: by.trim() || old.by, approved };
     const snap: Snap = { head: { version: old.v, updated: entry.date, approvedBy: approved ? entry.by : "" }, built: built.map((x) => ({ title: x.title, text: x.text })), state };
@@ -332,14 +333,14 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
         <>
           <section className="card pad stack" aria-label="Save a version">
             <h2 className="sec-h">Save a version</h2>
-            {reopened && <p className="import-list" style={{ margin: 0 }}>You reopened version {reopened}. {versions.find((x) => x.v === reopened)?.approved ? "It is approved, so it can't be overwritten: save your changes as a new version." : "Save your changes back to it, or as a new version."}</p>}
+            {reopened && <p className="import-list" style={{ margin: 0 }}>You reopened version {reopened}. {versions.find((x) => x.v === reopened)?.approved ? "It is marked approved. You can save over it (you will be asked to confirm, and should tick Approved again if it still is), or save your changes as a new version." : "Save your changes back to it, or as a new version."}</p>}
             <p className="muted" style={{ margin: 0 }}>A saved version is a fixed copy you can export later, even after the answers change. The version table at the end of the policy is built from these.</p>
             <div className="row-wrap" style={{ gap: 10, alignItems: "end" }}>
               <label className="field" style={{ minWidth: 280 }}><span>What changed, or why it was reviewed</span><input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder={versions.length ? "For example annual review, no change" : "First version"} /></label>
               <label className="field"><span>Person responsible</span><input className="input" value={by} onChange={(e) => setBy(e.target.value)} /></label>
               <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={approved} onChange={(e) => setApproved(e.target.checked)} /> Approved</label>
-              {reopened && !versions.find((x) => x.v === reopened)?.approved && <button type="button" className="btn primary" onClick={() => void saveOver()}>Save changes to version {reopened}</button>}
-              <button type="button" className={`btn${reopened && !versions.find((x) => x.v === reopened)?.approved ? "" : " primary"}`} onClick={saveVersion}>Save as version {b.nextVersion(versions)}</button>
+              {reopened && <button type="button" className="btn primary" onClick={() => void saveOver()}>Save changes to version {reopened}</button>}
+              <button type="button" className={`btn${reopened ? "" : " primary"}`} onClick={saveVersion}>Save as version {b.nextVersion(versions)}</button>
             </div>
           </section>
           <section className="card pad stack" aria-label="Saved versions">
