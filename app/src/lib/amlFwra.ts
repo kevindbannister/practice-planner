@@ -7,6 +7,8 @@ import { Answers, GAP, Opt, Q, SECTORS, SERVICES, Step, arr, fmtDate, has, join,
 
 const RAT = o(["Low", "Low"], ["Medium", "Medium"], ["High", "High"]);
 const rating = (k: string, hint: string, suggest?: string): Q => ({ k, label: "How do you rate this risk for the firm?", type: "one", need: true, options: RAT, help: hint, ...(suggest ? { suggest } : {}) });
+/** True while the planner holds no approved client risk ratings, so the firm's own counts are asked for instead. */
+const noRatings = (a: Answers): boolean => (Number(a._high) || 0) + (Number(a._med) || 0) + (Number(a._low) || 0) === 0;
 const labels = (q: Q | Opt[], a: Answers, k: string) => arr(a, k).map((v) => labelOf(Array.isArray(q) ? { k: "", label: "", type: "many", options: q } : q, v));
 const area = (title: string, a: Answers, rk: string, risk: string, controls: string) =>
   join([`## ${title}`, `Rating: ${str(a, rk) || GAP(`${title.toLowerCase()} rating`)}.`, risk, controls]);
@@ -170,18 +172,23 @@ export const FWRA_STEPS: Step[] = [
     questions: [
       { k: "f_newRisks", label: "What new risks have appeared since the last assessment?", type: "long", placeholder: "Write 'none' if there are none. For a first assessment, write 'first assessment'", need: true },
       { k: "f_lastDate", label: "Date of the last assessment, if any", type: "date" },
+      { k: "f_manHigh", label: "How many clients are high risk?", type: "number", need: true, show: noRatings, help: "The planner has no approved client risk ratings yet, so enter your own figures. They only appear here until clients have approved AML assessments. The Client tracker in this area shows who is missing one." },
+      { k: "f_manMed", label: "How many clients are medium risk?", type: "number", need: true, show: noRatings },
+      { k: "f_manLow", label: "How many clients are low risk?", type: "number", need: true, show: noRatings },
       { k: "f_overallRating", label: "Overall inherent risk", type: "one", need: true, options: RAT, help: "Your draft rated this medium." },
       { k: "f_conclusion", label: "Anything else to say about the firm's profile or the biggest risks?", type: "long", suggest: "This assessment is not evidence that controls have been carried out. Residual risk will be rated once the client portfolio, geographies, payment handling and the operation of the controls have been confirmed." },
     ],
     write: (a) => {
-      const n = Number(a._n) || 0, hi = Number(a._high) || 0, md = Number(a._med) || 0, lo = Number(a._low) || 0, unrated = Number(a._unrated) || 0;
+      let n = Number(a._n) || 0, hi = Number(a._high) || 0, md = Number(a._med) || 0, lo = Number(a._low) || 0, unrated = Number(a._unrated) || 0;
+      const byHand = noRatings(a) && ["f_manHigh", "f_manMed", "f_manLow"].every((k) => str(a, k) !== "");
+      if (byHand) { hi = Number(a.f_manHigh) || 0; md = Number(a.f_manMed) || 0; lo = Number(a.f_manLow) || 0; n = Math.max(n, hi + md + lo); unrated = n - hi - md - lo; }
       const pct = (x: number) => `${Math.round((x / n) * 100)}%`;
       const rated = hi + md + lo;
       const riskier = [["Client risk", "f_clientRating"], ["Geography risk", "f_geoRating"], ["Products and services risk", "f_svcRating"], ["Transactions risk", "f_transRating"], ["Delivery channels risk", "f_chanRating"], ["Proliferation financing risk", "f_pfRating"]].filter(([, k]) => str(a, k) === "High" || str(a, k) === "Medium").map(([t]) => t.toLowerCase());
       return join([
         "## Overall assessment",
         `Overall inherent risk: ${str(a, "f_overallRating") || GAP("overall risk rating")}.`,
-        rated === 0 ? (n ? GAP("client risk ratings (none are recorded in the planner yet)") : GAP("client risk ratings")) : `Of ${n} active clients, ${pct(hi)} are rated high risk, ${pct(md)} medium and ${pct(lo)} low${unrated ? `. ${unrated} ${unrated === 1 ? "has" : "have"} no approved rating yet` : ""}.`,
+        rated === 0 ? (n ? GAP("client risk ratings (none are recorded in the planner yet)") : GAP("client risk ratings")) : `Of ${n} active clients, ${pct(hi)} are rated high risk, ${pct(md)} medium and ${pct(lo)} low${byHand ? " (figures entered by hand, not taken from the planner)" : ""}${unrated ? `. ${unrated} ${unrated === 1 ? "has" : "have"} no approved rating yet` : ""}.`,
         str(a, "f_lastDate") ? `The last assessment was on ${fmtDate(str(a, "f_lastDate"))}. New risks since then: ${need(a, "f_newRisks", "new risks")}` : `This is the first assessment on record. ${str(a, "f_newRisks") ? `Note: ${str(a, "f_newRisks")}` : ""}`.trim(),
         str(a, "f_mainSector") ? `Most clients work in ${str(a, "f_mainSector")}, so the firm knows the usual activity and services.` : "",
         riskier.length ? `The areas rated medium or high, and so the biggest risks to the firm, are: ${riskier.join(", ")}.` : "No area is rated above low.",

@@ -134,3 +134,18 @@ test("the sources the person is asked about carry links they can open", () => {
   for (const x of geo.options!) assert.match(x.url || "", /^https:\/\//, x.label);
   assert.ok(b.stepById("sanctions")!.questions.find((q) => q.k === "method")!.links!.length > 0);
 });
+
+import { FWRA_STEPS } from "../src/lib/amlFwra";
+import * as bb from "../src/lib/amlBuilder";
+test("overall step: with no planner ratings it asks for counts and uses them", () => {
+  const step = FWRA_STEPS.find((x) => x.id === "f_overall")!;
+  const base = { _n: "10", _high: "0", _med: "0", _low: "0", _unrated: "10" } as never;
+  const gap = step.write(base);
+  assert.match(gap, /Answer needed: client risk ratings/);
+  const done = step.write({ ...(base as object), f_manHigh: "1", f_manMed: "2", f_manLow: "7" } as never);
+  assert.doesNotMatch(done, /Answer needed: client risk ratings/);
+  assert.match(done, /10% are rated high risk, 20% medium and 70% low/);
+  assert.match(done, /entered by hand/);
+  assert.ok(bb.shown(step, base).some((q) => q.k === "f_manHigh"));
+  assert.ok(!bb.shown(step, { ...(base as object), _high: "1" } as never).some((q) => q.k === "f_manHigh"));
+});
