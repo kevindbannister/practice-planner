@@ -149,3 +149,14 @@ test("overall step: with no planner ratings it asks for counts and uses them", (
   assert.ok(bb.shown(step, base).some((q) => q.k === "f_manHigh"));
   assert.ok(!bb.shown(step, { ...(base as object), _high: "1" } as never).some((q) => q.k === "f_manHigh"));
 });
+
+test("low risk: a firm can rate its own clients low risk with stated conditions, and low-risk reviews then apply", () => {
+  const step = b.STEPS.find((x) => x.id === "clientrisk")!;
+  const a = { lowUse: "own", lowWhen: "Known for two years, simple ownership." } as never;
+  assert.match(step.write(a), /assessed it as low risk because: Known for two years/);
+  assert.ok(b.shown(step, a).some((q) => q.k === "lowWhen"));
+  assert.ok(!b.shown(step, { lowUse: "rare" } as never).some((q) => q.k === "lowWhen"));
+  assert.match(step.write({ lowUse: "own" } as never), /Answer needed: what makes a client low risk/);
+  const mon = b.STEPS.find((x) => x.id === "monitor")!;
+  assert.ok(b.shown(mon, a).some((q) => q.k === "mLow"));
+});
