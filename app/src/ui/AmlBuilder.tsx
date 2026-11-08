@@ -221,6 +221,7 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
 
       {view === "steps" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 16, alignItems: "start" }}>
+          <div className="stack aml-side" style={{ gap: 16 }}>
           <nav className="card pad stack" aria-label="Areas" style={{ gap: 4 }}>
             {cfg.steps.map((s, i) => {
               const x = built.find((y) => y.id === s.id)!;
@@ -233,6 +234,29 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
               );
             })}
           </nav>
+          <section className="card pad stack" aria-label="What this area says">
+            <div className="card-title-row"><h2 className="sec-h">What it says</h2>
+              {bs.edited ? <button type="button" className="btn small" onClick={() => { const e = { ...state.edits }; delete e[stepId]; edit({ ...state, edits: e, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Go back to the written text</button>
+                : <button type="button" className="btn small" onClick={() => edit({ ...state, edits: { ...state.edits, [stepId]: bs.text }, confirmed: { ...state.confirmed, [stepId]: false } }, true)}>Edit the wording by hand</button>}
+            </div>
+            {bs.edited ? (
+              <>
+                <div className="muted" style={{ fontSize: 13 }}>You are editing this area's text directly. Later changes to the answers above won't change it. Start a line with "## " for a heading and "- " for a bullet.</div>
+                <textarea className="input" rows={14} value={state.edits[stepId]} onChange={(e) => edit({ ...state, edits: { ...state.edits, [stepId]: e.target.value }, confirmed: { ...state.confirmed, [stepId]: false } })} />
+              </>
+            ) : <Text text={bs.text} />}
+            {gapsOf(bs) > 0 && <div className="warn" role="status">{gapsOf(bs)} thing{gapsOf(bs) === 1 ? "" : "s"} still to answer in this area{bs.unanswered.length ? `: ${bs.unanswered.join("; ")}` : ""}.</div>}
+            <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
+              <input type="checkbox" checked={bs.confirmed} onChange={(e) => edit({ ...state, confirmed: { ...state.confirmed, [stepId]: e.target.checked } }, true)} />
+              <span>I have read this and it describes what the firm really does</span>
+            </label>
+            <div className="row-wrap" style={{ gap: 8 }}>
+              {idx > 0 && <button type="button" className="btn small" onClick={() => setStepId(cfg.steps[idx - 1].id)}>Back</button>}
+              {idx < cfg.steps.length - 1 && <button type="button" className="btn small primary" onClick={() => setStepId(cfg.steps[idx + 1].id)}>Next area</button>}
+              {idx === cfg.steps.length - 1 && <button type="button" className="btn small primary" onClick={() => setView("versions")}>Go to save and versions</button>}
+            </div>
+          </section>
+          </div>
           <div className="stack" style={{ gap: 16 }}>
             <section className="card pad stack" aria-label={step.title}>
               <h2 className="sec-h">{idx + 1}. {step.title}</h2>
@@ -245,28 +269,6 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
                 <div><button type="button" className="btn small" onClick={() => { const sug = b.withSuggestions(step, merged.answers); const add: b.Answers = {}; for (const q of qs) if (sug[q.k] !== undefined && sug[q.k] !== merged.answers[q.k]) add[q.k] = sug[q.k]; edit({ ...state, answers: { ...state.answers, ...add }, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Fill the blanks with ACCA's suggested answers</button>
                   <span className="muted" style={{ marginLeft: 8, fontSize: 13 }}>Only questions you haven't answered. Check them: they are examples, not your decisions.</span></div>
               )}
-            </section>
-            <section className="card pad stack" aria-label="What this area says">
-              <div className="card-title-row"><h2 className="sec-h">What it says</h2>
-                {bs.edited ? <button type="button" className="btn small" onClick={() => { const e = { ...state.edits }; delete e[stepId]; edit({ ...state, edits: e, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Go back to the written text</button>
-                  : <button type="button" className="btn small" onClick={() => edit({ ...state, edits: { ...state.edits, [stepId]: bs.text }, confirmed: { ...state.confirmed, [stepId]: false } }, true)}>Edit the wording by hand</button>}
-              </div>
-              {bs.edited ? (
-                <>
-                  <div className="muted" style={{ fontSize: 13 }}>You are editing this area's text directly. Later changes to the answers above won't change it. Start a line with "## " for a heading and "- " for a bullet.</div>
-                  <textarea className="input" rows={14} value={state.edits[stepId]} onChange={(e) => edit({ ...state, edits: { ...state.edits, [stepId]: e.target.value }, confirmed: { ...state.confirmed, [stepId]: false } })} />
-                </>
-              ) : <Text text={bs.text} />}
-              {gapsOf(bs) > 0 && <div className="warn" role="status">{gapsOf(bs)} thing{gapsOf(bs) === 1 ? "" : "s"} still to answer in this area{bs.unanswered.length ? `: ${bs.unanswered.join("; ")}` : ""}.</div>}
-              <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer" }}>
-                <input type="checkbox" checked={bs.confirmed} onChange={(e) => edit({ ...state, confirmed: { ...state.confirmed, [stepId]: e.target.checked } }, true)} />
-                <span>I have read this and it describes what the firm really does</span>
-              </label>
-              <div className="row-wrap" style={{ gap: 8 }}>
-                {idx > 0 && <button type="button" className="btn small" onClick={() => setStepId(cfg.steps[idx - 1].id)}>Back</button>}
-                {idx < cfg.steps.length - 1 && <button type="button" className="btn small primary" onClick={() => setStepId(cfg.steps[idx + 1].id)}>Next area</button>}
-                {idx === cfg.steps.length - 1 && <button type="button" className="btn small primary" onClick={() => setView("versions")}>Go to save and versions</button>}
-              </div>
             </section>
           </div>
         </div>

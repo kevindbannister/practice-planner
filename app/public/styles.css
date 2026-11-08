@@ -3461,3 +3461,7 @@ button.review-bar-row { cursor: pointer; } button.review-bar-row:hover { backgro
 .deadline-today .c-kind .chip:not(.blue) { background: #fff; }
 table.deadlines .date-row th { text-align: left; background: var(--bg-soft, #f1f6fa); border-top: 1px solid var(--line); padding: 7px 14px; font-weight: 700; font-size: 13px; }
 table.deadlines .c-kind { white-space: nowrap; }
+
+/* The builder: the contents list and "What it says" stay in view while answering the questions. */
+@media (min-width: 900px) { .aml-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; } }
+@media print { .aml-side { position: static; max-height: none; overflow: visible; } }
