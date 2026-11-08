@@ -10,6 +10,7 @@ import { todayIso } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { readSetting, useData } from "./data";
 import { useFirm } from "./FirmSettings";
+import { href } from "./bits";
 
 export type Cfg = {
   id: string; title: string; docTitle: string; intro: string; steps: b.Step[]; prefillFirm?: boolean;
@@ -236,6 +237,7 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
               <h2 className="sec-h">{idx + 1}. {step.title}</h2>
               <p className="muted" style={{ margin: 0 }}>{step.intro}</p>
               <div className="muted" style={{ fontSize: 13 }}>Covers: {step.covers}</div>
+              {cfg.id === "builder" && step.id === "fwra" && <div><a className="btn small primary" href={href("aml", "fwra")}>Open the risk assessment questions</a><span className="muted" style={{ marginLeft: 8, fontSize: 13 }}>The risk assessment itself is written on the Risk assessment tab. This area only describes how it is kept up to date.</span></div>}
               {step.id === "firm" && <div className="muted" style={{ fontSize: 13 }}>The planner currently holds {facts.clients} active client{facts.clients === 1 ? "" : "s"}.</div>}
               {qs.map((q) => <QuestionView key={q.k} q={q} a={merged.answers} set={setAnswer} />)}
               {qs.some((q) => q.suggest !== undefined) && (

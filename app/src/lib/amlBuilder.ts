@@ -177,7 +177,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "fwra", title: "Firm-wide risk assessment", covers: "Firm-wide risk assessment, including proliferation financing",
-    intro: "The firm must have a written risk assessment of its own exposure to money laundering. This step describes how it is done and kept up to date. The risk assessment itself is on the Risk assessment tab.",
+    intro: "The firm must have a written risk assessment of its own exposure to money laundering. This step describes how it is done and kept up to date. The questions that write the risk assessment itself are on the Risk assessment tab.",
     questions: [
       { k: "fwraWhen", label: "How often is it reviewed?", type: "one", need: true, options: o(["annual", "At least once a year"]), suggest: "annual", source: "ACCA: review the policy and the assessment periodically, ideally annually." },
       {
