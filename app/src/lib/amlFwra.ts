@@ -44,7 +44,9 @@ export const FWRA_STEPS: Step[] = [
       { k: "f_concentration", label: "Does any client make up a large share of your fees?", type: "long", placeholder: "For example three clients are each over 15% of fees", help: "Concentration is not a money laundering factor in itself, but it can make it harder to challenge a client." },
       clientCtrlQ,
       rating("f_clientRating", "ACCA expects you to explain why. A small, familiar client base can reasonably be low or medium; give your reasons in the next box."),
-      { k: "f_clientWhy", label: "Why that rating?", type: "long", need: true },
+      { k: "f_clientWhy", label: "Explain the rating: what do your clients look like, and why does that give this rating?", type: "long", need: true,
+        help: "Use the figures above. Say what kinds of client you have (individuals, small companies, trusts, higher-risk types such as politically exposed persons or complex structures), how many are rated high, and how well you know them (how long you have acted, whether you have met them). Then say why that adds up to the rating.",
+        placeholder: "Low example: Mostly long-standing owner-managed companies and sole traders that we know well. Few are rated high, and none are politically exposed persons or complex structures.\nMedium example: A mix of established clients and some new start-ups. A small number involve overseas owners or trusts and are rated high." },
     ],
     write: (a) => {
       const sectors = arr(a, "sectors").map((v) => SECTORS.find((x) => x.v === v)?.label.replace(/ \(.*\)$/, "").toLowerCase() || v);
@@ -88,7 +90,9 @@ export const FWRA_STEPS: Step[] = [
       { k: "f_standalone", label: "Is company formation offered on its own or only with ongoing services?", type: "one", show: (a) => has(a, "services", "formation"), need: true, options: o(["alone", "On its own"], ["ongoing", "Only for clients who also use ongoing services"], ["both", "Both"]) },
       svcCtrlQ,
       rating("f_svcRating", "Your draft rated this medium to high because of company formation and payroll."),
-      { k: "f_svcWhy", label: "Why that rating?", type: "long", need: true },
+      { k: "f_svcWhy", label: "Explain the rating: which of your services could be misused, and why is the risk this level?", type: "long", need: true,
+        help: "Say which services you provide and which could be used to hide where money comes from or who owns something: for example forming companies, acting as registered office, holding client money, or handling payments. Say how many clients use those services, then why that gives this rating. Ordinary accounts, tax and payroll work is usually lower risk.",
+        placeholder: "Low example: We mainly provide accounts, tax and payroll. We do not hold client money or form companies for clients we do not otherwise act for.\nMedium example: As well as accounts and tax we provide registered offices and file confirmation statements for about 30 clients, and handle client money for a few." },
     ],
     write: (a) => {
       const hi = arr(a, "services").map((s) => HIGH_SERVICES[s]).filter(Boolean);
@@ -145,7 +149,10 @@ export const FWRA_STEPS: Step[] = [
     questions: [
       { k: "f_pfLinks", label: "Do any clients deal in dual-use goods, trade with sanctioned or high-risk countries, or have opaque ownership?", type: "one", need: true, options: o(["no", "No"], ["yes", "Yes"], ["unchecked", "I haven't checked"]) },
       rating("f_pfRating", "ACCA: for the majority of firms this will be low risk."),
-      { k: "f_pfWhy", label: "Why that rating?", type: "long", need: true, placeholder: "For example the firm only acts for UK businesses with no export activity and screens every client against the UK Sanctions List" },
+      { k: "f_pfWhy", label: "Explain the rating: what did you look at, and what did you find?", type: "long", need: true,
+        help: "Two or three sentences are enough. Say what you checked (the countries your clients are in or trade with, whether any deal in goods that could be used for weapons, how clear the ownership is, whether you screen against the UK Sanctions List) and what that showed. If you rated it low, say why it is low. If medium or high, say which clients or activities raise it. Don't name individual clients or record any suspicion here.",
+        placeholder: "Low example: All clients are UK-based small businesses. None export or deal in dual-use goods, and all owners are identified. Every client is screened against the UK Sanctions List when taken on and when details change.\nMedium example: Two clients export engineering parts to countries outside the UK, so those are treated as higher risk and reviewed yearly. The rest are UK businesses with clear ownership.",
+        source: "ACCA: for most firms the rating will be low, but the reasons must be written down." },
       { k: "f_pfCtrl", label: "What do you do about it?", type: "long", suggest: "Screen geography, ownership, services and transactions for links to sanctioned persons and countries and dual-use goods, keep the UK Sanctions List under review, and escalate any concern to the MLRO." },
     ],
     write: (a) => {
