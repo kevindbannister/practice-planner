@@ -5,6 +5,8 @@ import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
 import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
 import { TRIGGER_KINDS, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
+import { FACTORS, Answers, basisText, suggestRating } from "../lib/amlFactors";
+import { cosecOwnership, mergeOwners } from "../lib/amlCosec";
 import { timeline } from "../lib/amlTimeline";
 import { clientFolder } from "../lib/comms";
 import { clientTypeFor } from "../lib/proposals";
@@ -129,9 +131,13 @@ function WithdrawRow({ row, s, clientRow, onGo }: { row: Row; s: ReturnType<type
 }
 
 function Editor({ client, row, all, settings, independent, today, s, clientRow }: { client: Client; row: Row; all: Row[]; settings: ReturnType<typeof readOnboardingSettings>; independent: boolean; today: string; s: ReturnType<typeof useSales>; clientRow: Row }) {
-  const { store, user } = useData();
+  const { store, user, data } = useData();
   const saved = readAssessment(row);
+  const [factors, setFactors] = useState<Answers>(saved.factors);
+  const co = useMemo(() => cosecOwnership(String(client.Key), data as never, today), [data, client.Key, today]);
+  const sug = suggestRating(factors);
   const type = clientTypeFor(String(client.Kind));
+  const isCo = type === "limited" || type === "llp";
   const [risk, setRisk] = useState<Risk>(saved.risk);
   const [basis, setBasis] = useState(saved.riskBasis);
   const [owners, setOwners] = useState<Owner[]>(saved.owners);
@@ -142,7 +148,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  useEffect(() => { setRisk(saved.risk); setBasis(saved.riskBasis); setOwners(saved.owners); setNoOwner(saved.noOwnerNote); setChecks(saved.checks); setEvidence(saved.evidence); }, [row.Updated]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setRisk(saved.risk); setBasis(saved.riskBasis); setOwners(saved.owners); setNoOwner(saved.noOwnerNote); setChecks(saved.checks); setEvidence(saved.evidence); setFactors(saved.factors); }, [row.Updated]); // eslint-disable-line react-hooks/exhaustive-deps
   const edit = s.pcan("edit");
   const cleanOwners = owners.filter((x) => x.name.trim());
   const draft = { ...saved, risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks };
@@ -152,7 +158,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
     setBusy(true); setMsg(null);
     try { const x = typeof w === "function" ? await w() : w; if ("error" in x) setMsg({ ok: false, text: x.error }); else { await s.apply(x); setMsg({ ok: true, text: ok }); } } catch { setMsg({ ok: false, text: "Couldn't save that. Try again." }); } finally { setBusy(false); }
   };
-  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
+  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, factors }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
   const upload = async (f: File) => {
     setBusy(true); setMsg(null);
     try {
@@ -169,10 +175,46 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
     <section className="card pad stack" aria-label="Assessment in progress">
       <div className="card-title-row"><h2 className="sec-h">{row.Source === "review" ? "Review in progress" : "Assessment in progress"}</h2>{asStatus(row.Status) === "declined" && <span className="chip red">Not approved: {saved.declinedReason}</span>}</div>
       <fieldset disabled={!edit || busy} style={{ border: 0, padding: 0, margin: 0 }} className="stack">
+        <div className="stack" style={{ gap: 8 }}>
+          <strong>Risk questions</strong>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Answer these first. They suggest a rating and the wording for what it is based on, but the rating is your decision.</p>
+          {FACTORS.map((f) => (
+            <div key={f.id} className="stack" style={{ gap: 2 }}>
+              <div className="row-wrap" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ flex: 1, minWidth: 260 }}>{f.label}</span>
+                <span className="row-wrap" role="group" aria-label={f.label} style={{ gap: 6 }}>
+                  {(["yes", "no"] as const).map((v) => <button key={v} type="button" className={`btn small${factors[f.id] === v ? " primary" : ""}`} aria-pressed={factors[f.id] === v} onClick={() => setFactors({ ...factors, [f.id]: factors[f.id] === v ? "" : v })}>{v === "yes" ? "Yes" : "No"}</button>)}
+                </span>
+              </div>
+              <span className="muted" style={{ fontSize: 12 }}>{f.help}</span>
+            </div>
+          ))}
+          {sug.answered > 0 && (
+            <div className="row-wrap" style={{ alignItems: "center", gap: 8 }}>
+              <span>Suggested: <strong>{sug.risk ? RISK[sug.risk] : "answer them all to suggest low"}</strong> ({sug.answered} of {FACTORS.length} answered)</span>
+              <button type="button" className="btn small" onClick={() => { if (sug.risk) setRisk(sug.risk); const t = basisText(factors); if (t) setBasis(t); }}>Use this rating and wording</button>
+            </div>
+          )}
+        </div>
+
         <div className="row-wrap">
           <label className="doc-field"><span>Risk rating</span><select className="input" value={risk} onChange={(e) => setRisk(e.target.value as Risk)}><option value="">Not assessed</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
           <label className="doc-field" style={{ flex: 1, minWidth: 260 }}><span>What the rating is based on</span><input className="input" value={basis} onChange={(e) => setBasis(e.target.value)} /></label>
         </div>
+
+        {isCo && (
+          <div className="stack" style={{ gap: 6 }}>
+            <strong>From company secretarial</strong>
+            {!co.hasData ? <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing is recorded for this company in Company Secretarial yet (shareholdings, directors or people with significant control).</p> : (
+              <>
+                <table className="table"><thead><tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col">Shares</th><th scope="col">Votes</th><th scope="col">Companies House ID</th></tr></thead>
+                  <tbody>{co.people.map((p) => <tr key={p.name}><td>{p.name}</td><td>{p.roles.join(", ")}{p.natures ? <div className="muted" style={{ fontSize: 12 }}>{p.natures}</div> : null}</td><td>{p.sharePercent !== null ? `${p.sharePercent}%` : "—"}</td><td>{p.votePercent !== null ? `${p.votePercent}%` : "—"}</td><td>{p.corporate ? "—" : p.id === "verified" ? `Verified${p.idOn ? ` ${fmtDate(p.idOn)}` : ""}` : p.id === "exempt" ? "Exempt" : p.id === "pending" ? "Not yet verified" : "Not recorded"}</td></tr>)}</tbody></table>
+                {co.findings.length > 0 && <div className="import-list warn"><strong>Check these:</strong><ul className="plain">{co.findings.map((x) => <li key={x}>{x}</li>)}</ul></div>}
+                {co.suggested.length > 0 && <div><button type="button" className="btn small" onClick={() => setOwners(mergeOwners(owners.filter((o) => o.name.trim()), co.suggested))}>Add these as beneficial owners ({co.suggested.length})</button> <span className="muted" style={{ fontSize: 12 }}>People with significant control and anyone over 25% of shares or votes. Direct holdings only: you judge control through other companies or other means.</span></div>}
+              </>
+            )}
+          </div>
+        )}
 
         <div className="stack" style={{ gap: 6 }}>
           <strong>Beneficial owners{type === "limited" || type === "llp" ? "" : " (if any)"}</strong>
