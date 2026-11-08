@@ -175,3 +175,10 @@ test("every suggested answer is a valid answer for its question, so the fill but
   assert.equal(b.fillable(pf, {} as never).length, 3);
   assert.equal(b.fillable(pf, { f_pfRating: "Medium" } as never).length, 2);
 });
+
+test("every empty text box has example wording, except identity details only the firm knows", () => {
+  const none = new Set(["firmName", "tradingName", "firmId", "overseasWhich", "mlro", "mlroEmail", "mlroPhone", "deputyName", "independentName", "extraName", "eidTool", "tool", "providerName", "acspRef", "tcspCount"]);
+  const missing: string[] = [];
+  for (const st of [...b.STEPS, ...FWRA_STEPS]) for (const q of st.questions) if ((q.type === "text" || q.type === "long") && !q.example && typeof q.suggest !== "string" && !none.has(q.k)) missing.push(q.k);
+  assert.deepEqual(missing, []);
+});

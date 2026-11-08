@@ -70,6 +70,7 @@ function QuestionView({ q, a, set }: { q: b.Q; a: b.Answers; set: (k: string, v:
     <div className="field" style={{ maxWidth: 760 }}>
       {q.type === "one" || q.type === "many" ? <div style={{ fontWeight: 600, marginBottom: 4 }}>{labelEl}</div> : <label><div style={{ fontWeight: 600, marginBottom: 4 }}>{labelEl}</div>{input}</label>}
       {(q.type === "one" || q.type === "many") && input}
+      {(q.type === "text" || q.type === "long") && !sv.trim() && (q.example || typeof q.suggest === "string") && <div><button type="button" className="btn small" onClick={() => set(q.k, (q.example || q.suggest) as string)}>Add example wording</button><span className="muted" style={{ marginLeft: 8, fontSize: 13 }}>An example to edit, not your answer.</span></div>}
       {q.links && q.links.length > 0 && <div style={{ fontSize: 13 }}>{q.links.map((l, i) => <span key={l.url}>{i ? " · " : ""}<a href={l.url} target="_blank" rel="noopener noreferrer">{l.label}<span className="sr-only"> (opens in a new tab)</span></a></span>)}</div>}
       {q.help && <div className="muted" style={{ fontSize: 13 }}>{q.help}</div>}
       {q.source && <details style={{ fontSize: 13 }}><summary className="muted" style={{ cursor: "pointer" }}>Why we ask</summary><div className="muted">{q.source}</div></details>}

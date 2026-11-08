@@ -40,10 +40,10 @@ export const FWRA_STEPS: Step[] = [
     intro: "ACCA calls this the most significant section. Your earlier answers about sectors and politically exposed persons are used here, so you only add what is missing.",
     questions: [
       { k: "f_clientTypes", label: "What kinds of client do you act for?", type: "many", need: true, options: CLIENT_TYPES },
-      { k: "f_mainSector", label: "What sector do most of your clients work in?", type: "text", need: true, placeholder: "For example small trading businesses and landlords", help: "ACCA's example: being familiar with the usual activity of your main sector is itself a control." },
+      { k: "f_mainSector", example: "Small trading businesses and landlords", label: "What sector do most of your clients work in?", type: "text", need: true, placeholder: "For example small trading businesses and landlords", help: "ACCA's example: being familiar with the usual activity of your main sector is itself a control." },
       { k: "f_newOutside", label: "Have you taken on new clients outside your normal client base?", type: "one", need: true, options: o(["no", "No"], ["yes", "Yes"]) },
       { k: "f_history", label: "Do you know of any client with a history of criminal activity or adverse media?", type: "one", need: true, options: o(["no", "No"], ["yes", "Yes"], ["unchecked", "I haven't checked"]) },
-      { k: "f_concentration", label: "Does any client make up a large share of your fees?", type: "long", placeholder: "For example three clients are each over 15% of fees", help: "Concentration is not a money laundering factor in itself, but it can make it harder to challenge a client." },
+      { k: "f_concentration", example: "No single client makes up a large share of our fees.", label: "Does any client make up a large share of your fees?", type: "long", placeholder: "For example three clients are each over 15% of fees", help: "Concentration is not a money laundering factor in itself, but it can make it harder to challenge a client." },
       clientCtrlQ,
       rating("f_clientRating", "ACCA expects you to explain why. A small, familiar client base can reasonably be low or medium; give your reasons in the next box."),
       { k: "f_clientWhy", label: "Explain the rating: what do your clients look like, and why does that give this rating?", type: "long", need: true, suggest: "Mostly long-standing owner-managed businesses and individuals the firm knows well. Few clients are rated high risk and none involve complex structures.",
@@ -68,7 +68,7 @@ export const FWRA_STEPS: Step[] = [
     id: "f_geo", title: "Geography risk", covers: "Risk from the countries clients are linked to",
     intro: "ACCA requires enhanced due diligence for clients with links to high-risk countries, so the firm must know where its clients and their owners are linked to.",
     questions: [
-      { k: "f_geoPlace", label: "Where are your clients and their owners based or doing business?", type: "text", need: true, placeholder: "For example all in the UK", help: "What you said earlier about overseas links is used below." },
+      { k: "f_geoPlace", example: "All in the UK", label: "Where are your clients and their owners based or doing business?", type: "text", need: true, placeholder: "For example all in the UK", help: "What you said earlier about overseas links is used below." },
       { k: "f_geoHigh", label: "Are any linked to a high-risk or sanctioned country?", type: "one", need: true, options: o(["no", "No"], ["yes", "Yes"], ["unchecked", "I haven't checked"]) },
       geoSrcQ,
       { k: "f_geoExtra", label: "What extra do you do if a client has links to a high-risk country?", type: "long", need: true, suggest: "Apply enhanced due diligence, record the countries linked to the client, its owners, funds, suppliers and customers, check the sources again at each review, and record the date and result of each check." },
@@ -88,7 +88,7 @@ export const FWRA_STEPS: Step[] = [
     id: "f_svc", title: "Products and services risk", covers: "Risk from the services the firm offers",
     intro: "ACCA names company formation, registered office and director services, payroll, tax advice that reduces liability, and bookkeeping that could legitimise records as higher risk. Your services come from the policy builder.",
     questions: [
-      { k: "f_tcsp", label: "If you provide company or trust services, what are they and for how many clients?", type: "long", show: (a) => has(a, "services", "formation") || has(a, "services", "registered"), need: true, placeholder: "For example company formation for 3 new clients a year" },
+      { k: "f_tcsp", example: "Company formation for a small number of new clients each year.", label: "If you provide company or trust services, what are they and for how many clients?", type: "long", show: (a) => has(a, "services", "formation") || has(a, "services", "registered"), need: true, placeholder: "For example company formation for 3 new clients a year" },
       { k: "f_standalone", label: "Is company formation offered on its own or only with ongoing services?", type: "one", show: (a) => has(a, "services", "formation"), need: true, options: o(["alone", "On its own"], ["ongoing", "Only for clients who also use ongoing services"], ["both", "Both"]) },
       svcCtrlQ,
       rating("f_svcRating", "Your draft rated this medium to high because of company formation and payroll."),
@@ -112,7 +112,7 @@ export const FWRA_STEPS: Step[] = [
     id: "f_trans", title: "Transactions risk", covers: "Risk from client money and payments",
     intro: "ACCA says client accounts are a risk in the sector, and clients should not be able to use one as a banking facility. Your earlier answer about client money is used here.",
     questions: [
-      { k: "f_transUse", label: "What is the money used for, how often, and who operates it?", type: "long", show: (a) => a.clientMoney === "some", need: true },
+      { k: "f_transUse", example: "Money is used to pay tax and other bills on the client's behalf, a few times a month, and each payment is authorised by the director.", label: "What is the money used for, how often, and who operates it?", type: "long", show: (a) => a.clientMoney === "some", need: true },
       { k: "f_transCheck", label: "What do you check before and when money moves?", type: "long", show: (a) => a.clientMoney === "some", need: true, suggest: "Understand why the client is using the account before the transaction, check where the funds came from, and do not allow it to be used as a banking facility.", source: "ACCA: understand the rationale for the transaction before it is initiated." },
       { k: "f_payroll", label: "Do you make or authorise payroll or tax payments for clients?", type: "one", need: true, options: o(["no", "No"], ["yes", "Yes"]) },
       rating("f_transRating", "A firm that never holds or moves client money will usually rate this low."),
@@ -129,9 +129,9 @@ export const FWRA_STEPS: Step[] = [
     id: "f_chan", title: "Delivery channels risk", covers: "Risk from how clients are met and served",
     intro: "Clients not met face to face can be harder to identify. ACCA wants to know how many, how and why clients came to you, and what you do about it.",
     questions: [
-      { k: "f_chanCount", label: "How many clients have you not met face to face?", type: "text", show: (a) => a.meet === "mixed" || a.meet === "remote", need: true },
-      { k: "f_chanHow", label: "How do clients usually come to you?", type: "text", need: true, placeholder: "For example by recommendation or from the website" },
-      { k: "f_tools", label: "Which platforms, portals or e-verification services do you use?", type: "long", placeholder: "For example client portal, e-signature, electronic ID provider" },
+      { k: "f_chanCount", example: "None", label: "How many clients have you not met face to face?", type: "text", show: (a) => a.meet === "mixed" || a.meet === "remote", need: true },
+      { k: "f_chanHow", example: "By recommendation or from the website", label: "How do clients usually come to you?", type: "text", need: true, placeholder: "For example by recommendation or from the website" },
+      { k: "f_tools", example: "Client portal, e-signature and an electronic ID provider.", label: "Which platforms, portals or e-verification services do you use?", type: "long", placeholder: "For example client portal, e-signature, electronic ID provider" },
       chanCtrlQ,
       rating("f_chanRating", "A small firm that meets most clients may rate this low or medium."),
     ],
@@ -170,7 +170,7 @@ export const FWRA_STEPS: Step[] = [
     id: "f_overall", title: "Overall assessment", covers: "Summary of the key risks and changes",
     intro: "A short summary of the risks above. The client percentages come from the risk ratings in the planner, so they are only as complete as those ratings.",
     questions: [
-      { k: "f_newRisks", label: "What new risks have appeared since the last assessment?", type: "long", placeholder: "Write 'none' if there are none. For a first assessment, write 'first assessment'", need: true },
+      { k: "f_newRisks", example: "First assessment", label: "What new risks have appeared since the last assessment?", type: "long", placeholder: "Write 'none' if there are none. For a first assessment, write 'first assessment'", need: true },
       { k: "f_lastDate", label: "Date of the last assessment, if any", type: "date" },
       { k: "f_manHigh", label: "How many clients are high risk?", type: "number", need: true, show: noRatings, help: "The planner has no approved client risk ratings yet, so enter your own figures. They only appear here until clients have approved AML assessments. The Client tracker in this area shows who is missing one." },
       { k: "f_manMed", label: "How many clients are medium risk?", type: "number", need: true, show: noRatings },
@@ -206,7 +206,7 @@ export const FWRA_STEPS: Step[] = [
       { k: "f_actReview", label: "Annual compliance review (MLRO report) due", type: "date" },
       { k: "f_actTrain", label: "AML training due", type: "date" },
       { k: "f_actPol", label: "Review of AML policies and procedures due", type: "date" },
-      { k: "f_actOther", label: "Other actions, one per line, with an owner and date", type: "long", placeholder: "For example Confirm countries for every client. Owner: MLRO. By 31 January 2027" },
+      { k: "f_actOther", example: "Confirm the countries for every client. Owner: MLRO.", label: "Other actions, one per line, with an owner and date", type: "long", placeholder: "For example Confirm countries for every client. Owner: MLRO. By 31 January 2027" },
     ],
     write: (a) => {
       const acts = [

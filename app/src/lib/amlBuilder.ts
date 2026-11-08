@@ -13,6 +13,8 @@ export type Q = {
   options?: Opt[];
   /** The suggested answer (ACCA's own example or common sense). Used only when the person chooses to accept suggestions. */
   suggest?: string | string[];
+  /** Example wording for the "Add example wording" button on an empty text box. Unlike suggest, the bulk fill button never uses it. */
+  example?: string;
   help?: string;
   /** Where the question comes from, so the person can see it isn't ours. */
   source?: string;
@@ -83,13 +85,13 @@ export const STEPS: Step[] = [
         options: o(["none", "No. Clients pay their own tax, payroll and suppliers"], ["some", "Sometimes. For example I pay HMRC, staff or suppliers from client funds, or hold a client account"]),
         help: "ACCA treats client accounts as a risk in the sector and says clients should not be able to use one as a banking facility.",
       },
-      { k: "clientMoneyHow", label: "What passes through, how often, and who authorises it?", type: "long", show: (a) => a.clientMoney === "some", need: true },
+      { k: "clientMoneyHow", example: "Client money is held only to pay tax and other bills on the client's behalf. It is received into the client account, paid out on the client's written instruction, and every payment is recorded against the client.", label: "What passes through, how often, and who authorises it?", type: "long", show: (a) => a.clientMoney === "some", need: true },
       {
         k: "meet", label: "How do you usually meet clients?", type: "one", need: true,
         options: o(["face", "Face to face"], ["mixed", "Some face to face, some remotely"], ["remote", "Mostly remotely"]),
         source: "ACCA: clients you have not met face to face can be harder to identify, so the firm-wide risk assessment must say how many there are.",
       },
-      { k: "remoteHow", label: "For clients you have not met in person, what extra checks do you carry out?", type: "long", show: (a) => a.meet === "mixed" || a.meet === "remote", placeholder: "For example video meetings, electronic ID checks, additional documents" },
+      { k: "remoteHow", example: "We hold a video meeting, check the person's identity electronically, and ask for certified copies of identity documents before any work starts.", label: "For clients you have not met in person, what extra checks do you carry out?", type: "long", show: (a) => a.meet === "mixed" || a.meet === "remote", placeholder: "For example video meetings, electronic ID checks, additional documents" },
       {
         k: "overseas", label: "Do any clients or their owners have links to countries outside the UK?", type: "one", need: true,
         options: o(["none", "None that I know of"], ["few", "A few"], ["several", "Several"], ["unknown", "I haven't checked"]),
@@ -114,7 +116,7 @@ export const STEPS: Step[] = [
       { k: "mlroSkills", label: "Why is this person suitable? (understanding of the business, seniority, authority, time and resources)", type: "long", suggest: "The MLRO is the owner and director of the firm, understands its services and clients, has the authority to direct all work, and has the time and resources to carry out the role.", source: "ACCA, The role of the MLRO: the person appointed must understand the business, be senior enough to direct staff, have the authority to ensure compliance, and have the time, capacity and resources." },
       { k: "deputy", label: "Is there an alternate (deputy) MLRO?", type: "one", need: true, options: o(["no", "No"], ["yes", "Yes"]), source: "ACCA: an alternate may cover absences but does not remove the MLRO's overall responsibility." },
       { k: "deputyName", label: "Who is the alternate?", type: "text", show: (a) => a.deputy === "yes", need: true },
-      { k: "away", label: "What happens when the MLRO is away?", type: "long", show: (a) => a.deputy === "no", placeholder: "For example how a suspicion is held and recorded until you return, and who to contact if consent is urgent" },
+      { k: "away", example: "The alternate MLRO acts in their place. Any suspicion is recorded and held until the MLRO returns, and any urgent request for consent is passed to the alternate straight away.", label: "What happens when the MLRO is away?", type: "long", show: (a) => a.deputy === "no", placeholder: "For example how a suspicion is held and recorded until you return, and who to contact if consent is urgent" },
       { k: "senior", label: "Who holds overall responsibility for AML compliance, if not the MLRO?", type: "text", show: (a) => teamOf(a) === "relevant", suggest: "The MLRO" },
     ],
     write: (a) => join([
@@ -213,10 +215,10 @@ export const STEPS: Step[] = [
         suggest: ["unusual", "geo", "cash", "structure", "hnw", "pep", "highvalue", "sector", "remote"],
         source: "ACCA, Identifying client risk (April 2026). A high rating does not mean a client is involved in money laundering. It means the firm must take extra steps.",
       },
-      { k: "hnwThreshold", label: "What counts as high net worth for the firm? (assets over)", type: "text", show: (a) => has(a, "highFactors", "hnw"), placeholder: "For example £1 million" },
-      { k: "extraHigh", label: "Any other high-risk factors specific to your clients?", type: "long", placeholder: "For example a client who changes the nature of their business quickly, or transactions that make no commercial sense" },
+      { k: "hnwThreshold", example: "£1 million", label: "What counts as high net worth for the firm? (assets over)", type: "text", show: (a) => has(a, "highFactors", "hnw"), placeholder: "For example £1 million" },
+      { k: "extraHigh", example: "A client who changes the nature of their business quickly, or whose transactions make no commercial sense.", label: "Any other high-risk factors specific to your clients?", type: "long", placeholder: "For example a client who changes the nature of their business quickly, or transactions that make no commercial sense" },
       { k: "lowUse", label: "Do you ever rate a client low risk?", type: "one", need: true, options: o(["never", "No. Anyone without high-risk factors is medium"], ["rare", "Only public bodies, publicly owned enterprises and companies listed on a regulated market"], ["own", "Yes. Those, and any other client we assess as low risk after looking at the risk factors, with the reasons recorded"]), suggest: "rare", source: "ACCA: low risk should be a rare exception, because low-risk clients are typically subject to simplified due diligence. A firm can rate other clients low risk if it has assessed them and recorded why." },
-      { k: "lowWhen", label: "What makes one of your clients low risk?", type: "long", need: true, show: (a) => a.lowUse === "own", help: "List the conditions a client must meet, so that two people would reach the same rating. Include what rules a client out.", placeholder: "For example: known to us for over two years, UK-based, simple ownership with owners identified, ordinary accounts and tax work, no cash, no politically exposed person, and no adverse media or sanctions hits." },
+      { k: "lowWhen", example: "Known to us for over two years, UK-based, simple ownership with the owners identified, ordinary accounts and tax work, no cash, no politically exposed person, and no adverse media or sanctions hits.", label: "What makes one of your clients low risk?", type: "long", need: true, show: (a) => a.lowUse === "own", help: "List the conditions a client must meet, so that two people would reach the same rating. Include what rules a client out.", placeholder: "For example: known to us for over two years, UK-based, simple ownership with owners identified, ordinary accounts and tax work, no cash, no politically exposed person, and no adverse media or sanctions hits." },
       { k: "signoff", label: "Who signs off each client's risk rating?", type: "text", need: true, suggest: "The MLRO", source: "ACCA: the assessment should be signed off by a partner, senior manager or the MLRO, with the reasons recorded on the client file." },
     ],
     write: (a) => {
@@ -252,7 +254,7 @@ export const STEPS: Step[] = [
         suggest: ["id", "sof", "scrutiny", "approval", "monitor", "other"], source: "ACCA: EDD must be done for all high-risk clients, and the measures should address the specific risk factors found.",
       },
       { k: "sdd", label: "Do you ever use simplified due diligence (SDD)?", type: "one", need: true, options: o(["never", "No"], ["rare", "Only for clients rated low risk, with the reason recorded"]), suggest: "never", source: "ACCA: it is rare for a firm to use SDD, but it is good practice to document the position. SDD applies only to clients rated low risk." },
-      { k: "records", label: "Where are the due diligence records kept?", type: "text", need: true, placeholder: "For example the client's AML file in the practice planner, with restricted access" },
+      { k: "records", example: "The client's AML file in the practice planner, with restricted access.", label: "Where are the due diligence records kept?", type: "text", need: true, placeholder: "For example the client's AML file in the practice planner, with restricted access" },
     ],
     write: (a) => join([
       "## Due diligence policy",
@@ -278,7 +280,7 @@ export const STEPS: Step[] = [
     id: "services", title: "Service-specific controls", covers: "Controls for the services the firm provides",
     intro: "Different services carry different risks. The controls below are chosen from the services you ticked on the first step. Add anything particular to how you work.",
     questions: [
-      { k: "serviceExtra", label: "Anything to add about how you control these services?", type: "long", placeholder: "For example how payroll payment changes are confirmed, or how you decide whether to accept a company formation" },
+      { k: "serviceExtra", example: "Payroll payment changes are confirmed with the client by phone before they are made, and every company formation request is reviewed by the MLRO before we accept it.", label: "Anything to add about how you control these services?", type: "long", placeholder: "For example how payroll payment changes are confirmed, or how you decide whether to accept a company formation" },
     ],
     write: (a) => {
       const picked = arr(a, "services");
@@ -296,7 +298,7 @@ export const STEPS: Step[] = [
       { k: "mLow", label: "Review low-risk clients at least every (months)", type: "number", show: (a) => a.lowUse === "rare" || a.lowUse === "own", need: true, suggest: "12", help: "Only asked because you said some clients are rated low risk." },
       { k: "checks", label: "What does a review check?", type: "many", need: true, options: o(["id", "Identification and address are still valid"], ["psc", "No discrepancies on the PSC register"], ["owners", "Directors, owners and controllers are unchanged"], ["turnover", "Turnover and activity are in line with what we expect"], ["screen", "Sanctions, PEP and adverse information are rechecked"], ["services", "The services and the risk rating are still right"]), suggest: ["id", "psc", "owners", "turnover", "screen", "services"] },
       { k: "triggers", label: "What makes you review a client straight away, without waiting for the next date?", type: "many", need: true, options: TRIGGER_KINDS.map((t) => ({ v: t.v, label: t.label })), suggest: TRIGGER_KINDS.map((t) => t.v), help: "Changes to directors, owners and persons with significant control, and new services, are spotted by the planner. The rest are raised by a person on the client's AML record.", source: "The CCAB guidance for the accountancy sector expects ongoing monitoring to include scrutiny of activity and keeping due diligence up to date, with reviews prompted by changes in risk." },
-      { k: "triggerOwn", label: "Any other triggers specific to your clients?", type: "long", placeholder: "For example a client who changes the nature of their business quickly" },
+      { k: "triggerOwn", example: "A client who changes the nature of their business quickly, or asks for work that does not fit what we know about them.", label: "Any other triggers specific to your clients?", type: "long", placeholder: "For example a client who changes the nature of their business quickly" },
       { k: "triggerDays", label: "How many days do you allow to complete a triggered review?", type: "number", need: true, suggest: "14", help: "The review is given this due date when it is opened. The more serious the trigger, the shorter it should be." },
     ],
     write: (a) => {
@@ -336,7 +338,7 @@ export const STEPS: Step[] = [
     intro: "How a suspicion is reported inside the firm, who decides whether to report it to the NCA, and the two offences everyone must know: failing to report, and tipping off.",
     questions: [
       { k: "portal", label: "Is the firm registered with the NCA SAR Portal?", type: "one", need: true, options: o(["yes", "Yes"], ["no", "Not yet"]), help: "If not, register before a report is needed." },
-      { k: "formWhere", label: "Where is the internal SAR form kept?", type: "text", show: (a) => teamOf(a) === "relevant", need: true },
+      { k: "formWhere", example: "In the AML area of the practice planner, as a blank form that can be printed.", label: "Where is the internal SAR form kept?", type: "text", show: (a) => teamOf(a) === "relevant", need: true },
       { k: "restricted", label: "Where are SAR records kept? (they must be restricted and kept apart from general files)", type: "text", need: true, suggest: "In a separate restricted folder that only the MLRO can open" },
       { k: "log", label: "Do you keep a log of internal and external SARs and the decisions?", type: "one", need: true, options: o(["yes", "Yes"], ["no", "Not yet"]), suggest: "yes", source: "ACCA recommends a full record of all SARs, with the written reasons for the decision whether to report, and a record of verbal discussions about suspicions." },
     ],
@@ -394,10 +396,10 @@ export const STEPS: Step[] = [
     intro: "Some firms rely on another regulated firm's due diligence, or use a provider for identity checks. The regulations allow this only on conditions, and the firm remains responsible for the result.",
     questions: [
       { k: "rely", label: "Do you ever rely on another firm's customer due diligence instead of doing your own?", type: "one", need: true, options: o(["never", "No. We always do our own"], ["sometimes", "Sometimes"]), suggest: "never", source: "Regulation 39: reliance is allowed only on another regulated firm, with a written agreement, and the relying firm stays liable for any failure." },
-      { k: "relyWho", label: "Who do you rely on, and for what?", type: "long", show: (a) => a.rely === "sometimes", need: true },
+      { k: "relyWho", example: "We do not rely on other firms for client due diligence. We carry out and keep our own checks.", label: "Who do you rely on, and for what?", type: "long", show: (a) => a.rely === "sometimes", need: true },
       { k: "relyTerms", label: "What conditions apply?", type: "many", show: (a) => a.rely === "sometimes", need: true, options: o(["supervised", "The other firm is supervised for AML in the UK or an equivalent country"], ["agreement", "There is a written agreement"], ["copies", "Copies of the evidence are available straight away on request"], ["responsible", "We stay responsible and check the quality of what we are given"]), suggest: ["supervised", "agreement", "copies", "responsible"] },
       { k: "outsource", label: "Do you use a provider for identity checks or screening?", type: "one", need: true, options: o(["no", "No"], ["yes", "Yes"]) },
-      { k: "outsourceWho", label: "Which provider, and what do you do to check it works?", type: "long", show: (a) => a.outsource === "yes", need: true },
+      { k: "outsourceWho", example: "Our practice management and electronic ID providers. Before using each one we checked how it protects client data and that it does what we need, and we review it every year.", label: "Which provider, and what do you do to check it works?", type: "long", show: (a) => a.outsource === "yes", need: true },
     ],
     write: (a) => join([
       "## Reliance on third parties and outsourcing",
@@ -499,7 +501,7 @@ export const STEPS: Step[] = [
     id: "records", title: "Record keeping", covers: "Record keeping",
     intro: "How long AML records are kept, where, who can see them, and how they are removed when the time is up.",
     questions: [
-      { k: "where", label: "Where are AML records kept?", type: "text", need: true, placeholder: "For example the client's AML file in the practice planner, with restricted access" },
+      { k: "where", example: "The client's AML file in the practice planner, with restricted access.", label: "Where are AML records kept?", type: "text", need: true, placeholder: "For example the client's AML file in the practice planner, with restricted access" },
       { k: "access", label: "Who can open them?", type: "text", need: true, suggest: "The MLRO only" },
       { k: "disposal", label: "What happens when the retention period ends?", type: "one", need: true, options: o(["delete", "They are deleted, unless there is a legal reason to keep them"], ["review", "The MLRO reviews them and decides"]), suggest: "delete", source: "ACCA: CDD records are kept for five years from the end of the client relationship, along with other AML documents such as training logs, risk assessments and internal reports." },
     ],
@@ -516,8 +518,8 @@ export const STEPS: Step[] = [
     questions: [
       { k: "approver", label: "Who approves the policy?", type: "text", need: true, suggest: "The MLRO" },
       { k: "nextReview", label: "When is the next review?", type: "date", need: true, source: "ACCA: review and update the policy periodically, ideally annually, and whenever a trigger event happens." },
-      { k: "tell", label: "How are people told where the policy is kept?", type: "text", show: (a) => teamOf(a) === "relevant", need: true, placeholder: "For example by email to everyone, and when someone joins" },
-      { k: "understand", label: "How do you confirm people understand it?", type: "text", show: (a) => teamOf(a) === "relevant", need: true, placeholder: "For example a short test or a signed confirmation after training" },
+      { k: "tell", example: "By email to everyone, and when someone joins.", label: "How are people told where the policy is kept?", type: "text", show: (a) => teamOf(a) === "relevant", need: true, placeholder: "For example by email to everyone, and when someone joins" },
+      { k: "understand", example: "A short test or a signed confirmation after training.", label: "How do you confirm people understand it?", type: "text", show: (a) => teamOf(a) === "relevant", need: true, placeholder: "For example a short test or a signed confirmation after training" },
       { k: "breach", label: "What do you do when a control fails or the policy is breached?", type: "long", suggest: "The MLRO records the failure, contains it, considers the effect on clients and any reporting duty, finds the cause, and agrees and records the corrective action. The risk assessment and this policy are reviewed if the failure shows a gap.", need: true },
     ],
     write: (a) => join([
