@@ -265,10 +265,18 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
               {cfg.id === "builder" && step.id === "fwra" && <div><a className="btn small primary" href={href("aml", "fwra")}>Open the risk assessment questions</a><span className="muted" style={{ marginLeft: 8, fontSize: 13 }}>The risk assessment itself is written on the Risk assessment tab. This area only describes how it is kept up to date.</span></div>}
               {step.id === "firm" && <div className="muted" style={{ fontSize: 13 }}>The planner currently holds {facts.clients} active client{facts.clients === 1 ? "" : "s"}.</div>}
               {qs.map((q) => <QuestionView key={q.k} q={q} a={merged.answers} set={setAnswer} />)}
-              {qs.some((q) => q.suggest !== undefined) && (
-                <div><button type="button" className="btn small" onClick={() => { const sug = b.withSuggestions(step, merged.answers); const add: b.Answers = {}; for (const q of qs) if (sug[q.k] !== undefined && sug[q.k] !== merged.answers[q.k]) add[q.k] = sug[q.k]; edit({ ...state, answers: { ...state.answers, ...add }, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Fill the blanks with suggested answers</button>
-                  <span className="muted" style={{ marginLeft: 8, fontSize: 13 }}>Only questions you haven't answered. Check them: they are examples, not your decisions.</span></div>
-              )}
+              {qs.some((q) => q.suggest !== undefined) && (() => {
+                const fill = b.fillable(step, merged.answers).length;
+                const own = b.unanswered(step, merged.answers).length;
+                return (
+                  <div>
+                    {fill > 0 ? (
+                      <button type="button" className="btn small" onClick={() => { const sug = b.withSuggestions(step, merged.answers); const add: b.Answers = {}; for (const q of qs) if (sug[q.k] !== undefined && sug[q.k] !== merged.answers[q.k]) add[q.k] = sug[q.k]; edit({ ...state, answers: { ...state.answers, ...add }, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Fill {fill} blank{fill === 1 ? "" : "s"} with suggested answers</button>
+                    ) : <span className="muted" style={{ fontSize: 13 }}>Every question that has a suggestion is already answered.</span>}
+                    <span className="muted" style={{ marginLeft: 8, fontSize: 13 }}>{fill > 0 ? "Only questions you haven't answered. Check them: they are examples, not your decisions." : ""}{own > 0 ? ` ${own} still need${own === 1 ? "s" : ""} your own answer, because only you know it.` : ""}</span>
+                  </div>
+                );
+              })()}
             </section>
           </div>
         </div>

@@ -562,6 +562,8 @@ export function outstanding(built: Built[]): { unconfirmed: string[]; gaps: numb
 }
 
 /** Accept ACCA's suggestions for the questions that have none yet. Never overwrites an answer the person gave. */
+/** Questions on this step that have a suggestion and are still blank, so the fill button knows what it will do. */
+export const fillable = (step: Step, a: Answers): Q[] => shown(step, a).filter((q) => q.suggest !== undefined && !answered(q, a));
 export function withSuggestions(step: Step, a: Answers): Answers {
   const out: Answers = { ...a };
   for (const q of shown(step, a)) if (!answered(q, a) && q.suggest !== undefined) out[q.k] = q.suggest;

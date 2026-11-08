@@ -160,3 +160,18 @@ test("low risk: a firm can rate its own clients low risk with stated conditions,
   const mon = b.STEPS.find((x) => x.id === "monitor")!;
   assert.ok(b.shown(mon, a).some((q) => q.k === "mLow"));
 });
+
+test("every suggested answer is a valid answer for its question, so the fill button always fills it", () => {
+  const bad: string[] = [];
+  for (const st of [...b.STEPS, ...FWRA_STEPS]) for (const q of st.questions) {
+    if (q.suggest === undefined) continue;
+    const vals = (q.options || []).map((x) => x.v);
+    const sv = Array.isArray(q.suggest) ? q.suggest : [q.suggest];
+    if (q.type === "one" || q.type === "many") { if (q.type === "one" && Array.isArray(q.suggest)) bad.push(q.k); for (const v of sv) if (!vals.includes(v)) bad.push(`${q.k}=${v}`); }
+    else if (Array.isArray(q.suggest)) bad.push(q.k);
+  }
+  assert.deepEqual(bad, []);
+  const pf = FWRA_STEPS.find((x) => x.id === "f_pf")!;
+  assert.equal(b.fillable(pf, {} as never).length, 3);
+  assert.equal(b.fillable(pf, { f_pfRating: "Medium" } as never).length, 2);
+});
