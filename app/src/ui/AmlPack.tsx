@@ -13,11 +13,12 @@ import { todayIso } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
 import { readSetting, useData } from "./data";
+import { AmlClients } from "./AmlClients";
 import { Cfg, FWRA_CFG, PolicyBuilder, POLICY_CFG } from "./AmlBuilder";
 import { useFirm } from "./FirmSettings";
 
 const TABS: [string, string][] = [
-  ["overview", "Overview"], ["fwra", "Risk assessment"], ["policies", "Policies"], ["registrations", "Registrations"], ["annualreturn", "ACCA return"], ["reviews", "Client reviews"], ["screening", "Screening"], ["training", "Training"],
+  ["overview", "Overview"], ["clients", "Client tracker"], ["fwra", "Risk assessment"], ["policies", "Policies"], ["registrations", "Registrations"], ["annualreturn", "ACCA return"], ["reviews", "Client reviews"], ["screening", "Screening"], ["training", "Training"],
   ["actions", "Actions"], ["mlro", "MLRO report"], ["independent", "Independent review"], ["forms", "SAR and blank forms"],
 ];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
@@ -359,6 +360,7 @@ export function AmlPage() {
   if (tab === "overview") body = <Overview />;
   else if (tab === "policies") body = <PolicyBuilder key="policies" cfg={POLICY_CFG} />;
   else if (tab === "fwra") body = <PolicyBuilder key="fwra" cfg={FWRA_CFG} />;
+  else if (tab === "clients") body = <AmlClients />;
   else if (tab === "forms") body = <BlankForms />;
   else body = def ? <FormScreen key={def.id} def={def} /> : null;
   return (
