@@ -260,7 +260,7 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
   const open = async (x: ReportDoc) => {
     try {
       const bytes = await store.graph.download(fileOf(clientKey, x.id));
-      const url = URL.createObjectURL(new Blob([bytes], { type: "text/html;charset=utf-8" }));
+      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "text/html;charset=utf-8" }));
       const w = window.open(url, "_blank");
       if (!w) setNote("Your browser blocked the new window. Allow pop-ups for this site and try again.");
       setTimeout(() => URL.revokeObjectURL(url), 120000);

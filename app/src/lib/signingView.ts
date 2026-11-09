@@ -26,7 +26,7 @@ const list = (names: string[]) => (names.length <= 1 ? names.join("") : `${names
 export function fromSigning(r: StaffSigning): SignRow {
   const signees = r.signatories.map((x) => ({ name: x.name, at: x.signedAt || "", state: (x.status === "signed" ? "signed" : x.status === "declined" ? "declined" : "waiting") as "signed" | "declined" | "waiting" }));
   const names = (st: string) => signees.filter((x) => x.state === st).map((x) => x.name);
-  const state: SignState = r.status === "out" ? "waiting" : r.status;
+  const state: SignState = r.status === "out" ? "waiting" : r.status === "completed" ? "signed" : r.status;
   const text = state === "signed" ? `Signed by ${list(names("signed"))}` : state === "declined" ? `Declined by ${list(names("declined")) || "a signatory"}` : state === "waiting" ? `Waiting for ${list(names("waiting"))}${names("signed").length ? ` · signed by ${list(names("signed"))}` : ""}` : STATE_LABEL[state];
   const lastSigned = signees.map((x) => x.at).filter(Boolean).sort().pop() || "";
   return { id: `portal:${r.id}`, kind: "portal", title: r.title, ref: r.ref, createdAt: r.createdAt, creator: r.createdByName, signees, state, text, doneAt: state === "signed" ? r.completedAt || lastSigned : state === "declined" ? lastSigned : "", portalId: r.id, chasable: state === "waiting" };

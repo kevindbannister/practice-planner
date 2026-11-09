@@ -21,7 +21,7 @@ export function useCoSec() {
   const ctx = () => ({ actor: me, now: new Date().toISOString(), pid: practiceId(data.settings), newKey });
   const snap = (): Snapshot => ({ clients: data.clients, officers: data.cosecOfficers, pscs: data.cosecPscs, shares: data.cosecShares, classes: data.cosecShareClasses, ledger: data.cosecLedger, txs: data.cosecTx, events: data.cosecEvents });
   const companies = useMemo(() => data.clients.filter((c) => (c.Kind === "Ltd" || c.Kind === "LLP") && String(c.CompanyNumber || "").trim()), [data.clients]);
-  const gateway = useRef<CoSecGateway>();
+  const gateway = useRef<CoSecGateway>(undefined);
   if (!gateway.current) gateway.current = demoMode ? new FakeGateway() : new HttpGateway(getAccessToken);
 
   /** Save what the Co Sec logic decided: new rows, changes, audit lines, timeline entries, and the client's last-verified record. */

@@ -10,7 +10,7 @@ export function BannerMenu({ current = "papers" }: { current?: string }) {
   const cur = navKeyOf(current);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const timer = useRef<number>();
+  const timer = useRef<number>(undefined);
   const show = () => { window.clearTimeout(timer.current); setOpen(true); };
   const hideSoon = () => { window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setOpen(false), 260); };
   useEffect(() => () => window.clearTimeout(timer.current), []);

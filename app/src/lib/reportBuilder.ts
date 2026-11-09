@@ -69,11 +69,12 @@ export const moveItem = <T,>(list: T[], from: number, to: number): T[] => {
 
 // ------------------------------------------------------------------ what can be added
 
-export type Pick = { name: string; note: string; make: () => Block };
+export type BlockPick = { name: string; note: string; make: () => Block };
+export type Pick = BlockPick;
 const keyNumber = (title: string, measure: string): Block => ({ id: uid(), type: "key", title, measure, compare: "none", spark: false, showDesc: false, desc: "", fmt: {} });
 const observation = (): Block => ({ id: uid(), type: "observation", title: "Revenue", left: { measure: "revenue", when: "this" }, op: "gt", right: { measure: "revenue", when: "lastYear" }, thenIcon: "up", thenText: "Positive trend upwards.", elseIcon: "down", elseText: "Negative trend downwards.", hideWhen: "never" });
 const top = (title: string, group: TopGroup): Block => ({ id: uid(), type: "top", title, group, n: 10, order: "top", hideNil: true });
-export const TEXT_BLOCKS: Pick[] = [
+export const TEXT_BLOCKS: BlockPick[] = [
   { name: "Observation with a rule", note: "Says one thing or another depending on the numbers", make: observation },
   { name: "Text", note: "Write your own commentary", make: () => ({ id: uid(), type: "text", style: "paragraph", text: "" }) },
   { name: "Heading", note: "A heading to introduce what follows", make: () => ({ id: uid(), type: "text", style: "heading", text: "" }) },
@@ -84,7 +85,7 @@ export const TEXT_BLOCKS: Pick[] = [
   { name: "Page break", note: "Start a new page when printed", make: () => ({ id: uid(), type: "page" }) },
 ];
 const chart = (title: string, measures: string[], months: 13 | 24 | 36 = 13, bars = false): Block => ({ id: uid(), type: "chart", title, measures, months, bars });
-export const CHART_BLOCKS: Pick[] = [
+export const CHART_BLOCKS: BlockPick[] = [
   { name: "Revenue", note: "Last 13 months", make: () => chart("Revenue", ["revenue"], 13, true) },
   { name: "Revenue, 24 months", note: "Two years, month by month", make: () => chart("Revenue", ["revenue"], 24) },
   { name: "Revenue and profit", note: "Revenue, gross and operating profit", make: () => chart("Revenue and profit", ["revenue", "gross", "operating"]) },
@@ -139,5 +140,5 @@ export function copyReport(r: ReportDoc, now: string): ReportDoc {
 }
 
 /** The latest month figures exist for, unless the report names one. */
-export const anchorFor = (r: Pick<ReportDoc, "anchor">, months: string[]) => (r.anchor && months.includes(r.anchor) ? r.anchor : months[months.length - 1] || "");
+export const anchorFor = (r: { anchor?: ReportDoc["anchor"] }, months: string[]) => (r.anchor && months.includes(r.anchor) ? r.anchor : months[months.length - 1] || "");
 export const shiftAnchor = (m: string, n: number) => addMonths(m, n);

@@ -542,8 +542,8 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
         )}
         {none && <div className="wk-head"><h2>Work</h2>{buttons}</div>}
         {none && <div className="card empty">{jobs.length && due !== "all" ? "No work matches this filter." : "No open work for this client."}</div>}
-        {sections.statutory.length > 0 && section("Statutory work", sections.statutory, true)}
-        {sections.other.length > 0 && section("Other services", sections.other, !sections.statutory.length)}
+        {sections.statutory.length > 0 && section("Statutory work", sections.statutory as Job[], true)}
+        {sections.other.length > 0 && section("Other services", sections.other as Job[], !sections.statutory.length)}
       </div>
 
       <aside className="wk-summary" aria-label="Work summary">

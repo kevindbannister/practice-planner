@@ -67,7 +67,7 @@ export function usePlan(clientKey: string): PlanState {
   const [plan, setPlan] = useState<Plan>(() => readPlan(found?.Json));
   const latest = useRef(plan);
   const dirty = useRef(false);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const writing = useRef<Promise<void>>(Promise.resolve());
   const [state, setState] = useState<PlanState["state"]>("idle");
   const [error, setError] = useState<string>();

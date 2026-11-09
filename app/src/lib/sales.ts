@@ -7,7 +7,7 @@
 // each have their own status: nothing here is one rigid status field.
 import { Client, Job } from "./domain";
 import { Config, Role, readConfig, staffRole } from "./checklist";
-import { Row } from "./schema";
+import { ListKey, Row } from "./schema";
 import { normName } from "./xamaSync";
 
 // ------------------------------------------------------------------ settings
@@ -149,8 +149,8 @@ export function orderAt(siblings: Opp[], index: number): number {
 }
 
 export type LogEntry = Row;
-export type Patch = { list: "Leads" | "Opportunities" | "Activities" | "Proposals" | "ProposalVersions" | "Services" | "Engagements" | "Clients" | "Onboardings" | "ClientServices" | "FeeCharges" | "ClientCosts" | "Actions" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "AmlAssessments" | "BillingChases" | "ComplianceLog" | "Obligations"; row: Row; patch: Row };
-export type Created = { list: "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "ClientServices" | "Jobs" | "Clients" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions" | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "AmlAssessments" | "BillingChases" | "ComplianceLog" | "Obligations"; row: Row };
+export type Patch = { list: ListKey; row: Row; patch: Row };
+export type Created = { list: ListKey; row: Row };
 export type Written = { patches: Patch[]; log: LogEntry[]; activities: Row[]; creates?: Created[] };
 export type Ctx = { actor: string; now: string; pid: string; newKey: (p: string) => string };
 

@@ -823,7 +823,7 @@ function TaskFields({ value, clients, projects, onChange, live }: { value: Row; 
   if (live) {
     return (
       <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-        <div style={{ gridColumn: "1 / -1" }}><Field label="Task" value={value.Title as string} onSave={(v) => v && onChange({ Title: v })} /></div>
+        <div style={{ gridColumn: "1 / -1" }}><Field label="Task" value={value.Title as string} onSave={(v) => { if (v) onChange({ Title: v }); }} /></div>
         <SelectField label="Type" value={(value.Type as string) || ""} onChange={(v) => onChange({ Type: v })}>
           {TASK_TYPES.map((t) => <option key={t}>{t}</option>)}
         </SelectField>

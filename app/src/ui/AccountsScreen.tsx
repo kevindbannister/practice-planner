@@ -243,7 +243,7 @@ export async function makeAccountsPdf(input: AccountsInput, branding: ReturnType
 
 function ViewTab({ input, branding }: { input: AccountsInput; branding: ReturnType<typeof brandOf> }) {
   const [state, setState] = useState<{ url?: string; pages?: number; bytes?: Uint8Array; error?: string; busy: boolean }>({ busy: false });
-  const url = useRef<string>();
+  const url = useRef<string>(undefined);
   useEffect(() => () => { if (url.current) URL.revokeObjectURL(url.current); }, []);
   const run = async () => {
     setState((s) => ({ ...s, busy: true, error: undefined }));

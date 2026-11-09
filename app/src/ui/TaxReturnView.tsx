@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Client } from "../lib/domain";
 import { loadPdfJs } from "../lib/pdfText";
 import { readIrisPdf } from "../lib/taxFile";
-import { BoxField, Context, FORM_YEARS, FormMap, Filled, fillForm, formUrl, formYearFor, layout, mapUrl } from "../lib/sa100";
+import { BoxField, Context, FORM_YEARS, FormMap, Filled, fillForm, fillPdf, formUrl, formYearFor, layout, mapUrl } from "../lib/sa100";
 import { Computation, SectionKey, TaxReturn } from "../lib/tax";
 import { ImportFile, ImportResult, checkImport, readImport } from "../lib/taxImport";
 import { YEARS, yearLabel } from "../lib/taxRates";

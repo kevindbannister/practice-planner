@@ -47,6 +47,7 @@ export function XeroImport({ client, period, open, onClose }: { client: Client; 
     setResult(undefined);
     setDone(undefined);
     try {
+      if (!tenant) throw new Error("Choose the Xero organisation first.");
       setResult(await readFromXero(xero, tenant, period, parts, { quarterEnds: stagger, progress: setProgress }));
     } catch (e) {
       setError(e instanceof XeroError ? e.message : "Reading from Xero stopped. Try again.");

@@ -30,7 +30,7 @@ const money = (s: string): number | null => {
 };
 
 /** A pounds box that keeps what you type; it only follows the filter when the filter is changed from elsewhere (a saved view, Clear). */
-function Fee({ value, onChange, label, placeholder, disabled }: { value: number | null; onChange: (n: number | null) => void; label: string; placeholder: string; disabled: boolean }) {
+function Fee({ value, onChange, label, placeholder, disabled }: { value: number | null; onChange: (n: number | null) => void; label: string; placeholder: string; disabled?: boolean }) {
   const [text, setText] = useState(value === null ? "" : String(value));
   useEffect(() => setText((t) => (money(t) === value ? t : value === null ? "" : String(value))), [value]);
   return <input className="input" inputMode="numeric" placeholder={placeholder} aria-label={label} disabled={disabled} value={text} onChange={(e) => { setText(e.target.value); onChange(money(e.target.value)); }} style={{ width: 96 }} />;

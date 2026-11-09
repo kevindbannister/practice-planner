@@ -165,7 +165,7 @@ function ProposalSettings() {
       <h2 className="sec-h">Proposal layout and limits</h2>
       <p className="muted" style={{ margin: 0 }}>Logo, colours and fonts come from your document branding. You can use {"{{client}}"}, {"{{practice}}"}, {"{{contact}}"}, {"{{validUntil}}"}, {"{{startDate}}"}, {"{{reference}}"} and {"{{date}}"} in the wording.</p>
       <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
-        <label className="doc-field"><span>Branding</span><select className="input" value={t.brandingId} onChange={(e) => set("brandingId", e.target.value)}><option value="">Your default</option>{brands.map((b) => <option key={b.id} value={b.id}>{b.name || b.practiceName || b.id}</option>)}</select></label>
+        <label className="doc-field"><span>Branding</span><select className="input" value={t.brandingId} onChange={(e) => set("brandingId", e.target.value)}><option value="">Your default</option>{brands.map((b) => <option key={b.id} value={b.id}>{b.profileName || b.practiceName || b.id}</option>)}</select></label>
         <label className="doc-field"><span>VAT rate (%)</span><input className="input" inputMode="decimal" value={vat} onChange={(e) => setVat(e.target.value)} /></label>
         <label className="doc-field"><span>Discount a manager can give without a partner (%)</span><input className="input" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} /></label>
       </div>

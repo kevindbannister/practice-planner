@@ -2,6 +2,7 @@
 // worked out ahead), its people, its pay runs and payslips, and what goes to HMRC. Approving a period queues its FPS to go on payday;
 // months with no pay get a nil EPS. The server sends what is due each day (api/rti). See lib/payroll/*.
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { JSX } from "react";
 import { Client, todayIso } from "../lib/domain";
 import { newKey } from "../lib/planning";
 import { readSetup, setupRow } from "../lib/papers";
@@ -38,7 +39,7 @@ const STATUS_WORD: Record<string, string> = { queued: "Queued", sending: "Sendin
 function usePayroll() {
   const d = useData();
   const sales = useSales();
-  const client = useRef<RtiClient>();
+  const client = useRef<RtiClient>(undefined);
   if (!client.current) client.current = demo ? new FakeRti() : new HttpRti(getAccessToken);
   const ctx = (): rec.Ctx => ({ actor: d.user || "", now: new Date().toISOString(), pid: sales.ctx().pid, newKey });
   return { ...d, can: sales.pcan("send"), ctx, rti: client.current };

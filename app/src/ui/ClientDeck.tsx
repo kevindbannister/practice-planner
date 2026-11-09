@@ -163,7 +163,7 @@ function SlideForm({ s, set, ctx, onNew }: { s: Slide; set: (p: Partial<Slide>) 
               <Mini label={`Remove ${r.label}`} onClick={() => set({ bridge: { rows: s.bridge!.rows.filter((_, k) => k !== i) } })}>×</Mini>
             </div>
           ))}
-          <button type="button" className="btn small" onClick={() => set({ bridge: { rows: [...s.bridge.rows.slice(0, -1), { label: "Change", value: 0 }, s.bridge.rows[s.bridge.rows.length - 1]] } })}>+ Add a step</button>
+          <button type="button" className="btn small" onClick={() => s.bridge && set({ bridge: { rows: [...s.bridge.rows.slice(0, -1), { label: "Change", value: 0 }, s.bridge.rows[s.bridge.rows.length - 1]] } })}>+ Add a step</button>
         </fieldset>
       )}
       {s.line && (
@@ -419,7 +419,7 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const dirty = useRef(false), loaded = useRef(false);
-  const timer = useRef<number>();
+  const timer = useRef<number>(undefined);
   const file = meta.file || deckFile(String(client.Key), period);
   const branding = useMemo(() => brandOf(readBranding(data.settings)), [data.settings]);
   const firmLogo = branding.logo || "";

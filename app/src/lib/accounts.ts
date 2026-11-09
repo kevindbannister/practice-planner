@@ -133,7 +133,7 @@ export function incomeStatement(f: F, prior: F | undefined, type: AccountsType):
   if (type === "micro") {
     keep({ label: "Other income", now: on, prior: op, section: "income" });
     keep({ label: "Cost of sales and other expenses", now: -sum(cn, en), prior: has ? -sum(cp, ep) : undefined, section: "expenditure" });
-    out.push({ label: "Profit before taxation", now: sum(tn, on, -cn, -en), prior: has ? sum(tp, op, -cp, -ep) : undefined, kind: "sub" });
+    out.push({ label: "Profit before taxation", now: sum(tn, on, -cn, -en), prior: has ? sum(tp, op, -(cp ?? 0), -(ep ?? 0)) : undefined, kind: "sub" });
   } else {
     if (cn || cp) {
       out.push({ label: "Cost of sales", now: -cn, prior: has ? -(cp as number) : undefined, section: "expenditure" });
@@ -141,9 +141,9 @@ export function incomeStatement(f: F, prior: F | undefined, type: AccountsType):
     }
     keep({ label: "Administrative expenses", now: -en, prior: has ? -(ep as number) : undefined, section: "expenditure" });
     keep({ label: "Other operating income", now: on, prior: op, section: "income" });
-    out.push({ label: type === "llp" ? "Profit for the financial year before taxation" : "Profit before taxation", now: sum(tn, -cn, -en, on), prior: has ? sum(tp, -cp, -ep, op) : undefined, kind: "sub" });
+    out.push({ label: type === "llp" ? "Profit for the financial year before taxation" : "Profit before taxation", now: sum(tn, -cn, -en, on), prior: has ? sum(tp, -(cp ?? 0), -(ep ?? 0), op) : undefined, kind: "sub" });
   }
-  const pbtN = sum(tn, -cn, -en, on), pbtP = has ? sum(tp, -cp, -ep, op) : undefined;
+  const pbtN = sum(tn, -cn, -en, on), pbtP = has ? sum(tp, -(cp ?? 0), -(ep ?? 0), op) : undefined;
   if (xn || xp || type !== "llp") out.push({ label: "Tax on profit", now: -xn, prior: has ? -(xp as number) : undefined, section: "taxation" });
   out.push({
     label: type === "llp" ? "Profit for the financial year before members' remuneration and profit shares" : "Profit for the financial year",

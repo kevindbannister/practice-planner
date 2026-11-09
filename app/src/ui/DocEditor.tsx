@@ -73,7 +73,7 @@ export function DocEditor({ value, resetKey, onChange, layout, onLayout, fields,
   const page = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const saved = useRef<Range | null>(null);
-  const timer = useRef<number>();
+  const timer = useRef<number>(undefined);
   const fileRef = useRef<HTMLInputElement>(null);
   const [panel, setPanel] = useState<"" | "fields" | "table" | "page">("");
   const [find, setFind] = useState("");

@@ -67,7 +67,7 @@ export function cashFlow(d: Src, kind: PeriodKind, anchor: string, endMonth: num
     { label: "Change in Inventory", amount: -dStock, tag: "LESS" },
     { label: "Change in Work In Progress", amount: -dWip, tag: "LESS" },
     { label: "Change in Other Current Assets", amount: -dOca, tag: "LESS" },
-  ].map((l) => ({ ...l, amount: r2(l.amount) }));
+  ].map((l): CfLine => ({ ...(l as CfLine), amount: r2(l.amount) }));
   const operating = r2(lines.reduce((a, l) => a + l.amount, 0));
   const inv: CfLine[] = [
     { label: "Change in Fixed Assets (ex. Depn & Amortisation)", amount: r2(-(dTang + depn)), tag: "LESS" },

@@ -22,7 +22,7 @@ export function BusinessPage({ ctx }: { ctx: Ctx }) {
   if (err) return <p className="px-error" role="alert">{err}</p>;
   if (!info) return <p>Loading…</p>;
   if (!biz.can["business.details"]) return <section className="px-card"><h1>{biz.name}</h1><p className="px-muted">Your access doesn't include the full business details.</p></section>;
-  const d = { ...readable(info.details), kind: TYPE[info.details.kind] || info.details.kind };
+  const d: Record<string, string> = { ...readable(info.details), kind: TYPE[info.details.kind] || info.details.kind };
   return (
     <div className="px-stack">
       <h1>My business</h1>

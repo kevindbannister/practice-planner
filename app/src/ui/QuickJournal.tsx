@@ -11,7 +11,7 @@ import { AccountList, nextJournal, useWriter } from "./PaperSchedules";
 export function QuickJournalButton() {
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState("");
-  const timer = useRef<number>();
+  const timer = useRef<number>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
   return (
     <>

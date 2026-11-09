@@ -48,7 +48,7 @@ export function ruleOnMove(rules: StageRule[], serviceKey: string, from: number,
 
 /** Fill the wording in: the usual merge fields plus {{stage}} for the finished stage's name. */
 export function stageEmail(rule: StageRule, values: Record<string, string>, stageName: string): { subject: string; body: string } {
-  const v = { ...values, stage: stageName, "job.type": values["job.type"] || "" };
+  const v: Record<string, string> = { ...values, stage: stageName, "job.type": values["job.type"] || "" };
   const fill = (t: string) => t.replace(/\{\{\s*([a-z0-9_.]+)\s*\}\}/gi, (m, k: string) => (s(v[k.toLowerCase()]) ? v[k.toLowerCase()] : m));
   return { subject: fill(rule.subject), body: fill(rule.body) };
 }

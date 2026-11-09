@@ -230,7 +230,7 @@ function TaxScreen({ client: c, year, view, setView, start, frozen }: { client: 
   const saved = w.setup(TAX_ITEM) as { r?: unknown };
   const [ret, setRet] = useState<TaxReturn>(() => readReturn(saved.r));
   const [savedAt, setSavedAt] = useState("");
-  const timer = useRef<number>();
+  const timer = useRef<number>(undefined);
   const pending = useRef<TaxReturn | null>(null);
   const flush = useCallback(() => {
     window.clearTimeout(timer.current);
