@@ -14,11 +14,12 @@ import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
 import { readSetting, useData } from "./data";
 import { AmlClients } from "./AmlClients";
+import { readiness, Facts, Standing as RStanding } from "../lib/amlReadiness";
 import { Cfg, FWRA_CFG, PolicyBuilder, POLICY_CFG } from "./AmlBuilder";
 import { useFirm } from "./FirmSettings";
 
 const TABS: [string, string][] = [
-  ["overview", "Overview"], ["clients", "Client tracker"], ["fwra", "Risk assessment"], ["policies", "Policies"], ["registrations", "Registrations"], ["annualreturn", "ACCA return"], ["reviews", "Client reviews"], ["screening", "Screening"], ["training", "Training"],
+  ["overview", "Overview"], ["checklist", "ACCA checklist"], ["clients", "Client tracker"], ["fwra", "Risk assessment"], ["policies", "Policies"], ["registrations", "Registrations"], ["annualreturn", "ACCA return"], ["reviews", "Client reviews"], ["screening", "Screening"], ["training", "Training"],
   ["actions", "Actions"], ["mlro", "MLRO report"], ["independent", "Independent review"], ["forms", "SAR and blank forms"],
 ];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
@@ -88,16 +89,16 @@ function Cell({ col, value, clients, onChange }: { col: p.Col; value: string; cl
   if (col.type === "date") return <input className="input" type="date" aria-label={col.label} value={value} onChange={(e) => onChange(e.target.value)} style={{ minWidth: 150 }} />;
   if (col.type === "one") return <select className="input" aria-label={col.label} value={value} onChange={(e) => onChange(e.target.value)} style={{ minWidth: 120 }}><option value="">Choose</option>{(col.options || []).map((o) => <option key={o}>{o}</option>)}</select>;
   if (col.type === "client") return <select className="input" aria-label={col.label} value={value} onChange={(e) => onChange(e.target.value)}><option value="">Choose</option>{clients.map((c) => <option key={s(c.Key)} value={s(c.Key)}>{s(c.Title)}</option>)}</select>;
-  return <textarea className="input" aria-label={col.label} rows={Math.min(12, Math.max(3, Math.ceil(value.length / 30)))} value={value} onChange={(e) => onChange(e.target.value)} style={{ minWidth: 200, resize: "vertical" }} />;
+  return <textarea spellCheck lang="en-GB" className="input" aria-label={col.label} rows={Math.min(12, Math.max(3, Math.ceil(value.length / 30)))} value={value} onChange={(e) => onChange(e.target.value)} style={{ minWidth: 200, resize: "vertical" }} />;
 }
 
 function FieldView({ f, c }: { f: p.Field; c: Ctx }) {
   const v = c.get(f.k);
   if (f.type === "info") return <p className="muted" style={{ margin: 0 }}>{f.label}</p>;
-  if (f.type === "text") return <label className="field"><span>{f.label}</span><input className="input" value={s(v)} placeholder={f.hint} onChange={(e) => c.set(f.k, e.target.value)} /></label>;
+  if (f.type === "text") return <label className="field"><span>{f.label}</span><input spellCheck lang="en-GB" className="input" value={s(v)} placeholder={f.hint} onChange={(e) => c.set(f.k, e.target.value)} /></label>;
   if (f.type === "date") return <label className="field"><span>{f.label}</span><input className="input" type="date" value={s(v)} onChange={(e) => c.set(f.k, e.target.value)} /></label>;
   if (f.type === "client") return <label className="field"><span>{f.label}</span><select className="input" value={s(v)} onChange={(e) => c.set(f.k, e.target.value)}><option value="">Choose a client</option>{c.clients.map((x) => <option key={s(x.Key)} value={s(x.Key)}>{s(x.Title)}</option>)}</select></label>;
-  if (f.type === "long") return <label className="field"><span>{f.flow ? "" : f.label}</span><textarea className="input" rows={f.flow ? 9 : 4} value={s(v)} placeholder={f.hint} aria-label={f.label} onChange={(e) => c.set(f.k, e.target.value)} /></label>;
+  if (f.type === "long") return <label className="field"><span>{f.flow ? "" : f.label}</span><textarea spellCheck lang="en-GB" className="input" rows={f.flow ? 9 : 4} value={s(v)} placeholder={f.hint} aria-label={f.label} onChange={(e) => c.set(f.k, e.target.value)} /></label>;
   if (f.type === "one" || f.type === "many") return <div className="field"><span>{f.label}</span><Ticks label={f.label} options={f.options} multi={f.type === "many"} chosen={list(v)} onChange={(x) => c.set(f.k, x)} /></div>;
   if (f.type === "grid") {
     const g = (v || {}) as Record<string, { c?: string[]; n?: string }>;
@@ -111,7 +112,7 @@ function FieldView({ f, c }: { f: p.Field; c: Ctx }) {
               <tr key={it}>
                 <td style={{ fontWeight: 600, width: "34%", minWidth: 200 }}>{it}</td>
                 <td style={{ whiteSpace: "nowrap" }}><Ticks nowrap label={it} options={f.options} multi={f.multi} chosen={list(g[i]?.c)} onChange={(x) => put(i, { c: x })} /></td>
-                <td><textarea className="input" rows={2} aria-label={`${it}: ${f.noteLabel}`} value={s(g[i]?.n)} onChange={(e) => put(i, { n: e.target.value })} style={{ minWidth: 220, resize: "vertical" }} /></td>
+                <td><textarea spellCheck lang="en-GB" className="input" rows={2} aria-label={`${it}: ${f.noteLabel}`} value={s(g[i]?.n)} onChange={(e) => put(i, { n: e.target.value })} style={{ minWidth: 220, resize: "vertical" }} /></td>
               </tr>
             ))}
           </tbody>
@@ -337,6 +338,69 @@ function Overview() {
   );
 }
 
+
+// ------------------------------------------------------------------ the checklist: what is expected, and what still needs work
+
+function Checklist() {
+  const a = useAml();
+  const today = todayIso();
+  const builderFacts = (cfg: Cfg) => {
+    const st = bld.readState(readSetting<unknown>(a.data.settings, `aml.${cfg.id}`));
+    const built = bld.build(st, cfg.steps);
+    const vs = readSetting<bld.Version[]>(a.data.settings, `aml.${cfg.id}.versions`);
+    const last = Array.isArray(vs) && vs.length ? vs[vs.length - 1] : undefined;
+    return { confirmed: built.filter((x) => x.confirmed).length, total: built.length, version: last?.v || "", approved: !!last?.approved, date: last?.date || "", steps: Object.fromEntries(built.map((x) => [x.id, x.confirmed])) };
+  };
+  const stand = (id: string) => { const d = p.formById(id)!; const r = p.standing(d, a.storeOf(id), today); return { state: r.state as RStanding, text: r.text }; };
+  const rowsOf = (id: string, key: string) => ((a.storeOf(id).records[0]?.values[key] || []) as Record<string, string>[]);
+  const actions = rowsOf("actions", "actions"), regs = rowsOf("registrations", "items").filter((r) => r.item);
+  const pol = bld.readState(readSetting<unknown>(a.data.settings, "aml.builder")).answers;
+  const clients = { total: 0, none: 0, overdue: 0, soon: 0, triggered: 0 };
+  const rp = readReviewPolicy(a.data.settings, readOnboardingSettings(a.data.settings).amlMonths);
+  for (const cl of (a.data.clients as Row[]).filter((c) => !c.CeasedOn)) {
+    const pos = position(cl, a.data.amlAssessments, a.data.onboardings, today);
+    clients.total++;
+    if (pos.state === "none" || pos.state === "declined") clients.none++; else if (pos.state === "overdue") clients.overdue++; else if (pos.state === "soon") clients.soon++;
+    if (triggerOf(pos.row) || seenTriggers(cl, a.data as never, rp, lastApprovedAt(cl, a.data.amlAssessments, a.data.onboardings, readAml)).length) clients.triggered++;
+  }
+  const training = rowsOf("training", "people").map((r) => r.next).filter(Boolean).sort()[0] || "";
+  const screening = [...a.storeOf("screening").records].map((r) => r.created).sort().pop() || "";
+  const facts: Facts = {
+    today, policy: builderFacts(POLICY_CFG), fwra: builderFacts(FWRA_CFG), mlro: String(pol.mlro || "").trim(), deputy: String(pol.deputyName || "").trim(),
+    standing: { mlro: stand("mlro"), training: stand("training"), independent: stand("independent"), annualreturn: stand("annualreturn"), reviews: stand("reviews") },
+    trainingNext: training, screeningLast: screening, clients,
+    regs: { count: regs.length, late: regs.filter((r) => r.next && r.next < today).length, open: regs.filter((r) => r.status !== "Done" && r.status !== "Not needed").length },
+    actions: { open: actions.filter((r) => r.status !== "Done").length, late: actions.filter((r) => r.status !== "Done" && r.due && r.due < today).length },
+  };
+  const items = readiness(facts);
+  const done = items.filter((i) => i.state === "done").length;
+  const groups = [...new Set(items.map((i) => i.group))];
+  const chip = (s: string) => (s === "done" ? "green" : s === "work" ? "amber" : "red");
+  const word = (s: string) => (s === "done" ? "Done" : s === "work" ? "Needs work" : "Not started");
+  return (
+    <>
+      <div className="page-head"><div><h1>ACCA checklist</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 780 }}>What an ACCA-supervised firm is expected to have in place for AML, checked against what is recorded in the planner. Start with the red and amber items.</p></div></div>
+      <section className="card pad stack" aria-label="Summary">
+        <span><strong>{done} of {items.length}</strong> in place. {items.filter((i) => i.state === "start").length} not started, {items.filter((i) => i.state === "work").length} need work.</span>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>"Done" means the planner holds evidence. It can't judge whether an answer is good enough, and some duties, such as screening staff, can only be checked by whether the policy covers them. Regulation numbers are from the Money Laundering Regulations 2017: check them against ACCA's current guidance.</p>
+      </section>
+      {groups.map((g) => (
+        <section key={g} className="card pad stack" aria-label={g}>
+          <h2 className="sec-h">{g}</h2>
+          <div role="list" className="stack" style={{ gap: 10 }}>
+            {items.filter((i) => i.group === g).map((i) => (
+              <div role="listitem" key={i.id} className="row-wrap" style={{ gap: 10, justifyContent: "space-between", alignItems: "start" }}>
+                <span style={{ flex: 1, minWidth: 260 }}><a href={href("aml", i.to)}><strong>{i.title}</strong></a>{i.reg && <span className="muted"> ({i.reg})</span>}<div className="muted" style={{ fontSize: 13 }}>{i.detail}</div></span>
+                <span className={`chip ${chip(i.state)}`}>{word(i.state)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </>
+  );
+}
+
 function BlankForms() {
   const a = useAml();
   return (
@@ -361,6 +425,7 @@ export function AmlPage() {
   else if (tab === "policies") body = <PolicyBuilder key="policies" cfg={POLICY_CFG} />;
   else if (tab === "fwra") body = <PolicyBuilder key="fwra" cfg={FWRA_CFG} />;
   else if (tab === "clients") body = <AmlClients />;
+  else if (tab === "checklist") body = <Checklist />;
   else if (tab === "forms") body = <BlankForms />;
   else body = def ? <FormScreen key={def.id} def={def} /> : null;
   return (

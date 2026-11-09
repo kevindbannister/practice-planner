@@ -64,8 +64,8 @@ function QuestionView({ q, a, set }: { q: b.Q; a: b.Answers; set: (k: string, v:
         ))}
       </div>
     );
-  } else if (q.type === "long") input = <textarea className="input" rows={3} value={sv} placeholder={q.placeholder} onChange={(e) => set(q.k, e.target.value)} />;
-  else input = <input className="input" type={q.type === "date" ? "date" : q.type === "number" ? "number" : "text"} value={sv} placeholder={q.placeholder} onChange={(e) => set(q.k, e.target.value)} />;
+  } else if (q.type === "long") input = <textarea spellCheck lang="en-GB" className="input" rows={3} value={sv} placeholder={q.placeholder} onChange={(e) => set(q.k, e.target.value)} />;
+  else input = <input spellCheck={q.type === "text"} lang="en-GB" className="input" type={q.type === "date" ? "date" : q.type === "number" ? "number" : "text"} value={sv} placeholder={q.placeholder} onChange={(e) => set(q.k, e.target.value)} />;
   return (
     <div className="field" style={{ maxWidth: 760 }}>
       {q.type === "one" || q.type === "many" ? <div style={{ fontWeight: 600, marginBottom: 4 }}>{labelEl}</div> : <label><div style={{ fontWeight: 600, marginBottom: 4 }}>{labelEl}</div>{input}</label>}
@@ -277,7 +277,7 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
             {bs.edited ? (
               <>
                 <div className="muted" style={{ fontSize: 13 }}>You are editing this area's text directly. Later changes to the answers above won't change it. Start a line with "## " for a heading and "- " for a bullet.</div>
-                <textarea className="input" rows={14} value={state.edits[stepId]} onChange={(e) => edit({ ...state, edits: { ...state.edits, [stepId]: e.target.value }, confirmed: { ...state.confirmed, [stepId]: false } })} />
+                <textarea spellCheck lang="en-GB" className="input" rows={14} value={state.edits[stepId]} onChange={(e) => edit({ ...state, edits: { ...state.edits, [stepId]: e.target.value }, confirmed: { ...state.confirmed, [stepId]: false } })} />
               </>
             ) : <Text text={bs.text} />}
             {gapsOf(bs) > 0 && <div className="warn" role="status">{gapsOf(bs)} thing{gapsOf(bs) === 1 ? "" : "s"} still to answer in this area{bs.unanswered.length ? `: ${bs.unanswered.join("; ")}` : ""}.</div>}
