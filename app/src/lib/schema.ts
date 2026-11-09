@@ -417,7 +417,7 @@ export const LISTS: ListDef[] = [
     key: "AmlAssessments", displayName: "PP AML Assessments", description: "Practice Planner: AML risk assessments and their reviews",
     columns: [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Status", true), t("Risk"), note("RiskBasis"), note("Owners"), note("NoOwnerNote"), note("Checks"), note("Evidence"),
-      note("Factors"), t("PreparedBy"), t("ApprovedBy"), t("ApprovedAt"), t("DoneOn"), t("ReviewDate", true), note("DeclinedReason"), t("Source"), t("Reason"), note("ShortReviews"), t("OnboardingKey"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"),
+      note("Factors"), t("PreparedBy"), t("ApprovedBy"), t("ApprovedAt"), t("DoneOn"), t("ReviewDate", true), note("DeclinedReason"), t("Source"), t("Reason"), note("ShortReviews"), note("Pep"), t("OnboardingKey"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
   },
   {

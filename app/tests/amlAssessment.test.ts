@@ -24,7 +24,7 @@ const o = (actor = "Kevin") => ({ actor, now: "2026-10-27T10:00:00Z", pid: "P", 
 const yes = () => true;
 const client = { Key: "C1", Title: "Bck Interior Ltd", Kind: "Ltd" } as any;
 const apply = (rows: any[], w: any) => { for (const c of w.creates || []) rows.push(c.row); for (const p of w.patches) Object.assign(p.row, p.patch); return rows; };
-const good = { answers: full(), risk: "low" as const, riskBasis: "UK company, one director, simple structure", owners: [{ name: "A Smith", percent: 100, note: "" }], checks: [{ id: "", kind: "Identity verified", result: "pass" as const, by: "", at: "", note: "passport seen" }] };
+const good = { pep: { status: "no" as const, people: [] }, answers: full(), risk: "low" as const, riskBasis: "UK company, one director, simple structure", owners: [{ name: "A Smith", percent: 100, note: "" }], checks: [{ id: "", kind: "Identity verified", result: "pass" as const, by: "", at: "", note: "passport seen" }] };
 
 test("a new assessment is started once, saved, and approved with a review date", () => {
   const rows: any[] = [];
@@ -221,4 +221,32 @@ test("the overall rating can't be below the highest section rating, EDD needed m
   const a: any = { risk: "low", riskBasis: "x", owners: [], noOwnerNote: "", checks: [{ kind: "Identity verified", result: "pass" }] };
   assert.ok(amlProblems(a, "partnership").some((p) => /partner with more than 25%/.test(p)));
   assert.ok(!amlProblems(a, "individual").some((p) => /beneficial owners/.test(p)));
+});
+
+test("PEPs: the section must be answered; a PEP needs a role, source of wealth and funds, and a High rating; EDD needs a source of funds check when the policy says so", async () => {
+  const { pepProblems, eddProblems, pepUntil, readPep } = await import("../src/lib/amlPep.ts");
+  assert.match(pepProblems({ status: "", people: [] }, "low")[0], /Say whether/);
+  assert.deepEqual(pepProblems({ status: "no", people: [] }, "low"), []);
+  const p = { status: "yes" as const, people: [{ name: "Ann Lee", kind: "pep" as const, role: "", where: "uk" as const, left: "", sow: "", sof: "" }] };
+  const errs = pepProblems(p, "medium");
+  assert.ok(errs.some((e) => /public role/.test(e)) && errs.some((e) => /source of wealth/.test(e)) && errs.some((e) => /source of funds/.test(e)) && errs.some((e) => /has to be High/.test(e)));
+  assert.deepEqual(pepProblems({ status: "yes", people: [{ ...p.people[0], role: "MP", sow: "Salary and property", sof: "Salary" }] }, "high"), []);
+  assert.equal(pepUntil("2026-03-31"), "2027-03-31");
+  assert.equal(readPep("not json").status, "");
+  assert.equal(readPep(JSON.stringify(p)).people[0].name, "Ann Lee");
+  const id = [{ id: "", kind: "Identity verified", result: "pass" as const, by: "", at: "", note: "" }];
+  assert.equal(eddProblems(false, id, true).length, 0);
+  assert.equal(eddProblems(true, id, false).length, 0);
+  assert.match(eddProblems(true, id, true)[0], /Source of funds or wealth/);
+  assert.equal(eddProblems(true, [...id, { ...id[0], kind: "Source of funds or wealth" }], true).length, 0);
+});
+
+test("approval is blocked for a PEP until the PEP section and EDD are complete", async () => {
+  const rows: any[] = [];
+  apply(rows, startAssessment(client, rows, o()) as any);
+  apply(rows, saveAssessment(rows[0], { ...good, risk: "high" as const, pep: { status: "yes", people: [{ name: "A Smith", kind: "pep", role: "", where: "uk", left: "", sow: "", sof: "" }] } }, yes, o("Ann")) as any);
+  assert.match((approveAssessment(rows[0], client, rows, DEFAULT_ONBOARDING_SETTINGS, true, yes, "2026-10-27", o("Bob")) as any).error, /./);
+  const { hints } = await import("../src/lib/amlTemplate.ts");
+  const h = hints(COMPANY as any, { companyNumber: "", owners: 2, passedIdentity: false, passedScreening: false, xamaIdDone: false, xamaAmlDone: false, ownershipAgrees: null, services: [], pep: "yes" });
+  assert.equal(h.c19.value, "Yes"); assert.match(h.c19.from, /PEP section/);
 });

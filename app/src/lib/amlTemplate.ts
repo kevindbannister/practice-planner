@@ -75,7 +75,7 @@ export function basisFrom(t: Template, a: Ans): string {
   return `Section ratings: ${named.join(", ")}. The overall rating follows the highest.`;
 }
 
-export type HintCtx = { companyNumber: string; owners: number; passedIdentity: boolean; passedScreening: boolean; xamaIdDone: boolean; xamaAmlDone: boolean; ownersCovered?: "" | "ID" | "AML"; ownershipAgrees: boolean | null; services: string[] };
+export type HintCtx = { companyNumber: string; owners: number; passedIdentity: boolean; passedScreening: boolean; xamaIdDone: boolean; xamaAmlDone: boolean; ownersCovered?: "" | "ID" | "AML"; pep?: "" | "no" | "yes"; ownershipAgrees: boolean | null; services: string[] };
 /** Answers the planner can suggest from what it already holds. The person chooses whether to use each one. */
 export function hints(t: Template, h: HintCtx): Record<string, { value: string | string[]; from: string }> {
   const out: Record<string, { value: string | string[]; from: string }> = {};
@@ -90,6 +90,7 @@ export function hints(t: Template, h: HintCtx): Record<string, { value: string |
   const OWN = "each owner's Xama check on their own client record";
   for (const q of questions(t)) {
     const l = q.label.toLowerCase();
+    if (h.pep && /(identified as a pep|are any of the beneficial owners politically exposed)/.test(l)) { out[q.k] = { value: h.pep === "yes" ? "Yes" : "No", from: "the PEP section of this assessment" }; continue; }
     if (ownerQ(l) && h.ownersCovered && !/identified and added/.test(l)) {
       if (/identity documents?|passed.*aml identity verification/.test(l)) { out[q.k] = { value: "Yes", from: OWN }; continue; }
       if (h.ownersCovered === "AML" && /(pep screening|sanctions screening)/.test(l)) { out[q.k] = { value: "No", from: OWN }; continue; }
@@ -119,4 +120,10 @@ export function ratingProblems(t: Template, a: Ans, risk: string): string[] {
   const edd = questions(t).find((q) => /need for enhanced due diligence/i.test(q.label));
   if (edd && s(a[edd.k]) === "Yes" && risk !== "high") out.push("Enhanced due diligence is needed, so the overall rating has to be High.");
   return out;
+}
+
+/** Whether the template's "is there a need for enhanced due diligence" question is answered Yes. */
+export function eddNeeded(t: Template, a: Ans): boolean {
+  const q = questions(t).find((x) => /need for enhanced due diligence/i.test(x.label));
+  return !!q && s(a[q.k]) === "Yes";
 }

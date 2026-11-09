@@ -1,7 +1,7 @@
 // The AML client tracker: every active client in one table, with their risk rating, when AML was last done, when the next review is due,
 // and whether a review has been triggered. Review periods and triggers come from the AML policy (see lib/amlReview.ts).
 import { useMemo, useState } from "react";
-import { POSITION_LABEL, position, startAssessment } from "../lib/amlAssessment";
+import { POSITION_LABEL, position, readAssessment, startAssessment } from "../lib/amlAssessment";
 import { lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
 import { idStampRead } from "../lib/xamaActions";
 import { Screened, screening } from "../lib/amlScreening";
@@ -18,7 +18,7 @@ import { useSales } from "./salesKit";
 
 type Item = {
   key: string; name: string; risk: string; doneOn: string; next: string; days: number | null; state: string; label: string; chip: string;
-  idOn: string; xid: { state: string; on: string }; xama: string; xamaWarn: boolean; trigger: string; due: string; late: boolean; seen: string; seenKind: string; period: string; needs: boolean; sort: string; scr: Screened;
+  idOn: string; xid: { state: string; on: string }; xama: string; xamaWarn: boolean; trigger: string; due: string; late: boolean; seen: string; seenKind: string; period: string; needs: boolean; sort: string; scr: Screened; pep: boolean;
 };
 const RISK: Record<string, string> = { low: "Low", medium: "Medium", high: "High", "": "Not assessed" };
 const FILTERS: [string, string][] = [["all", "All"], ["action", "Needs action"], ["triggered", "Triggered"], ["overdue", "Overdue"], ["soon", "Due soon"], ["screen", "Screening due"], ["none", "No assessment"], ["progress", "In progress"], ["current", "Up to date"]];
@@ -54,7 +54,7 @@ export function AmlClients() {
         key: String(cl.Key), name: String(cl.Title || cl.Key), risk: pos.risk, doneOn: pos.doneOn, next: pos.reviewDate, days: pos.daysToReview, state,
         label: trig ? "Review triggered" : POSITION_LABEL[pos.state], chip: late || pos.state === "overdue" || pos.state === "none" || pos.state === "declined" ? "red" : trig || pos.state === "soon" || pos.state === "inprogress" || seen.length ? "amber" : "green",
         xama: amlLabel(String(cl.XamaStatus || "")).text, xamaWarn: amlLabel(String(cl.XamaStatus || "")).warn, idOn: idCheckedOn(String(cl.Key), data.amlAssessments, data.onboardings), xid: idStampRead(cl.XamaIdCheck), trigger: trig ? trig.label : "", due: trig?.due || "", late, seen: seen[0] ? `${seen[0].label} on ${fmtDate(seen[0].at)}` : "", seenKind: seen[0]?.kind || "", period: months ? `${months} months` : "",
-        scr, needs, sort: `${late || pos.state === "overdue" ? "0" : pos.state === "none" || pos.state === "declined" ? "1" : trig || seen.length ? "2" : pos.state === "soon" ? "3" : pos.state === "inprogress" ? "4" : "5"}${pos.reviewDate || "9999"}${String(cl.Title)}`,
+        scr, pep: [pos.current, pos.row].some((r) => r && readAssessment(r).pep.status === "yes"), needs, sort: `${late || pos.state === "overdue" ? "0" : pos.state === "none" || pos.state === "declined" ? "1" : trig || seen.length ? "2" : pos.state === "soon" ? "3" : pos.state === "inprogress" ? "4" : "5"}${pos.reviewDate || "9999"}${String(cl.Title)}`,
       });
     }
     return out.sort((a, b) => a.sort.localeCompare(b.sort));
@@ -106,7 +106,7 @@ export function AmlClients() {
               {shown.map((i) => (
                 <tr key={i.key}>
                   <th scope="row" style={{ fontWeight: 600 }}><a href={href("clients", i.key, "aml")}>{i.name}</a></th>
-                  <td>{RISK[i.risk]}{i.period && <div className="muted" style={{ fontSize: 12 }}>every {i.period}</div>}</td>
+                  <td>{RISK[i.risk]}{i.pep && <span className="chip red" style={{ marginLeft: 6 }} title="Politically exposed person">PEP</span>}{i.period && <div className="muted" style={{ fontSize: 12 }}>every {i.period}</div>}</td>
                   <td><span className={`chip ${i.chip}`}>{i.label}</span></td>
                   <td>{i.doneOn ? fmtDate(i.doneOn) : "—"}</td>
                   <td>{i.idOn ? fmtDate(i.idOn) : i.xid.state === "done" && i.xid.on ? <>{fmtDate(i.xid.on)}<div className="muted" style={{ fontSize: 12 }}>via Xama</div></> : i.xid.state === "waiting" ? <span style={{ color: "var(--amber-ink)" }}>Asked in Xama, waiting</span> : i.xid.state === "check" ? <span style={{ color: "var(--amber-ink)" }}>Xama: check the result</span> : "—"}</td>

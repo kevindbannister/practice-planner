@@ -105,6 +105,7 @@ export function shortFacts(f: FactsIn): Record<string, string[]> {
   if (a.owners.length) out.info.push(`Owners on the assessment: ${a.owners.map((o) => `${o.name}${o.percent ? ` ${o.percent}%` : ""}`).join(", ")}.`);
   // rating
   out.rating.push(`Rated ${LEVEL_LABEL[a.risk] || a.risk || "not rated"}${a.riskBasis ? `: ${a.riskBasis}` : "."}`);
+  for (const p of a.pep.status === "yes" ? a.pep.people.filter((x) => x.name.trim()) : []) out.rating.push(`PEP: ${p.name}${p.role ? ` (${p.role})` : ""}${p.left ? `, left office ${f.fmt(p.left)}` : ""}. Enhanced due diligence and closer monitoring still apply${p.left ? " for at least 12 months after leaving office" : ""}.`);
   const high = evaluate(total, a.answers);
   if (high.highest) out.rating.push(`Highest section rating on the assessment: ${LEVEL_LABEL[high.highest]}.`);
   // changes

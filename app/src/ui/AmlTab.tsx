@@ -2,7 +2,7 @@
 // review date) and, separately, what Xama holds. The Overview card summarises it. See lib/amlAssessment.ts.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
-import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, discardAssessment, REASONS, reasonLabel, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
+import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, assessmentExtras, declineAssessment, discardAssessment, REASONS, reasonLabel, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
 import { Choice } from "./Choice";
 import { completeShortReview, readShortReviews, shortFacts, shortQuestions } from "../lib/amlShortReview";
@@ -11,6 +11,8 @@ import { Ans, LEVEL_LABEL, basisFrom, evaluate, ratingProblems, templateFor, tem
 import { AmlRiskForm } from "./AmlRiskForm";
 import { amlStampRead, idStampRead } from "../lib/xamaActions";
 import { cosecOwnership, mergeOwners } from "../lib/amlCosec";
+import { PEP_KINDS, Pep, PepPerson, blankPep, pepUntil } from "../lib/amlPep";
+import { policyAnswers } from "../lib/amlPolicy";
 import { alsoCovers, contactCover, isIndividual, ownerChecks, ownerCover, ownersCovered } from "../lib/amlPeople";
 import { timeline } from "../lib/amlTimeline";
 import { clientFolder } from "../lib/comms";
@@ -214,6 +216,9 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [basis, setBasis] = useState(saved.riskBasis);
   const [owners, setOwners] = useState<Owner[]>(saved.owners);
   const [noOwner, setNoOwner] = useState(saved.noOwnerNote);
+  const [pep, setPep] = useState<Pep>(saved.pep);
+  const setPerson = (i: number, p: Partial<PepPerson>) => setPep({ ...pep, people: pep.people.map((x, j) => (j === i ? { ...x, ...p } : x)) });
+  const policySof = (() => { const ed = policyAnswers(data.settings).edd; return Array.isArray(ed) ? ed.includes("sof") : true; })();
   const [checks, setChecks] = useState<Check[]>(saved.checks);
   const xamaStamp = idStampRead(client.XamaIdCheck), xamaAml = amlStampRead(client.XamaAmlCheck);
   const xamaDone = xamaStamp.state === "done" || xamaAml.state === "done";
@@ -225,7 +230,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  useEffect(() => { setRisk(saved.risk); setBasis(saved.riskBasis); setOwners(saved.owners); setNoOwner(saved.noOwnerNote); setChecks(saved.checks); setEvidence(saved.evidence); setAnswers(saved.answers); }, [row.Updated]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setRisk(saved.risk); setBasis(saved.riskBasis); setOwners(saved.owners); setNoOwner(saved.noOwnerNote); setChecks(saved.checks); setPep(saved.pep); setEvidence(saved.evidence); setAnswers(saved.answers); }, [row.Updated]); // eslint-disable-line react-hooks/exhaustive-deps
   const edit = s.pcan("edit");
   const cleanOwners = owners.filter((x) => x.name.trim());
   const people = (data.clients as Row[]);
@@ -234,14 +239,14 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const toAdd = ownerChecks(oc, checks, today);
   const individuals = people.filter((c) => isIndividual(c) && c.Key !== client.Key).sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
   const link = (i: number, key: string) => setOwners(owners.map((y, j) => (j === i ? (key ? { ...y, clientKey: key } : (({ clientKey: _k, ...rest }) => rest)(y)) : y)));
-  const draft = { ...saved, risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks };
-  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk)];
+  const draft = { ...saved, risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, pep };
+  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk), ...assessmentExtras({ risk, answers, checks, pep }, tpl, policySof)];
   const setCheck = (i: number, p: Partial<Check>) => setChecks(checks.map((c, j) => (j === i ? { ...c, ...p } : c)));
   const run = async (w: ReturnType<typeof saveAssessment> | (() => Promise<ReturnType<typeof saveAssessment>>), ok: string) => {
     setBusy(true); setMsg(null);
     try { const x = typeof w === "function" ? await w() : w; if ("error" in x) setMsg({ ok: false, text: x.error }); else { await s.apply(x); setMsg({ ok: true, text: ok }); } } catch { setMsg({ ok: false, text: "Couldn't save that. Try again." }); } finally { setBusy(false); }
   };
-  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, answers, reason: rsn }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
+  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, answers, reason: rsn, pep }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
   const upload = async (f: File) => {
     setBusy(true); setMsg(null);
     try {
@@ -263,7 +268,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
         <AmlRiskForm tpl={tpl} answers={answers} setAnswers={setAnswers} ctx={{
           companyNumber: String(client.CompanyNumber || "").trim(), owners: cleanOwners.length,
           passedIdentity: checks.some((c) => c.result === "pass" && /identity/i.test(c.kind)), passedScreening: checks.some((c) => c.result === "pass" && /sanction|pep/i.test(c.kind)),
-          xamaIdDone: idStampRead(client.XamaIdCheck).state === "done", xamaAmlDone: amlStampRead(client.XamaAmlCheck).state === "done", ownersCovered: ocAll,
+          xamaIdDone: idStampRead(client.XamaIdCheck).state === "done", xamaAmlDone: amlStampRead(client.XamaAmlCheck).state === "done", ownersCovered: ocAll, pep: pep.status,
           ownershipAgrees: isCo && co.hasData ? co.findings.filter((f) => /ownership|shareholder|PSC|significant control|share ledger/i.test(f)).length === 0 : null,
           services: (data.clientServices as Row[]).filter((x) => x.ClientKey === client.Key && !x.EndedOn).map((x) => String((data.services as Row[]).find((y) => y.Key === x.ServiceKey)?.Title || x.ServiceKey || "")),
         }} />
@@ -310,6 +315,32 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
           {!cleanOwners.length && <input className="input" aria-label="Why there are none to record" placeholder="If there are none to record, say why" value={noOwner} onChange={(e) => setNoOwner(e.target.value)} />}
         </div>
 
+        <div className="stack" style={{ gap: 6 }} aria-label="Politically exposed persons">
+          <strong>Politically exposed persons</strong>
+          <span>Is the client, an owner or anyone acting for them a politically exposed person (PEP), a family member of one, or a known close associate?</span>
+          <Choice label="PEP" options={["No", "Yes"]} value={pep.status === "yes" ? "Yes" : pep.status === "no" ? "No" : ""} onChange={(v) => setPep(v === "Yes" ? { status: "yes", people: pep.people.length ? pep.people : [blankPep()] } : v === "No" ? { ...pep, status: "no" } : { ...pep, status: "" })} />
+          {pep.status === "yes" && <>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>The law (MLR 2017 reg 35) requires enhanced due diligence: senior management approval of the relationship (approving this assessment is that approval, so it needs a manager or partner), the source of wealth and source of funds, and closer monitoring (the High rating sets the shorter review period). Keep the measures for at least 12 months after they leave office, longer if the risk remains. Record facts only, never a suspicion.</p>
+            {pep.people.map((p, i) => (
+              <div key={i} className="stack" style={{ gap: 6, borderLeft: "3px solid var(--line, #ddd)", paddingLeft: 10 }}>
+                <div className="inline-form">
+                  <input className="input" list="aml-pep-names" aria-label="Name" placeholder="Name" value={p.name} onChange={(e) => setPerson(i, { name: e.target.value })} />
+                  <select className="input" aria-label="Type" value={p.kind} onChange={(e) => setPerson(i, { kind: e.target.value as PepPerson["kind"] })}>{PEP_KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}</select>
+                  <select className="input" aria-label="UK or abroad" value={p.where} onChange={(e) => setPerson(i, { where: e.target.value as PepPerson["where"] })}><option value="">UK or abroad?</option><option value="uk">UK public role</option><option value="abroad">Public role abroad</option></select>
+                  <label className="row-wrap" style={{ gap: 4, fontSize: 13 }}>Left office <input className="input" type="date" aria-label="Left office" value={p.left} onChange={(e) => setPerson(i, { left: e.target.value })} /></label>
+                  <button type="button" className="linkbtn danger-link" onClick={() => setPep({ ...pep, people: pep.people.filter((_, j) => j !== i) })}>Remove</button>
+                </div>
+                <input className="input" aria-label="Public role" placeholder={p.kind === "pep" ? "Public role (for example MP, senior official, judge, board of a state-owned company)" : "The PEP they are connected to, and that person's public role"} value={p.role} onChange={(e) => setPerson(i, { role: e.target.value })} />
+                <textarea spellCheck lang="en-GB" className="input" rows={2} aria-label="Source of wealth" placeholder="Source of wealth: how they built up their overall wealth, and the evidence seen" value={p.sow} onChange={(e) => setPerson(i, { sow: e.target.value })} />
+                <textarea spellCheck lang="en-GB" className="input" rows={2} aria-label="Source of funds" placeholder="Source of funds: where the money in this relationship comes from, and the evidence seen" value={p.sof} onChange={(e) => setPerson(i, { sof: e.target.value })} />
+                {pepUntil(p.left) && <span className="muted" style={{ fontSize: 12 }}>Left office {fmtDate(p.left)}: PEP measures continue until at least {fmtDate(pepUntil(p.left))}.</span>}
+              </div>
+            ))}
+            <datalist id="aml-pep-names">{[String(client.Title), ...cleanOwners.map((o) => o.name)].map((n) => <option key={n} value={n} />)}</datalist>
+            <div><button type="button" className="btn small" onClick={() => setPep({ ...pep, people: [...pep.people, blankPep()] })}>Add another person</button></div>
+          </>}
+        </div>
+
         <div className="stack" style={{ gap: 6 }}>
           <strong>Checks</strong>
           <p className="muted" style={{ margin: 0, fontSize: 13 }}>Each check has its own date. It starts as today. Change it to the real date when you are recording something done earlier or in another system.</p>
@@ -341,7 +372,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
       {problems.length > 0 && <div className="import-list warn"><strong>Before this can be approved:</strong><ul className="plain">{problems.map((x) => <li key={x}>{x}</li>)}</ul></div>}
       {asStatus(row.Status) === "inprogress" && s.pcan("approve") && (
         <div className="row-wrap">
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void run(approveAssessment(row, clientRow, all, settings, independent, s.pcan, today, s.ctx()), "Approved. The client's AML review date was set.")}>Approve</button>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => void run(approveAssessment(row, clientRow, all, settings, independent, s.pcan, today, s.ctx(), { sof: policySof }), "Approved. The client's AML review date was set.")}>Approve</button>
           <input className="input" aria-label="Reason" placeholder="Reason (to decline)" value={why} onChange={(e) => setWhy(e.target.value)} />
           <button type="button" className="btn" disabled={busy} onClick={() => void run(declineAssessment(row, why, s.pcan, s.ctx()), "Marked as not approved.")}>Don't approve</button>
         </div>
