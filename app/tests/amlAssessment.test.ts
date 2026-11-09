@@ -24,7 +24,7 @@ const o = (actor = "Kevin") => ({ actor, now: "2026-10-27T10:00:00Z", pid: "P", 
 const yes = () => true;
 const client = { Key: "C1", Title: "Bck Interior Ltd", Kind: "Ltd" } as any;
 const apply = (rows: any[], w: any) => { for (const c of w.creates || []) rows.push(c.row); for (const p of w.patches) Object.assign(p.row, p.patch); return rows; };
-const good = { pep: { status: "no" as const, people: [] }, answers: full(), risk: "low" as const, riskBasis: "UK company, one director, simple structure", owners: [{ name: "A Smith", percent: 100, note: "" }], checks: [{ id: "", kind: "Identity verified", result: "pass" as const, by: "", at: "", note: "passport seen" }] };
+const good = { ddLevel: "standard" as const, pep: { status: "no" as const, people: [] }, answers: full(), risk: "low" as const, riskBasis: "UK company, one director, simple structure", owners: [{ name: "A Smith", percent: 100, note: "" }], checks: [{ id: "", kind: "Identity verified", result: "pass" as const, by: "", at: "", note: "passport seen" }] };
 
 test("a new assessment is started once, saved, and approved with a review date", () => {
   const rows: any[] = [];
@@ -132,7 +132,7 @@ test("a short review: all Yes moves the next review on and records it; any No op
   const settings = { amlMonths: { low: 36, medium: 24, high: 12 } } as any;
   const rows: any[] = [];
   const cl: any = { Key: "C1", Title: "X", Kind: "Ltd" };
-  const inp = (a: boolean, extra = {}) => ({ date: "2026-10-27", answers: { behaved: a, valid: true, info: true, rating: true }, notes: "", changes: false, ...extra });
+  const inp = (a: boolean, extra = {}) => ({ date: "2026-10-27", answers: { behaved: a, valid: true, info: true, rating: true, dd: true }, notes: "", changes: false, ...extra });
   assert.ok("error" in (completeShortReview(cl, undefined, rows, inp(true), settings, false, yes, "2026-10-27", o()) as any));
   apply(rows, startAssessment(client, rows, o()) as any);
   apply(rows, saveAssessment(rows[0], good, yes, o("Ann")) as any);
@@ -249,4 +249,45 @@ test("approval is blocked for a PEP until the PEP section and EDD are complete",
   const { hints } = await import("../src/lib/amlTemplate.ts");
   const h = hints(COMPANY as any, { companyNumber: "", owners: 2, passedIdentity: false, passedScreening: false, xamaIdDone: false, xamaAmlDone: false, ownershipAgrees: null, services: [], pep: "yes" });
   assert.equal(h.c19.value, "Yes"); assert.match(h.c19.from, /PEP section/);
+});
+
+test("due diligence can't be completed: the client shows as stopped until a new assessment is approved; nothing about suspicion is asked", async () => {
+  const { stopAssessment, STOP_REASONS } = await import("../src/lib/amlAssessment.ts");
+  const cl: any = { Key: "S1", Title: "Stop Ltd", Kind: "Ltd" };
+  const rows: any[] = [];
+  apply(rows, startAssessment(cl, rows, o()) as any);
+  assert.ok("error" in (stopAssessment(rows[0], cl, "made up", "", yes, o()) as any));
+  const w = stopAssessment(rows[0], cl, STOP_REASONS[0], "asked twice", yes, o()) as any;
+  assert.equal(w.activities.length, 1);
+  apply(rows, w);
+  assert.equal(rows[0].Status, "stopped");
+  assert.equal(position(cl, rows, [], "2026-11-09").state, "stopped");
+  assert.ok(!("error" in (startAssessment(cl, rows, o()) as any)));
+  apply(rows, startAssessment(cl, rows, o()) as any);
+  assert.equal(position(cl, rows, [], "2026-11-09").state, "inprogress");
+});
+
+test("due diligence level: required, Enhanced when EDD applies, Simplified only for low risk; suggested from the answers", async () => {
+  const { ddProblems, suggestedDd } = await import("../src/lib/amlAssessment.ts");
+  const none = { status: "no" as const, people: [] };
+  assert.match(ddProblems("", "low", false, none)[0], /Record the level/);
+  assert.match(ddProblems("standard", "high", false, none)[0], /must be Enhanced/);
+  assert.match(ddProblems("standard", "low", true, none)[0], /must be Enhanced/);
+  assert.match(ddProblems("simplified", "medium", false, none)[0], /only for clients rated low/);
+  assert.deepEqual(ddProblems("simplified", "low", false, none), []);
+  assert.equal(suggestedDd("low", false, none, true), "simplified");
+  assert.equal(suggestedDd("low", false, none, false), "standard");
+  assert.equal(suggestedDd("medium", false, { status: "yes", people: [] }, false), "enhanced");
+});
+
+test("an onboarding AML approval can be brought into the AML record once, and the position doesn't double count it", async () => {
+  const { adoptOnboarding } = await import("../src/lib/amlAssessment.ts");
+  const cl: any = { Key: "B1", Title: "Board Ltd", Kind: "Ltd" };
+  const onb: any = { Key: "ON1", ClientKey: "B1", Aml: JSON.stringify({ status: "approved", risk: "medium", riskBasis: "x", owners: [], noOwnerNote: "", checks: [], preparedBy: "A", approvedBy: "B", approvedAt: "2026-01-05T10:00:00Z", reviewDate: "2028-01-05", declinedReason: "" }) };
+  const rows: any[] = [];
+  assert.equal(position(cl, rows, [onb], "2026-11-09").source, "onboarding");
+  apply(rows, adoptOnboarding(cl, onb, rows, o()) as any);
+  assert.ok("error" in (adoptOnboarding(cl, onb, rows, o()) as any));
+  const p = position(cl, rows, [onb], "2026-11-09");
+  assert.equal(p.source, "assessment"); assert.equal(p.current, rows[0]); assert.equal(p.reviewDate, "2028-01-05");
 });

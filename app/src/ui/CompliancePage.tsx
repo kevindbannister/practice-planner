@@ -226,7 +226,7 @@ function Aml({ clients, today, name }: { clients: Row[]; today: string; name: (k
   const { data } = useData();
   const [f, setF] = useState("gaps");
   const rows = useMemo(() => c.amlTable(clients, data.amlAssessments, data.onboardings, today), [clients, data, today]);
-  const shown = rows.filter((r) => f === "all" || (f === "gaps" ? r.state === "none" || r.state === "declined" || r.state === "overdue" : f === "soon" ? r.state === "soon" : String(r.risk).toLowerCase() === "high"));
+  const shown = rows.filter((r) => f === "all" || (f === "gaps" ? r.state === "none" || r.state === "declined" || r.state === "overdue" || r.state === "stopped" : f === "soon" ? r.state === "soon" : String(r.risk).toLowerCase() === "high"));
   const word: Record<string, string> = { none: "No assessment", inprogress: "In progress", declined: "Declined", current: "Current", soon: "Review soon", overdue: "Overdue" };
   void position;
   return (

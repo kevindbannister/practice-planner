@@ -14,7 +14,9 @@ const str = (v: unknown): string => (v === undefined || v === null ? "" : String
 const json = <T,>(v: unknown, fallback: T): T => { try { const x = JSON.parse(str(v) || ""); return x ?? fallback; } catch { return fallback; } };
 
 export type Evidence = { id: string; name: string; url: string; at: string; by: string; note: string };
-export type Assessment = Aml & { evidence: Evidence[]; doneOn: string; source: string; answers: Ans; reason: string; pep: Pep };
+export type Assessment = Aml & { evidence: Evidence[]; doneOn: string; source: string; answers: Ans; reason: string; pep: Pep; ddLevel: DdLevel };
+export type DdLevel = "" | "simplified" | "standard" | "enhanced";
+export const DD_LEVELS: { v: Exclude<DdLevel, "">; label: string }[] = [{ v: "simplified", label: "Simplified" }, { v: "standard", label: "Standard" }, { v: "enhanced", label: "Enhanced" }];
 /** Why an assessment is being done. A review raised by a trigger records the trigger instead (see amlReview). */
 export const REASONS: { v: string; label: string }[] = [
   { v: "new", label: "First assessment: new client" },
@@ -24,15 +26,15 @@ export const REASONS: { v: string; label: string }[] = [
   { v: "other", label: "Other" },
 ];
 export const reasonLabel = (v: string) => REASONS.find((r) => r.v === v)?.label || "";
-export type AssessmentStatus = "inprogress" | "approved" | "declined" | "superseded" | "discarded";
-export const asStatus = (v: unknown): AssessmentStatus => (v === "approved" || v === "declined" || v === "superseded" || v === "discarded" ? v : "inprogress");
+export type AssessmentStatus = "inprogress" | "approved" | "declined" | "superseded" | "discarded" | "stopped";
+export const asStatus = (v: unknown): AssessmentStatus => (v === "approved" || v === "declined" || v === "superseded" || v === "discarded" || v === "stopped" ? v : "inprogress");
 
 export function readAssessment(r: Row): Assessment {
   const st = asStatus(r.Status);
   return {
-    status: st === "inprogress" ? "inprogress" : st === "superseded" ? "approved" : st === "discarded" ? "notstarted" : st, risk: (["low", "medium", "high"].includes(str(r.Risk)) ? str(r.Risk) : "") as Risk, riskBasis: str(r.RiskBasis),
+    status: st === "inprogress" ? "inprogress" : st === "superseded" ? "approved" : st === "discarded" || st === "stopped" ? "notstarted" : st, risk: (["low", "medium", "high"].includes(str(r.Risk)) ? str(r.Risk) : "") as Risk, riskBasis: str(r.RiskBasis),
     owners: json<Owner[]>(r.Owners, []), noOwnerNote: str(r.NoOwnerNote), checks: json<Check[]>(r.Checks, []), preparedBy: str(r.PreparedBy), approvedBy: str(r.ApprovedBy), approvedAt: str(r.ApprovedAt),
-    reviewDate: str(r.ReviewDate), declinedReason: str(r.DeclinedReason), evidence: json<Evidence[]>(r.Evidence, []), doneOn: str(r.DoneOn), source: str(r.Source) || "manual", answers: readAnswers(r.Factors), reason: str(r.Reason), pep: readPep(r.Pep),
+    reviewDate: str(r.ReviewDate), declinedReason: str(r.DeclinedReason), evidence: json<Evidence[]>(r.Evidence, []), doneOn: str(r.DoneOn), source: str(r.Source) || "manual", answers: readAnswers(r.Factors), reason: str(r.Reason), pep: readPep(r.Pep), ddLevel: (["simplified", "standard", "enhanced"].includes(str(r.DdLevel)) ? str(r.DdLevel) : "") as DdLevel,
   };
 }
 
@@ -42,13 +44,13 @@ export function startAssessment(client: Row, rows: Row[], o: Ctx, reason?: strin
   const prev = mine.filter((r) => ["approved", "superseded"].includes(asStatus(r.Status))).sort((a, b) => str(b.ApprovedAt).localeCompare(str(a.ApprovedAt)))[0];
   const p = prev ? readAssessment(prev) : undefined;
   const row: Row = {
-    Key: o.newKey("AML"), PracticeId: o.pid, ClientKey: str(client.Key), Status: "inprogress", Risk: p?.risk || "", RiskBasis: p?.riskBasis || "", Owners: JSON.stringify(p?.owners || []), NoOwnerNote: p?.noOwnerNote || "", Pep: p && p.pep.status ? JSON.stringify(p.pep) : "",
+    Key: o.newKey("AML"), PracticeId: o.pid, ClientKey: str(client.Key), Status: "inprogress", Risk: p?.risk || "", RiskBasis: p?.riskBasis || "", Owners: JSON.stringify(p?.owners || []), NoOwnerNote: p?.noOwnerNote || "", Pep: p && p.pep.status ? JSON.stringify(p.pep) : "", DdLevel: p?.ddLevel || "",
     Checks: "[]", Evidence: "[]", PreparedBy: "", Source: prev ? "review" : "manual", Reason: REASONS.some((x) => x.v === reason) ? reason : prev ? "periodic" : "new", Created: o.now, CreatedBy: o.actor, Updated: o.now,
   };
   return { patches: [], creates: [{ list: "AmlAssessments", row }], log: [logRow(o, "aml-started", "aml", str(row.Key), { clientKey: str(client.Key) }, { review: !!prev, reason: str(row.Reason) })], activities: [] };
 }
 
-export type Edit = { risk?: Risk; riskBasis?: string; owners?: Owner[]; noOwnerNote?: string; checks?: Check[]; evidence?: Evidence[]; notes?: string; answers?: Ans; reason?: string; pep?: Pep };
+export type Edit = { risk?: Risk; riskBasis?: string; owners?: Owner[]; noOwnerNote?: string; checks?: Check[]; evidence?: Evidence[]; notes?: string; answers?: Ans; reason?: string; pep?: Pep; ddLevel?: DdLevel };
 export function saveAssessment(row: Row, edit: Edit, can: (a: ProposalAction) => boolean, o: Ctx): Written | { error: string } {
   if (!can("edit")) return { error: "You can't change AML records." };
   if (asStatus(row.Status) !== "inprogress" && asStatus(row.Status) !== "declined") return { error: "This assessment has been approved. Start a new review to change it." };
@@ -56,7 +58,7 @@ export function saveAssessment(row: Row, edit: Edit, can: (a: ProposalAction) =>
   const checks = (edit.checks ?? cur.checks).map((c) => ({ ...c, id: c.id || o.newKey("CK"), by: c.by || o.actor, at: c.at || o.now }));
   const patch: Row = {
     Status: "inprogress", Risk: edit.risk ?? cur.risk, RiskBasis: edit.riskBasis ?? cur.riskBasis, Owners: JSON.stringify(edit.owners ?? cur.owners), NoOwnerNote: edit.noOwnerNote ?? cur.noOwnerNote,
-    Checks: JSON.stringify(checks), Evidence: JSON.stringify(edit.evidence ?? cur.evidence), PreparedBy: o.actor, DeclinedReason: "", Updated: o.now, ...(edit.answers ? { Factors: JSON.stringify(edit.answers) } : {}), ...(edit.notes !== undefined ? { Notes: edit.notes } : {}), ...(edit.reason && REASONS.some((x) => x.v === edit.reason) ? { Reason: edit.reason } : {}), ...(edit.pep ? { Pep: JSON.stringify(edit.pep) } : {}),
+    Checks: JSON.stringify(checks), Evidence: JSON.stringify(edit.evidence ?? cur.evidence), PreparedBy: o.actor, DeclinedReason: "", Updated: o.now, ...(edit.answers ? { Factors: JSON.stringify(edit.answers) } : {}), ...(edit.notes !== undefined ? { Notes: edit.notes } : {}), ...(edit.reason && REASONS.some((x) => x.v === edit.reason) ? { Reason: edit.reason } : {}), ...(edit.pep ? { Pep: JSON.stringify(edit.pep) } : {}), ...(edit.ddLevel !== undefined ? { DdLevel: edit.ddLevel } : {}),
   };
   return { patches: [{ list: "AmlAssessments", row, patch }], log: [logRow(o, "aml-saved", "aml", str(row.Key), { clientKey: str(row.ClientKey) }, { risk: patch.Risk, checks: checks.length })], activities: [] };
 }
@@ -111,7 +113,7 @@ export function withdrawAssessment(row: Row, reason: string, client: Row, can: (
 // ------------------------------------------------------------------ where a client stands
 
 export type Position = {
-  state: "none" | "inprogress" | "declined" | "current" | "soon" | "overdue";
+  state: "none" | "inprogress" | "declined" | "current" | "soon" | "overdue" | "stopped";
   risk: Risk; doneOn: string; reviewDate: string; daysToReview: number | null; source: string; by: string; row?: Row; current?: Row; checks: number; evidence: number;
 };
 export const SOON_DAYS = 60;
@@ -123,10 +125,13 @@ export function position(client: Row, rows: Row[], onboardings: Row[], today: st
   const mine = rows.filter((r) => r.ClientKey === key);
   const approved: { at: string; risk: Risk; review: string; done: string; source: string; by: string; row?: Row; checks: number; evidence: number }[] = [];
   for (const r of mine.filter((x) => ["approved", "superseded"].includes(asStatus(x.Status)))) { const a = readAssessment(r); if (asStatus(r.Status) === "approved") approved.push({ at: a.approvedAt, risk: a.risk, review: a.reviewDate, done: a.doneOn, source: "assessment", by: a.approvedBy, row: r, checks: a.checks.length, evidence: a.evidence.length }); }
-  for (const o of onboardings.filter((x) => x.ClientKey === key)) { const a = readAml(o.Aml); if (a.status === "approved") approved.push({ at: a.approvedAt, risk: a.risk, review: a.reviewDate, done: a.approvedAt.slice(0, 10), source: "onboarding", by: a.approvedBy, checks: a.checks.length, evidence: 0 }); }
+  const adopted = new Set(mine.map((r) => str(r.OnboardingKey)).filter(Boolean));
+  for (const o of onboardings.filter((x) => x.ClientKey === key && !adopted.has(str(x.Key)))) { const a = readAml(o.Aml); if (a.status === "approved") approved.push({ at: a.approvedAt, risk: a.risk, review: a.reviewDate, done: a.approvedAt.slice(0, 10), source: "onboarding", by: a.approvedBy, checks: a.checks.length, evidence: 0 }); }
   approved.sort((a, b) => b.at.localeCompare(a.at));
   const cur = approved[0];
   const open = mine.filter((r) => ["inprogress", "declined"].includes(asStatus(r.Status))).sort((a, b) => str(b.Created).localeCompare(str(a.Created)))[0];
+  const stopped = mine.filter((r) => asStatus(r.Status) === "stopped").sort((a, b) => str(b.Updated).localeCompare(str(a.Updated)))[0];
+  if (stopped && !open && (!cur || str(stopped.Updated) > cur.at)) { const a = readAssessment(stopped); return { state: "stopped", risk: a.risk, doneOn: str(stopped.Updated).slice(0, 10), reviewDate: "", daysToReview: null, source: "assessment", by: a.preparedBy, current: cur?.row, checks: a.checks.length, evidence: a.evidence.length }; }
   if (cur) {
     const review = cur.review || str(client.AMLReview);
     const d = review ? days(today, review) : null;
@@ -138,10 +143,59 @@ export function position(client: Row, rows: Row[], onboardings: Row[], today: st
   return { state: "none", risk: "", doneOn: "", reviewDate: "", daysToReview: null, source: "", by: "", checks: 0, evidence: 0 };
 }
 
-export const POSITION_LABEL: Record<Position["state"], string> = { none: "No assessment", inprogress: "In progress", declined: "Not approved", current: "Up to date", soon: "Review due soon", overdue: "Review overdue" };
-export const POSITION_CHIP: Record<Position["state"], string> = { none: "red", inprogress: "amber", declined: "red", current: "green", soon: "amber", overdue: "red" };
+export const POSITION_LABEL: Record<Position["state"], string> = { none: "No assessment", inprogress: "In progress", declined: "Not approved", current: "Up to date", soon: "Review due soon", overdue: "Review overdue", stopped: "Due diligence not completed" };
+export const POSITION_CHIP: Record<Position["state"], string> = { none: "red", inprogress: "amber", declined: "red", current: "green", soon: "amber", overdue: "red", stopped: "red" };
 
 /** The PEP and enhanced due diligence rules, shared by the approval and the editor's "before this can be approved" list. */
-export function assessmentExtras(a: { risk: string; answers: Ans; checks: Check[]; pep: Pep }, t: ReturnType<typeof templateFor>, sof: boolean): string[] {
-  return [...pepProblems(a.pep, a.risk), ...eddProblems(eddNeeded(t, a.answers) || a.risk === "high" || a.pep.status === "yes", a.checks, sof)];
+export function assessmentExtras(a: { risk: string; answers: Ans; checks: Check[]; pep: Pep; ddLevel: DdLevel }, t: ReturnType<typeof templateFor>, sof: boolean): string[] {
+  const edd = eddNeeded(t, a.answers);
+  return [...pepProblems(a.pep, a.risk), ...eddProblems(edd || a.risk === "high" || a.pep.status === "yes", a.checks, sof), ...ddProblems(a.ddLevel, a.risk, edd, a.pep)];
+}
+
+// ------------------------------------------------------------------ due diligence can't be completed (MLR 2017 reg 31)
+
+export const STOP_REASONS = ["The client hasn't provided identity or verification", "Ownership or control can't be established", "The purpose of the relationship isn't clear", "The client stopped responding", "Other"];
+/** Record that due diligence can't be completed. The firm must not start or carry on the work, should end the relationship, and the MLRO
+ *  considers separately whether a report is needed. The reason is a plain category: details of any suspicion are never recorded here. */
+export function stopAssessment(row: Row, client: Row, reason: string, note: string, can: (a: ProposalAction) => boolean, o: Ctx): Written | { error: string } {
+  if (!can("edit")) return { error: "You can't change AML records." };
+  const st = asStatus(row.Status);
+  if (st !== "inprogress" && st !== "declined") return { error: "Only an assessment in progress can be stopped." };
+  if (!STOP_REASONS.includes(reason)) return { error: "Choose why due diligence can't be completed." };
+  const text = [reason, note.trim()].filter(Boolean).join(": ");
+  return {
+    patches: [{ list: "AmlAssessments", row, patch: { Status: "stopped", DeclinedReason: text, Updated: o.now } }],
+    log: [logRow(o, "aml-stopped", "aml", str(row.Key), { clientKey: str(row.ClientKey) }, { reason })],
+    activities: [activityRow(o, "aml-stopped", `AML due diligence not completed: ${str(client.Title)}`, undefined, { clientKey: str(row.ClientKey) }, "Don't start or continue the work. The MLRO considers separately whether a report is needed.")],
+  };
+}
+
+// ------------------------------------------------------------------ due diligence level
+
+/** The level the answers point to: Enhanced when EDD is needed, the rating is High or there is a PEP; Simplified only when the template says SDD applies and the rating is Low. */
+export function suggestedDd(risk: string, eddNeeded: boolean, pep: Pep, sddApplies: boolean): DdLevel {
+  if (eddNeeded || risk === "high" || pep.status === "yes") return "enhanced";
+  if (sddApplies && risk === "low") return "simplified";
+  return risk ? "standard" : "";
+}
+export function ddProblems(level: DdLevel, risk: string, eddNeeded: boolean, pep: Pep): string[] {
+  if (!level) return ["Record the level of due diligence applied (simplified, standard or enhanced)."];
+  if ((eddNeeded || risk === "high" || pep.status === "yes") && level !== "enhanced") return ["Enhanced due diligence applies (high risk, EDD needed or a PEP), so the level must be Enhanced."];
+  if (level === "simplified" && risk !== "low") return ["Simplified due diligence is only for clients rated low risk."];
+  return [];
+}
+
+// ------------------------------------------------------------------ an onboarding approval brought into the tracker
+
+/** Copy an AML approval made during onboarding into an approved assessment, so short reviews and history work the same way. Nothing is changed on the onboarding. */
+export function adoptOnboarding(client: Row, onb: Row, rows: Row[], o: Ctx): Written | { error: string } {
+  const a = readAml(onb.Aml);
+  if (a.status !== "approved") return { error: "That onboarding's AML isn't approved." };
+  if (rows.some((r) => str(r.OnboardingKey) === str(onb.Key))) return { error: "Already brought in." };
+  const row: Row = {
+    Key: o.newKey("AML"), PracticeId: o.pid, ClientKey: str(client.Key), Status: "approved", Risk: a.risk, RiskBasis: a.riskBasis, Owners: JSON.stringify(a.owners), NoOwnerNote: a.noOwnerNote,
+    Checks: JSON.stringify(a.checks), Evidence: "[]", PreparedBy: a.preparedBy, ApprovedBy: a.approvedBy, ApprovedAt: a.approvedAt, DoneOn: a.approvedAt.slice(0, 10), ReviewDate: a.reviewDate,
+    Source: "onboarding", OnboardingKey: str(onb.Key), Reason: "new", Created: o.now, CreatedBy: o.actor, Updated: o.now,
+  };
+  return { patches: [], creates: [{ list: "AmlAssessments", row }], log: [logRow(o, "aml-adopted", "aml", str(row.Key), { clientKey: str(client.Key) }, { onboarding: str(onb.Key) })], activities: [] };
 }

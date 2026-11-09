@@ -102,7 +102,7 @@ export function practiceView(i: PracticeInput): PracticeView {
   const amlNone: string[] = [], amlOverdue: string[] = [], amlSoon: string[] = [], noLetter: string[] = [];
   for (const c of clients) {
     const p = position(c, i.amlAssessments, i.onboardings, today);
-    if (p.state === "none" || p.state === "declined") amlNone.push(str(c.Key)); else if (p.state === "overdue") amlOverdue.push(str(c.Key)); else if (p.state === "soon") amlSoon.push(str(c.Key));
+    if (p.state === "none" || p.state === "declined" || p.state === "stopped") amlNone.push(str(c.Key)); else if (p.state === "overdue") amlOverdue.push(str(c.Key)); else if (p.state === "soon") amlSoon.push(str(c.Key));
     if (str(c.LoEStatus) !== "Finalised") noLetter.push(str(c.Key));
   }
 

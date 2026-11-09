@@ -48,11 +48,11 @@ export function AmlClients() {
       const scr = screening(cl, pos.risk, sp, data.amlAssessments, register, today);
 
       const state = trig ? "triggered" : pos.state;
-      const needs = !!trig || seen.length > 0 || ["overdue", "soon", "none", "declined"].includes(pos.state) || (pos.state !== "none" && (scr.days === null || scr.days < 0 || scr.match));
+      const needs = !!trig || seen.length > 0 || ["overdue", "soon", "none", "declined", "stopped"].includes(pos.state) || (pos.state !== "none" && (scr.days === null || scr.days < 0 || scr.match));
       const months = pos.risk ? policy[pos.risk as "low"] : 0;
       out.push({
         key: String(cl.Key), name: String(cl.Title || cl.Key), risk: pos.risk, doneOn: pos.doneOn, next: pos.reviewDate, days: pos.daysToReview, state,
-        label: trig ? "Review triggered" : POSITION_LABEL[pos.state], chip: late || pos.state === "overdue" || pos.state === "none" || pos.state === "declined" ? "red" : trig || pos.state === "soon" || pos.state === "inprogress" || seen.length ? "amber" : "green",
+        label: trig ? "Review triggered" : POSITION_LABEL[pos.state], chip: late || pos.state === "overdue" || pos.state === "none" || pos.state === "declined" || pos.state === "stopped" ? "red" : trig || pos.state === "soon" || pos.state === "inprogress" || seen.length ? "amber" : "green",
         xama: amlLabel(String(cl.XamaStatus || "")).text, xamaWarn: amlLabel(String(cl.XamaStatus || "")).warn, idOn: idCheckedOn(String(cl.Key), data.amlAssessments, data.onboardings), xid: idStampRead(cl.XamaIdCheck), trigger: trig ? trig.label : "", due: trig?.due || "", late, seen: seen[0] ? `${seen[0].label} on ${fmtDate(seen[0].at)}` : "", seenKind: seen[0]?.kind || "", period: months ? `${months} months` : "",
         scr, pep: [pos.current, pos.row].some((r) => r && readAssessment(r).pep.status === "yes"), needs, sort: `${late || pos.state === "overdue" ? "0" : pos.state === "none" || pos.state === "declined" ? "1" : trig || seen.length ? "2" : pos.state === "soon" ? "3" : pos.state === "inprogress" ? "4" : "5"}${pos.reviewDate || "9999"}${String(cl.Title)}`,
       });
@@ -135,7 +135,7 @@ function match(i: Item, f: string): boolean {
     case "overdue": return i.state === "overdue" || i.late;
     case "soon": return i.state === "soon";
     case "screen": return i.scr.match || i.scr.days === null || i.scr.days <= 30;
-    case "none": return i.state === "none" || i.state === "declined";
+    case "none": return i.state === "none" || i.state === "declined" || i.state === "stopped";
     case "progress": return i.state === "inprogress";
     case "current": return i.state === "current";
     default: return true;

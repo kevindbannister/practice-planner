@@ -81,9 +81,16 @@ export function seenTriggers(client: Row, data: { amlAssessments: Row[]; onboard
   const out: Seen[] = [];
   const day = since.slice(0, 10);
   if (policy.triggers.includes("owners")) {
+    // Only changes that alter who runs, owns or controls the company: appointments and resignations, name changes, a PSC's nature of control,
+    // nationality or country of residence, and share allotments or transfers. Address, occupation and title changes don't trigger a review.
+    const LABEL: Record<string, string> = { appoint: "appointed", terminate: "ended", First: "name changed", Last: "name changed", CorporateName: "name changed", Nationality: "nationality changed", CountryOfResidence: "country of residence changed", allotment: "shares allotted", transfer: "shares transferred" };
     for (const e of data.cosecEvents) {
-      if (e.ClientKey !== client.Key || !["officer", "psc"].includes(str(e.Entity)) || str(e.Outcome) === "duplicate") continue;
-      if (str(e.At) > since) out.push({ kind: "owners", label: kindLabel("owners"), at: str(e.At).slice(0, 10), detail: `${str(e.Entity) === "psc" ? "Person with significant control" : "Director or officer"}: ${str(e.Field) || "changed"}` });
+      if (e.ClientKey !== client.Key || str(e.Outcome) === "duplicate" || str(e.At) <= since) continue;
+      const ent = str(e.Entity), f = str(e.Field);
+      const relevant = ent === "officer" || ent === "psc" ? !/Address$/.test(f) && f !== "Title" && f !== "Occupation" : f === "allotment" || f === "transfer";
+      if (!relevant) continue;
+      const who = ent === "psc" ? "Person with significant control" : ent === "officer" ? "Director or officer" : "Shares";
+      out.push({ kind: "owners", label: kindLabel("owners"), at: str(e.At).slice(0, 10), detail: `${who}: ${LABEL[f] || f || "changed"}${str(e.After) && ent !== "share" ? ` (${str(e.After).slice(0, 60)})` : ""}` });
     }
   }
   if (policy.triggers.includes("service")) {

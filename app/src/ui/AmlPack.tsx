@@ -298,6 +298,7 @@ function Overview() {
     if (pos.state === "overdue") needed.push({ key: `o${cl.Key}`, name, why: `Scheduled review overdue since ${fmt(pos.reviewDate)}`, chip: "red" });
     else if (pos.state === "soon") needed.push({ key: `d${cl.Key}`, name, why: `Scheduled review due ${fmt(pos.reviewDate)}`, chip: "amber" });
     else if (pos.state === "none") needed.push({ key: `n${cl.Key}`, name, why: "No AML assessment yet", chip: "red" });
+    else if (pos.state === "stopped") needed.push({ key: `s${cl.Key}`, name, why: "Due diligence could not be completed: no work for this client", chip: "red" });
   }
   needed.sort((x, y) => (x.chip === y.chip ? x.name.localeCompare(y.name) : x.chip === "red" ? -1 : 1));
   const tone = (st: p.Standing) => (st === "overdue" ? "red" : st === "soon" || st === "draft" ? "amber" : st === "ok" ? "green" : "");
@@ -361,7 +362,7 @@ function Checklist() {
   for (const cl of (a.data.clients as Row[]).filter((c) => !c.CeasedOn)) {
     const pos = position(cl, a.data.amlAssessments, a.data.onboardings, today);
     clients.total++;
-    if (pos.state === "none" || pos.state === "declined") clients.none++; else if (pos.state === "overdue") clients.overdue++; else if (pos.state === "soon") clients.soon++;
+    if (pos.state === "none" || pos.state === "declined" || pos.state === "stopped") clients.none++; else if (pos.state === "overdue") clients.overdue++; else if (pos.state === "soon") clients.soon++;
     if (triggerOf(pos.row) || seenTriggers(cl, a.data as never, rp, lastApprovedAt(cl, a.data.amlAssessments, a.data.onboardings, readAml)).length) clients.triggered++;
   }
   const training = rowsOf("training", "people").map((r) => r.next).filter(Boolean).sort()[0] || "";

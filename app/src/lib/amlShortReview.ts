@@ -18,12 +18,13 @@ export function readShortReviews(r: Row | undefined): ShortReview[] {
 }
 
 /** The questions, worded against this client's current assessment. `changes` adds the question about changes seen since it was approved. */
-export function shortQuestions(doneOn: string, risk: string, changes: boolean): ShortQ[] {
+export function shortQuestions(doneOn: string, risk: string, changes: boolean, dd = ""): ShortQ[] {
   const qs: ShortQ[] = [
     { k: "behaved", label: "Has the client behaved as expected since the last assessment?", help: "Nothing unusual in the work, the way they pay or the information they give." },
     { k: "valid", label: `Is the risk assessment done${doneOn ? ` on ${doneOn}` : ""} still valid?` },
     { k: "info", label: "Is the identity and ownership information we hold still correct?", help: "Directors, owners, persons with significant control, address, and who instructs us." },
     { k: "rating", label: `Is the ${risk || "current"} risk rating still right?` },
+    ...(dd ? [{ k: "dd", label: `Is the ${dd} due diligence level still right?` }] : []),
   ];
   if (changes) qs.push({ k: "changes", label: "Have the changes since the last assessment been checked and recorded?", help: "A new director is added to company secretarial. Anyone who now owns or controls the client, or who will instruct us for it, is identified and their identity verified. If a change may affect the rating, answer No." });
   return qs;
@@ -34,7 +35,7 @@ export function completeShortReview(client: Row, cur: Row | undefined, rows: Row
   if (!cur || asStatus(cur.Status) !== "approved") return { error: "A short review needs a current approved assessment. Start a full assessment instead." };
   if (rows.some((r) => r.ClientKey === client.Key && asStatus(r.Status) === "inprogress")) return { error: "There is already an assessment in progress." };
   const a = readAssessment(cur);
-  const qs = shortQuestions(a.doneOn, a.risk, input.changes);
+  const qs = shortQuestions(a.doneOn, a.risk, input.changes, a.ddLevel);
   if (qs.some((q) => typeof input.answers[q.k] !== "boolean")) return { error: "Answer every question Yes or No." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || input.date > today) return { error: "Give the date of the review (not in the future)." };
   const failed = qs.filter((q) => input.answers[q.k] === false);

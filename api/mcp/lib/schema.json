@@ -4640,6 +4640,10 @@
      "type": "note"
     },
     {
+     "name": "DdLevel",
+     "type": "text"
+    },
+    {
      "name": "OnboardingKey",
      "type": "text"
     },

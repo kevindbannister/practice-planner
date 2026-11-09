@@ -72,7 +72,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
   const urgent = jobs.filter((j) => !isOnHold(j) && (j.Priority === "urgent" || jobState(j, today).state === "overdue"));
   const aml = amlLabel(c.XamaStatus);
   const amlPos = amlPosition(c as never, allData.amlAssessments, allData.onboardings, todayIso());
-  const amlAlert = amlPos.state === "overdue" || amlPos.state === "soon" || ((amlPos.state === "none" || amlPos.state === "declined" || amlPos.state === "inprogress") && aml.warn);
+  const amlAlert = amlPos.state === "overdue" || amlPos.state === "soon" || amlPos.state === "stopped" || ((amlPos.state === "none" || amlPos.state === "declined" || amlPos.state === "inprogress") && aml.warn);
   const loe = loeLabel(c.LoEStatus);
 
   return (
@@ -123,7 +123,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
             );
           })}
           {tab === "overview" && amlAlert && (
-            <div className={`alert ${amlPos.state === "overdue" ? "" : "amber"}`}><strong>{amlPos.state === "overdue" ? "AML review overdue" : amlPos.state === "soon" ? "AML review due soon" : `AML: ${amlPos.state === "none" ? "no assessment" : amlPos.state === "inprogress" ? "assessment in progress" : "not approved"}`}</strong><a href={href("clients", c.Key, "aml")}>Open AML</a></div>
+            <div className={`alert ${amlPos.state === "overdue" || amlPos.state === "stopped" ? "" : "amber"}`}><strong>{amlPos.state === "stopped" ? "AML: due diligence could not be completed. Don't do work for this client" : amlPos.state === "overdue" ? "AML review overdue" : amlPos.state === "soon" ? "AML review due soon" : `AML: ${amlPos.state === "none" ? "no assessment" : amlPos.state === "inprogress" ? "assessment in progress" : "not approved"}`}</strong><a href={href("clients", c.Key, "aml")}>Open AML</a></div>
           )}
           {tab === "overview" && loe.warn && <div className="alert"><strong>Engagement letter: {loe.text.toLowerCase()}</strong></div>}
         </section>

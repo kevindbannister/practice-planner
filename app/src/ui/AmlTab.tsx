@@ -2,12 +2,12 @@
 // review date) and, separately, what Xama holds. The Overview card summarises it. See lib/amlAssessment.ts.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
-import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, assessmentExtras, declineAssessment, discardAssessment, REASONS, reasonLabel, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
+import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, assessmentExtras, declineAssessment, DD_LEVELS, DdLevel, STOP_REASONS, adoptOnboarding, stopAssessment, suggestedDd, discardAssessment, REASONS, reasonLabel, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
 import { Choice } from "./Choice";
 import { completeShortReview, readShortReviews, shortFacts, shortQuestions } from "../lib/amlShortReview";
 import { TRIGGER_KINDS, isTriggerSource, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
-import { Ans, LEVEL_LABEL, basisFrom, evaluate, ratingProblems, templateFor, templateProblems } from "../lib/amlTemplate";
+import { Ans, LEVEL_LABEL, basisFrom, eddNeeded, evaluate, questions, ratingProblems, templateFor, templateProblems } from "../lib/amlTemplate";
 import { AmlRiskForm } from "./AmlRiskForm";
 import { amlStampRead, idStampRead } from "../lib/xamaActions";
 import { cosecOwnership, mergeOwners } from "../lib/amlCosec";
@@ -37,6 +37,7 @@ export function AmlTab({ client }: { client: Client }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [shortOn, setShortOn] = useState(false);
+  const onbApproved = (data.onboardings as Row[]).filter((o) => o.ClientKey === client.Key && readAml(o.Aml).status === "approved").sort((a, b) => readAml(b.Aml).approvedAt.localeCompare(readAml(a.Aml).approvedAt))[0];
   const [rk, setRk] = useState("");
   const [rwhy, setRwhy] = useState("");
   const canEdit = s.pcan("edit");
@@ -64,7 +65,8 @@ export function AmlTab({ client }: { client: Client }) {
           <label className="stack" style={{ gap: 2 }}><span className="muted" style={{ fontSize: 12 }}>Why is this being done?</span>
             <select className="input" aria-label="Reason for the assessment" value={reason} onChange={(e) => setReason(e.target.value)}>{REASONS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</select></label>
           <button type="button" className="btn primary" disabled={busy} onClick={() => void go(startAssessment(clientRow(), data.amlAssessments, s.ctx(), reason))}>{pos.current || pos.source === "onboarding" || pos.source === "client record" ? "Start a full review" : "Start an assessment"}</button>
-          {pos.current && <button type="button" className="btn" disabled={busy} onClick={() => setShortOn(!shortOn)}>{shortOn ? "Close short review" : "Short review"}</button>}</div>}
+          {pos.current && <button type="button" className="btn" disabled={busy} onClick={() => setShortOn(!shortOn)}>{shortOn ? "Close short review" : "Short review"}</button>}
+          {!pos.current && pos.source === "onboarding" && onbApproved && <button type="button" className="btn" disabled={busy} title="Copies the onboarding AML approval into the AML record so it can be reviewed here" onClick={() => void go(adoptOnboarding(clientRow(), onbApproved, data.amlAssessments, s.ctx())).then(() => setShortOn(true))}>Short review</button>}</div>}
         {(() => { const last = readShortReviews(pos.current).slice(-1)[0]; return last ? <div className="kv"><span>Last short review</span><span>{fmtDate(last.date)} · {last.by}{last.outcome === "escalated" ? " · full assessment opened" : ""}</span></div> : null; })()}
       </section>
       {shortOn && !open && pos.current && <ShortReviewForm client={clientRow()} cur={pos.current} rows={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} changes={seen.length > 0} seen={seen} today={today} s={s} onDone={() => setShortOn(false)} />}
@@ -133,7 +135,7 @@ export function AmlTab({ client }: { client: Client }) {
           {mine.filter((r) => !open || r.Key !== open.Key).map((r) => { const a = readAssessment(r); const st = asStatus(r.Status); return (
             <div key={String(r.Key)} className="row-wrap" style={{ justifyContent: "space-between" }}>
               <span>{RISK[a.risk]} risk · {a.doneOn ? `done ${fmtDate(a.doneOn)}` : `started ${fmtDate(String(r.Created).slice(0, 10))}`}{a.reason ? ` · ${reasonLabel(a.reason)}` : ""}{a.approvedBy ? ` · approved by ${a.approvedBy}` : ""}{a.evidence.length ? ` · ${a.evidence.length} file${a.evidence.length === 1 ? "" : "s"}` : ""}</span>
-              <span className={`chip ${st === "approved" ? "green" : st === "declined" ? "red" : ""}`}>{st === "discarded" ? "Discarded" : st === "superseded" ? "Replaced by a newer review" : st === "approved" ? "Current" : st === "declined" ? "Not approved" : "In progress"}</span>
+              <span className={`chip ${st === "approved" ? "green" : st === "declined" || st === "stopped" ? "red" : ""}`} title={st === "stopped" ? a.declinedReason : undefined}>{st === "stopped" ? "Due diligence not completed" : st === "discarded" ? "Discarded" : st === "superseded" ? "Replaced by a newer review" : st === "approved" ? "Current" : st === "declined" ? "Not approved" : "In progress"}</span>
             </div>
           ); })}
           {mine.filter((r) => asStatus(r.Status) === "approved").map((r) => <WithdrawRow key={String(r.Key)} row={r} s={s} clientRow={clientRow()} onGo={go} />)}
@@ -147,7 +149,7 @@ export function AmlTab({ client }: { client: Client }) {
 /** A short review: four or five Yes/No questions against the current assessment. All Yes records it and moves the next review on; any No opens a full assessment. */
 function ShortReviewForm({ client, cur, rows, settings, independent, changes, seen, today, s, onDone }: { client: Row; cur: Row; rows: Row[]; settings: ReturnType<typeof readOnboardingSettings>; independent: boolean; changes: boolean; seen: ReturnType<typeof seenTriggers>; today: string; s: ReturnType<typeof useSales>; onDone: () => void }) {
   const a = readAssessment(cur);
-  const qs = shortQuestions(a.doneOn ? fmtDate(a.doneOn) : "", RISK[a.risk] || "", changes);
+  const qs = shortQuestions(a.doneOn ? fmtDate(a.doneOn) : "", RISK[a.risk] || "", changes, a.ddLevel);
   const { data } = useData();
   const co = useMemo(() => cosecOwnership(String(client.Key), data as never, today), [data, client.Key, today]);
   const facts = shortFacts({ client, cur, seen, co, today, fmt: fmtDate, open: rows.filter((r) => r.ClientKey === client.Key && asStatus(r.Status) === "inprogress"),
@@ -217,6 +219,9 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [owners, setOwners] = useState<Owner[]>(saved.owners);
   const [noOwner, setNoOwner] = useState(saved.noOwnerNote);
   const [pep, setPep] = useState<Pep>(saved.pep);
+  const [dd, setDd] = useState<DdLevel>(saved.ddLevel);
+  const [stopWhy, setStopWhy] = useState("");
+  const [stopNote, setStopNote] = useState("");
   const setPerson = (i: number, p: Partial<PepPerson>) => setPep({ ...pep, people: pep.people.map((x, j) => (j === i ? { ...x, ...p } : x)) });
   const policySof = (() => { const ed = policyAnswers(data.settings).edd; return Array.isArray(ed) ? ed.includes("sof") : true; })();
   const [checks, setChecks] = useState<Check[]>(saved.checks);
@@ -230,7 +235,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  useEffect(() => { setRisk(saved.risk); setBasis(saved.riskBasis); setOwners(saved.owners); setNoOwner(saved.noOwnerNote); setChecks(saved.checks); setPep(saved.pep); setEvidence(saved.evidence); setAnswers(saved.answers); }, [row.Updated]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setRisk(saved.risk); setBasis(saved.riskBasis); setOwners(saved.owners); setNoOwner(saved.noOwnerNote); setChecks(saved.checks); setPep(saved.pep); setDd(saved.ddLevel); setEvidence(saved.evidence); setAnswers(saved.answers); }, [row.Updated]); // eslint-disable-line react-hooks/exhaustive-deps
   const edit = s.pcan("edit");
   const cleanOwners = owners.filter((x) => x.name.trim());
   const people = (data.clients as Row[]);
@@ -240,13 +245,13 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const individuals = people.filter((c) => isIndividual(c) && c.Key !== client.Key).sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
   const link = (i: number, key: string) => setOwners(owners.map((y, j) => (j === i ? (key ? { ...y, clientKey: key } : (({ clientKey: _k, ...rest }) => rest)(y)) : y)));
   const draft = { ...saved, risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, pep };
-  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk), ...assessmentExtras({ risk, answers, checks, pep }, tpl, policySof)];
+  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk), ...assessmentExtras({ risk, answers, checks, pep, ddLevel: dd }, tpl, policySof)];
   const setCheck = (i: number, p: Partial<Check>) => setChecks(checks.map((c, j) => (j === i ? { ...c, ...p } : c)));
   const run = async (w: ReturnType<typeof saveAssessment> | (() => Promise<ReturnType<typeof saveAssessment>>), ok: string) => {
     setBusy(true); setMsg(null);
     try { const x = typeof w === "function" ? await w() : w; if ("error" in x) setMsg({ ok: false, text: x.error }); else { await s.apply(x); setMsg({ ok: true, text: ok }); } } catch { setMsg({ ok: false, text: "Couldn't save that. Try again." }); } finally { setBusy(false); }
   };
-  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, answers, reason: rsn, pep }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
+  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, answers, reason: rsn, pep, ddLevel: dd }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
   const upload = async (f: File) => {
     setBusy(true); setMsg(null);
     try {
@@ -341,6 +346,14 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
           </>}
         </div>
 
+        {(() => { const sddQ = questions(tpl).find((q) => /simplified due diligence/i.test(q.label)); const sug = suggestedDd(risk, eddNeeded(tpl, answers), pep, !!sddQ && answers[sddQ.k] === "Yes"); return (
+          <div className="stack" style={{ gap: 6 }} aria-label="Due diligence level">
+            <strong>Level of due diligence applied</strong>
+            <Choice label="Level of due diligence" options={DD_LEVELS.map((d) => d.label)} value={DD_LEVELS.find((d) => d.v === dd)?.label || ""} onChange={(v) => setDd((DD_LEVELS.find((d) => d.label === v)?.v || "") as DdLevel)} />
+            {sug && sug !== dd && <span className="muted" style={{ fontSize: 13 }}>The answers point to <strong>{DD_LEVELS.find((d) => d.v === sug)?.label}</strong>. <button type="button" className="btn small" onClick={() => setDd(sug)}>Use it</button></span>}
+          </div>
+        ); })()}
+
         <div className="stack" style={{ gap: 6 }}>
           <strong>Checks</strong>
           <p className="muted" style={{ margin: 0, fontSize: 13 }}>Each check has its own date. It starts as today. Change it to the real date when you are recording something done earlier or in another system.</p>
@@ -382,6 +395,19 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
           <button type="button" className="btn" disabled={busy} onClick={() => { if (!window.confirm("Discard this assessment? Nothing is deleted: it stays in the history marked as discarded, and the client's AML position stays as it was. You can start a new one afterwards.")) return; void run(discardAssessment(row, s.pcan, s.ctx()), "Discarded. It is listed under History.").then(() => window.setTimeout(() => document.getElementById("aml-history")?.scrollIntoView({ behavior: "smooth", block: "start" }), 200)); }}>Discard this assessment</button>
           <span className="muted" style={{ fontSize: 13 }}>Goes back to the list of earlier assessments. Unsaved answers on this form are lost.</span>
         </div>
+      )}
+      {edit && (asStatus(row.Status) === "inprogress" || asStatus(row.Status) === "declined") && (
+        <details>
+          <summary style={{ cursor: "pointer" }}>Due diligence can't be completed</summary>
+          <div className="stack" style={{ gap: 6, marginTop: 6 }}>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>If you can't complete due diligence, the law says you must not start or carry on the work, and should end the relationship (MLR 2017 reg 31). The MLRO then decides separately whether a report is needed. Choose a plain reason. Never record details of a suspicion here.</p>
+            <div className="inline-form">
+              <select className="input" aria-label="Why due diligence can't be completed" value={stopWhy} onChange={(e) => setStopWhy(e.target.value)}><option value="">Why?</option>{STOP_REASONS.map((r) => <option key={r}>{r}</option>)}</select>
+              <input className="input" aria-label="Short factual note" placeholder="Short factual note (optional)" value={stopNote} onChange={(e) => setStopNote(e.target.value)} />
+              <button type="button" className="btn danger" disabled={busy || !stopWhy} onClick={() => { if (!window.confirm("Record that due diligence can't be completed? The client will show as 'Due diligence not completed' until a new assessment is approved.")) return; void run(stopAssessment(row, clientRow, stopWhy, stopNote, s.pcan, s.ctx()), "Recorded. Don't start or continue work for this client; tell the MLRO."); }}>Record it</button>
+            </div>
+          </div>
+        </details>
       )}
       {independent && saved.preparedBy && <p className="muted" style={{ margin: 0 }}>Independent review is on: prepared by {saved.preparedBy}, so someone else approves.</p>}
       {msg && <p className={msg.ok ? undefined : "error-text"} role={msg.ok ? "status" : "alert"} style={{ margin: 0 }}>{msg.text}</p>}
