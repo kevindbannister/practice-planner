@@ -1,11 +1,8 @@
 // App shell: top bar, save indicator, and routing between pages.
 import { VERSION } from "../version";
-import { ChecklistsPage } from "./Checklists";
-import { PortalPage } from "./PortalAdmin";
-import { DevHubPage } from "./DevHub";
 import { AreaMenu, AreaPicker, TwoLineAreas, TwoLineModules, useMenuKind } from "./AreaMenu";
 import { PortalProvider, usePortal } from "./portalKit";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { Suspense, lazy, useEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
 import { createPortal } from "react-dom";
 import { fmtDate, holdAlert, isHoldText, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
@@ -13,13 +10,8 @@ import { signOut } from "../lib/auth";
 import { Brand, ClientBadge, Icon, IconName, href, useRoute } from "./bits";
 import { useTheme } from "./theme";
 import { AREAS, MODULE_LABELS, areaOf, isAreaId, navKeyOf, type AreaId } from "../lib/navAreas";
-import { ClientPage } from "./ClientPage";
-import { ClientsPage } from "./ClientsPage";
 import { useData, useIndex } from "./data";
-import { SetupPage } from "./SetupPage";
 import { EditorProvider, useEditor } from "./Editors";
-import { PlanPage } from "./PlanPage";
-import { HomePage } from "./HomePage";
 import { ChasePage, useChaseCount } from "./ChasePage";
 import { SettingsPage, SettingsTabs } from "./SettingsPage";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
@@ -27,17 +19,7 @@ import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
 import { AssistantProvider, useAssistant } from "./Assistant";
 import { PageBoundary } from "./ErrorBoundary";
-import { CommsPage } from "./Comms";
-import { PapersPage } from "./PapersPage";
-import { TaxPage } from "./TaxPage";
-import { ReportingPage } from "./ReportingPage";
-import { PracticePage } from "./PracticePage";
-import { CompliancePage } from "./CompliancePage";
-import { AmlPage } from "./AmlPack";
 import { PayrollPage, setPayrollDemo } from "./Payroll";
-import { SalesPage } from "./SalesPage";
-import { CoSecPage } from "./CoSecPage";
-import { AdvisoryPage } from "./AdvisoryPage";
 import { CoSecSync, setCoSecDemo } from "./cosecKit";
 import { TimerChip } from "./JobTime";
 import { AdfinKeepAlive } from "./Billing";
@@ -53,6 +35,38 @@ import { readSetting } from "./data";
 import { aiDefaults } from "../lib/ai";
 import { readCommsPrefs } from "../lib/comms";
 import { adoptWaitingJobs, initialWaitStages } from "../lib/waiting";
+
+// Each area's page is its own download, fetched the first time it is opened (see build.mjs). After a new version is published the
+// old pieces are gone, so a page that can't be fetched reloads the app once to pick up the new version.
+function page<P extends object>(load: () => Promise<ComponentType<P>>) {
+  return lazy(async () => {
+    try { const c = await load(); try { sessionStorage.removeItem("pp.reloaded"); } catch { /* fine */ } return { default: c }; }
+    catch (e) {
+      let again = false;
+      try { again = !sessionStorage.getItem("pp.reloaded"); if (again) sessionStorage.setItem("pp.reloaded", "1"); } catch { /* no storage: don't loop */ }
+      if (again) { location.reload(); return new Promise<never>(() => undefined); }
+      throw e;
+    }
+  });
+}
+const ChecklistsPage = page(() => import("./Checklists").then((m) => m.ChecklistsPage));
+const PortalPage = page(() => import("./PortalAdmin").then((m) => m.PortalPage));
+const DevHubPage = page(() => import("./DevHub").then((m) => m.DevHubPage));
+const ClientPage = page(() => import("./ClientPage").then((m) => m.ClientPage));
+const ClientsPage = page(() => import("./ClientsPage").then((m) => m.ClientsPage));
+const SetupPage = page(() => import("./SetupPage").then((m) => m.SetupPage));
+const PlanPage = page(() => import("./PlanPage").then((m) => m.PlanPage));
+const HomePage = page(() => import("./HomePage").then((m) => m.HomePage));
+const CommsPage = page(() => import("./Comms").then((m) => m.CommsPage));
+const PapersPage = page(() => import("./PapersPage").then((m) => m.PapersPage));
+const TaxPage = page(() => import("./TaxPage").then((m) => m.TaxPage));
+const ReportingPage = page(() => import("./ReportingPage").then((m) => m.ReportingPage));
+const PracticePage = page(() => import("./PracticePage").then((m) => m.PracticePage));
+const CompliancePage = page(() => import("./CompliancePage").then((m) => m.CompliancePage));
+const AmlPage = page(() => import("./AmlPack").then((m) => m.AmlPage));
+const SalesPage = page(() => import("./SalesPage").then((m) => m.SalesPage));
+const CoSecPage = page(() => import("./CoSecPage").then((m) => m.CoSecPage));
+const AdvisoryPage = page(() => import("./AdvisoryPage").then((m) => m.AdvisoryPage));
 
 export function App({ demo }: { demo: boolean }) {
   // the soft fade under the menu shows only once the page has scrolled (see body.scrolled in styles.css)
@@ -164,7 +178,7 @@ export function App({ demo }: { demo: boolean }) {
                 {status === "ready" && <AdfinKeepAlive />}
                 {status === "ready" && <DesignSync />}
                 <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
-                  {body}
+                  <Suspense fallback={<div className="card pad muted" role="status">Loading…</div>}>{body}</Suspense>
                 </PageBoundary>
               </PortalProvider>
             </AssistantProvider>

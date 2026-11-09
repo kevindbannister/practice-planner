@@ -31,10 +31,13 @@ cpSync("node_modules/pdf-lib/dist/pdf-lib.esm.min.js", "dist/pdf/pdf-lib.esm.min
 // pptxgenjs (with its zip library), for exporting a deck as a PowerPoint file: also served from the site
 cp("node_modules/pptxgenjs/dist/pptxgen.bundle.js", "dist/pdf/pptxgen.bundle.js");
 
+// The staff app is split: app.js holds what every page needs, and each area's page loads from chunks/ the first time it's opened.
 const options = {
-  entryPoints: ["src/main.tsx"],
+  entryPoints: { app: "src/main.tsx" },
   bundle: true,
-  outfile: "dist/app.js",
+  outdir: "dist",
+  splitting: true,
+  chunkNames: "chunks/[name]-[hash]",
   format: "esm",
   target: ["es2022"],
   jsx: "automatic",
@@ -49,9 +52,10 @@ const options = {
 };
 
 // The client portal is its own page and bundle: no staff code is ever sent to a client's browser.
-const portalOptions = { ...options, entryPoints: ["src/portal/main.tsx"], outfile: "dist/portal.js" };
+const single = { ...options, splitting: false, outdir: undefined, chunkNames: undefined };
+const portalOptions = { ...single, entryPoints: ["src/portal/main.tsx"], outfile: "dist/portal.js" };
 
-const acceptOptions = { ...options, entryPoints: ["src/accept/main.ts"], outfile: "dist/accept.js" };
+const acceptOptions = { ...single, entryPoints: ["src/accept/main.ts"], outfile: "dist/accept.js" };
 
 if (serve) {
   const ctx = await context(options);

@@ -3,6 +3,7 @@
     "rewrite": "/index.html",
     "exclude": [
       "/app.js",
+      "/chunks/*",
       "/portal.js",
       "/portal.css",
       "/styles.css",

@@ -31,7 +31,7 @@ const Panel = ({ title, children }: { title: string; children: ReactNode }) => <
 export function CompliancePage() {
   const { parts } = useRoute();
   const tab = TABS.find(([k]) => k === parts[1])?.[0] || "overview";
-  const { data } = useData();
+  const { data, logsLoaded } = useData();
   const today = todayIso();
   const years = c.readRetentionYears(readSetting<number>(data.settings, c.RETENTION_KEY));
   const name = (k: string) => (k ? s(data.clients.find((x) => x.Key === k)?.Title || k) : "");
@@ -42,6 +42,7 @@ export function CompliancePage() {
       <div className="row-wrap" role="tablist" aria-label="Compliance" style={{ gap: 8 }}>
         {TABS.map(([k, l]) => <a key={k} role="tab" aria-selected={tab === k} className={`btn small${tab === k ? " primary" : ""}`} href={href("compliance", k)}>{l}</a>)}
       </div>
+      {!logsLoaded && <div className="note" role="status">Still loading the compliance and audit logs. Figures on this page will fill in shortly.</div>}
       {tab === "overview" && <Overview years={years} today={today} />}
       {tab === "obligations" && <Obligations today={today} />}
       {tab === "requests" && <Requests today={today} name={name} />}

@@ -96,6 +96,8 @@ type SaveState = { state: "idle" | "saving" | "saved" | "error"; at?: Date; erro
 
 type Ctx = {
   status: Status;
+  /** The audit and history logs (sales, checklist, compliance, HMRC filing) load after the first screen is up; false until they have. */
+  logsLoaded: boolean;
   error?: string;
   data: Data;
   settings: PlannerSettings;
@@ -136,6 +138,8 @@ const schemaSignature = () => {
 
 /** How many lists are read from SharePoint at the same time when the planner opens. */
 const READ_AT_ONCE = 6;
+/** Lists read after the first screen is shown (see reload). */
+const LATER = new Set<string>(["salesLog", "checklistLog", "complianceLog", "hmrcFilingLog"]);
 
 export const SOURCE: [keyof Data, ListKey][] = [
   ["clients", "Clients"], ["contacts", "Contacts"], ["groups", "Groups"], ["members", "GroupMembers"],
@@ -149,6 +153,7 @@ const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 
 export function DataProvider({ store, user, children }: { store: SharePointStore; user?: string; children: ReactNode }) {
   const [status, setStatus] = useState<Status>("connecting");
+  const [logsLoaded, setLogsLoaded] = useState(false);
   const [error, setError] = useState<string>();
   const [data, setData] = useState<Data>(EMPTY);
   const [save, setSave] = useState<SaveState>({ state: "idle" });
@@ -196,14 +201,20 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       setStatus("loading");
       // A few lists at a time, the ones the first screen needs first: asking SharePoint for all of them at once gets
       // "slow down" replies, and each retry waits longer than the time it would have saved.
-      const loaded = await mapPool(SOURCE, READ_AT_ONCE, ([, list]) => (store.hasList(list) ? store.readAll(list) : Promise.resolve([] as Row[])));
+      const now = SOURCE.filter(([k]) => !LATER.has(k)), later = SOURCE.filter(([k]) => LATER.has(k));
+      setLogsLoaded(false);
+      const loaded = await mapPool(now, READ_AT_ONCE, ([, list]) => (store.hasList(list) ? store.readAll(list) : Promise.resolve([] as Row[])));
       const next = { ...EMPTY };
-      SOURCE.forEach(([k], i) => ((next as any)[k] = loaded[i]));
+      now.forEach(([k], i) => ((next as any)[k] = loaded[i]));
       next.clients.sort((a, b) => String(a.Title || "").localeCompare(String(b.Title || "")));
       await migrate(store, next);
       setTightDays(readSettings(next.settings).tightDays);
       setData(next);
       setStatus(next.clients.length ? "ready" : "needs-setup");
+      // The logs only grow and only feed history and audit screens, so they load once the first screen is up.
+      void mapPool(later, READ_AT_ONCE, ([, list]) => (store.hasList(list) ? store.readAll(list) : Promise.resolve([] as Row[])))
+        .then((rows) => { setData((d) => { const n = { ...d }; later.forEach(([k], i) => ((n as any)[k] = [...rows[i], ...((d as any)[k] as Row[]).filter((r) => !rows[i].some((x) => x._id === r._id))])); return n; }); setLogsLoaded(true); })
+        .catch(() => setLogsLoaded(true));
     } catch (e) {
       setError(friendlyError(e));
       setStatus("error");
@@ -412,8 +423,8 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
   const settings = useMemo(() => readSettings(data.settings), [data.settings]);
 
   const value = useMemo(
-    () => ({ status, error, data, settings, store, user, save, reload, refreshList, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist }),
-    [status, error, data, settings, store, user, save, reload, refreshList, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist],
+    () => ({ status, logsLoaded, error, data, settings, store, user, save, reload, refreshList, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist }),
+    [status, logsLoaded, error, data, settings, store, user, save, reload, refreshList, update, updateMany, create, createMany, remove, removeMany, saveSetting, attachChecklist],
   );
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
