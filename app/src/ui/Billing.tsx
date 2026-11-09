@@ -22,27 +22,9 @@ const msgOf = (e: unknown) => (e instanceof Error && e.message ? e.message : "Th
 const gbp = (n: number) => "£" + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (d: string) => (d ? new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
 
-// ------------------------------------------------------------------ the bridge, with the sealed sign-in kept in settings
+// The Adfin bridge and the daily keep-alive live in adfinKit, so the keep-alive (on every page) doesn't pull this whole screen into the first download.
+export { useAdfin } from "./adfinKit";
 
-const latest: { settings: Row[]; saveSetting?: (key: string, value: unknown) => Promise<void> } = { settings: [] };
-let adfinApi: AdfinApi | null = null;
-let pending: string | undefined | null = null;
-export function useAdfin(): AdfinApi {
-  const { data, saveSetting } = useData();
-  if (latest.settings !== data.settings) {
-    latest.settings = data.settings;
-    if (pending !== null && (readSetting<string>(data.settings, ADFIN_CONNECTION_KEY) || undefined) === (pending || undefined)) pending = null;
-  }
-  latest.saveSetting = saveSetting;
-  if (!adfinApi) {
-    const store = {
-      read: () => (pending !== null ? pending : readSetting<string>(latest.settings, ADFIN_CONNECTION_KEY)) || undefined,
-      write: async (s: string | undefined) => { pending = s ?? ""; await latest.saveSetting?.(ADFIN_CONNECTION_KEY, s ?? ""); },
-    };
-    adfinApi = isDemo() ? new FakeAdfin(store) : new HttpAdfin(getAccessToken, store);
-  }
-  return adfinApi;
-}
 export function useAdfinSettings() {
   const { data } = useData();
   return useMemo(() => readAdfinSettings(readSetting<unknown>(data.settings, ADFIN_SETTINGS_KEY)), [data.settings]);
@@ -51,23 +33,8 @@ export function useCustomerLinks() {
   const { data } = useData();
   return useMemo(() => readCustomerLinks(readSetting<unknown>(data.settings, ADFIN_CUSTOMERS_KEY)), [data.settings]);
 }
-export const useAdfinConnected = () => { const { data } = useData(); return !!readSetting<string>(data.settings, ADFIN_CONNECTION_KEY); };
-
-/** Renews the connection about once a day while the app is open: Adfin drops a sign-in that has not been used for 5 days. */
-export function AdfinKeepAlive() {
-  const api = useAdfin();
-  const connected = useAdfinConnected();
-  useEffect(() => {
-    if (!connected || isDemo()) return;
-    try {
-      const last = Number(localStorage.getItem("pp.adfin.keepalive") || 0);
-      if (Date.now() - last < 20 * 3600 * 1000) return;
-      localStorage.setItem("pp.adfin.keepalive", String(Date.now()));
-    } catch { /* storage unavailable: renew anyway */ }
-    void api.keepAlive().catch(() => undefined);
-  }, [api, connected]);
-  return null;
-}
+export { useAdfinConnected } from "./adfinKit";
+import { useAdfin, useAdfinConnected } from "./adfinKit";
 
 const FAILED: Record<string, string> = {
   access_denied: "The connection was cancelled at Adfin.",

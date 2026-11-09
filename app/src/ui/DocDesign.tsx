@@ -15,13 +15,7 @@ const SAMPLE: DocContent = { blocks: [
   { type: "p", runs: [{ t: "Yours sincerely," }] },
 ] };
 
-/** Keeps the saved designs where every PDF maker can find them. */
-export function DesignSync() {
-  const { data } = useData();
-  const saved = useMemo(() => readDesigns(data.settings), [data.settings]);
-  useEffect(() => { setDesigns(saved); }, [saved]);
-  return null;
-}
+export { DesignSync } from "./DesignSync";
 
 function ColumnEditor({ label, v, onChange }: { label: string; v: Column; onChange: (c: Column) => void }) {
   return (

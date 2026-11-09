@@ -12,22 +12,22 @@ import { useTheme } from "./theme";
 import { AREAS, MODULE_LABELS, areaOf, isAreaId, navKeyOf, type AreaId } from "../lib/navAreas";
 import { useData, useIndex } from "./data";
 import { EditorProvider, useEditor } from "./Editors";
-import { ChasePage, useChaseCount } from "./ChasePage";
-import { SettingsPage, SettingsTabs } from "./SettingsPage";
+import { useChaseCount } from "./chaseCount";
+import { SettingsTabs } from "./SettingsTabs";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
 import { AssistantProvider, useAssistant } from "./Assistant";
 import { PageBoundary } from "./ErrorBoundary";
-import { PayrollPage, setPayrollDemo } from "./Payroll";
+import { setPayrollDemo } from "./payrollDemo";
 import { CoSecSync, setCoSecDemo } from "./cosecKit";
 import { TimerChip } from "./JobTime";
-import { AdfinKeepAlive } from "./Billing";
-import { DesignSync } from "./DocDesign";
+import { AdfinKeepAlive } from "./adfinKit";
+import { DesignSync } from "./DesignSync";
 import { useSales } from "./salesKit";
 import { salesAlerts } from "../lib/sales";
 import { onboardingAlerts } from "../lib/onboarding";
-import { useOnboarding } from "./OnboardingPage";
+import { useOnboarding } from "./onboardingKit";
 import { ActionCentrePage, ActionCentreLink, ActionSync } from "./ActionCentre";
 import { engagementAlerts, readEngagementSettings } from "../lib/engagements";
 import { SearchButton } from "./Search";
@@ -49,6 +49,9 @@ function page<P extends object>(load: () => Promise<ComponentType<P>>) {
     }
   });
 }
+const ChasePage = page(() => import("./ChasePage").then((m) => m.ChasePage));
+const PayrollPage = page(() => import("./Payroll").then((m) => m.PayrollPage));
+const SettingsPage = page(() => import("./SettingsPage").then((m) => m.SettingsPage));
 const ChecklistsPage = page(() => import("./Checklists").then((m) => m.ChecklistsPage));
 const PortalPage = page(() => import("./PortalAdmin").then((m) => m.PortalPage));
 const DevHubPage = page(() => import("./DevHub").then((m) => m.DevHubPage));

@@ -2,7 +2,6 @@
 // client approval?", and if it does, it gets an approval document, goes to the client by the existing portal signing (or is signed on paper and
 // uploaded), and the decision is recorded on the transaction. Staff cannot approve the transaction internally while a client decision is
 // outstanding. Mandatory approvals can't be skipped. Pure logic apart from the PDF.
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { Row } from "./schema";
 import { Ctx, Written, activityRow, logRow } from "./sales";
 
@@ -135,6 +134,8 @@ export function summaryOf(tx: Row, company: { name: string; number: string }, fo
 
 /** A one-or-two page PDF: what is proposed, the wording, and a signature block for each signatory. */
 export async function approvalPdf(s: Summary): Promise<Uint8Array> {
+  // pdf-lib is only fetched when a PDF is made, so it isn't part of the app's first download
+  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const W = 595, H = 842, M = 50;

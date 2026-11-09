@@ -27,8 +27,8 @@ import { taxMonthDates } from "../lib/payroll/rti";
 import { DEFAULT_LAYOUT, DocContent } from "../lib/docModel";
 import { makePdf, useDocs } from "./docsKit";
 
-let demo = false;
-export const setPayrollDemo = (v: boolean) => { demo = v; };
+import { payrollDemo } from "./payrollDemo";
+export { setPayrollDemo } from "./payrollDemo";
 const gbp = (n: number) => (n < 0 ? "-£" : "£") + Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmt = (d: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
@@ -40,7 +40,7 @@ function usePayroll() {
   const d = useData();
   const sales = useSales();
   const client = useRef<RtiClient>(undefined);
-  if (!client.current) client.current = demo ? new FakeRti() : new HttpRti(getAccessToken);
+  if (!client.current) client.current = payrollDemo() ? new FakeRti() : new HttpRti(getAccessToken);
   const ctx = (): rec.Ctx => ({ actor: d.user || "", now: new Date().toISOString(), pid: sales.ctx().pid, newKey });
   return { ...d, can: sales.pcan("send"), ctx, rti: client.current };
 }

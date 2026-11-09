@@ -5,7 +5,7 @@ import { todayIso } from "../lib/domain";
 import { onboardingReport, reportCsv, salesReport } from "../lib/reports";
 import { href } from "./bits";
 import { useData } from "./data";
-import { useOnboarding } from "./OnboardingPage";
+import { useOnboarding } from "./onboardingKit";
 import { useSales } from "./salesKit";
 import { Lead, Opp } from "../lib/sales";
 

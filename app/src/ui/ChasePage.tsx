@@ -248,12 +248,4 @@ function TemplateEditor({ template, onSave }: { template: ChaseTemplate; onSave:
 }
 
 /** How many clients need chasing (late or due soon), for the menu. */
-export function useChaseCount(): number {
-  const { data } = useData();
-  const idx = useIndex();
-  const today = todayIso();
-  return useMemo(
-    () => groupByClient(chaseItems(idx.openJobs, data.services, today, data.stageTemplates)).filter((g) => g.status !== "chased").length,
-    [idx.openJobs, data.services, today, data.stageTemplates],
-  );
-}
+export { useChaseCount } from "./chaseCount";

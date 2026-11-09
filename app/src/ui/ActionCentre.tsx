@@ -11,7 +11,7 @@ import { useBackupAlert } from "./Backups";
 import { useChAlerts } from "./CompaniesHouse";
 import { useData, useIndex } from "./data";
 import { useEditor } from "./Editors";
-import { useOnboarding } from "./OnboardingPage";
+import { useOnboarding } from "./onboardingKit";
 import { usePortal } from "./portalKit";
 import { useSales } from "./salesKit";
 import { readStates } from "../lib/onboarding";

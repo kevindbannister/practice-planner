@@ -96,7 +96,7 @@ type SaveState = { state: "idle" | "saving" | "saved" | "error"; at?: Date; erro
 
 type Ctx = {
   status: Status;
-  /** The audit and history logs (sales, checklist, compliance, HMRC filing) load after the first screen is up; false until they have. */
+  /** Finished jobs and the audit logs (sales, checklist, compliance, HMRC filing) load after the first screen is up; false until they have. */
   logsLoaded: boolean;
   error?: string;
   data: Data;
@@ -139,7 +139,7 @@ const schemaSignature = () => {
 /** How many lists are read from SharePoint at the same time when the planner opens. */
 const READ_AT_ONCE = 6;
 /** Lists read after the first screen is shown (see reload). */
-const LATER = new Set<string>(["salesLog", "checklistLog", "complianceLog", "hmrcFilingLog"]);
+const LATER = new Set<string>(["history", "salesLog", "checklistLog", "complianceLog", "hmrcFilingLog"]);
 
 export const SOURCE: [keyof Data, ListKey][] = [
   ["clients", "Clients"], ["contacts", "Contacts"], ["groups", "Groups"], ["members", "GroupMembers"],
@@ -211,7 +211,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       setTightDays(readSettings(next.settings).tightDays);
       setData(next);
       setStatus(next.clients.length ? "ready" : "needs-setup");
-      // The logs only grow and only feed history and audit screens, so they load once the first screen is up.
+      // Finished jobs and the logs only grow and only feed history and audit screens, so they load once the first screen is up.
       void mapPool(later, READ_AT_ONCE, ([, list]) => (store.hasList(list) ? store.readAll(list) : Promise.resolve([] as Row[])))
         .then((rows) => { setData((d) => { const n = { ...d }; later.forEach(([k], i) => ((n as any)[k] = [...rows[i], ...((d as any)[k] as Row[]).filter((r) => !rows[i].some((x) => x._id === r._id))])); return n; }); setLogsLoaded(true); })
         .catch(() => setLogsLoaded(true));
