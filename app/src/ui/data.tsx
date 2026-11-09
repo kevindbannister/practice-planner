@@ -1,7 +1,6 @@
 // Loads the planner's lists once, keeps them in memory, and saves edits straight
 // back to SharePoint. Components read from here with useData().
 import { tooLong } from "../lib/textLimit";
-import { practiceId } from "../lib/checklistRows";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Client, Job, Task, isOpen, setTightDays } from "../lib/domain";
 import { PlannerSettings, newKey, readSettings } from "../lib/planning";
