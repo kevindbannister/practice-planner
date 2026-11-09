@@ -58,3 +58,55 @@ export function completeShortReview(client: Row, cur: Row | undefined, rows: Row
     log: [logRow(o, "aml-short-review", "aml", str(cur.Key), { clientKey: str(client.Key) }, { escalated: failed.length })], activities: [],
   };
 }
+
+// ------------------------------------------------------------------ what the planner already knows, shown beside each question
+
+import { LEVEL_LABEL, evaluate, templateFor } from "./amlTemplate";
+import { CosecOwnership } from "./amlCosec";
+import { Seen } from "./amlReview";
+import { clientTypeFor } from "./proposals";
+import { idStampRead } from "./xamaActions";
+
+export type FactsIn = { client: Row; cur: Row; seen: Seen[]; co?: CosecOwnership; services: string[]; open: Row[]; today: string; fmt: (d: string) => string };
+/** For each short-review question, the facts the planner already holds that bear on it. Nothing is guessed: a line only appears when there is data behind it. */
+export function shortFacts(f: FactsIn): Record<string, string[]> {
+  const a = readAssessment(f.cur);
+  const out: Record<string, string[]> = { behaved: [], valid: [], info: [], rating: [], changes: [] };
+  const named = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  // behaved
+  const checks = a.checks.filter((c) => c.at);
+  const screen = checks.filter((c) => /sanction|pep|screen|adverse/i.test(c.kind)).sort((x, y) => String(y.at).localeCompare(String(x.at)))[0];
+  if (screen) out.behaved.push(`Last screening check: ${screen.kind}, ${screen.result === "pass" ? "passed" : screen.result === "fail" ? "failed" : "pending"} on ${f.fmt(String(screen.at).slice(0, 10))}.`);
+  else out.behaved.push("No screening check is recorded on the assessment.");
+  if (f.services.length) out.behaved.push(`Services now: ${f.services.join(", ")}.`);
+  const trig = f.open.filter((r) => String(r.Source).startsWith("trigger:")).length;
+  if (trig) out.behaved.push("A review has been triggered since: see the review in progress.");
+  // valid
+  out.valid.push(`Approved ${a.approvedAt ? f.fmt(a.approvedAt.slice(0, 10)) : "—"}${a.approvedBy ? ` by ${a.approvedBy}` : ""}; ${named(a.owners.length, "owner")} recorded, ${named(a.checks.length, "check")}, ${named(a.evidence.length, "file")} filed.`);
+  if (a.reviewDate) out.valid.push(`Next review was due ${f.fmt(a.reviewDate)}.`);
+  const total = templateFor(clientTypeFor(String(f.client.Kind)));
+  const miss = evaluate(total, a.answers).missing.length;
+  if (Object.keys(a.answers).length === 0) out.valid.push("The risk assessment questions weren't answered on this assessment.");
+  else if (miss) out.valid.push(`${named(miss, "risk assessment question")} on it weren't answered.`);
+  // info
+  const x = idStampRead(f.client.XamaIdCheck);
+  if (/^approved/i.test(String(f.client.XamaStatus || ""))) out.info.push(`Xama: approved${x.on ? `, ID check ${f.fmt(x.on)}` : ""}.`);
+  else if (x.state === "done") out.info.push(`Xama ID check done${x.on ? ` on ${f.fmt(x.on)}` : ""}.`);
+  else out.info.push("No Xama identity result on the client.");
+  if (f.co?.hasData) {
+    const dirs = f.co.people.filter((p) => p.roles.some((r) => /director/i.test(r))).length, pscs = f.co.people.filter((p) => p.psc).length;
+    out.info.push(`Company secretarial: ${named(dirs, "director")}, ${named(pscs, "person")} with significant control.`);
+    const pending = f.co.people.filter((p) => (p.psc || p.sharePercent !== null && p.sharePercent > 25) && p.id !== "verified" && p.id !== "exempt").map((p) => p.name);
+    if (pending.length) out.info.push(`ID not yet verified for: ${pending.join(", ")}.`);
+    for (const t of f.co.findings.slice(0, 3)) out.info.push(t);
+    if (!f.co.findings.length) out.info.push("Company secretarial shows no ownership problems.");
+  } else out.info.push("Nothing held in company secretarial for this client.");
+  if (a.owners.length) out.info.push(`Owners on the assessment: ${a.owners.map((o) => `${o.name}${o.percent ? ` ${o.percent}%` : ""}`).join(", ")}.`);
+  // rating
+  out.rating.push(`Rated ${LEVEL_LABEL[a.risk] || a.risk || "not rated"}${a.riskBasis ? `: ${a.riskBasis}` : "."}`);
+  const high = evaluate(total, a.answers);
+  if (high.highest) out.rating.push(`Highest section rating on the assessment: ${LEVEL_LABEL[high.highest]}.`);
+  // changes
+  for (const s of f.seen) out.changes.push(`${f.fmt(s.at)}: ${s.label}. ${s.detail}`);
+  return out;
+}

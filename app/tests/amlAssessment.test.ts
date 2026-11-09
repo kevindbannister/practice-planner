@@ -156,3 +156,24 @@ test("a short review: all Yes moves the next review on and records it; any No op
   assert.match(rows.find((r) => r.Status === "inprogress").Notes, /Short review on 2026-10-27 found: Has the client behaved/);
   assert.ok("error" in (completeShortReview(client, cur, rows, inp(true), settings, false, yes, "2026-10-28", o()) as any));
 });
+
+test("short review facts only report what the planner holds; delivery channels is a tick-box question where any non-face-to-face method raises the rating advice", async () => {
+  const { shortFacts } = await import("../src/lib/amlShortReview.ts");
+  const { COMPANY, INDIVIDUAL } = await import("../src/lib/amlTemplates.ts");
+  const { evaluate } = await import("../src/lib/amlTemplate.ts");
+  for (const [t, k, f2f] of [[INDIVIDUAL, "i19", "Face to face"], [COMPANY, "c36", "Face to face with owner"]] as const) {
+    const q = t.sections.flatMap((s) => s.questions).find((x) => x.k === k)!;
+    assert.equal(q.t, "many");
+    const r = (v: string[]) => evaluate(t as any, { [k]: v }).findings.filter((x) => x.question === (k === "i19" ? "i20" : "c37")).length;
+    assert.equal(r([f2f]), 0);
+    assert.equal(r([f2f, q.options![1]]), 1);
+    assert.equal(r([q.options![1]]), 1);
+  }
+  const rows: any[] = [];
+  apply(rows, startAssessment(client, rows, o()) as any);
+  const f = shortFacts({ client: { ...client }, cur: rows[0], seen: [], services: ["Accounts"], open: [], today: "2026-10-27", fmt: (d) => d });
+  assert.ok(f.valid[0].includes("0 owners recorded"));
+  assert.ok(f.behaved.some((l) => /No screening check/.test(l)));
+  assert.deepEqual(f.changes, []);
+  assert.ok(f.info.some((l) => /No Xama identity result/.test(l)));
+});

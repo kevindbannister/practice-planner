@@ -1,5 +1,6 @@
 // The client risk assessment questions (individual or company template) inside an AML review: sections, questions that show when
 // they apply, the practice's MUST/SHOULD rating rules, and answers the planner can suggest.
+import { Choice, fewOptions } from "./Choice";
 import { Ans, LEVEL_LABEL, Template, evaluate, hints, HintCtx, isShown } from "../lib/amlTemplate";
 
 const RATE = ["Low", "Normal", "High"];
@@ -27,15 +28,16 @@ export function AmlRiskForm({ tpl, answers, setAnswers, ctx }: { tpl: Template; 
               const finds = res.findings.filter((f) => f.question === q.k);
               return (
                 <div key={q.k} className="stack" style={{ gap: 4 }}>
-                  <label className="field" style={{ gap: 4 }}>
+                  <div className="field" style={{ gap: 4 }}>
                     <span>{q.label}{q.need && <span className="muted"> *</span>}</span>
-                    {q.t === "one" && <select className="input" value={String(v ?? "")} onChange={(e) => set(q.k, e.target.value)}><option value="">Choose</option>{q.options!.map((o) => <option key={o} value={o}>{o}</option>)}</select>}
-                    {q.t === "risk" && <select className="input" value={String(v ?? "")} onChange={(e) => set(q.k, e.target.value)}><option value="">Choose</option>{RATE.map((o) => <option key={o} value={o}>{o}</option>)}</select>}
-                    {q.t === "text" && <input spellCheck lang="en-GB" className="input" value={String(v ?? "")} onChange={(e) => set(q.k, e.target.value)} />}
-                    {q.t === "date" && <input className="input" type="date" value={String(v ?? "")} onChange={(e) => set(q.k, e.target.value)} />}
-                    {q.t === "long" && <textarea spellCheck lang="en-GB" className="input" rows={4} value={String(v ?? "")} onChange={(e) => set(q.k, e.target.value)} />}
-                  </label>
-                  {q.t === "many" && <div className="row-wrap" role="group" aria-label={q.label} style={{ gap: 12 }}>{q.options!.map((o) => { const cur = Array.isArray(v) ? v : []; return <label key={o} style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={cur.includes(o)} onChange={() => set(q.k, cur.includes(o) ? cur.filter((x) => x !== o) : [...cur, o])} /> {o}</label>; })}</div>}
+                    {q.t === "one" && fewOptions(q.options) && <Choice label={q.label} options={q.options!} value={String(v ?? "")} onChange={(x) => set(q.k, x)} />}
+                    {q.t === "one" && !fewOptions(q.options) && <select aria-label={q.label} className="input" value={String(v ?? "")} onChange={(e) => set(q.k, e.target.value)}><option value="">Choose</option>{q.options!.map((o) => <option key={o} value={o}>{o}</option>)}</select>}
+                    {q.t === "risk" && <Choice label={q.label} options={RATE} value={String(v ?? "")} onChange={(x) => set(q.k, x)} />}
+                    {q.t === "text" && <input aria-label={q.label} spellCheck lang="en-GB" className="input" value={String(v ?? "")} onChange={(e) => set(q.k, e.target.value)} />}
+                    {q.t === "date" && <input aria-label={q.label} className="input" type="date" value={String(v ?? "")} onChange={(e) => set(q.k, e.target.value)} />}
+                    {q.t === "long" && <textarea aria-label={q.label} spellCheck lang="en-GB" className="input" rows={4} value={String(v ?? "")} onChange={(e) => set(q.k, e.target.value)} />}
+                  </div>
+                  {q.t === "many" && <div className="row-wrap" role="group" aria-label={q.label} style={{ gap: 12 }}>{q.options!.map((o) => { const cur = Array.isArray(v) ? v : v ? [String(v)] : []; return <label key={o} style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={cur.includes(o)} onChange={() => set(q.k, cur.includes(o) ? cur.filter((x) => x !== o) : [...cur, o])} /> {o}</label>; })}</div>}
                   {q.help && <span className="muted" style={{ fontSize: 12 }}>{urlParts(q.help)}</span>}
                   {h && !same && <span className="muted" style={{ fontSize: 13 }}>The planner suggests <strong>{Array.isArray(h.value) ? h.value.join(", ") : h.value}</strong> ({h.from}). <button type="button" className="btn small" onClick={() => set(q.k, h.value)}>Use this</button></span>}
                   {finds.map((f, i) => (

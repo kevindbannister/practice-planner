@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
 import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, discardAssessment, REASONS, reasonLabel, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
-import { completeShortReview, readShortReviews, shortQuestions } from "../lib/amlShortReview";
+import { Choice } from "./Choice";
+import { completeShortReview, readShortReviews, shortFacts, shortQuestions } from "../lib/amlShortReview";
 import { TRIGGER_KINDS, isTriggerSource, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
 import { Ans, LEVEL_LABEL, basisFrom, evaluate, templateFor, templateProblems } from "../lib/amlTemplate";
 import { AmlRiskForm } from "./AmlRiskForm";
@@ -63,7 +64,7 @@ export function AmlTab({ client }: { client: Client }) {
           {pos.current && <button type="button" className="btn" disabled={busy} onClick={() => setShortOn(!shortOn)}>{shortOn ? "Close short review" : "Short review"}</button>}</div>}
         {(() => { const last = readShortReviews(pos.current).slice(-1)[0]; return last ? <div className="kv"><span>Last short review</span><span>{fmtDate(last.date)} · {last.by}{last.outcome === "escalated" ? " · full assessment opened" : ""}</span></div> : null; })()}
       </section>
-      {shortOn && !open && pos.current && <ShortReviewForm client={clientRow()} cur={pos.current} rows={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} changes={seen.length > 0} today={today} s={s} onDone={() => setShortOn(false)} />}
+      {shortOn && !open && pos.current && <ShortReviewForm client={clientRow()} cur={pos.current} rows={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} changes={seen.length > 0} seen={seen} today={today} s={s} onDone={() => setShortOn(false)} />}
 
       <section className="card pad stack" aria-label="Review triggers">
         <h2 className="sec-h">Reviews outside the schedule</h2>
@@ -129,9 +130,13 @@ export function AmlTab({ client }: { client: Client }) {
 }
 
 /** A short review: four or five Yes/No questions against the current assessment. All Yes records it and moves the next review on; any No opens a full assessment. */
-function ShortReviewForm({ client, cur, rows, settings, independent, changes, today, s, onDone }: { client: Row; cur: Row; rows: Row[]; settings: ReturnType<typeof readOnboardingSettings>; independent: boolean; changes: boolean; today: string; s: ReturnType<typeof useSales>; onDone: () => void }) {
+function ShortReviewForm({ client, cur, rows, settings, independent, changes, seen, today, s, onDone }: { client: Row; cur: Row; rows: Row[]; settings: ReturnType<typeof readOnboardingSettings>; independent: boolean; changes: boolean; seen: ReturnType<typeof seenTriggers>; today: string; s: ReturnType<typeof useSales>; onDone: () => void }) {
   const a = readAssessment(cur);
   const qs = shortQuestions(a.doneOn ? fmtDate(a.doneOn) : "", RISK[a.risk] || "", changes);
+  const { data } = useData();
+  const co = useMemo(() => cosecOwnership(String(client.Key), data as never, today), [data, client.Key, today]);
+  const facts = shortFacts({ client, cur, seen, co, today, fmt: fmtDate, open: rows.filter((r) => r.ClientKey === client.Key && asStatus(r.Status) === "inprogress"),
+    services: (data.clientServices as Row[]).filter((x) => x.ClientKey === client.Key && !x.EndedOn).map((x) => String((data.services as Row[]).find((y) => y.Key === x.ServiceKey)?.Title || x.ServiceKey || "")) });
   const [ans, setAns] = useState<Record<string, boolean | undefined>>({});
   const [date, setDate] = useState(today);
   const [notes, setNotes] = useState("");
@@ -150,10 +155,9 @@ function ShortReviewForm({ client, cur, rows, settings, independent, changes, to
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>A quick look at the current assessment, without redoing it. If everything is still right, record it and the next review moves on. If anything isn't, answer No and a full assessment is opened.{independent ? " Independent review is on, so this needs someone with approval rights." : ""}</p>
       {qs.map((q) => (
         <div key={q.k} className="row-wrap" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <span style={{ flex: "1 1 320px" }}>{q.label}{q.help && <span className="muted" style={{ display: "block", fontSize: 12 }}>{q.help}</span>}</span>
-          <span className="row-wrap" role="radiogroup" aria-label={q.label}>
-            {([true, false] as const).map((v) => <label key={String(v)} className="row-wrap" style={{ gap: 4 }}><input type="radio" name={`sr-${q.k}`} checked={ans[q.k] === v} onChange={() => setAns({ ...ans, [q.k]: v })} />{v ? "Yes" : "No"}</label>)}
-          </span>
+          <span style={{ flex: "1 1 320px" }}>{q.label}{q.help && <span className="muted" style={{ display: "block", fontSize: 12 }}>{q.help}</span>}
+            {(facts[q.k] || []).length > 0 && <span className="muted" style={{ display: "block", fontSize: 13, marginTop: 4 }}><strong>The planner knows:</strong> {(facts[q.k] || []).map((t, i) => <span key={i} style={{ display: "block" }}>· {t}</span>)}</span>}</span>
+          <Choice label={q.label} options={["Yes", "No"]} value={ans[q.k] === undefined ? "" : ans[q.k] ? "Yes" : "No"} onChange={(x) => setAns({ ...ans, [q.k]: x === "" ? undefined : x === "Yes" })} />
         </div>
       ))}
       <div className="row-wrap">

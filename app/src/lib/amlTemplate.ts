@@ -32,7 +32,12 @@ export const questions = (t: Template): TQ[] => t.sections.flatMap((x) => x.ques
 const byKey = (t: Template, k: string) => questions(t).find((q) => q.k === k);
 export const isShown = (t: Template, a: Ans, q: TQ): boolean => !q.hidden || t.conditions.some((c) => c.target === q.k && s(a[c.source]) === c.value);
 const answered = (a: Ans, k: string) => (Array.isArray(a[k]) ? (a[k] as string[]).length > 0 : s(a[k]).trim() !== "");
-const test = (a: Ans, x: Test) => (x.op === "eq" ? s(a[x.src]) === x.value : s(a[x.src]) !== x.value);
+/** For a choice of several (tick boxes), "is" means that one is ticked and "is not" means something other than it is ticked. */
+const test = (a: Ans, x: Test) => {
+  const v = a[x.src];
+  if (Array.isArray(v)) return x.op === "eq" ? v.includes(x.value) : v.some((y) => y !== x.value);
+  return x.op === "eq" ? s(v) === x.value : s(v) !== x.value;
+};
 
 export type Finding = { strict: "MUST" | "SHOULD"; question: string; text: string; wants: Test };
 export type Result = { shown: TQ[]; missing: TQ[]; findings: Finding[]; ratings: { section: string; q: string; level: Level }[]; highest: Level };

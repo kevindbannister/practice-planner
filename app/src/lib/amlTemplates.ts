@@ -238,7 +238,7 @@ export const INDIVIDUAL: Template = {
    "questions": [
     {
      "k": "i19",
-     "t": "one",
+     "t": "many",
      "label": "Which methods of communication apply to this client?",
      "options": [
       "Face to face",
@@ -966,7 +966,7 @@ export const COMPANY: Template = {
    "questions": [
     {
      "k": "c36",
-     "t": "one",
+     "t": "many",
      "label": "Which methods of communication apply to this client?",
      "options": [
       "Face to face with owner",
