@@ -33,3 +33,18 @@ test("anchor falls back to the latest month", () => {
   assert.equal(anchorFor({ anchor: "2026-08" }, ["2026-08", "2026-09"]), "2026-08");
   assert.equal(anchorFor({ anchor: "2020-01" }, ["2026-08", "2026-09"]), "2026-09");
 });
+
+test("next period's copy moves the period on, keeps the layout and clears the commentary", async () => {
+  const { nextCopy, newReport, uid } = await import("../src/lib/reportBuilder");
+  const r = newReport("Management pack October 2026", "month", "2026-10", "portrait", "2026-11-01T00:00:00Z");
+  r.status = "published"; r.file = "x"; r.publishedAt = "2026-11-02";
+  r.sections[0].blocks = [{ id: uid(), type: "text", style: "heading", text: "Overview" }, { id: uid(), type: "text", style: "paragraph", text: "Sales were up." }, { id: uid(), type: "kpis", title: "KPIs" }] as never;
+  const n = nextCopy(r, "2026-12-01T00:00:00Z", "2026-11");
+  assert.equal(n.name, "Management pack November 2026");
+  assert.equal(n.anchor, "2026-11");
+  assert.equal(n.status, "draft"); assert.equal(n.file, undefined); assert.notEqual(n.id, r.id);
+  assert.deepEqual(n.sections[0].blocks.map((b) => (b as { text?: string }).text), ["Overview", "", undefined]);
+  assert.equal(r.sections[0].blocks[1].type === "text" && r.sections[0].blocks[1].text, "Sales were up."); // the original is untouched
+  assert.equal(nextCopy({ ...r, anchor: "2026-11" }, "2026-12-01T00:00:00Z", "2026-11").anchor, ""); // no December figures yet: the latest month
+  assert.equal(nextCopy({ ...r, name: "Board pack" }, "2026-12-01T00:00:00Z", "2026-11").name, "Board pack (next)");
+});

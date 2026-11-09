@@ -50,6 +50,16 @@ export function digestFor(p: DigestPerson, d: DigestData, today: string): Digest
     if (waiting.length) sections.push({ title: `AML assessments in progress (${waiting.length})`, items: waiting.slice(0, 25) });
     if (screen.length) sections.push({ title: `Sanctions and PEP screening (${screen.length})`, items: screen.slice(0, 25) });
   }
+  // KPI alerts raised when each client's figures were last read from Xero (kept as settings by Reporting); ignored once over 45 days old
+  const alerts: string[] = [];
+  for (const c of mine) {
+    const row = d.settings.find((r) => r.Key === `reporting.alerts.${str(c.Key)}`);
+    let v: { at?: string; month?: string; lines?: string[] } | undefined;
+    try { v = row?.Value ? JSON.parse(str(row.Value)) : undefined; } catch { v = undefined; }
+    if (!v?.lines?.length || !v.at || v.at.slice(0, 10) < addDays(today, -45)) continue;
+    for (const l of v.lines.slice(0, 5)) alerts.push(`${str(c.Title)}: ${l}`);
+  }
+  if (alerts.length) sections.push({ title: `Client KPI alerts (${alerts.length})`, items: alerts.slice(0, 25) });
   const count = sections.reduce((n, s) => n + s.items.length, 0);
   return { to: p.email, name: p.name, subject: count ? `Practice Planner: ${count} thing${count === 1 ? "" : "s"} for today` : "Practice Planner: nothing due today", sections, count };
 }

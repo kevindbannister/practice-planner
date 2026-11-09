@@ -139,6 +139,18 @@ export function copyReport(r: ReportDoc, now: string): ReportDoc {
   return { ...JSON.parse(JSON.stringify(r)), id: uid("r"), name: `${r.name} (copy)`, status: "draft", createdAt: now, updatedAt: now, publishedAt: undefined, file: undefined };
 }
 
+/** Next period's report from this one: the same layout, one period on, with the written commentary (paragraphs and summaries) cleared for new words. */
+export function nextCopy(r: ReportDoc, now: string, latest: string): ReportDoc {
+  const base = r.anchor || latest;
+  const step = r.kind === "month" ? 1 : r.kind === "quarter" ? 3 : 12;
+  const moved = base ? addMonths(base, step) : "";
+  const anchor = moved && latest && moved <= latest ? moved : "";
+  const was = periodWords(r.kind, base), will = periodWords(r.kind, anchor || latest);
+  const c = JSON.parse(JSON.stringify(r)) as ReportDoc;
+  for (const s of c.sections) for (const b of s.blocks) if (b.type === "text" && (b.style === "paragraph" || b.style === "summary" || b.style === "observation")) b.text = "";
+  return { ...c, id: uid("r"), name: was && r.name.includes(was) ? r.name.replace(was, will) : `${r.name} (next)`, anchor, status: "draft", createdAt: now, updatedAt: now, publishedAt: undefined, file: undefined };
+}
+
 /** The latest month figures exist for, unless the report names one. */
 export const anchorFor = (r: { anchor?: ReportDoc["anchor"] }, months: string[]) => (r.anchor && months.includes(r.anchor) ? r.anchor : months[months.length - 1] || "");
 export const shiftAnchor = (m: string, n: number) => addMonths(m, n);

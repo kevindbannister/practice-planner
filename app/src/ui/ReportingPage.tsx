@@ -13,7 +13,12 @@ import { ReportingSettings } from "./ReportingSettings";
 import { AgedScreen } from "./ReportingAged";
 import { Profitability } from "./ReportingProfitability";
 import { KpiScreen } from "./ReportingKpis";
-import { useReportData } from "./reportingKit";
+import { ReadNote, readAndSave, useRecordRead, useReportData } from "./reportingKit";
+import { lastCompleteMonth } from "../lib/reportData";
+import { todayIso } from "../lib/domain";
+import { readSetting } from "./data";
+import { XeroError } from "../lib/xero";
+import { useXero } from "./XeroSettings";
 import { useXeroLinks } from "./XeroSettings";
 
 const GROUPS: { name: string; items: [string, string, IconName][] }[] = [
@@ -22,6 +27,45 @@ const GROUPS: { name: string; items: [string, string, IconName][] }[] = [
   { name: "Reports", items: [["reports", "Reports", "book"]] },
   { name: "Settings", items: [["settings", "Settings", "cog"]] },
 ];
+
+const daysAgo = (iso: string) => Math.floor((Date.now() - Date.parse(iso)) / 86400000);
+const ago = (iso?: string) => (!iso ? "not read yet" : daysAgo(iso) <= 0 ? "today" : daysAgo(iso) === 1 ? "yesterday" : `${daysAgo(iso)} days ago`);
+/** Behind when the last read is over a week old, or is missing the last complete month. */
+export const figuresBehind = (n: ReadNote | undefined, today: string) => !n || daysAgo(n.at) > 7 || n.month < lastCompleteMonth(today);
+
+/** Every linked client's figures: when each was last read, and one button to read them all again from Xero. */
+function FiguresPanel({ clients }: { clients: { Key: string; Title: string; tenant: { tenantId: string; tenantName: string } }[] }) {
+  const { data, store } = useData();
+  const api = useXero();
+  const record = useRecordRead();
+  const [busy, setBusy] = useState("");
+  const [log, setLog] = useState<string[]>([]);
+  const today = todayIso();
+  const run = async () => {
+    const problems: string[] = [];
+    let i = 0;
+    for (const c of clients) {
+      i++;
+      setBusy(`Reading ${c.Title} (${i} of ${clients.length})…`);
+      try { const d = await readAndSave(api, store, c.Key, c.tenant, (m) => setBusy(`${c.Title}: ${m}`)); await record(c.Key, d); }
+      catch (e) { problems.push(`${c.Title}: ${e instanceof XeroError ? e.message : "couldn't be read or saved"}`); }
+    }
+    setBusy(""); setLog(problems.length ? problems : ["All read."]);
+  };
+  const rows = clients.map((c) => ({ c, note: readSetting<ReadNote>(data.settings, `reporting.read.${c.Key}`) }));
+  const behind = rows.filter((r) => figuresBehind(r.note, today)).length;
+  return (
+    <div className="card pad stack" style={{ gap: 8, maxWidth: 640 }}>
+      <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+        <strong>Figures from Xero</strong>
+        <button type="button" className="btn small" disabled={!!busy || !clients.length} onClick={() => void run()}>Read all {clients.length} again from Xero</button>
+      </div>
+      <span className="muted" style={{ fontSize: 12 }} aria-live="polite">{busy || (behind ? `${behind} of ${clients.length} are over a week old or missing the latest month.` : "All are up to date.")}</span>
+      <table className="grid" style={{ fontSize: 13 }}><tbody>{rows.map(({ c, note }) => <tr key={c.Key}><td><a href={href("reporting", c.Key, "financials")}>{c.Title}</a></td><td className="muted">{ago(note?.at)}</td><td>{figuresBehind(note, today) ? <span className="chip amber">behind</span> : ""}</td></tr>)}</tbody></table>
+      {log.map((l) => <span key={l} className="muted" style={{ fontSize: 12 }}>{l}</span>)}
+    </div>
+  );
+}
 
 const fmt = (n?: number) => (n === undefined ? "" : n === 0 ? "–" : n < 0 ? `(${Math.abs(Math.round(n)).toLocaleString("en-GB")})` : Math.round(n).toLocaleString("en-GB"));
 const pct = (a?: number, b?: number) => (a === undefined || b === undefined || b === 0 ? "" : `${Math.round(((a - b) / Math.abs(b)) * 100)}%`);
@@ -56,6 +100,7 @@ export function ReportingPage() {
             {clients.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}
           </select>
         </div>
+        {connected && clients.length > 0 && <FiguresPanel clients={clients.map((c) => ({ Key: c.Key, Title: String(c.Title), tenant: tenantFor(c.Key)! }))} />}
         {!connected && <div className="alert amber"><strong>Xero isn't connected</strong><span>Connect Xero in Settings › Xero, then link each client, and the reports fill from it.</span></div>}
         {connected && !clients.length && <div className="alert amber"><strong>No clients are linked to Xero yet</strong><span>Link a client's Xero organisation in Settings › Xero.</span></div>}
         {client && !linked && <div className="alert amber"><strong>This client isn't linked to Xero</strong><span>Link it in Settings › Xero first.</span></div>}
@@ -106,6 +151,7 @@ export function ReportingPage() {
             })}
           </nav>
           <section className="paper-main stack" style={{ minWidth: 0 }}>
+            {(() => { const n = readSetting<ReadNote>(data.settings, `reporting.read.${client.Key}`); return n && figuresBehind(n, todayIso()) && tool !== "settings" ? <div className="alert amber" role="status"><strong>These figures may be out of date</strong><span>They were read from Xero {ago(n.at)}{n.month < lastCompleteMonth(todayIso()) ? " and stop at an earlier month than last month" : ""}. Use Refresh from Xero on a screen below, or Read all from the Reporting home page.</span></div> : null; })()}
             {tool === "settings" ? <ReportingSettings {...props} tab={parts[3]} />
               : tool === "receivables" || tool === "payables" ? <AgedScreen clientKey={props.clientKey} clientName={props.clientName} tenant={props.tenant} kind={tool === "payables" ? "pay" : "rec"} />
               : tool === "reports" ? <ReportsScreen {...props} id={parts[3]} />

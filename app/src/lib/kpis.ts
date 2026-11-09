@@ -45,6 +45,14 @@ export const CATEGORIES: KpiCategory[] = ["Profitability", "Activity", "Efficien
 /** Per client: the targets changed from the standard, and the KPIs switched off. */
 export type KpiSettings = { targets?: Record<string, number>; off?: string[]; importance?: Record<string, Importance>; alerts?: Record<string, { on: boolean; threshold?: number }> };
 
+/** What the KPI alerts say, one line each, for the screen and the morning email. */
+export function alertLines(fired: ReturnType<typeof triggeredAlerts>): string[] {
+  return fired.map((f) => `${f.def.name}: ${alertWording(f.def)} ${formatKpi(f.def.unit, f.threshold)} (now ${formatKpi(f.def.unit, f.value)})`);
+}
+
+/** Saved after each read from Xero, as the setting reporting.alerts.<client>, so the morning email (which can't open anyone's OneDrive) can include them. */
+export type SavedAlerts = { at: string; month: string; lines: string[] };
+
 export type KpiResult = { def: KpiDef; value?: number; target: number; /** false when no target has been set (the money KPIs start without one) */ hasTarget: boolean; /** how many months the period covers */ months: number; /** result less target, in the result's own unit */ gap?: number; onTrack?: boolean; note?: string };
 
 const sumRows = (rows: RRow[], months: string[], all: string[]) => r2(rows.reduce((a, r) => a + months.reduce((b, m) => b + (r.amounts[all.indexOf(m)] || 0), 0), 0));

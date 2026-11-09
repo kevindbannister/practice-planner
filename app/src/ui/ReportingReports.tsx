@@ -7,7 +7,7 @@ import { cashFlow, measureById, monthlySeries } from "../lib/analysis";
 import { AgedData } from "../lib/aged";
 import { KpiSettings, computeKpis, formatKpi } from "../lib/kpis";
 import {
-  Block, CHART_BLOCKS, LAYOUTS, chartH, spanOf, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, moveItem, newReport, periodWords, uid,
+  Block, CHART_BLOCKS, LAYOUTS, chartH, spanOf, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, nextCopy, moveItem, newReport, periodWords, uid,
 } from "../lib/reportBuilder";
 import { PeriodKind, REPORT_FOLDER, ReportData, bsStatement, monthLabel, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { todayIso } from "../lib/domain";
@@ -309,6 +309,7 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
             {x.status === "draft"
               ? <a className="btn small" href={href("reporting", clientKey, "reports", x.id)}>Edit</a>
               : <button type="button" className="btn small" onClick={() => void open(x)}>View</button>}
+            <button type="button" className="btn small" title="The same layout, one period on, with the commentary cleared" onClick={() => void save([...list, nextCopy(x, new Date().toISOString(), months[months.length - 1] || "")])}>Next period's copy</button>
             <button type="button" className="btn small" onClick={() => void save([...list, copyReport(x, new Date().toISOString())])}>{x.status === "published" ? "Make a draft copy" : "Duplicate"}</button>
             {confirm === x.id
               ? <><button type="button" className="btn small danger" onClick={() => { setConfirm(""); void save(list.filter((y) => y.id !== x.id)); }}>Delete it</button><button type="button" className="btn small" onClick={() => setConfirm("")}>Keep</button></>
