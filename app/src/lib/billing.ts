@@ -55,11 +55,15 @@ const fromAdfin = (s: string): LinkStatus => (s === "ACTIVE" ? "active" : s === 
 
 export type SetupInput = {
   line: FeeLine; clientName: string; customerId: string; method: Method; startDate: string; description: string; today: string; settings: AdfinSettings;
+  /** The client is marked "AML due diligence not completed" (Clients.AmlStopped): no new billing. */
+  amlStopped?: boolean;
 };
+export const AML_STOPPED = "AML due diligence for this client couldn't be completed, so no new work or billing should be set up. Approve a new AML assessment first.";
 
 /** What stops a fee line being set up, in plain words. */
 export function setupProblems(i: SetupInput): string[] {
   const out: string[] = [];
+  if (i.amlStopped) out.push(AML_STOPPED);
   const l = i.line;
   if (l.status !== "active") out.push(l.status === "held" ? "This fee is on hold. Start it before billing it." : l.status === "ended" ? "This fee has ended." : "This service is included in a package and has no fee to bill.");
   else if (l.oneOff || !periodsPerYear(l.period)) out.push("Only a monthly, quarterly or annual fee can be a recurring invoice. Use a one-off invoice for a one-off charge.");
@@ -198,6 +202,7 @@ export async function setupSchedule(api: AdfinApi, client: Row, i: SetupInput, l
 /** Starts a draft. Refuses if the amount no longer matches the fee. */
 export async function startSchedule(api: AdfinApi, client: Row, linkRow: Row, line: FeeLine, can: (x: ProposalAction) => boolean, o: Ctx): Promise<Written | { error: string }> {
   if (!can("send")) return { error: NO };
+  if (str(client.AmlStopped)) return { error: AML_STOPPED };
   const l = readLink(linkRow);
   if (l.status !== "draft") return { error: "Only a draft can be started." };
   const b = billingState(line, linkRow);

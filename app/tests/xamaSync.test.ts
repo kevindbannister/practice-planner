@@ -51,7 +51,9 @@ test("names match across Limited/Ltd, ampersands and punctuation", () => {
 test("a linked client is read without searching", async () => {
   const api = new FakeXama();
   const r = await readClient(api, CFG, client({ XamaId: "fake-x", XamaStatus: "not linked" }), TODAY);
-  assert.deepEqual(api.calls.map((c) => c.split("/").pop()), ["risk-assessments"]);
+  // no search: the risk assessments, then (for the ID and AML check stamps) the contact and its two reports
+  assert.equal(api.calls.map((c) => c.split("/").pop())[0], "risk-assessments");
+  assert.ok(!api.calls.some((c) => /search|accounts\?/.test(c)));
   assert.equal(r.xamaId, "fake-x");
   assert.ok(r.summary);
 });
@@ -95,4 +97,14 @@ test("ceased clients are skipped", async () => {
   const api = new FakeXama();
   const rows = await readAll(api, CFG, [client({ Key: "a", XamaId: "x1" }), client({ Key: "b", Status: "Ceased", XamaId: "x2" })], TODAY);
   assert.equal(rows.length, 1);
+});
+
+test("a bulk read records the ID and AML check stamps like a single refresh, without failing the read when reports can't be fetched", async () => {
+  const { patchFor } = await import("../src/lib/xamaSync.ts");
+  const row: any = { client: client({}), xamaId: "x", summary: { status: "Approved: low risk", review: "2026-01-01" }, changed: true, checks: { XamaIdCheck: "done|2026-11-09", XamaAmlCheck: "done|2026-11-08|0|0" } };
+  assert.deepEqual(patchFor(row), { XamaId: "x", XamaStatus: "Approved: low risk", XamaAssessedOn: "2026-01-01", XamaIdCheck: "done|2026-11-09", XamaAmlCheck: "done|2026-11-08|0|0" });
+  const api = new FakeXama();
+  (api as any).get = async (u: string) => { if (/risk-assessments/.test(u)) return []; throw new Error("no reports"); };
+  const r = await readClient(api, CFG, client({ XamaId: "fake-x" }), TODAY);
+  assert.equal(r.error, undefined);
 });

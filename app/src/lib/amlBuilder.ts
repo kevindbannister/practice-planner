@@ -255,6 +255,9 @@ export const STEPS: Step[] = [
       },
       { k: "sdd", label: "Do you ever use simplified due diligence (SDD)?", type: "one", need: true, options: o(["never", "No"], ["rare", "Only for clients rated low risk, with the reason recorded"]), suggest: "never", source: "ACCA: it is rare for a firm to use SDD, but it is good practice to document the position. SDD applies only to clients rated low risk." },
       { k: "records", example: "The client's AML file in the practice planner, with restricted access.", label: "Where are the due diligence records kept?", type: "text", need: true, placeholder: "For example the client's AML file in the practice planner, with restricted access" },
+      { k: "idHigh", label: "Re-verify the identity of high-risk clients every (months, 0 = only when something changes)", type: "number", need: true, suggest: "24", help: "Sets when the planner shows a client's ID re-check as due. A whole number of months.", source: "The law doesn't set a period: due diligence must be kept up to date and re-done when the risk or the facts change. Firms usually re-verify higher-risk clients periodically and others when something changes or documents expire." },
+      { k: "idMed", label: "Re-verify the identity of medium-risk clients every (months, 0 = only when something changes)", type: "number", need: true, suggest: "0" },
+      { k: "idLow", label: "Re-verify the identity of low-risk clients every (months, 0 = only when something changes)", type: "number", need: true, suggest: "0" },
     ],
     write: (a) => join([
       "## Due diligence policy",
@@ -273,6 +276,8 @@ export const STEPS: Step[] = [
       "EDD is also required by law where a client or transaction involves a country on the FATF \"call for action\" list, where the client or a beneficial owner is a politically exposed person (or a family member or known close associate of one), and for any transaction that is unusually complex or unusually large for its nature, or has an unusual pattern or no apparent economic or legal purpose. The firm's own risk assessment may also treat other higher-risk countries as needing EDD.",
       `EDD is carried out for every high-risk client. ${arr(a, "edd").length ? "It includes:" : GAP("what EDD includes")}`,
       arr(a, "edd").length ? list(arr(a, "edd").map((i) => labelOf(STEPS[5].questions[8], i))) : "",
+      "## Keeping identification up to date",
+      `Identification is re-verified when something changes (a new owner or controller, a change of name or address, documents that have expired, or a change in risk), and in any case ${["idHigh", "idMed", "idLow"].map((k, n) => { const v = str(a, k); const m = /^\d+$/.test(v) ? parseInt(v, 10) : NaN; const who = ["high-risk", "medium-risk", "low-risk"][n]; return Number.isNaN(m) ? GAP(`how often ${who} identity is re-verified`) : m > 0 ? `every ${m} months for ${who} clients` : `only on such a change for ${who} clients`; }).join(", ")}.`,
       "## Simplified due diligence (SDD)",
       a.sdd === "never" ? "The firm does not use simplified due diligence. Every client has full CDD, and high-risk clients have EDD." : a.sdd === "rare" ? "Simplified due diligence is used only for clients rated low risk, where the conditions are met and low risk is supported by a documented assessment. The reason is recorded and enough information is kept to understand the client." : GAP("whether SDD is used"),
     ].filter(Boolean) as string[]),

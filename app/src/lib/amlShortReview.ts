@@ -69,7 +69,7 @@ import { Seen } from "./amlReview";
 import { clientTypeFor } from "./proposals";
 import { amlStampRead, idStampRead } from "./xamaActions";
 
-export type FactsIn = { client: Row; cur: Row; seen: Seen[]; co?: CosecOwnership; services: string[]; open: Row[]; today: string; fmt: (d: string) => string };
+export type FactsIn = { client: Row; cur: Row; seen: Seen[]; co?: CosecOwnership; services: string[]; open: Row[]; today: string; fmt: (d: string) => string; idDue?: string };
 /** For each short-review question, the facts the planner already holds that bear on it. Nothing is guessed: a line only appears when there is data behind it. */
 export function shortFacts(f: FactsIn): Record<string, string[]> {
   const a = readAssessment(f.cur);
@@ -93,6 +93,7 @@ export function shortFacts(f: FactsIn): Record<string, string[]> {
   if (Object.keys(a.answers).length === 0) out.valid.push("The risk assessment questions weren't answered on this assessment.");
   else if (miss) out.valid.push(`${named(miss, "risk assessment question")} on it weren't answered.`);
   // info
+  if (f.idDue) out.info.push(f.idDue < f.today ? `Your policy says the client's identity should have been re-verified by ${f.fmt(f.idDue)}.` : `Identity re-verification due by ${f.fmt(f.idDue)} under your policy.`);
   const x = idStampRead(f.client.XamaIdCheck);
   if (x.state === "done") out.info.push(`Xama ID check done${x.on ? ` on ${f.fmt(x.on)}` : ""}.`);
   else out.info.push("No Xama identity result on the client.");

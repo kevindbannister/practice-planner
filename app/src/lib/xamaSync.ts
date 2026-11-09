@@ -3,6 +3,7 @@
 // the Settings › Xama page drives it.
 import { Client } from "./domain";
 import { XamaApi, XamaConfig } from "./xama";
+import { amlStamp, contactName, idStamp, progress } from "./xamaActions";
 
 export type Assessment = { id?: string; status?: string; risk_level?: string; completed_at?: string; created_at?: string; updated_at?: string };
 export type Summary = { status: string; review: string }; // review: date the approved assessment was completed
@@ -59,6 +60,8 @@ export type Row = {
   candidates?: Candidate[]; // when no single match was found
   error?: string;
   changed: boolean;
+  /** The ID verification and AML check stamps and the main contact's name, as a single refresh records them. */
+  checks?: { XamaIdCheck?: string; XamaAmlCheck?: string; XamaContact?: string };
 };
 
 const SKIP = new Set(["ceased", "former", "archived", "inactive", "lost", "dormant"]);
@@ -109,6 +112,18 @@ export async function readClient(api: XamaApi, cfg: XamaConfig, client: Client, 
     row.xamaId = id;
     row.summary = summarise(await assessments(api, cfg.firmId, id), today, cfg.staleMonths);
     row.changed = row.newlyLinked === true || row.summary.status !== current.status || row.summary.review !== current.review;
+    // The ID and AML check results, so a bulk read records them like a refresh on the client does. A failure here doesn't stop the read.
+    try {
+      const p = await progress(api, cfg, id);
+      const c = client as Client & { XamaIdCheck?: string; XamaAmlCheck?: string; XamaContact?: string };
+      const checks: NonNullable<Row["checks"]> = {};
+      const idc = idStamp(p, today, String(c.XamaIdCheck || "")), amc = amlStamp(p, today, String(c.XamaAmlCheck || ""));
+      if (idc !== String(c.XamaIdCheck || "")) checks.XamaIdCheck = idc;
+      if (amc !== String(c.XamaAmlCheck || "")) checks.XamaAmlCheck = amc;
+      const who = await contactName(api, cfg, id).catch(() => "");
+      if (who && who !== String(c.XamaContact || "")) checks.XamaContact = who;
+      if (Object.keys(checks).length) { row.checks = checks; row.changed = true; }
+    } catch { /* no reports yet, or not readable: the summary still counts */ }
   } catch (e) {
     row.error = describe(e);
   }
@@ -136,5 +151,5 @@ export async function readAll(api: XamaApi, cfg: XamaConfig, clients: Client[], 
 export function patchFor(r: Row): Record<string, string> | null {
   if (!r.xamaId || !r.summary || !r.changed) return null;
   // Xama's completion date goes in its own column. AMLReview is the planner's next review date and is never written from Xama.
-  return { XamaId: r.xamaId, XamaStatus: r.summary.status, XamaAssessedOn: r.summary.review };
+  return { XamaId: r.xamaId, XamaStatus: r.summary.status, XamaAssessedOn: r.summary.review, ...(r.checks || {}) };
 }

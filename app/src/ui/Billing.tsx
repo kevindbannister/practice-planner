@@ -5,7 +5,7 @@ import { getAccessToken } from "../lib/auth";
 import { todayIso } from "../lib/domain";
 import { AdfinApi, AdfinCustomer, AdfinError, AdfinStatus, FakeAdfin, HttpAdfin } from "../lib/adfin";
 import {
-  ADFIN_CONNECTION_KEY, ADFIN_CUSTOMERS_KEY, ADFIN_SETTINGS_KEY, CustomerLink, LINK_LABEL, Method, SetupInput, billingState, cancelSchedule, createCustomer, getCustomer, liveLinkFor, mandateOf, readAdfinSettings,
+  ADFIN_CONNECTION_KEY, ADFIN_CUSTOMERS_KEY, ADFIN_SETTINGS_KEY, AML_STOPPED, CustomerLink, LINK_LABEL, Method, SetupInput, billingState, cancelSchedule, createCustomer, getCustomer, liveLinkFor, mandateOf, readAdfinSettings,
   readCustomerLinks, readLink, readRepeating, replaceSchedule, requestMandate, searchCustomers, setupProblems, setupSchedule, startSchedule, startSummary, syncLink, xeroOverlaps,
 } from "../lib/billing";
 import { FeeLine, periodLabel, readFeeLine } from "../lib/fees";
@@ -231,6 +231,7 @@ export function ClientBilling({ client, lines, doW, busy }: { client: Row; lines
   });
   return (
     <div className="stack" style={{ gap: 8 }} role="group" aria-label="Billing through Adfin">
+      {!!str(client.AmlStopped) && <div className="alert" role="alert"><strong>AML due diligence not completed.</strong> {AML_STOPPED}</div>}
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <strong>Billing through Adfin</strong>
         <a href={href("settings", "adfin")} className="muted">Adfin settings</a>
@@ -275,7 +276,7 @@ function FeeBilling({ client, line, serviceName, customer, settings, can, busy, 
   const xeroLinks = useXeroLinks();
   const xero = useXero();
   const [overlap, setOverlap] = useState<{ contact: string; total: number; status: string }[]>([]);
-  const input: SetupInput = { line, clientName: str(client.Title), customerId: customer?.id || "", method, startDate: start, description: desc, today, settings };
+  const input: SetupInput = { line, clientName: str(client.Title), customerId: customer?.id || "", method, startDate: start, description: desc, today, settings, amlStopped: !!str(client.AmlStopped) };
   const problems = setupProblems(input);
   useEffect(() => {
     if (!open || !xeroLinks.practice) return;

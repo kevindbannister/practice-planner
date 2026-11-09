@@ -14,7 +14,7 @@ import { cosecOwnership, mergeOwners } from "../lib/amlCosec";
 import { PEP_KINDS, Pep, PepPerson, blankPep, pepUntil } from "../lib/amlPep";
 import { policyAnswers } from "../lib/amlPolicy";
 import { alsoCovers, contactCover, isIndividual, ownerChecks, ownerCover, ownersCovered } from "../lib/amlPeople";
-import { timeline } from "../lib/amlTimeline";
+import { idCheckedOn, timeline } from "../lib/amlTimeline";
 import { clientFolder } from "../lib/comms";
 import { clientTypeFor } from "../lib/proposals";
 import { readOnboardingSettings } from "../lib/onboarding";
@@ -27,7 +27,7 @@ import { isDemo } from "./commsKit";
 import { SEAL_LABEL } from "../lib/amlSeal";
 import { useSeals } from "./sealKit";
 import { matchProblems, screeningProblems } from "../lib/amlScreening";
-import { screeningPolicy } from "../lib/amlPolicy";
+import { idRecheckDue, idRefreshPolicy, screeningPolicy } from "../lib/amlPolicy";
 import { storeFrom } from "../lib/amlPack";
 import { clientTypeFor as typeOfClient } from "../lib/proposals";
 
@@ -179,7 +179,8 @@ function ShortReviewForm({ client, cur, rows, settings, independent, changes, se
   const qs = shortQuestions(a.doneOn ? fmtDate(a.doneOn) : "", RISK[a.risk] || "", changes, a.ddLevel);
   const { data } = useData();
   const co = useMemo(() => cosecOwnership(String(client.Key), data as never, today), [data, client.Key, today]);
-  const facts = shortFacts({ client, cur, seen, co, today, fmt: fmtDate, open: rows.filter((r) => r.ClientKey === client.Key && asStatus(r.Status) === "inprogress"),
+  const idDue = (() => { const x = idStampRead(client.XamaIdCheck); const on = [idCheckedOn(String(client.Key), data.amlAssessments, data.onboardings), x.state === "done" ? x.on : ""].filter(Boolean).sort().pop() || ""; return idRecheckDue(on, a.risk, idRefreshPolicy(data.settings)); })();
+  const facts = shortFacts({ client, cur, seen, co, today, fmt: fmtDate, idDue, open: rows.filter((r) => r.ClientKey === client.Key && asStatus(r.Status) === "inprogress"),
     services: (data.clientServices as Row[]).filter((x) => x.ClientKey === client.Key && !x.EndedOn).map((x) => String((data.services as Row[]).find((y) => y.Key === x.ServiceKey)?.Title || x.ServiceKey || "")) });
   const [ans, setAns] = useState<Record<string, boolean | undefined>>({});
   const [date, setDate] = useState(today);
