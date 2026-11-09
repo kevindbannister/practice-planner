@@ -3463,5 +3463,13 @@ table.deadlines .date-row th { text-align: left; background: var(--bg-soft, #f1f
 table.deadlines .c-kind { white-space: nowrap; }
 
 /* The builder: the contents list and "What it says" stay in view while answering the questions. */
+/* Policy and risk assessment builder: Menu | What it says | Questions. The menu and the text stay put and scroll on their own. */
+.aml-3col { display: grid; gap: 16px; align-items: start; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 760px) and (max-width: 1099px) { .aml-3col { grid-template-columns: minmax(170px, 210px) minmax(0, 1fr); } .aml-menu { grid-row: span 2; } .aml-says, .aml-qs { grid-column: 2; } }
+@media (min-width: 1100px) { .aml-3col { grid-template-columns: minmax(180px, 230px) minmax(0, 1fr) minmax(0, 1fr); } }
+@media (min-width: 760px) { .aml-col > * { flex-shrink: 0; }
+.aml-col { position: sticky; top: calc(var(--topbar-h, 64px) + 28px); max-height: calc(100vh - var(--topbar-h, 64px) - 44px); overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain; } }
+@media (min-width: 760px) and (max-width: 1099px) { .aml-says { position: static; max-height: none; overflow: visible; } }
+@media print { .aml-col { position: static; max-height: none; overflow: visible; } }
 @media (min-width: 900px) { .aml-side { position: sticky; top: calc(var(--topbar-h, 64px) + 28px); max-height: calc(100vh - var(--topbar-h, 64px) - 44px); overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain; } }
 @media print { .aml-side { position: static; max-height: none; overflow: visible; } }

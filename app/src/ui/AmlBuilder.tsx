@@ -255,21 +255,21 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
       </section>
 
       {view === "steps" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 16, alignItems: "start" }}>
-          <div className="stack aml-side" style={{ gap: 16 }}>
-          <nav className="card pad stack" aria-label="Areas" style={{ gap: 4 }}>
+        <div className="aml-3col">
+          <nav className="card pad stack aml-col aml-menu" aria-label="Areas" style={{ gap: 4 }}>
+            <h2 className="sec-h" style={{ fontSize: 15 }}>Menu</h2>
             {cfg.steps.map((s, i) => {
               const x = built.find((y) => y.id === s.id)!;
               const st = stepState(x);
               return (
-                <button key={s.id} type="button" className={`btn small${s.id === stepId ? " primary" : ""}`} aria-current={s.id === stepId ? "step" : undefined} onClick={() => setStepId(s.id)} style={{ justifyContent: "space-between", textAlign: "left", gap: 8 }}>
+                <button key={s.id} type="button" className={`btn small${s.id === stepId ? " primary" : ""}`} aria-current={s.id === stepId ? "step" : undefined} onClick={() => setStepId(s.id)} style={{ height: "auto", minHeight: 0, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", justifyContent: "flex-start", textAlign: "left", padding: "6px 10px", lineHeight: 1.3, gap: 4 }}>
                   <span>{i + 1}. {s.title}</span>
                   <span className={`chip ${st.c}`} style={{ flexShrink: 0 }}>{st.t}</span>
                 </button>
               );
             })}
           </nav>
-          <section className="card pad stack" aria-label="What this area says">
+          <section className="card pad stack aml-col aml-says" aria-label="What this area says">
             <div className="card-title-row"><h2 className="sec-h">What it says</h2>
               {bs.edited ? <button type="button" className="btn small" onClick={() => { const e = { ...state.edits }; delete e[stepId]; edit({ ...state, edits: e, confirmed: { ...state.confirmed, [stepId]: false } }, true); }}>Go back to the written text</button>
                 : <button type="button" className="btn small" onClick={() => edit({ ...state, edits: { ...state.edits, [stepId]: bs.text }, confirmed: { ...state.confirmed, [stepId]: false } }, true)}>Edit the wording by hand</button>}
@@ -291,8 +291,7 @@ export function PolicyBuilder({ cfg = POLICY_CFG }: { cfg?: Cfg }) {
               {idx === cfg.steps.length - 1 && <button type="button" className="btn small primary" onClick={() => setView("versions")}>Go to save and versions</button>}
             </div>
           </section>
-          </div>
-          <div className="stack" style={{ gap: 16 }}>
+          <div className="stack aml-qs" style={{ gap: 16 }}>
             <section className="card pad stack" aria-label={step.title}>
               <h2 className="sec-h">{idx + 1}. {step.title}</h2>
               <p className="muted" style={{ margin: 0 }}>{step.intro}</p>
