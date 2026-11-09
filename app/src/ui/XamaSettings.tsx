@@ -95,7 +95,8 @@ export function XamaSettings() {
           <input className="input" value={cfg.firmId} onChange={(e) => set("firmId", e.target.value)} spellCheck={false} />
         </label>
         <label className="field" style={{ display: "grid", gap: 6, marginTop: 12, maxWidth: 460 }}>
-          <span>Show "Review due" when an approved assessment is older than (months, 0 = never)</span>
+          <span>Show "Review due" when an approved Xama risk assessment is older than (months, 0 = never)</span>
+          <span className="muted" style={{ fontSize: 12 }}>How often clients are re-screened for sanctions and PEPs, by risk, and whether Xama keeps monitoring them, is set in your AML policy (Sanctions screening step) and shown in the AML client tracker.</span>
           <input className="input" type="number" min={0} max={120} value={cfg.staleMonths} onChange={(e) => set("staleMonths", e.target.value)} />
         </label>
         <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>

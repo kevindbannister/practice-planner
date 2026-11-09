@@ -108,10 +108,10 @@ export async function askForIdCheck(api: XamaApi, cfg: XamaConfig, accountId: st
   await api.write("PUT", `${base(cfg)}/accounts/${encodeURIComponent(accountId)}/contacts/${encodeURIComponent(contact)}/reports/onboarding`, { config: { parameters, ttl_in_days: 365, is_reminder_enabled: true } });
 }
 
-/** Runs the AML check (identity, PEP and sanctions) on the client's primary contact. */
-export async function runAmlCheck(api: XamaApi, cfg: XamaConfig, accountId: string): Promise<void> {
+/** Runs the AML check (identity, PEP and sanctions) on the client's primary contact. `monitor` turns on Xama's automatic refresh (ongoing monitoring), as the policy says. */
+export async function runAmlCheck(api: XamaApi, cfg: XamaConfig, accountId: string, monitor = false): Promise<void> {
   const contact = await contactOf(api, cfg, accountId);
-  await api.write("PUT", `${base(cfg)}/accounts/${encodeURIComponent(accountId)}/contacts/${encodeURIComponent(contact)}/reports/aml`, { config: { ttl_in_days: 365, is_automatic_refresh_enabled: false } });
+  await api.write("PUT", `${base(cfg)}/accounts/${encodeURIComponent(accountId)}/contacts/${encodeURIComponent(contact)}/reports/aml`, { config: { ttl_in_days: 365, is_automatic_refresh_enabled: monitor } });
 }
 
 export type Progress = {

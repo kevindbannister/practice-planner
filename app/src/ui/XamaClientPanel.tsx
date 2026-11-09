@@ -13,11 +13,13 @@ import { isDemo } from "./commsKit";
 import { useData } from "./data";
 import { useXamaConfig } from "./XamaSettings";
 import { todayIso } from "../lib/domain";
+import { screeningPolicy } from "../lib/amlPolicy";
 
 type Step = null | "create" | "id" | "aml";
 
 export function XamaClientPanel({ client }: { client: Client }) {
-  const { update } = useData();
+  const { update, data } = useData();
+  const monitor = screeningPolicy(data.settings, { high: 12, medium: 12, low: 12 }).monitor;
   const cfg = useXamaConfig();
   const api: XamaApi = useMemo(() => (isDemo() ? new FakeXama() : new HttpXama(getAccessToken)), []);
   const [status, setStatus] = useState<XamaStatus | null>(null);
@@ -74,7 +76,7 @@ export function XamaClientPanel({ client }: { client: Client }) {
   });
 
   const aml = () => run(async () => {
-    await runAmlCheck(api, cfg, xamaId);
+    await runAmlCheck(api, cfg, xamaId, monitor);
     setStep(null);
     setProg(await progress(api, cfg, xamaId));
     return "AML check started. It takes a few seconds: press Check progress, then Refresh result.";
