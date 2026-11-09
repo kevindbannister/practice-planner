@@ -188,3 +188,17 @@ test("a done Xama AML check suggests identity verified and no PEP or sanctions m
   const c = hints(COMPANY as any, { ...base, xamaIdDone: true });
   for (const k of ["c17", "c18", "c19", "c20"]) assert.ok(c[k], k);
 });
+
+test("Xama's AML check is stamped with its date and result for the screening register", async () => {
+  const { amlStamp, amlStampRead } = await import("../src/lib/xamaActions.ts");
+  const p = (aml: any) => ({ id: null, aml }) as any;
+  assert.equal(amlStamp(p(null), "2026-11-09"), "");
+  assert.equal(amlStamp(p({ status: "ERROR" }), "2026-11-09"), "");
+  assert.equal(amlStamp(p({ status: "READY", decision: "ACCEPT", pep: 0, sanctions: 0, at: "2026-11-02" }), "2026-11-09"), "done|2026-11-02|0|0");
+  assert.equal(amlStamp(p({ status: "READY", decision: "ACCEPT", pep: 0, sanctions: 0, at: "" }), "2026-11-09"), "done|2026-11-09|0|0");
+  assert.equal(amlStamp(p({ status: "READY", decision: "ACCEPT", pep: 0, sanctions: 0, at: "" }), "2026-11-20", "done|2026-11-09|0|0"), "done|2026-11-09|0|0");
+  assert.equal(amlStamp(p({ status: "READY", decision: "ACCEPT", pep: 1, sanctions: 0, at: "2026-11-02" }), "2026-11-09"), "check|2026-11-02|1|0");
+  assert.equal(amlStamp(p({ status: "RUNNING" }), "2026-11-09").split("|")[0], "waiting");
+  assert.deepEqual(amlStampRead("check|2026-11-02|1|2"), { state: "check", on: "2026-11-02", pep: 1, sanctions: 2 });
+  assert.equal(amlStampRead("").state, "");
+});

@@ -150,6 +150,10 @@
      "type": "text"
     },
     {
+     "name": "XamaAmlCheck",
+     "type": "text"
+    },
+    {
      "name": "LoEStatus",
      "type": "text"
     },

@@ -116,7 +116,7 @@ export async function runAmlCheck(api: XamaApi, cfg: XamaConfig, accountId: stri
 
 export type Progress = {
   id: { status: string; document?: string; face?: string } | null; // the ID verification request
-  aml: { status: string; decision?: string; pep?: number; sanctions?: number } | null;
+  aml: { status: string; decision?: string; pep?: number; sanctions?: number; at?: string } | null;
 };
 
 async function report(api: XamaApi, path: string): Promise<any | null> {
@@ -137,7 +137,7 @@ export async function progress(api: XamaApi, cfg: XamaConfig, accountId: string)
   const arr = (x: unknown) => (Array.isArray(x) ? x.length : typeof x === "number" ? x : 0);
   return {
     id: o ? { status: String(o.status || ""), document: o.data?.idscan?.document_decision, face: o.data?.idscan?.face_match_decision } : null,
-    aml: a ? { status: String(a.status || ""), decision: a.data?.decision, pep: arr(a.data?.pep_matches), sanctions: arr(a.data?.sanctions_matches) } : null,
+    aml: a ? { status: String(a.status || ""), decision: a.data?.decision, pep: arr(a.data?.pep_matches), sanctions: arr(a.data?.sanctions_matches), at: String(a.completed_at || a.updated_at || a.created_at || "").slice(0, 10) } : null,
   };
 }
 
@@ -168,4 +168,22 @@ export function idStamp(p: Progress, today: string, current = ""): string {
 export function idStampRead(v: unknown): { state: "done" | "waiting" | "check" | ""; on: string } {
   const [s, on] = String(v || "").split("|");
   return { state: s === "done" || s === "waiting" || s === "check" ? s : "", on: on || "" };
+}
+
+/** What to remember on the client about Xama's AML check (identity, PEP and sanctions): "done|<date>|<pep>|<sanctions>" when it came back clear,
+ *  "check|..." when it has a possible match or a decision that reads as a rejection, "waiting|..." while it runs, or "" if none has run.
+ *  The date is the one on Xama's report when it gives one, otherwise the day the planner first saw that state. This is the register of Xama's screening. */
+export function amlStamp(p: Progress, today: string, current = ""): string {
+  const a = p.aml;
+  if (!a || a.status === "ERROR" || a.status === "CREDIT_BALANCE_EXCEEDED") return "";
+  const bad = /reject|fail|refer|alert|declin|error|suspect|unable/i;
+  const matches = (a.pep || 0) + (a.sanctions || 0);
+  const state = a.status === "READY" ? (matches > 0 || bad.test(String(a.decision || "")) ? "check" : "done") : "waiting";
+  const [was, on] = current.split("|");
+  const date = a.status === "READY" && /^\d{4}-\d{2}-\d{2}$/.test(a.at || "") ? (a.at as string) : was === state && on ? on : today;
+  return `${state}|${date}|${a.pep || 0}|${a.sanctions || 0}`;
+}
+export function amlStampRead(v: unknown): { state: "done" | "waiting" | "check" | ""; on: string; pep: number; sanctions: number } {
+  const [s, on, pep, san] = String(v || "").split("|");
+  return { state: s === "done" || s === "waiting" || s === "check" ? s : "", on: on || "", pep: Number(pep) || 0, sanctions: Number(san) || 0 };
 }

@@ -9,9 +9,10 @@ import { readAml, readOnboardingSettings } from "../lib/onboarding";
 import * as p from "../lib/amlPack";
 import { returnLive, Live } from "../lib/amlReturn";
 import { DOCX_TYPE } from "../lib/docx";
-import { todayIso } from "../lib/domain";
+import { fmtDate, todayIso } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
+import { amlStampRead } from "../lib/xamaActions";
 import { readSetting, useData } from "./data";
 import { AmlClients } from "./AmlClients";
 import { readiness, Facts, Standing as RStanding } from "../lib/amlReadiness";
@@ -364,7 +365,7 @@ function Checklist() {
     if (triggerOf(pos.row) || seenTriggers(cl, a.data as never, rp, lastApprovedAt(cl, a.data.amlAssessments, a.data.onboardings, readAml)).length) clients.triggered++;
   }
   const training = rowsOf("training", "people").map((r) => r.next).filter(Boolean).sort()[0] || "";
-  const screening = [...a.storeOf("screening").records].map((r) => r.created).sort().pop() || "";
+  const screening = [...[...a.storeOf("screening").records].map((r) => String((r.values as Record<string, unknown>).on || "").slice(0, 10) || String(r.created).slice(0, 10)), ...(a.data.clients as Row[]).filter((c) => !c.CeasedOn).map((c) => amlStampRead(c.XamaAmlCheck)).filter((x) => x.state === "done" || x.state === "check").map((x) => x.on)].filter(Boolean).sort().pop() || "";
   const facts: Facts = {
     today, policy: builderFacts(POLICY_CFG), fwra: builderFacts(FWRA_CFG), mlro: String(pol.mlro || "").trim(), deputy: String(pol.deputyName || "").trim(),
     standing: { mlro: stand("mlro"), training: stand("training"), independent: stand("independent"), annualreturn: stand("annualreturn"), reviews: stand("reviews") },
@@ -416,6 +417,23 @@ function BlankForms() {
   );
 }
 
+/** The screening register as Xama holds it: each client's AML check (identity, PEP and sanctions) with the date it was done. */
+function XamaScreening() {
+  const a = useAml();
+  const rows = (a.data.clients as Row[]).filter((c) => !c.CeasedOn).map((c) => ({ c, x: amlStampRead(c.XamaAmlCheck) })).filter((r) => r.x.state).sort((p, q) => q.x.on.localeCompare(p.x.on));
+  return (
+    <section className="card pad stack" aria-label="Screening from Xama">
+      <h2 className="sec-h">From Xama</h2>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Each client's Xama AML check (identity and address, PEP and sanctions), dated from Xama's own report. It fills in when you refresh a client's Xama result. Record checks done anywhere else in the form below.</p>
+      {rows.length === 0 ? <p className="muted" style={{ margin: 0 }}>No Xama AML check has been picked up yet. Open a client's AML tab and press Refresh result after running one.</p> : (
+        <table className="table"><thead><tr><th>Client</th><th>Checked</th><th>Result</th></tr></thead>
+          <tbody>{rows.map(({ c, x }) => <tr key={String(c.Key)}><td><a href={href("clients", String(c.Key), "aml")}>{String(c.Title)}</a></td><td>{x.on ? fmtDate(x.on) : "—"}</td>
+            <td>{x.state === "waiting" ? "Running" : x.state === "done" ? "No PEP or sanctions matches" : `Possible matches: ${x.pep} PEP, ${x.sanctions} sanctions. Review in Xama`}</td></tr>)}</tbody></table>
+      )}
+    </section>
+  );
+}
+
 export function AmlPage() {
   const { parts } = useRoute();
   const tab = TABS.find(([k]) => k === parts[1])?.[0] || "overview";
@@ -427,6 +445,7 @@ export function AmlPage() {
   else if (tab === "clients") body = <AmlClients />;
   else if (tab === "checklist") body = <Checklist />;
   else if (tab === "forms") body = <BlankForms />;
+  else if (tab === "screening" && def) body = <><XamaScreening /><FormScreen key={def.id} def={def} /></>;
   else body = def ? <FormScreen key={def.id} def={def} /> : null;
   return (
     <div className="page">
