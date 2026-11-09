@@ -268,6 +268,10 @@
     {
      "name": "CeasedReason",
      "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -303,6 +307,10 @@
     {
      "name": "EngagerId",
      "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -318,6 +326,10 @@
     {
      "name": "Notes",
      "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -344,6 +356,10 @@
     },
     {
      "name": "Role",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
      "type": "text"
     }
    ]
@@ -484,6 +500,10 @@
     {
      "name": "Statutory",
      "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -519,6 +539,10 @@
     {
      "name": "WaitClient",
      "type": "bool"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -594,6 +618,10 @@
     {
      "name": "ProposalKey",
      "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -629,6 +657,10 @@
     {
      "name": "BillingPoint",
      "type": "bool"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -804,6 +836,10 @@
     {
      "name": "TimeSkipped",
      "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -855,6 +891,10 @@
     {
      "name": "ClosedNote",
      "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -954,6 +994,10 @@
     {
      "name": "RoutineDate",
      "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -989,6 +1033,10 @@
     {
      "name": "Notes",
      "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -1024,6 +1072,10 @@
     {
      "name": "Notes",
      "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -1103,6 +1155,10 @@
     {
      "name": "Updated",
      "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -1149,6 +1205,10 @@
     },
     {
      "name": "At",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
      "type": "text"
     }
    ]
@@ -1215,6 +1275,10 @@
     },
     {
      "name": "Resolved",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
      "type": "text"
     }
    ]
@@ -1299,6 +1363,10 @@
     {
      "name": "SentOn",
      "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -1370,6 +1438,10 @@
     {
      "name": "Notes",
      "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -1449,6 +1521,10 @@
     {
      "name": "Updated",
      "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -1492,6 +1568,10 @@
     {
      "name": "Body",
      "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -1519,6 +1599,10 @@
     {
      "name": "Body",
      "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -1617,6 +1701,10 @@
     },
     {
      "name": "LeadKey",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
      "type": "text"
     }
    ]
@@ -1756,6 +1844,10 @@
     {
      "name": "Setup",
      "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },
@@ -1815,6 +1907,10 @@
     {
      "name": "Figures",
      "type": "note"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
     }
    ]
   },

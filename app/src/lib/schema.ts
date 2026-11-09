@@ -38,20 +38,23 @@ export const LISTS: ListDef[] = [
       t("TradingName"), note("BusinessActivity"),
       t("CISStatus"), t("CISRegistered"), t("CISFirstPayment"),
       note("CorrespondenceAddress"), note("CHVerified"),
-      t("CeasedOn"), t("CeasedReason"),
+      t("CeasedOn"), t("CeasedReason"), t("PracticeId", true),
     ],
   },
   {
     key: "Contacts", displayName: "PP Contacts", description: "Practice Planner: people linked to clients",
-    columns: [t("Key", true), t("ContactTitle"), t("Email"), t("Mobile"), t("Phone"), note("Relationships"), t("EngagerId")],
+    columns: [t("Key", true), t("ContactTitle"), t("Email"), t("Mobile"), t("Phone"), note("Relationships"), t("EngagerId"), t("PracticeId", true),
+    ],
   },
   {
     key: "Groups", displayName: "PP Groups", description: "Practice Planner: client groups",
-    columns: [t("Key", true), note("Notes")],
+    columns: [t("Key", true), note("Notes"), t("PracticeId", true),
+    ],
   },
   {
     key: "GroupMembers", displayName: "PP Group Members", description: "Practice Planner: who is in each group",
-    columns: [t("Key", true), t("GroupKey", true), t("MemberKey", true), t("Kind"), t("Role")],
+    columns: [t("Key", true), t("GroupKey", true), t("MemberKey", true), t("Kind"), t("Role"), t("PracticeId", true),
+    ],
   },
   {
     key: "Services", displayName: "PP Services", description: "Practice Planner: types of work",
@@ -60,25 +63,26 @@ export const LISTS: ListDef[] = [
       n("DeadlineMonths"), n("DeadlineDays"), t("DeadlineFixed"), b("KeepMonthEnd"), t("RecordsNeeded"), n("RecordsLeadDays"), n("FinaliseHours"),
       // the commercial side (Services & pricing): what a proposal can offer
       t("Code"), t("Category"), note("Description"), note("ClientDescription"), t("ClientTypes"), n("Price"), t("PriceFrequency"), t("VatTreatment"), n("SetupFee"),
-      note("Scope"), note("Exclusions"), note("ClientResp"), note("PracticeResp"), note("Clauses"), note("Schedule"), note("Pricing"), b("Offered"), b("Active"), b("RequiresAuth"), t("Statutory"),
+      note("Scope"), note("Exclusions"), note("ClientResp"), note("PracticeResp"), note("Clauses"), note("Schedule"), note("Pricing"), b("Offered"), b("Active"), b("RequiresAuth"), t("Statutory"), t("PracticeId", true),
     ],
   },
   {
     key: "StageTemplates", displayName: "PP Stage Templates", description: "Practice Planner: default stages per type of work",
-    columns: [t("Key", true), t("ServiceKey", true), n("StageNo"), t("DefaultWho"), n("DefaultBudget"), b("BillingPoint"), b("WaitClient")],
+    columns: [t("Key", true), t("ServiceKey", true), n("StageNo"), t("DefaultWho"), n("DefaultBudget"), b("BillingPoint"), b("WaitClient"), t("PracticeId", true),
+    ],
   },
   {
     key: "ClientServices", displayName: "PP Client Services", description: "Practice Planner: which work each client has",
     columns: [
       t("Key", true), t("ClientKey", true), t("ServiceKey"), n("Fee"), t("FeePeriod"), b("OneOff"),
       n("AnnualFee"), t("NextDeadline"), b("Off"), t("OffSince"),
-      n("ListFee"), note("DiscountNote"), t("VatTreatment"), t("EffectiveFrom"), t("NextReview"), t("EndedOn"), t("ProposalKey"),
+      n("ListFee"), note("DiscountNote"), t("VatTreatment"), t("EffectiveFrom"), t("NextReview"), t("EndedOn"), t("ProposalKey"), t("PracticeId", true),
     ],
   },
   {
     key: "ClientServiceStages", displayName: "PP Client Service Stages", description: "Practice Planner: who does each stage, per client",
     columns: [
-      t("Key", true), t("ClientKey", true), t("ServiceKey"), n("StageNo"), t("Who"), n("BudgetHours"), b("BillingPoint"),
+      t("Key", true), t("ClientKey", true), t("ServiceKey"), n("StageNo"), t("Who"), n("BudgetHours"), b("BillingPoint"), t("PracticeId", true),
     ],
   },
   {
@@ -90,14 +94,14 @@ export const LISTS: ListDef[] = [
       t("SuggestedSlot"), t("LastCompleted"), t("Priority"), t("Status"), t("CompletedDate"),
       n("ActualHours"), n("Fee"), t("FeePeriod"), t("Source"), t("EngagerClient"), note("Notes"),
       t("HoldReason"), t("HoldUntil"), t("HeldOn"), t("HoldKind"), t("LastChased"), n("ChaseCount"), note("ChaseLog"), note("CardNote"),
-      t("WaitingSince"), t("SpeakOn"), n("FinaliseHours"), t("PreparedOn"), n("PreparedHours"), n("DayOrder"), t("StartTime"), t("TimeSkipped"),
+      t("WaitingSince"), t("SpeakOn"), n("FinaliseHours"), t("PreparedOn"), n("PreparedHours"), n("DayOrder"), t("StartTime"), t("TimeSkipped"), t("PracticeId", true),
     ],
   },
   {
     key: "JobHistory", displayName: "PP Job History", description: "Practice Planner: completed and closed jobs",
     columns: [
       t("Key", true), t("ClientKey", true), t("EngagerClient"), t("ServiceKey"), t("StatutoryDeadline"),
-      t("InternalDeadline"), t("Completed"), t("OnTime"), n("BudgetHours"), n("ActualHours"), note("ClosedNote"),
+      t("InternalDeadline"), t("Completed"), t("OnTime"), n("BudgetHours"), n("ActualHours"), note("ClosedNote"), t("PracticeId", true),
     ],
   },
   {
@@ -105,25 +109,29 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("ClientKey", true), t("GroupKey"), t("Type"), t("PlannedDate", true), n("EstimateHours"),
       t("DueDate"), t("Status"), t("CompletedDate"), note("Notes"), t("HoldReason"), t("HoldUntil"), t("HeldOn"), t("HoldKind"), note("CardNote"),
-      n("DayOrder"), note("Subtasks"), t("StartTime"), n("ActualHours"), t("TimeSkipped"), t("ProjectKey"), t("RoutineKey"), t("RoutineDate"),
+      n("DayOrder"), note("Subtasks"), t("StartTime"), n("ActualHours"), t("TimeSkipped"), t("ProjectKey"), t("RoutineKey"), t("RoutineDate"), t("PracticeId", true),
     ],
   },
   {
     // Work on the practice itself (marketing, systems, recruiting). Its tasks are Tasks with a ProjectKey.
     key: "Projects", displayName: "PP Projects", description: "Practice Planner: business projects",
-    columns: [t("Key", true), t("Category"), note("Outcome"), t("Status"), t("TargetDate"), t("Touched"), note("Notes")],
+    columns: [t("Key", true), t("Category"), note("Outcome"), t("Status"), t("TargetDate"), t("Touched"), note("Notes"), t("PracticeId", true),
+    ],
   },
   {
     key: "Authorisations", displayName: "PP HMRC Authorisations", description: "Practice Planner: HMRC agent authorisations",
-    columns: [t("Key", true), t("ClientKey", true), t("Service"), t("Status"), t("LinkSent"), t("Expiry"), note("Notes")],
+    columns: [t("Key", true), t("ClientKey", true), t("Service"), t("Status"), t("LinkSent"), t("Expiry"), note("Notes"), t("PracticeId", true),
+    ],
   },
   {
     key: "HmrcAuthorisations", displayName: "PP HMRC Authorisation Requests", description: "Practice Planner: one record per client and tax service (VAT, Corporation Tax, PAYE). Holds no tokens, passwords or codes.",
-    columns: [t("Key", true), t("ClientKey", true), t("Service"), t("TaxRef"), t("Method"), t("HmrcId"), t("Status"), t("StatusSource"), t("Requested"), t("Expires"), t("AuthorisedOn"), t("LastChecked"), t("Owner"), t("OnboardingKey"), t("Env"), note("Notes"), t("Created"), t("Updated")],
+    columns: [t("Key", true), t("ClientKey", true), t("Service"), t("TaxRef"), t("Method"), t("HmrcId"), t("Status"), t("StatusSource"), t("Requested"), t("Expires"), t("AuthorisedOn"), t("LastChecked"), t("Owner"), t("OnboardingKey"), t("Env"), note("Notes"), t("Created"), t("Updated"), t("PracticeId", true),
+    ],
   },
   {
     key: "HmrcAuthEvents", displayName: "PP HMRC Authorisation History", description: "Practice Planner: append-only history of HMRC authorisation events. Facts only.",
-    columns: [t("Key", true), t("ClientKey", true), t("Service"), t("Type"), note("Summary"), t("Status"), t("StatusSource"), t("HmrcId"), t("Actor"), t("At")],
+    columns: [t("Key", true), t("ClientKey", true), t("Service"), t("Type"), note("Summary"), t("Status"), t("StatusSource"), t("HmrcId"), t("Actor"), t("At"), t("PracticeId", true),
+    ],
   },
   {
     key: "Settings", displayName: "PP Settings", description: "Practice Planner: settings",
@@ -135,7 +143,7 @@ export const LISTS: ListDef[] = [
     key: "CHFlags", displayName: "PP Companies House Changes", description: "Practice Planner: changes found at Companies House",
     columns: [
       t("Key", true), t("ClientKey", true), t("JobKey"), t("Type"), t("Severity"), note("Detail"), note("Current"),
-      note("Proposed"), t("Status", true), t("Found"), t("Resolved"),
+      note("Proposed"), t("Status", true), t("Found"), t("Resolved"), t("PracticeId", true),
     ],
   },
   {
@@ -143,14 +151,14 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("ClientKey", true), t("JobKey"), t("Kind"), t("Status"), t("Subject"), note("Body"), note("Brief"),
       t("ToEmail"), note("Address"), t("Salutation"), t("SignOff"), t("LetterDate"), t("Created"), t("Updated", true),
-      t("FileUrl"), t("FileName"), t("OutlookUrl"), t("SentOn"),
+      t("FileUrl"), t("FileName"), t("OutlookUrl"), t("SentOn"), t("PracticeId", true),
     ],
   },
   {
     key: "TaxPayments", displayName: "PP Tax Payments", description: "Practice Planner: Self Assessment and corporation tax payments per client",
     columns: [
       t("Key", true), t("ClientKey", true), t("Tax"), t("Kind"), t("EntryYear"), t("TaxYear"), t("Label"), n("Amount"), t("DueDate", true),
-      t("PaidOn"), t("RemindedOn"), n("Bill"), n("OtherTax"), n("PoaPaid"), b("MostlyAtSource"), note("Notes"),
+      t("PaidOn"), t("RemindedOn"), n("Bill"), n("OtherTax"), n("PoaPaid"), b("MostlyAtSource"), note("Notes"), t("PracticeId", true),
     ],
   },
   {
@@ -158,18 +166,20 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("ClientKey", true), t("JobKey"), t("Kind"), t("Template"), t("Status"), t("When", true), n("Minutes"),
       t("Location"), t("Attendees"), note("Agenda"), note("Notes"), note("Summary"), note("Decisions"), note("Actions"), t("FollowUp"),
-      t("SummaryCommKey"), t("Updated"),
+      t("SummaryCommKey"), t("Updated"), t("PracticeId", true),
     ],
   },
   {
     // The practice's own letter and document templates. Body holds the content and page layout as JSON.
     key: "DocTemplates", displayName: "PP Document Templates", description: "Practice Planner: letter and document templates",
-    columns: [t("Key", true), t("Category"), note("Description"), n("Version"), b("Archived"), b("IsDefault"), t("BrandingId"), t("Updated"), note("Body")],
+    columns: [t("Key", true), t("Category"), note("Description"), n("Version"), b("Archived"), b("IsDefault"), t("BrandingId"), t("Updated"), note("Body"), t("PracticeId", true),
+    ],
   },
   {
     // Earlier versions of a template, kept each time the content or layout changes.
     key: "DocVersions", displayName: "PP Document Template Versions", description: "Practice Planner: earlier versions of document templates",
-    columns: [t("Key", true), t("TemplateKey", true), n("Version"), t("Saved"), note("Body")],
+    columns: [t("Key", true), t("TemplateKey", true), n("Version"), t("Saved"), note("Body"), t("PracticeId", true),
+    ],
   },
   {
     // A document made for a client: which template and version, the saved PDF, and a copy of exactly what was produced.
@@ -177,7 +187,7 @@ export const LISTS: ListDef[] = [
     columns: [
       t("Key", true), t("ClientKey", true), t("JobKey"), t("TemplateKey"), n("TemplateVersion"), t("TemplateName"), t("Category"), t("Title"),
       t("Reference"), t("Created", true), t("CreatedBy"), t("BrandingId"), t("FileUrl"), t("FileName"), n("Pages"), t("Status"), t("SentOn"),
-      t("SentTo"), t("OutlookUrl"), note("Snapshot"), t("ProposalKey", true), t("OppKey"), t("LeadKey"),
+      t("SentTo"), t("OutlookUrl"), note("Snapshot"), t("ProposalKey", true), t("OppKey"), t("LeadKey"), t("PracticeId", true),
     ],
   },
   {
@@ -193,14 +203,14 @@ export const LISTS: ListDef[] = [
     key: "WorkingPapers", displayName: "PP Working Papers", description: "Practice Planner: status and notes for each section of a company's working papers",
     columns: [
       t("Key", true), t("ClientKey", true), t("PeriodEnd", true), t("ItemKey"), t("Status"), note("Note"), t("Updated"),
-      t("PreparedBy"), t("PreparedOn"), t("ReviewedBy"), t("ReviewedOn"), note("Setup"),
+      t("PreparedBy"), t("PreparedOn"), t("ReviewedBy"), t("ReviewedOn"), note("Setup"), t("PracticeId", true),
     ],
   },
   {
     key: "PaperLines", displayName: "PP Paper Lines", description: "Practice Planner: the lines of each schedule in a company's working papers",
     columns: [
       t("Key", true), t("ClientKey", true), t("PeriodEnd", true), t("SectionKey", true), t("SubKey"), t("Code"), t("Detail"),
-      n("Amount"), note("Remark"), b("Done"), n("Seq"), t("Updated"), note("Figures"),
+      n("Amount"), note("Remark"), b("Done"), n("Seq"), t("Updated"), note("Figures"), t("PracticeId", true),
     ],
   },
   {

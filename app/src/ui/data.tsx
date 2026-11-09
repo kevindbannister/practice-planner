@@ -1,6 +1,7 @@
 // Loads the planner's lists once, keeps them in memory, and saves edits straight
 // back to SharePoint. Components read from here with useData().
 import { tooLong } from "../lib/textLimit";
+import { practiceId } from "../lib/checklistRows";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Client, Job, Task, isOpen, setTightDays } from "../lib/domain";
 import { PlannerSettings, newKey, readSettings } from "../lib/planning";
@@ -138,6 +139,23 @@ const schemaSignature = () => {
 
 /** How many lists are read from SharePoint at the same time when the planner opens. */
 const READ_AT_ONCE = 6;
+/** Lists that carry PracticeId: every new row gets the practice's id. */
+const PID_LISTS = new Set<string>(LISTS.filter((l) => l.columns.some((c) => c.name === "PracticeId")).map((l) => l.key));
+function stampPractice(list: ListKey, row: Row, settings: Row[]): Row {
+  return PID_LISTS.has(list) && !row.PracticeId && list !== "Settings" ? { ...row, PracticeId: practiceId(settings) } : row;
+}
+/** One-off: rows saved before a list had PracticeId get the practice's id, in the background, in batches. */
+async function tagPractice(store: SharePointStore, lists: [ListKey, Row[]][], settings: Row[]): Promise<void> {
+  const FLAG = "migrated.practiceId-v1";
+  if (settings.some((s) => s.Key === FLAG)) return;
+  const pid = practiceId(settings);
+  for (const [list, rows] of lists) {
+    if (!PID_LISTS.has(list) || list === "Settings" || !store.hasList(list)) continue;
+    const todo = rows.filter((r) => !r.PracticeId && r._id).map((r) => ({ itemId: String(r._id), patch: { PracticeId: pid } as Row }));
+    for (let i = 0; i < todo.length; i += 200) await store.updateMany(list, todo.slice(i, i + 200));
+  }
+  await store.create("Settings", { Key: FLAG, Title: FLAG, Value: "true" });
+}
 /** Lists read after the first screen is shown (see reload). */
 const LATER = new Set<string>(["history", "salesLog", "checklistLog", "complianceLog", "hmrcFilingLog"]);
 
@@ -154,6 +172,7 @@ const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 export function DataProvider({ store, user, children }: { store: SharePointStore; user?: string; children: ReactNode }) {
   const [status, setStatus] = useState<Status>("connecting");
   const [logsLoaded, setLogsLoaded] = useState(false);
+  const settingsRef = useRef<Row[]>([]);
   const [error, setError] = useState<string>();
   const [data, setData] = useState<Data>(EMPTY);
   const [save, setSave] = useState<SaveState>({ state: "idle" });
@@ -213,7 +232,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       setStatus(next.clients.length ? "ready" : "needs-setup");
       // Finished jobs and the logs only grow and only feed history and audit screens, so they load once the first screen is up.
       void mapPool(later, READ_AT_ONCE, ([, list]) => (store.hasList(list) ? store.readAll(list) : Promise.resolve([] as Row[])))
-        .then((rows) => { setData((d) => { const n = { ...d }; later.forEach(([k], i) => ((n as any)[k] = [...rows[i], ...((d as any)[k] as Row[]).filter((r) => !rows[i].some((x) => x._id === r._id))])); return n; }); setLogsLoaded(true); })
+        .then((rows) => { void tagPractice(store, [...now.map(([k, l], i) => [l, loaded[i]] as [ListKey, Row[]]), ...later.map(([k, l], i) => [l, rows[i]] as [ListKey, Row[]])], next.settings).catch((e) => console.warn("Couldn't tag rows with the practice", e)); setData((d) => { const n = { ...d }; later.forEach(([k], i) => ((n as any)[k] = [...rows[i], ...((d as any)[k] as Row[]).filter((r) => !rows[i].some((x) => x._id === r._id))])); return n; }); setLogsLoaded(true); })
         .catch(() => setLogsLoaded(true));
     } catch (e) {
       setError(friendlyError(e));
@@ -324,8 +343,10 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     [store, track],
   );
 
+  settingsRef.current = data.settings;
   const create = useCallback(
     async (list: ListKey, row: Row) => {
+      row = stampPractice(list, row, settingsRef.current);
       tooLong(list, row);
       const created = await track(() => store.create(list, row));
       const full = { ...row, ...created };
@@ -342,6 +363,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
   const createMany = useCallback(
     async (list: ListKey, rows: Row[]) => {
       if (!rows.length) return;
+      rows = rows.map((r) => stampPractice(list, r, settingsRef.current));
       const res = await track(async () => {
         const r = await store.createMany(list, rows);
         const all = await store.readAll(list);
