@@ -2,7 +2,7 @@
 // review date) and, separately, what Xama holds. The Overview card summarises it. See lib/amlAssessment.ts.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
-import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
+import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, discardAssessment, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
 import { TRIGGER_KINDS, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
 import { Ans, LEVEL_LABEL, basisFrom, evaluate, templateFor, templateProblems } from "../lib/amlTemplate";
@@ -102,12 +102,12 @@ export function AmlTab({ client }: { client: Client }) {
       ); })()}
 
       {mine.some((r) => !open || r.Key !== open.Key) && (
-        <section className="card pad stack" aria-label="Earlier assessments">
+        <section className="card pad stack" aria-label="Earlier assessments" id="aml-history">
           <h2 className="sec-h">History</h2>
           {mine.filter((r) => !open || r.Key !== open.Key).map((r) => { const a = readAssessment(r); const st = asStatus(r.Status); return (
             <div key={String(r.Key)} className="row-wrap" style={{ justifyContent: "space-between" }}>
               <span>{RISK[a.risk]} risk · {a.doneOn ? `done ${fmtDate(a.doneOn)}` : `started ${fmtDate(String(r.Created).slice(0, 10))}`}{a.approvedBy ? ` · approved by ${a.approvedBy}` : ""}{a.evidence.length ? ` · ${a.evidence.length} file${a.evidence.length === 1 ? "" : "s"}` : ""}</span>
-              <span className={`chip ${st === "approved" ? "green" : st === "declined" ? "red" : ""}`}>{st === "superseded" ? "Replaced by a newer review" : st === "approved" ? "Current" : st === "declined" ? "Not approved" : "In progress"}</span>
+              <span className={`chip ${st === "approved" ? "green" : st === "declined" ? "red" : ""}`}>{st === "discarded" ? "Discarded" : st === "superseded" ? "Replaced by a newer review" : st === "approved" ? "Current" : st === "declined" ? "Not approved" : "In progress"}</span>
             </div>
           ); })}
           {mine.filter((r) => asStatus(r.Status) === "approved").map((r) => <WithdrawRow key={String(r.Key)} row={r} s={s} clientRow={clientRow()} onGo={go} />)}
@@ -251,6 +251,12 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
           <button type="button" className="btn primary" disabled={busy} onClick={() => void run(approveAssessment(row, clientRow, all, settings, independent, s.pcan, today, s.ctx()), "Approved. The client's AML review date was set.")}>Approve</button>
           <input className="input" aria-label="Reason" placeholder="Reason (to decline)" value={why} onChange={(e) => setWhy(e.target.value)} />
           <button type="button" className="btn" disabled={busy} onClick={() => void run(declineAssessment(row, why, s.pcan, s.ctx()), "Marked as not approved.")}>Don't approve</button>
+        </div>
+      )}
+      {edit && (asStatus(row.Status) === "inprogress" || asStatus(row.Status) === "declined") && (
+        <div className="row-wrap">
+          <button type="button" className="btn" disabled={busy} onClick={() => { if (!window.confirm("Discard this assessment? Nothing is deleted: it stays in the history marked as discarded, and the client's AML position stays as it was. You can start a new one afterwards.")) return; void run(discardAssessment(row, s.pcan, s.ctx()), "Discarded. It is listed under History.").then(() => window.setTimeout(() => document.getElementById("aml-history")?.scrollIntoView({ behavior: "smooth", block: "start" }), 200)); }}>Discard this assessment</button>
+          <span className="muted" style={{ fontSize: 13 }}>Goes back to the list of earlier assessments. Unsaved answers on this form are lost.</span>
         </div>
       )}
       {independent && saved.preparedBy && <p className="muted" style={{ margin: 0 }}>Independent review is on: prepared by {saved.preparedBy}, so someone else approves.</p>}

@@ -92,3 +92,17 @@ test("approval is blocked until the risk assessment questions are answered and t
   apply(rows, saveAssessment(rows[0], { ...good, answers: ans }, yes, o("Ann")) as any);
   assert.match((approveAssessment(rows[0], client, rows, DEFAULT_ONBOARDING_SETTINGS, true, yes, "2026-10-27", o("Bob")) as any).error, /"Overall client identity risk\?" must be/);
 });
+
+test("an assessment can be discarded, stays in history, and doesn't change the client's position or block a new one", async () => {
+  const { discardAssessment } = await import("../src/lib/amlAssessment.ts");
+  const rows: any[] = [];
+  const before = position(client, rows, [], "2026-10-27").state;
+  apply(rows, startAssessment(client, rows, o()) as any);
+  assert.ok("error" in (discardAssessment(rows[0], () => false, o()) as any));
+  apply(rows, discardAssessment(rows[0], yes, o()) as any);
+  assert.equal(rows[0].Status, "discarded");
+  assert.equal(position(client, rows, [], "2026-10-27").state, before);
+  assert.ok(!("error" in (startAssessment(client, rows, o()) as any)));
+  apply(rows, startAssessment(client, rows, o()) as any);
+  assert.ok("error" in (discardAssessment(rows[0], yes, o()) as any));
+});

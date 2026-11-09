@@ -14,13 +14,13 @@ const json = <T,>(v: unknown, fallback: T): T => { try { const x = JSON.parse(st
 
 export type Evidence = { id: string; name: string; url: string; at: string; by: string; note: string };
 export type Assessment = Aml & { evidence: Evidence[]; doneOn: string; source: string; answers: Ans };
-export type AssessmentStatus = "inprogress" | "approved" | "declined" | "superseded";
-export const asStatus = (v: unknown): AssessmentStatus => (v === "approved" || v === "declined" || v === "superseded" ? v : "inprogress");
+export type AssessmentStatus = "inprogress" | "approved" | "declined" | "superseded" | "discarded";
+export const asStatus = (v: unknown): AssessmentStatus => (v === "approved" || v === "declined" || v === "superseded" || v === "discarded" ? v : "inprogress");
 
 export function readAssessment(r: Row): Assessment {
   const st = asStatus(r.Status);
   return {
-    status: st === "inprogress" ? "inprogress" : st === "superseded" ? "approved" : st, risk: (["low", "medium", "high"].includes(str(r.Risk)) ? str(r.Risk) : "") as Risk, riskBasis: str(r.RiskBasis),
+    status: st === "inprogress" ? "inprogress" : st === "superseded" ? "approved" : st === "discarded" ? "notstarted" : st, risk: (["low", "medium", "high"].includes(str(r.Risk)) ? str(r.Risk) : "") as Risk, riskBasis: str(r.RiskBasis),
     owners: json<Owner[]>(r.Owners, []), noOwnerNote: str(r.NoOwnerNote), checks: json<Check[]>(r.Checks, []), preparedBy: str(r.PreparedBy), approvedBy: str(r.ApprovedBy), approvedAt: str(r.ApprovedAt),
     reviewDate: str(r.ReviewDate), declinedReason: str(r.DeclinedReason), evidence: json<Evidence[]>(r.Evidence, []), doneOn: str(r.DoneOn), source: str(r.Source) || "manual", answers: readAnswers(r.Factors),
   };
@@ -70,6 +70,14 @@ export function approveAssessment(row: Row, client: Row, all: Row[], settings: O
     log: [logRow(o, "aml-approved", "aml", str(row.Key), { clientKey: str(row.ClientKey) }, { risk: a.risk, review })],
     activities: [activityRow(o, "aml-approved", `AML assessment approved (${a.risk} risk): ${str(client.Title)}`, undefined, { clientKey: str(row.ClientKey) }, `Next review ${review}`)],
   };
+}
+
+/** Give up an assessment that was started or is not approved. It is kept in the history marked discarded, never deleted, and has no effect on the client's AML position. */
+export function discardAssessment(row: Row, can: (a: ProposalAction) => boolean, o: Ctx): Written | { error: string } {
+  if (!can("edit")) return { error: "You can't change AML records." };
+  const st = asStatus(row.Status);
+  if (st !== "inprogress" && st !== "declined") return { error: "Only an assessment that is in progress or not approved can be discarded." };
+  return { patches: [{ list: "AmlAssessments", row, patch: { Status: "discarded", Updated: o.now } }], log: [logRow(o, "aml-discarded", "aml", str(row.Key), { clientKey: str(row.ClientKey) }, {})], activities: [] };
 }
 
 export function declineAssessment(row: Row, reason: string, can: (a: ProposalAction) => boolean, o: Ctx): Written | { error: string } {
