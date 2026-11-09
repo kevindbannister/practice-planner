@@ -13,6 +13,8 @@ import { fmtDate, todayIso } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
 import { amlStampRead } from "../lib/xamaActions";
+import { screening as screeningOf } from "../lib/amlScreening";
+import { screeningPolicy } from "../lib/amlPolicy";
 import { readSetting, useData } from "./data";
 import { AmlClients } from "./AmlClients";
 import { readiness, Facts, Standing as RStanding } from "../lib/amlReadiness";
@@ -359,10 +361,14 @@ function Checklist() {
   const pol = bld.readState(readSetting<unknown>(a.data.settings, "aml.builder")).answers;
   const clients = { total: 0, none: 0, overdue: 0, soon: 0, triggered: 0 };
   const rp = readReviewPolicy(a.data.settings, readOnboardingSettings(a.data.settings).amlMonths);
+  const scrPol = screeningPolicy(a.data.settings, rp);
+  const scrReg = a.storeOf("screening").records;
+  const scrCount = { overdue: 0, never: 0 };
   for (const cl of (a.data.clients as Row[]).filter((c) => !c.CeasedOn)) {
     const pos = position(cl, a.data.amlAssessments, a.data.onboardings, today);
     clients.total++;
     if (pos.state === "none" || pos.state === "declined" || pos.state === "stopped") clients.none++; else if (pos.state === "overdue") clients.overdue++; else if (pos.state === "soon") clients.soon++;
+    if (pos.current) { const sc = screeningOf(cl, pos.risk, scrPol, a.data.amlAssessments, scrReg, today); if (sc.days === null) scrCount.never++; else if (sc.days < 0) scrCount.overdue++; }
     if (triggerOf(pos.row) || seenTriggers(cl, a.data as never, rp, lastApprovedAt(cl, a.data.amlAssessments, a.data.onboardings, readAml)).length) clients.triggered++;
   }
   const training = rowsOf("training", "people").map((r) => r.next).filter(Boolean).sort()[0] || "";
@@ -370,7 +376,7 @@ function Checklist() {
   const facts: Facts = {
     today, policy: builderFacts(POLICY_CFG), fwra: builderFacts(FWRA_CFG), mlro: String(pol.mlro || "").trim(), deputy: String(pol.deputyName || "").trim(),
     standing: { mlro: stand("mlro"), training: stand("training"), independent: stand("independent"), annualreturn: stand("annualreturn"), reviews: stand("reviews") },
-    trainingNext: training, screeningLast: screening, clients,
+    trainingNext: training, screeningLast: screening, screening: scrCount, clients,
     regs: { count: regs.length, late: regs.filter((r) => r.next && r.next < today).length, open: regs.filter((r) => r.status !== "Done" && r.status !== "Not needed").length },
     actions: { open: actions.filter((r) => r.status !== "Done").length, late: actions.filter((r) => r.status !== "Done" && r.due && r.due < today).length },
   };

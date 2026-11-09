@@ -74,3 +74,12 @@ test("highest section rating, basis wording and hints", () => {
   assert.equal(h[qk(COMPANY, /Sanctions screening result/)].value, "No");
   assert.ok(!h[qk(COMPANY, /passed the AML identity/)]);
 });
+
+test("screening readiness counts clients overdue a re-screen or never screened", async () => {
+  const { readiness } = await import("../src/lib/amlReadiness.ts");
+  const f: any = { today: "2026-11-09", policy: { confirmed: 1, total: 1, version: "1", approved: true, date: "2026-10-01", steps: { sanctions: true } }, fwra: { confirmed: 1, total: 1, version: "1", approved: true, date: "2026-10-01", steps: {} }, mlro: "A", deputy: "", standing: { mlro: { state: "ok", text: "" }, training: { state: "ok", text: "" }, independent: { state: "ok", text: "" }, annualreturn: { state: "ok", text: "" }, reviews: { state: "ok", text: "" } }, trainingNext: "", screeningLast: "2026-10-01", clients: { total: 1, none: 0, overdue: 0, soon: 0, triggered: 0 }, regs: { count: 0, late: 0, open: 0 }, actions: { open: 0, late: 0 } };
+  const item = (x: any) => readiness(x).find((i) => i.id === "sanctions")!;
+  assert.equal(item({ ...f, screening: { overdue: 0, never: 0 } }).state, "done");
+  const bad = item({ ...f, screening: { overdue: 2, never: 1 } });
+  assert.equal(bad.state, "work"); assert.match(bad.detail, /1 assessed client never screened; 2 overdue/);
+});

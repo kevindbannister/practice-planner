@@ -162,6 +162,14 @@
      "type": "text"
     },
     {
+     "name": "XamaMonitor",
+     "type": "text"
+    },
+    {
+     "name": "AmlStopped",
+     "type": "text"
+    },
+    {
      "name": "LoEStatus",
      "type": "text"
     },

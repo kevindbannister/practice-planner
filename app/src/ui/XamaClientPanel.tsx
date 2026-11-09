@@ -79,6 +79,7 @@ export function XamaClientPanel({ client }: { client: Client }) {
 
   const aml = () => run(async () => {
     await runAmlCheck(api, cfg, xamaId, monitor);
+    await update("Clients", client, { XamaMonitor: `${monitor ? "on" : "off"}|${todayIso()}` }).catch(() => undefined);
     setStep(null);
     setProg(await progress(api, cfg, xamaId));
     return "AML check started. It takes a few seconds: press Check progress, then Refresh result.";

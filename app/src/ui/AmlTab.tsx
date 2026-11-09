@@ -19,7 +19,21 @@ import { clientFolder } from "../lib/comms";
 import { clientTypeFor } from "../lib/proposals";
 import { readOnboardingSettings } from "../lib/onboarding";
 import { Row } from "../lib/schema";
-import { useData } from "./data";
+import { readSetting, useData } from "./data";
+import { useRoute } from "./bits";
+import { matchProblems, screeningProblems } from "../lib/amlScreening";
+import { screeningPolicy } from "../lib/amlPolicy";
+import { readStore, settingKey } from "../lib/amlPack";
+import { clientTypeFor as typeOfClient } from "../lib/proposals";
+
+/** The firm's re-screen periods and the Screening register, for the screening rules. */
+function useScreening() {
+  const { data } = useData();
+  const settings = readOnboardingSettings(data.settings);
+  const sp = screeningPolicy(data.settings, { high: settings.amlMonths.high, medium: settings.amlMonths.medium, low: settings.amlMonths.low });
+  const register = readStore(readSetting<unknown>(data.settings, settingKey("screening"))).records;
+  return { sp, register };
+}
 import { useSales } from "./salesKit";
 import { XamaClientPanel } from "./XamaClientPanel";
 import { href } from "./bits";
@@ -36,7 +50,9 @@ export function AmlTab({ client }: { client: Client }) {
   const mine = data.amlAssessments.filter((r) => r.ClientKey === client.Key).sort((a, b) => String(b.Created).localeCompare(String(a.Created)));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [shortOn, setShortOn] = useState(false);
+  const route = useRoute();
+  const [shortOn, setShortOn] = useState(route.query.get("short") === "1");
+  const scr = useScreening();
   const onbApproved = (data.onboardings as Row[]).filter((o) => o.ClientKey === client.Key && readAml(o.Aml).status === "approved").sort((a, b) => readAml(b.Aml).approvedAt.localeCompare(readAml(a.Aml).approvedAt))[0];
   const [rk, setRk] = useState("");
   const [rwhy, setRwhy] = useState("");
@@ -66,7 +82,7 @@ export function AmlTab({ client }: { client: Client }) {
             <select className="input" aria-label="Reason for the assessment" value={reason} onChange={(e) => setReason(e.target.value)}>{REASONS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</select></label>
           <button type="button" className="btn primary" disabled={busy} onClick={() => void go(startAssessment(clientRow(), data.amlAssessments, s.ctx(), reason))}>{pos.current || pos.source === "onboarding" || pos.source === "client record" ? "Start a full review" : "Start an assessment"}</button>
           {pos.current && <button type="button" className="btn" disabled={busy} onClick={() => setShortOn(!shortOn)}>{shortOn ? "Close short review" : "Short review"}</button>}
-          {!pos.current && pos.source === "onboarding" && onbApproved && <button type="button" className="btn" disabled={busy} title="Copies the onboarding AML approval into the AML record so it can be reviewed here" onClick={() => void go(adoptOnboarding(clientRow(), onbApproved, data.amlAssessments, s.ctx())).then(() => setShortOn(true))}>Short review</button>}</div>}
+          {!pos.current && pos.source === "onboarding" && onbApproved && <button type="button" className="btn" disabled={busy} title="Copies the onboarding AML approval into the AML record so it can be reviewed here" onClick={() => void go(adoptOnboarding(clientRow(), onbApproved, data.amlAssessments, s.pcan, s.ctx())).then(() => setShortOn(true))}>Short review</button>}</div>}
         {(() => { const last = readShortReviews(pos.current).slice(-1)[0]; return last ? <div className="kv"><span>Last short review</span><span>{fmtDate(last.date)} · {last.by}{last.outcome === "escalated" ? " · full assessment opened" : ""}</span></div> : null; })()}
       </section>
       {shortOn && !open && pos.current && <ShortReviewForm client={clientRow()} cur={pos.current} rows={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} changes={seen.length > 0} seen={seen} today={today} s={s} onDone={() => setShortOn(false)} />}
@@ -114,6 +130,7 @@ export function AmlTab({ client }: { client: Client }) {
           return <>
             {also.length > 0 && <div className="note" role="status" style={{ fontSize: 13 }}>This person's Xama check here also covers them on: {also.map((a, i) => <span key={String(a.client.Key)}>{i ? ", " : ""}<a href={href("clients", String(a.client.Key), "aml")}>{String(a.client.Title)}</a> ({a.as})</span>)}. Re-check them here, not there.</div>}
             {oc2.length > 0 && <div className="note" role="status" style={{ fontSize: 13 }}>Already checked on their own client records: {oc2.map((x, i) => <span key={i}>{i ? ", " : ""}{x.owner.name} ({x.cover.on ? fmtDate(x.cover.on) : "done"})</span>)}. You don't need to check them again through this client.</div>}
+            {(() => { const want = !!pos.risk && scr.sp.monitor.includes(pos.risk); const [m] = String(me.XamaMonitor || "").split("|"); const hasCheck = !!String(me.XamaAmlCheck || ""); if (!hasCheck || (m === "on") === want || (!m && !want)) return null; return <div className="warn" role="status" style={{ fontSize: 13 }}>{want ? `Your policy has Xama keep watching ${pos.risk}-risk clients, but ${m ? "monitoring is off for this client" : "the planner doesn't know whether monitoring is on for this client"}. Running a new AML check here turns it on.` : `Xama monitoring is on for this client, but your policy only monitors ${scr.sp.monitor.length ? scr.sp.monitor.join(" and ") + "-risk" : "no"} clients. Turn it off in Xama if you don't want it (it may use credits).`}</div>; })()}
             {cc && cc.cover.done && <div className="warn" role="status" style={{ fontSize: 13 }}>Xama's main contact on this client, {String(cc.client.Title)}, is already checked on their own client record ({cc.cover.how}, {cc.cover.on ? fmtDate(cc.cover.on) : "done"}). Running the AML check here would check them twice.</div>}
           </>;
         })()}
@@ -149,6 +166,9 @@ export function AmlTab({ client }: { client: Client }) {
 /** A short review: four or five Yes/No questions against the current assessment. All Yes records it and moves the next review on; any No opens a full assessment. */
 function ShortReviewForm({ client, cur, rows, settings, independent, changes, seen, today, s, onDone }: { client: Row; cur: Row; rows: Row[]; settings: ReturnType<typeof readOnboardingSettings>; independent: boolean; changes: boolean; seen: ReturnType<typeof seenTriggers>; today: string; s: ReturnType<typeof useSales>; onDone: () => void }) {
   const a = readAssessment(cur);
+  const scrS = useScreening();
+  const ctype = typeOfClient(String(client.Kind));
+  const blockers = [...screeningProblems(client, a.risk, scrS.sp, rows, scrS.register, today, { company: ctype === "limited" || ctype === "llp" }), ...matchProblems(client, scrS.register)];
   const qs = shortQuestions(a.doneOn ? fmtDate(a.doneOn) : "", RISK[a.risk] || "", changes, a.ddLevel);
   const { data } = useData();
   const co = useMemo(() => cosecOwnership(String(client.Key), data as never, today), [data, client.Key, today]);
@@ -162,7 +182,7 @@ function ShortReviewForm({ client, cur, rows, settings, independent, changes, se
   const anyNo = qs.some((q) => ans[q.k] === false);
   const submit = async () => {
     setErr("");
-    const w = completeShortReview(client, cur, rows, { date, answers: ans, notes, changes }, settings, independent, s.pcan, today, s.ctx());
+    const w = completeShortReview(client, cur, rows, { date, answers: ans, notes, changes, blockers }, settings, independent, s.pcan, today, s.ctx());
     if ("error" in w) return setErr(w.error);
     setBusy(true); try { await s.apply(w); onDone(); } catch { setErr("Couldn't save that. Try again."); } finally { setBusy(false); }
   };
@@ -181,6 +201,7 @@ function ShortReviewForm({ client, cur, rows, settings, independent, changes, se
         <label className="stack" style={{ gap: 2 }}><span className="muted" style={{ fontSize: 12 }}>Date of review</span><input type="date" className="input" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label>
         <label className="stack" style={{ gap: 2, flex: "1 1 260px" }}><span className="muted" style={{ fontSize: 12 }}>Notes (optional). Don't record details of a suspicion</span><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
       </div>
+      {blockers.length > 0 && <div className="import-list warn"><strong>Before this review can be completed:</strong><ul className="plain">{blockers.map((b) => <li key={b}>{b}</li>)}</ul><span className="muted" style={{ fontSize: 13 }}>Answering No to a question still records the review and opens a full assessment.</span></div>}
       {err && <p className="error-text" role="alert">{err}</p>}
       <div className="row-wrap">
         <button type="button" className="btn primary" disabled={busy} onClick={() => void submit()}>{anyNo ? "Record and open a full assessment" : "Complete short review"}</button>
@@ -219,6 +240,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [owners, setOwners] = useState<Owner[]>(saved.owners);
   const [noOwner, setNoOwner] = useState(saved.noOwnerNote);
   const [pep, setPep] = useState<Pep>(saved.pep);
+  const scrE = useScreening();
   const [dd, setDd] = useState<DdLevel>(saved.ddLevel);
   const [stopWhy, setStopWhy] = useState("");
   const [stopNote, setStopNote] = useState("");
@@ -245,7 +267,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const individuals = people.filter((c) => isIndividual(c) && c.Key !== client.Key).sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
   const link = (i: number, key: string) => setOwners(owners.map((y, j) => (j === i ? (key ? { ...y, clientKey: key } : (({ clientKey: _k, ...rest }) => rest)(y)) : y)));
   const draft = { ...saved, risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, pep };
-  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk), ...assessmentExtras({ risk, answers, checks, pep, ddLevel: dd }, tpl, policySof)];
+  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk), ...assessmentExtras({ risk, answers, checks, pep, ddLevel: dd }, tpl, policySof), ...screeningProblems(clientRow, risk, scrE.sp, all.filter((r) => r.Key !== row.Key), scrE.register, today, { company: isCo, draftChecks: checks }), ...matchProblems(clientRow, scrE.register)];
   const setCheck = (i: number, p: Partial<Check>) => setChecks(checks.map((c, j) => (j === i ? { ...c, ...p } : c)));
   const run = async (w: ReturnType<typeof saveAssessment> | (() => Promise<ReturnType<typeof saveAssessment>>), ok: string) => {
     setBusy(true); setMsg(null);
@@ -385,7 +407,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
       {problems.length > 0 && <div className="import-list warn"><strong>Before this can be approved:</strong><ul className="plain">{problems.map((x) => <li key={x}>{x}</li>)}</ul></div>}
       {asStatus(row.Status) === "inprogress" && s.pcan("approve") && (
         <div className="row-wrap">
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void run(approveAssessment(row, clientRow, all, settings, independent, s.pcan, today, s.ctx(), { sof: policySof }), "Approved. The client's AML review date was set.")}>Approve</button>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => void run(approveAssessment(row, clientRow, all, settings, independent, s.pcan, today, s.ctx(), { sof: policySof, screening: scrE }), "Approved. The client's AML review date was set.")}>Approve</button>
           <input className="input" aria-label="Reason" placeholder="Reason (to decline)" value={why} onChange={(e) => setWhy(e.target.value)} />
           <button type="button" className="btn" disabled={busy} onClick={() => void run(declineAssessment(row, why, s.pcan, s.ctx()), "Marked as not approved.")}>Don't approve</button>
         </div>

@@ -32,7 +32,7 @@ export const LISTS: ListDef[] = [
       note("HomeAddress"), note("TradingAddress"), note("RegisteredOffice"),
       t("Partner"), t("Manager"), t("UTR"), t("CTUTR"), t("NINumber"), t("VATNumber"), t("VATRegistered"),
       t("MTDServices"), t("PAYERef"), t("AccountsOfficeRef"), t("XeroId"), t("XamaId"), t("XamaStatus"),
-      t("AMLReview"), t("XamaIdCheck"), t("XamaAmlCheck"), t("XamaAssessedOn"), t("XamaContact"), t("LoEStatus"), t("LoESent"), t("LoEDecided"),
+      t("AMLReview"), t("XamaIdCheck"), t("XamaAmlCheck"), t("XamaAssessedOn"), t("XamaContact"), t("XamaMonitor"), t("AmlStopped"), t("LoEStatus"), t("LoESent"), t("LoEDecided"),
       t("Importance"), n("AnnualFees"), n("PaymentDays"), n("LatePaymentPct"), n("RetentionYears"),
       t("EngagerId"), t("LogoUrl"), t("Website"), t("ElementsLink"), b("CHChecked"), t("CHStatus"), note("Notes"), note("LogoData"),
       t("TradingName"), note("BusinessActivity"),

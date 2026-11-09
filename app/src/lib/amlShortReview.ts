@@ -30,7 +30,7 @@ export function shortQuestions(doneOn: string, risk: string, changes: boolean, d
   return qs;
 }
 
-export function completeShortReview(client: Row, cur: Row | undefined, rows: Row[], input: { date: string; answers: Record<string, boolean | undefined>; notes: string; changes: boolean }, settings: OnboardingSettings, independent: boolean, can: (a: ProposalAction) => boolean, today: string, o: Ctx): Written | { error: string } {
+export function completeShortReview(client: Row, cur: Row | undefined, rows: Row[], input: { date: string; answers: Record<string, boolean | undefined>; notes: string; changes: boolean; blockers?: string[] }, settings: OnboardingSettings, independent: boolean, can: (a: ProposalAction) => boolean, today: string, o: Ctx): Written | { error: string } {
   if (!can(independent ? "approve" : "edit")) return { error: independent ? "Someone with approval rights has to complete AML reviews." : "You can't change AML records." };
   if (!cur || asStatus(cur.Status) !== "approved") return { error: "A short review needs a current approved assessment. Start a full assessment instead." };
   if (rows.some((r) => r.ClientKey === client.Key && asStatus(r.Status) === "inprogress")) return { error: "There is already an assessment in progress." };
@@ -42,6 +42,7 @@ export function completeShortReview(client: Row, cur: Row | undefined, rows: Row
   const answers = Object.fromEntries(qs.map((q) => [q.k, input.answers[q.k] === true]));
   const entry: ShortReview = { id: o.newKey("SR"), date: input.date, by: o.actor, at: o.now, answers, notes: input.notes.trim(), outcome: failed.length ? "escalated" : "complete", next: "" };
   const history = [...readShortReviews(cur), entry];
+  if (!failed.length && input.blockers?.length) return { error: `Before the review can be completed: ${input.blockers[0]}` };
   if (!failed.length) {
     const next = addMonths(input.date, settings.amlMonths[a.risk as "low"], false);
     entry.next = next;

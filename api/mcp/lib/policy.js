@@ -3,21 +3,25 @@
 //   - Settings can be read (with connection secrets blanked) but never changed: it holds the sealed Xero and Adfin sign-ins.
 //   - History and log lists are written by the app itself; bots can read them but not change them.
 //   - Columns that hold secrets (Companies House authentication codes, anything named secret, token, sealed, password) are never returned or written.
+//   - AML records (assessments, and the AML and Xama columns on a client) can be read but never changed: they go through the
+//     planner's approval and independent review rules, which a bot would bypass.
 //   - There is no delete.
 const schema = require("./schema.json");
 
 const LISTS = new Map(schema.lists.map((l) => [l.key, l]));
 const HIDDEN_LISTS = new Set(schema.lists.filter((l) => /^Portal/.test(l.key)).map((l) => l.key));
-const READ_ONLY_LISTS = new Set(["Settings", "FeeHistory", "JobHistory", "SalesLog", "Activities", "HmrcAuthEvents", "ChecklistLog", "CoSecLedger", "CoSecEvents", "CHFlags", "HmrcFilings", "HmrcFilingLog"]);
+const READ_ONLY_LISTS = new Set(["Settings", "FeeHistory", "JobHistory", "SalesLog", "Activities", "HmrcAuthEvents", "ChecklistLog", "CoSecLedger", "CoSecEvents", "CHFlags", "HmrcFilings", "HmrcFilingLog", "AmlAssessments"]);
 const HIDDEN_COLUMN = /secret|token|sealed|password|authcode|^LogoData$/i;
 const SECRET_SETTING = /connection|secret|token|sealed|auth|credential/i;
 const SYSTEM_COLUMNS = new Set(["Key", "PracticeId", "Created", "Modified"]);
+/** Columns on other lists that only the planner's AML screens may change. */
+const AML_COLUMN = /^(AMLReview|AmlStopped|Xama[A-Za-z]*|Aml)$/;
 
 const list = (key) => (HIDDEN_LISTS.has(key) ? undefined : LISTS.get(key));
 const visibleLists = () => schema.lists.filter((l) => !HIDDEN_LISTS.has(l.key));
 const visibleColumns = (l) => l.columns.filter((c) => !HIDDEN_COLUMN.test(c.name));
 const canWrite = (key) => !!list(key) && !READ_ONLY_LISTS.has(key);
-const writableColumns = (l) => visibleColumns(l).filter((c) => !SYSTEM_COLUMNS.has(c.name));
+const writableColumns = (l) => visibleColumns(l).filter((c) => !SYSTEM_COLUMNS.has(c.name) && !AML_COLUMN.test(c.name));
 
 /** A row with secret columns removed, and for Settings the value of any connection setting blanked. */
 function redact(l, row) {

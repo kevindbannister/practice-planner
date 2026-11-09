@@ -18,7 +18,7 @@ import { useSales } from "./salesKit";
 
 type Item = {
   key: string; name: string; risk: string; doneOn: string; next: string; days: number | null; state: string; label: string; chip: string;
-  idOn: string; xid: { state: string; on: string }; xama: string; xamaWarn: boolean; trigger: string; due: string; late: boolean; seen: string; seenKind: string; period: string; needs: boolean; sort: string; scr: Screened; pep: boolean;
+  idOn: string; xid: { state: string; on: string }; xama: string; xamaWarn: boolean; trigger: string; due: string; late: boolean; seen: string; seenKind: string; period: string; needs: boolean; sort: string; scr: Screened; pep: boolean; hasCurrent: boolean;
 };
 const RISK: Record<string, string> = { low: "Low", medium: "Medium", high: "High", "": "Not assessed" };
 const FILTERS: [string, string][] = [["all", "All"], ["action", "Needs action"], ["triggered", "Triggered"], ["overdue", "Overdue"], ["soon", "Due soon"], ["screen", "Screening due"], ["none", "No assessment"], ["progress", "In progress"], ["current", "Up to date"]];
@@ -54,7 +54,7 @@ export function AmlClients() {
         key: String(cl.Key), name: String(cl.Title || cl.Key), risk: pos.risk, doneOn: pos.doneOn, next: pos.reviewDate, days: pos.daysToReview, state,
         label: trig ? "Review triggered" : POSITION_LABEL[pos.state], chip: late || pos.state === "overdue" || pos.state === "none" || pos.state === "declined" || pos.state === "stopped" ? "red" : trig || pos.state === "soon" || pos.state === "inprogress" || seen.length ? "amber" : "green",
         xama: amlLabel(String(cl.XamaStatus || "")).text, xamaWarn: amlLabel(String(cl.XamaStatus || "")).warn, idOn: idCheckedOn(String(cl.Key), data.amlAssessments, data.onboardings), xid: idStampRead(cl.XamaIdCheck), trigger: trig ? trig.label : "", due: trig?.due || "", late, seen: seen[0] ? `${seen[0].label} on ${fmtDate(seen[0].at)}` : "", seenKind: seen[0]?.kind || "", period: months ? `${months} months` : "",
-        scr, pep: [pos.current, pos.row].some((r) => r && readAssessment(r).pep.status === "yes"), needs, sort: `${late || pos.state === "overdue" ? "0" : pos.state === "none" || pos.state === "declined" ? "1" : trig || seen.length ? "2" : pos.state === "soon" ? "3" : pos.state === "inprogress" ? "4" : "5"}${pos.reviewDate || "9999"}${String(cl.Title)}`,
+        scr, hasCurrent: !!pos.current, pep: [pos.current, pos.row].some((r) => r && readAssessment(r).pep.status === "yes"), needs, sort: `${late || pos.state === "overdue" ? "0" : pos.state === "none" || pos.state === "declined" ? "1" : trig || seen.length ? "2" : pos.state === "soon" ? "3" : pos.state === "inprogress" ? "4" : "5"}${pos.reviewDate || "9999"}${String(cl.Title)}`,
       });
     }
     return out.sort((a, b) => a.sort.localeCompare(b.sort));
@@ -116,7 +116,7 @@ export function AmlClients() {
                     <div style={{ fontSize: 12, ...(i.scr.days !== null && i.scr.days < 0 ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : i.scr.days !== null && i.scr.days <= 30 ? { color: "var(--amber-ink)" } : { color: "var(--muted)" }) }}>{i.scr.days !== null && i.scr.days < 0 ? `Re-screen overdue (${fmtDate(i.scr.due)})` : `Next by ${fmtDate(i.scr.due)}`}</div></> : <span style={{ color: "var(--amber-ink)" }}>Not screened</span>}</td>
                   <td style={i.state === "overdue" ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : undefined}>{i.next ? fmtDate(i.next) : "—"}{i.days !== null && i.days < 0 ? <div style={{ fontSize: 12 }}>{-i.days} days overdue</div> : i.days !== null && i.days <= 60 ? <div className="muted" style={{ fontSize: 12 }}>in {i.days} days</div> : null}</td>
                   <td>{i.trigger ? <><strong>{i.trigger}</strong><div className={i.late ? "" : "muted"} style={{ fontSize: 12, ...(i.late ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : {}) }}>due {i.due ? fmtDate(i.due) : "—"}{i.late ? ", overdue" : ""}</div></> : i.seen ? <span style={{ color: "var(--amber-ink)" }}>{i.seen}. No review opened</span> : "—"}</td>
-                  <td>{s.pcan("edit") && !i.trigger && (i.seen || i.state === "overdue" || i.state === "soon") && <button type="button" className="btn small" disabled={busy === i.key} onClick={() => void open(i)}>Open a review</button>}</td>
+                  <td>{s.pcan("edit") && !i.trigger && i.hasCurrent && (i.seen || i.state === "overdue" || i.state === "soon") && <a className="btn small" href={`#/clients/${encodeURIComponent(i.key)}/aml?short=1`} style={{ marginRight: 6 }}>Short review</a>}{s.pcan("edit") && !i.trigger && (i.seen || i.state === "overdue" || i.state === "soon") && <button type="button" className="btn small" disabled={busy === i.key} onClick={() => void open(i)}>Full review</button>}</td>
                 </tr>
               ))}
             </tbody>

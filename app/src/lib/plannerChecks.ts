@@ -160,6 +160,14 @@ export function plannerChecks({ clients, jobs, services, today }: CheckInput): P
       action: { do: "task", title: `${todo.join(" and ").replace(/^./, (x) => x.toUpperCase())} for ${c.Title}`, clientKey: c.Key, dueInDays: 14, hours: aml.warn && loe.warn ? 1 : 0.5 },
     });
   }
+  // 5. due diligence could not be completed: no work should be done for the client
+  for (const c of clients) {
+    const stopped = String((c as { AmlStopped?: string }).AmlStopped || "");
+    if (!stopped || inactive(c)) continue;
+    const n = open.filter((j) => j.ClientKey === c.Key).length;
+    if (!n) continue;
+    out.push({ key: `${c.Key}|aml-stopped`, type: "aml", clientKey: c.Key, severity: "red", title: "Due diligence not completed", detail: `AML due diligence couldn't be completed (${d(stopped)}), but ${n} open job${n === 1 ? "" : "s"} remain. Don't start or continue work, or bill for new work, until a new AML assessment is approved.`, current: stopped, action: { do: "none", seen: stopped } });
+  }
   return out;
 }
 

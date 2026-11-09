@@ -113,12 +113,14 @@ export function hints(t: Template, h: HintCtx): Record<string, { value: string |
 const RISK_RANK: Record<string, number> = { "": 0, low: 1, medium: 2, high: 3 };
 /** The overall rating has to follow the questions: never lower than the highest section rating, and High whenever enhanced due diligence is needed. */
 export function ratingProblems(t: Template, a: Ans, risk: string): string[] {
-  if (!risk) return [];
   const r = evaluate(t, a);
   const out: string[] = [];
-  if (r.highest && RISK_RANK[risk] < RISK_RANK[r.highest]) out.push(`The overall rating can't be lower than the highest section rating (${LEVEL_LABEL[r.highest]}). Raise it, or change the section ratings.`);
+  if (risk && r.highest && RISK_RANK[risk] < RISK_RANK[r.highest]) out.push(`The overall rating can't be lower than the highest section rating (${LEVEL_LABEL[r.highest]}). Raise it, or change the section ratings.`);
+  const agree = questions(t).find((q) => /ownership agree with the details held on companies house/i.test(q.label));
+  const reported = questions(t).find((q) => /reported the discrepancy to companies house/i.test(q.label));
+  if (agree && reported && s(a[agree.k]) === "No" && s(a[reported.k]) === "No") out.push("Ownership doesn't agree with Companies House and the discrepancy hasn't been reported. Report a material discrepancy to Companies House (MLR 2017 reg 30A) before approving.");
   const edd = questions(t).find((q) => /need for enhanced due diligence/i.test(q.label));
-  if (edd && s(a[edd.k]) === "Yes" && risk !== "high") out.push("Enhanced due diligence is needed, so the overall rating has to be High.");
+  if (risk && edd && s(a[edd.k]) === "Yes" && risk !== "high") out.push("Enhanced due diligence is needed, so the overall rating has to be High.");
   return out;
 }
 

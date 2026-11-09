@@ -33,3 +33,38 @@ export function screening(client: Row, risk: string, sp: ScreeningPolicy, assess
   const due = addMonths(last.on, months, false);
   return { ...last, due, months, days: Math.round((Date.parse(`${due}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000) };
 }
+
+type Reg = { values: Record<string, unknown> }[];
+const regFor = (client: Row, register: Reg) => register.filter((r) => str(r.values.client) === client.Key);
+
+/** Before approval (or completing a short review): the client has been screened for sanctions and PEPs within the policy period for its risk,
+ *  and a company has had the company itself screened (Xama only checks a person). `draftChecks` are checks on the form not yet saved. */
+export function screeningProblems(client: Row, risk: string, sp: ScreeningPolicy, assessments: Row[], register: Reg, today: string, opts: { company: boolean; draftChecks?: { kind: string; result: string; at: string; note: string }[] }): string[] {
+  const out: string[] = [];
+  const extra: Row[] = opts.draftChecks ? [{ ClientKey: client.Key, Checks: JSON.stringify(opts.draftChecks) }] : [];
+  const s = screening(client, risk, sp, [...assessments, ...extra], register, today);
+  if (!s.on) out.push("Screen the client for sanctions and PEPs first: a Xama AML check, a passed sanctions and PEP check, or an entry in the Screening register.");
+  else if (s.days !== null && s.days < 0) out.push(`The last sanctions and PEP screening (${s.on}) is older than your policy allows for this risk level (every ${s.months} months). Re-screen first.`);
+  if (opts.company) {
+    const months = s.months;
+    const since = addMonths(today, -months, false);
+    const ent = (opts.draftChecks || []).some((c) => /company sanctions/i.test(c.kind) && c.result === "pass" && str(c.at).slice(0, 10) >= since)
+      || assessments.some((r) => r.ClientKey === client.Key && readAssessment(r).checks.some((c) => /company sanctions/i.test(c.kind) && c.result === "pass" && str(c.at).slice(0, 10) >= since))
+      || regFor(client, register).some((r) => /^client$|company|entity/i.test(str(r.values.role)) && str(r.values.on).slice(0, 10) >= since && /no match/i.test(str(r.values.result)));
+    if (!ent) out.push("Screen the company itself against the UK Sanctions List (Xama only checks a person): add a passed \"Company sanctions screening\" check, or a Screening register entry with the role \"Client\".");
+  }
+  return out;
+}
+
+/** A possible or confirmed PEP/sanctions match stops approval until the Screening register records it was looked at and cleared. */
+export function matchProblems(client: Row, register: Reg): string[] {
+  const x = amlStampRead(client.XamaAmlCheck);
+  const mine = regFor(client, register).sort((a, b) => str(b.values.on).localeCompare(str(a.values.on)));
+  if (mine.some((r) => /confirmed/i.test(str(r.values.result)))) return ["The Screening register records a confirmed sanctions or PEP match. Don't proceed: the MLRO decides what happens, including any report."];
+  if (x.state === "check") {
+    const cleared = mine.some((r) => str(r.values.on).slice(0, 10) >= x.on && /no match/i.test(str(r.values.result)) && str(r.values.resolution).trim());
+    if (!cleared) return [`Xama's AML check on ${x.on} found a possible PEP or sanctions match. Look at it in Xama, then record in the Screening register that it isn't a match and why, before approving.`];
+  }
+  const open = mine[0] && /possible|further review/i.test(str(mine[0].values.result));
+  return open ? ["The latest Screening register entry for this client is a possible match still under review. Resolve it first."] : [];
+}

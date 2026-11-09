@@ -286,8 +286,41 @@ test("an onboarding AML approval can be brought into the AML record once, and th
   const onb: any = { Key: "ON1", ClientKey: "B1", Aml: JSON.stringify({ status: "approved", risk: "medium", riskBasis: "x", owners: [], noOwnerNote: "", checks: [], preparedBy: "A", approvedBy: "B", approvedAt: "2026-01-05T10:00:00Z", reviewDate: "2028-01-05", declinedReason: "" }) };
   const rows: any[] = [];
   assert.equal(position(cl, rows, [onb], "2026-11-09").source, "onboarding");
-  apply(rows, adoptOnboarding(cl, onb, rows, o()) as any);
-  assert.ok("error" in (adoptOnboarding(cl, onb, rows, o()) as any));
+  assert.ok("error" in (adoptOnboarding(cl, onb, rows, () => false, o()) as any));
+  apply(rows, adoptOnboarding(cl, onb, rows, yes, o()) as any);
+  assert.ok("error" in (adoptOnboarding(cl, onb, rows, yes, o()) as any));
   const p = position(cl, rows, [onb], "2026-11-09");
   assert.equal(p.source, "assessment"); assert.equal(p.current, rows[0]); assert.equal(p.reviewDate, "2028-01-05");
+});
+
+test("an unreported Companies House discrepancy blocks approval; a short review can't complete while screening is overdue; a stopped client's open jobs are flagged", async () => {
+  const { ratingProblems } = await import("../src/lib/amlTemplate.ts");
+  assert.match(ratingProblems(COMPANY as any, { c14: "No", c15: "No" }, "")[0], /reg 30A/);
+  assert.deepEqual(ratingProblems(COMPANY as any, { c14: "No", c15: "Yes" }, ""), []);
+  const { completeShortReview } = await import("../src/lib/amlShortReview.ts");
+  const rows: any[] = [];
+  apply(rows, startAssessment(client, rows, o()) as any);
+  apply(rows, saveAssessment(rows[0], good, yes, o("Ann")) as any);
+  apply(rows, approveAssessment(rows[0], client, rows, DEFAULT_ONBOARDING_SETTINGS, false, yes, "2026-10-01", o("Bea")) as any);
+  const inp = { date: "2026-11-09", answers: { behaved: true, valid: true, info: true, rating: true, dd: true }, notes: "", changes: false, blockers: ["Re-screen first."] };
+  assert.match((completeShortReview(client, rows[0], rows, inp, DEFAULT_ONBOARDING_SETTINGS, false, yes, "2026-11-09", o()) as any).error, /Re-screen first/);
+  const esc = completeShortReview(client, rows[0], rows, { ...inp, answers: { ...inp.answers, behaved: false } }, DEFAULT_ONBOARDING_SETTINGS, false, yes, "2026-11-09", o()) as any;
+  assert.ok(!("error" in esc), "a No still records the review and opens a full assessment");
+  const { plannerChecks } = await import("../src/lib/plannerChecks.ts");
+  const out = plannerChecks({ clients: [{ Key: "Z1", Title: "Z Ltd", AmlStopped: "2026-11-01" } as any], jobs: [{ Key: "J1", ClientKey: "Z1", Status: "Not started", ServiceKey: "OTHER" } as any], services: [], today: "2026-11-09" });
+  assert.ok(out.some((p) => p.key === "Z1|aml-stopped" && p.severity === "red"));
+});
+
+test("approval with the screening rules on: blocked until screened, passes once screened", async () => {
+  const { screeningPolicy } = await import("../src/lib/amlPolicy.ts");
+  const sp = screeningPolicy([], { high: 12, medium: 24, low: 36 });
+  const cl: any = { Key: "Q1", Title: "Q Ltd", Kind: "Ltd" };
+  const rows: any[] = [];
+  apply(rows, startAssessment(cl, rows, o()) as any);
+  apply(rows, saveAssessment(rows[0], good, yes, o("Ann")) as any);
+  const policy = { sof: true, screening: { sp, register: [] as any[] } };
+  assert.match((approveAssessment(rows[0], cl, rows, DEFAULT_ONBOARDING_SETTINGS, false, yes, "2026-11-09", o("Bea"), policy) as any).error, /Screen the client/);
+  cl.XamaAmlCheck = "done|2026-11-01|0|0";
+  policy.screening.register = [{ values: { client: "Q1", on: "2026-11-02", role: "Client", result: "No match" } }];
+  assert.ok(!("error" in (approveAssessment(rows[0], cl, rows, DEFAULT_ONBOARDING_SETTINGS, false, yes, "2026-11-09", o("Bea"), policy) as any)));
 });

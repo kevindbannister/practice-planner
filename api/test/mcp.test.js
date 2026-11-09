@@ -144,3 +144,14 @@ test("bots can read but never write HMRC filing records, approvals or their hist
   const policy = require("../mcp/lib/policy.js");
   for (const k of ["HmrcFilings", "HmrcFilingLog"]) { assert.ok(policy.list(k), `${k} is a list`); assert.equal(policy.canWrite(k), false, `${k} can't be written`); }
 });
+
+test("bots can read but never write AML records or the AML and Xama columns on a client", async () => {
+  const policy = require("../mcp/lib/policy.js");
+  assert.ok(policy.list("AmlAssessments")); assert.equal(policy.canWrite("AmlAssessments"), false);
+  const cols = policy.writableColumns(policy.list("Clients")).map((c) => c.name);
+  for (const c of ["AMLReview", "XamaStatus", "XamaIdCheck", "XamaAmlCheck", "AmlStopped"]) assert.ok(!cols.includes(c), `${c} isn't writable`);
+  assert.ok(cols.includes("Email"), "ordinary columns stay writable");
+  const { tool, planner } = setup();
+  const r = await tool(WRITE, "update_row", { list: "Clients", key: "C1", fields: { AMLReview: "2030-01-01" } });
+  assert.equal(r.isError, true); assert.equal(planner.calls.length, 0);
+});

@@ -3,6 +3,8 @@
 // apart from onboarding so existing clients can have one and be re-reviewed; an approved onboarding
 // AML record counts too. Same rules as onboarding (amlProblems, independent approval).
 import { Pep, eddProblems, pepProblems, readPep } from "./amlPep";
+import { ScreeningPolicy } from "./amlPolicy";
+import { matchProblems, screeningProblems } from "./amlScreening";
 import { Ans, ratingProblems, eddNeeded, readAnswers, templateFor, templateProblems } from "./amlTemplate";
 import { Aml, Check, Owner, OnboardingSettings, Risk, amlProblems, readAml } from "./onboarding";
 import { addMonths } from "./planning";
@@ -63,13 +65,13 @@ export function saveAssessment(row: Row, edit: Edit, can: (a: ProposalAction) =>
   return { patches: [{ list: "AmlAssessments", row, patch }], log: [logRow(o, "aml-saved", "aml", str(row.Key), { clientKey: str(row.ClientKey) }, { risk: patch.Risk, checks: checks.length })], activities: [] };
 }
 
-export function approveAssessment(row: Row, client: Row, all: Row[], settings: OnboardingSettings, independent: boolean, can: (a: ProposalAction) => boolean, today: string, o: Ctx, policy: { sof: boolean } = { sof: true }): Written | { error: string } {
+export function approveAssessment(row: Row, client: Row, all: Row[], settings: OnboardingSettings, independent: boolean, can: (a: ProposalAction) => boolean, today: string, o: Ctx, policy: { sof: boolean; screening?: { sp: ScreeningPolicy; register: { values: Record<string, unknown> }[] } } = { sof: true }): Written | { error: string } {
   if (!can("approve")) return { error: "You can't approve AML work." };
   if (asStatus(row.Status) !== "inprogress") return { error: "Only an assessment in progress can be approved." };
   const a = readAssessment(row);
   if (independent && a.preparedBy && a.preparedBy === o.actor) return { error: "Someone else has to approve AML work you prepared." };
   const type: ClientType = clientTypeFor(str(client.Kind));
-  const bad = [...amlProblems(a, type), ...templateProblems(templateFor(type), a.answers), ...ratingProblems(templateFor(type), a.answers, a.risk), ...assessmentExtras(a, templateFor(type), policy.sof)];
+  const bad = [...amlProblems(a, type), ...templateProblems(templateFor(type), a.answers), ...ratingProblems(templateFor(type), a.answers, a.risk), ...assessmentExtras(a, templateFor(type), policy.sof), ...(policy.screening ? [...screeningProblems(client, a.risk, policy.screening.sp, all, policy.screening.register, today, { company: type === "limited" || type === "llp" }), ...matchProblems(client, policy.screening.register)] : [])];
   if (bad.length) return { error: bad[0] };
   const review = addMonths(today, settings.amlMonths[a.risk as "low"], false);
   const older = all.filter((r) => r.ClientKey === row.ClientKey && r.Key !== row.Key && asStatus(r.Status) === "approved");
@@ -77,7 +79,7 @@ export function approveAssessment(row: Row, client: Row, all: Row[], settings: O
     patches: [
       { list: "AmlAssessments", row, patch: { Status: "approved", ApprovedBy: o.actor, ApprovedAt: o.now, DoneOn: today, ReviewDate: review, Updated: o.now } },
       ...older.map((r) => ({ list: "AmlAssessments" as const, row: r, patch: { Status: "superseded", Updated: o.now } })),
-      { list: "Clients", row: client, patch: { AMLReview: review } },
+      { list: "Clients", row: client, patch: { AMLReview: review, ...(str(client.AmlStopped) ? { AmlStopped: "" } : {}) } },
     ],
     log: [logRow(o, "aml-approved", "aml", str(row.Key), { clientKey: str(row.ClientKey) }, { risk: a.risk, review })],
     activities: [activityRow(o, "aml-approved", `AML assessment approved (${a.risk} risk): ${str(client.Title)}`, undefined, { clientKey: str(row.ClientKey) }, `Next review ${review}`)],
@@ -164,9 +166,9 @@ export function stopAssessment(row: Row, client: Row, reason: string, note: stri
   if (!STOP_REASONS.includes(reason)) return { error: "Choose why due diligence can't be completed." };
   const text = [reason, note.trim()].filter(Boolean).join(": ");
   return {
-    patches: [{ list: "AmlAssessments", row, patch: { Status: "stopped", DeclinedReason: text, Updated: o.now } }],
+    patches: [{ list: "AmlAssessments", row, patch: { Status: "stopped", DeclinedReason: text, Updated: o.now } }, { list: "Clients", row: client, patch: { AmlStopped: o.now.slice(0, 10) } }],
     log: [logRow(o, "aml-stopped", "aml", str(row.Key), { clientKey: str(row.ClientKey) }, { reason })],
-    activities: [activityRow(o, "aml-stopped", `AML due diligence not completed: ${str(client.Title)}`, undefined, { clientKey: str(row.ClientKey) }, "Don't start or continue the work. The MLRO considers separately whether a report is needed.")],
+    activities: [{ ...activityRow(o, "aml-stopped", `AML due diligence not completed: ${str(client.Title)}`, undefined, { clientKey: str(row.ClientKey) }, "Don't start or continue the work. The MLRO considers separately whether a report is needed."), Visibility: "confidential" }],
   };
 }
 
@@ -188,7 +190,8 @@ export function ddProblems(level: DdLevel, risk: string, eddNeeded: boolean, pep
 // ------------------------------------------------------------------ an onboarding approval brought into the tracker
 
 /** Copy an AML approval made during onboarding into an approved assessment, so short reviews and history work the same way. Nothing is changed on the onboarding. */
-export function adoptOnboarding(client: Row, onb: Row, rows: Row[], o: Ctx): Written | { error: string } {
+export function adoptOnboarding(client: Row, onb: Row, rows: Row[], can: (a: ProposalAction) => boolean, o: Ctx): Written | { error: string } {
+  if (!can("edit")) return { error: "You can't change AML records." };
   const a = readAml(onb.Aml);
   if (a.status !== "approved") return { error: "That onboarding's AML isn't approved." };
   if (rows.some((r) => str(r.OnboardingKey) === str(onb.Key))) return { error: "Already brought in." };
