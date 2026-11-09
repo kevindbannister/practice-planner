@@ -143,3 +143,35 @@ test("reading from Xero asks for a year of months at a time, newest column first
   assert.equal(d.bs.length, 0);
   assert.ok(d.notes.length > 0);
 });
+
+test("the demo Xero gives a year of months and a balance sheet that balances every month, so the whole of Reporting can be tried", async () => {
+  const { FakeXero } = await import("../src/lib/fakeXero");
+  const { SCOPE_GROUPS } = await import("../src/lib/xero");
+  const scopes = SCOPE_GROUPS.flatMap((g) => g.scopes);
+  const api = new FakeXero({ read: () => "demo:" + Buffer.from(JSON.stringify(scopes)).toString("base64"), write: async () => undefined } as any);
+  const t = (await api.connections()).tenants[0];
+  const d = await readReportData(api as any, t, "2026-04", 24);
+  assert.deepEqual(d.notes, []);
+  assert.equal(d.months.filter((m, i) => d.pl.some((r) => r.amounts[i])).length, 24);
+  assert.ok(d.bs.length > 5);
+  const cols = periodCols("month", "2026-04", 4, "none");
+  const bs = bsStatement(d, cols, "summary");
+  const val = (label: string) => bs.find((r) => r.label === label)?.vals[0] as number;
+  assert.ok(Math.abs(val("Net Assets") - val("Equity")) < 0.05, `net assets ${val("Net Assets")} vs equity ${val("Equity")}`);
+  for (const m of d.months.slice(2)) {
+    const b = bsStatement(d, periodCols("month", m, 4, "none"), "summary");
+    const v = (l: string) => b.find((r) => r.label === l)?.vals[0] as number;
+    assert.ok(Math.abs(v("Net Assets") - v("Equity")) < 0.05, `${m}: ${v("Net Assets")} vs ${v("Equity")}`);
+  }
+});
+
+test("a part year or part quarter says so, and a part quarter is set beside the same part of the quarter before", () => {
+  const ytd = periodCols("year", "2026-01", 4, "lastYear").map((c) => c.label);
+  assert.deepEqual(ytd, ["FY 25/26 YTD", "FY 24/25 YTD"]);
+  assert.equal(periodCols("year", "2026-04", 4, "lastYear")[1].label, "FY 24/25");
+  // the year ends in April, so the quarters are May–Jul, Aug–Oct, Nov–Jan and Feb–Apr
+  const q = periodCols("quarter", "2026-03", 4, "prior");
+  assert.deepEqual(q.map((c) => c.months), [["2026-02", "2026-03"], ["2025-11", "2025-12"]]);
+  assert.equal(periodCols("quarter", "2026-02", 4, "prior")[0].label, "Feb 26 (quarter to date)");
+  assert.deepEqual(periodCols("quarter", "2026-04", 4, "prior")[1].months, ["2025-11", "2025-12", "2026-01"]);
+});

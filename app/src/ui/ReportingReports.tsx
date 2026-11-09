@@ -257,13 +257,16 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
     await save([...list, doc]);
     window.location.hash = href("reporting", clientKey, "reports", doc.id);
   };
+  // The published page is shown inside the planner, with a Print button of ours: the page's own button can't run here (the site's security
+  // policy blocks scripts that aren't the planner's own), and a blob window would inherit that.
+  const [viewing, setViewing] = useState<{ name: string; url: string } | undefined>();
+  const frame = useRef<HTMLIFrameElement>(null);
+  const close = () => { if (viewing) URL.revokeObjectURL(viewing.url); setViewing(undefined); };
   const open = async (x: ReportDoc) => {
     try {
       const bytes = await store.graph.download(fileOf(clientKey, x.id));
-      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "text/html;charset=utf-8" }));
-      const w = window.open(url, "_blank");
-      if (!w) setNote("Your browser blocked the new window. Allow pop-ups for this site and try again.");
-      setTimeout(() => URL.revokeObjectURL(url), 120000);
+      const html = new TextDecoder().decode(bytes).replace('<div class="noprint">', '<div class="noprint" style="display:none">');
+      setViewing({ name: x.name, url: URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" })) });
     } catch { setNote("The published copy couldn't be opened from OneDrive."); }
   };
   return (
@@ -294,6 +297,16 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
           </div>
         </div>
       ))}
+      {viewing && (
+        <div role="dialog" aria-modal="true" aria-label={viewing.name} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", flexDirection: "column", zIndex: 50, padding: 16, gap: 8 }}>
+          <div className="row-wrap" style={{ gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
+            <strong style={{ color: "#fff", marginRight: "auto" }}>{viewing.name}</strong>
+            <button type="button" className="btn primary" onClick={() => { frame.current?.contentWindow?.focus(); frame.current?.contentWindow?.print(); }}>Print or save as PDF</button>
+            <button type="button" className="btn" onClick={close}>Close</button>
+          </div>
+          <iframe ref={frame} title={viewing.name} src={viewing.url} style={{ flex: 1, width: "100%", border: 0, background: "#fff", borderRadius: 6 }} />
+        </div>
+      )}
       {creating && (
         <div role="dialog" aria-modal="true" aria-label="Create report" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "grid", placeItems: "center", zIndex: 50 }}>
           <div className="card pad stack" style={{ gap: 12, width: 420, maxWidth: "92vw", background: "var(--card, #fff)" }}>

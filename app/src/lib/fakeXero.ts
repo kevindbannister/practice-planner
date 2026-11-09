@@ -201,14 +201,24 @@ export class FakeXero implements XeroApi {
     const from = String(q.fromDate), to = String(q.toDate);
     const M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const head = (iso: string) => `${Number(iso.slice(8, 10))} ${M[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
-    const cols: [string, string][] = [];
-    if (q.timeframe === "MONTH") {
+    let cols: [string, string][] = [];
+    if (q.timeframe === "MONTH" && q.periods === undefined) {
+      // one column a month across the dates asked for
       for (let d = from.slice(0, 7); d <= to.slice(0, 7); ) {
-        const [y, m] = d.split("-").map(Number);
-        const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+        const [yy, mm] = d.split("-").map(Number);
+        const end = new Date(Date.UTC(yy, mm, 0)).toISOString().slice(0, 10);
         cols.push([`${d}-01` < from ? from : `${d}-01`, end > to ? to : end]);
-        const nx = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 7);
-        d = nx;
+        d = new Date(Date.UTC(yy, mm, 1)).toISOString().slice(0, 7);
+      }
+    } else if (q.timeframe === "MONTH") {
+      // like Xero: the month asked for, and `periods` more months before it, newest column first
+      const back = Number(q.periods || 0);
+      let [y, m] = [Number(to.slice(0, 4)), Number(to.slice(5, 7))];
+      for (let i = 0; i <= back; i++) {
+        const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+        const first = `${y}-${String(m).padStart(2, "0")}-01`;
+        cols.push([i === 0 && first < from ? from : first, end > to ? to : end]);
+        m--; if (m === 0) { m = 12; y--; }
       }
     } else cols.push([from, to]);
     const plAccts = ACCOUNTS.filter((a) => PL.has(a.type));
@@ -227,6 +237,31 @@ export class FakeXero implements XeroApi {
     }
     const order = ["Trading Income", "Less Cost of Sales", "Operating Expenses", "Other Income"];
     return this.report("Profit and Loss", ["", ...cols.map(([, t]) => head(t))], order.filter((t) => groups.has(t)).map((t) => groups.get(t)!));
+  }
+
+  /** The balance sheet at a date, and at `periods` month ends before it (newest column first). Liabilities and equity are shown positive. */
+  private balanceSheet(q: Query) {
+    const M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const dates: string[] = [];
+    let [y, m] = [Number(String(q.date).slice(0, 4)), Number(String(q.date).slice(5, 7))];
+    for (let i = 0; i <= Number(q.periods || 0); i++) {
+      dates.push(i === 0 ? String(q.date) : new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10));
+      m--; if (m === 0) { m = 12; y--; }
+    }
+    const head = dates.map((d) => `${Number(d.slice(8, 10))} ${M[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`);
+    const sign = (a: Acct) => (a.cls === "ASSET" ? 1 : -1);
+    const rowsOf = (types: string[]) => ACCOUNTS.filter((a) => types.includes(a.type) && a.sys !== "RETAINEDEARNINGS").map((a) => {
+      const vals = dates.map((d) => r2(sign(a) * this.balanceAt(a.code, d)));
+      return vals.every((v) => v === 0) ? null : { cells: [`${a.name} (${a.code})`, ...vals.map((v) => v.toFixed(2))], id: a.id };
+    }).filter(Boolean) as { cells: string[]; id: string }[];
+    const retained = ACCOUNTS.find((a) => a.sys === "RETAINEDEARNINGS")!;
+    const earnings = dates.map((d) => -this.books.filter((e) => e.date >= fyStart(d) && e.date <= d).reduce((t, e) => t + e.lines.filter((l) => PL.has(byCode.get(l.code)!.type)).reduce((x, l) => x + l.amt, 0), 0));
+    const equity = [...rowsOf(["EQUITY"]), { cells: [`${retained.name} (${retained.code})`, ...dates.map((d) => (-this.balanceAt(retained.code, d)).toFixed(2))], id: retained.id }, { cells: ["Current Year Earnings", ...earnings.map((v) => r2(v).toFixed(2))] }];
+    const sections = [
+      { title: "Bank", rows: rowsOf(["BANK"]) }, { title: "Current Assets", rows: rowsOf(["CURRENT"]) }, { title: "Fixed Assets", rows: rowsOf(["FIXED"]) },
+      { title: "Current Liabilities", rows: rowsOf(["CURRLIAB"]) }, { title: "Non-Current Liabilities", rows: rowsOf(["TERMLIAB"]) }, { title: "Equity", rows: equity },
+    ].filter((x) => x.rows.length);
+    return this.report("Balance Sheet", ["", ...head], sections);
   }
 
   private trialBalance(date: string) {
@@ -372,6 +407,10 @@ export class FakeXero implements XeroApi {
     if (api === "accounting" && path === "Reports/ProfitAndLoss") {
       this.need("reports");
       return this.profitAndLoss(query) as T;
+    }
+    if (api === "accounting" && path === "Reports/BalanceSheet") {
+      this.need("reports");
+      return this.balanceSheet(query) as T;
     }
     if (api === "accounting" && path === "Reports/BankSummary") {
       this.need("reports");

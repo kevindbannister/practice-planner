@@ -162,8 +162,8 @@ export function periodMonths(kind: PeriodKind, anchor: string, endMonth: number)
 const labelFor = (kind: PeriodKind, months: string[], endMonth: number, full: boolean): string => {
   if (kind === "month") return monthLabel(months[0]);
   const last = months[months.length - 1];
-  if (kind === "quarter") return months.length === 3 ? `${monthLabel(months[0])} – ${monthLabel(last)}` : `${monthLabel(months[0])} – ${monthLabel(last)} (to date)`;
-  return `${fyLabel(yearOf(last, endMonth).last)}${full ? "" : " YTD"}`;
+  if (kind === "quarter") return months.length === 3 ? `${monthLabel(months[0])} – ${monthLabel(last)}` : months.length === 1 ? `${monthLabel(last)} (quarter to date)` : `${monthLabel(months[0])} – ${monthLabel(last)} (to date)`;
+  return `${fyLabel(yearOf(last, endMonth).last)}${full && months.length === 12 ? "" : " YTD"}`;
 };
 
 /** The columns for a report: the period, and what it is set beside. "months" is every month of the financial year with a total. */
@@ -179,7 +179,7 @@ export function periodCols(kind: PeriodKind, anchor: string, endMonth: number, c
     return [...all.map((m): Col => ({ key: m, label: monthLabel(m), months: m <= anchor ? [m] : [] })), { key: "total", label: m_total(anchor, first, endMonth), months: monthRange(first, anchor), total: true }];
   }
   if (compare === "prior") {
-    const prev = kind === "year" ? shift(cur, -12) : shift(cur, -n);
+    const prev = kind === "year" ? shift(cur, -12) : kind === "quarter" ? shift(cur, -3) : shift(cur, -n); // a part quarter is set beside the same part of the quarter before
     return [main, { key: "prior", label: labelFor(kind, prev, endMonth, true), months: prev }];
   }
   if (compare === "lastYear") {
