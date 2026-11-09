@@ -1,0 +1,17 @@
+{
+  // Type-checking only (esbuild does the build). CI runs: npx tsc -p tsconfig.json
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "types": []
+  },
+  "include": ["src/**/*"]
+}

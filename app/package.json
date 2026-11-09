@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node build.mjs",
     "dev": "node build.mjs --serve",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "pdf-lib": "1.17.1",
@@ -18,6 +19,8 @@
   "devDependencies": {
     "esbuild": "0.28.2",
     "tsx": "4.23.12",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0"
   }
 }
