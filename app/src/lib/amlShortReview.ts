@@ -77,6 +77,7 @@ export function shortFacts(f: FactsIn): Record<string, string[]> {
   const checks = a.checks.filter((c) => c.at);
   const screen = checks.filter((c) => /sanction|pep|screen|adverse/i.test(c.kind)).sort((x, y) => String(y.at).localeCompare(String(x.at)))[0];
   if (screen) out.behaved.push(`Last screening check: ${screen.kind}, ${screen.result === "pass" ? "passed" : screen.result === "fail" ? "failed" : "pending"} on ${f.fmt(String(screen.at).slice(0, 10))}.`);
+  else if (/^approved/i.test(String(f.client.XamaStatus || "")) || idStampRead(f.client.XamaIdCheck).state === "done") out.behaved.push("Xama AML check (identity and address checks, including PEP and sanctions) is done on the client.");
   else out.behaved.push("No screening check is recorded on the assessment.");
   if (f.services.length) out.behaved.push(`Services now: ${f.services.join(", ")}.`);
   const trig = f.open.filter((r) => String(r.Source).startsWith("trigger:")).length;

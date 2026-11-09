@@ -79,14 +79,16 @@ export type HintCtx = { companyNumber: string; owners: number; passedIdentity: b
 /** Answers the planner can suggest from what it already holds. The person chooses whether to use each one. */
 export function hints(t: Template, h: HintCtx): Record<string, { value: string | string[]; from: string }> {
   const out: Record<string, { value: string | string[]; from: string }> = {};
+  const xama = h.xamaApproved || h.xamaIdDone;
+  const XAMA = "the Xama AML check on the client (identity and address checks, including PEP and sanctions)";
   for (const q of questions(t)) {
     const l = q.label.toLowerCase();
     if (/registered with companies house/.test(l) && h.companyNumber) out[q.k] = { value: "Yes", from: `company number ${h.companyNumber}` };
     else if (/beneficial owners (been )?identified and added/.test(l) && h.owners) out[q.k] = { value: "Yes", from: "owners recorded in this review" };
-    else if (/identity documents? (has|have) been collected/.test(l) && h.passedIdentity) out[q.k] = { value: "Yes", from: "a passed identity check in this review" };
-    else if (/passed.*aml identity verification/.test(l) && (h.xamaApproved || h.xamaIdDone)) out[q.k] = { value: "Yes", from: "the Xama result on the client" };
-    else if (/(pep screening|identified as a pep)/.test(l) && h.passedScreening) out[q.k] = { value: "No", from: "a passed screening check in this review" };
-    else if (/(sanctions screening|on the sanctions database)/.test(l) && h.passedScreening) out[q.k] = { value: "No", from: "a passed screening check in this review" };
+    else if (/identity documents? (has |have )?been collected/.test(l) && (h.passedIdentity || xama)) out[q.k] = { value: "Yes", from: h.passedIdentity ? "a passed identity check in this review" : XAMA };
+    else if (/passed.*aml identity verification/.test(l) && xama) out[q.k] = { value: "Yes", from: XAMA };
+    else if (/(pep screening|identified as a pep)/.test(l) && (h.passedScreening || xama)) out[q.k] = { value: "No", from: h.passedScreening ? "a passed screening check in this review" : XAMA };
+    else if (/(sanctions screening|on the sanctions database)/.test(l) && (h.passedScreening || xama)) out[q.k] = { value: "No", from: h.passedScreening ? "a passed screening check in this review" : XAMA };
     else if (/ownership agree with the details held on companies house/.test(l) && h.ownershipAgrees === true) out[q.k] = { value: "Yes", from: "Company Secretarial shows no ownership problems" };
     else if (q.t === "many" && /services does our firm offer/.test(l) && q.options) {
       const pick = q.options.filter((o) => h.services.some((n) => (o === "Accounts" && /account/i.test(n)) || (o === "Self assessment" && /self.?assess|personal tax/i.test(n)) || (o === "Tax advice" && /tax/i.test(n)) || (o === "Company secretarial" && /secretar/i.test(n)) || (o === "Payroll" && /payroll/i.test(n)) || (o === "Client money account" && /client money/i.test(n))));

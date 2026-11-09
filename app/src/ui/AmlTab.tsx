@@ -202,6 +202,9 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [owners, setOwners] = useState<Owner[]>(saved.owners);
   const [noOwner, setNoOwner] = useState(saved.noOwnerNote);
   const [checks, setChecks] = useState<Check[]>(saved.checks);
+  const xamaStamp = idStampRead(client.XamaIdCheck);
+  const xamaDone = /^approved/i.test(String(client.XamaStatus || "")) || xamaStamp.state === "done";
+  const xamaOn = xamaStamp.on;
   const [evidence, setEvidence] = useState<Evidence[]>(saved.evidence);
   const [why, setWhy] = useState("");
   const [busy, setBusy] = useState(false);
@@ -291,7 +294,10 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
               <button type="button" className="linkbtn danger-link" onClick={() => setChecks(checks.filter((_, j) => j !== i))}>Remove</button>
             </div>
           ))}
-          <div><button type="button" className="btn small" onClick={() => setChecks([...checks, { id: "", kind: CHECK_KINDS[0], result: "pending", by: "", at: "", note: "" }])}>Add a check</button></div>
+          <div className="row-wrap">
+            <button type="button" className="btn small" onClick={() => setChecks([...checks, { id: "", kind: CHECK_KINDS[0], result: "pending", by: "", at: "", note: "" }])}>Add a check</button>
+            {xamaDone && !checks.some((c) => /^Xama/.test(c.note)) && <button type="button" className="btn small primary" onClick={() => setChecks([...checks, ...["Identity verified", "Address verified", "Sanctions and PEP screening"].map((kind) => ({ id: "", kind, result: "pass" as const, by: "Xama", at: xamaOn || today, note: "Xama: AML check + identity & address checks (inc PEP/Sanctions)" }))])}>Add the Xama check ({xamaOn ? fmtDate(xamaOn) : "done"})</button>}
+          </div>
         </div>
 
         <div className="stack" style={{ gap: 6 }}>

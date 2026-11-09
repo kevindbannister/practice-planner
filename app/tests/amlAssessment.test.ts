@@ -177,3 +177,14 @@ test("short review facts only report what the planner holds; delivery channels i
   assert.deepEqual(f.changes, []);
   assert.ok(f.info.some((l) => /No Xama identity result/.test(l)));
 });
+
+test("a done Xama AML check suggests identity verified and no PEP or sanctions match, for individuals and companies", async () => {
+  const { hints } = await import("../src/lib/amlTemplate.ts");
+  const { COMPANY, INDIVIDUAL } = await import("../src/lib/amlTemplates.ts");
+  const base = { companyNumber: "", owners: 0, passedIdentity: false, passedScreening: false, xamaApproved: false, xamaIdDone: false, ownershipAgrees: null, services: [] };
+  assert.deepEqual(Object.keys(hints(INDIVIDUAL as any, base)), []);
+  const h = hints(INDIVIDUAL as any, { ...base, xamaApproved: true });
+  assert.equal(h.i2.value, "Yes"); assert.equal(h.i3.value, "Yes"); assert.equal(h.i4.value, "No"); assert.equal(h.i5.value, "No");
+  const c = hints(COMPANY as any, { ...base, xamaIdDone: true });
+  for (const k of ["c17", "c18", "c19", "c20"]) assert.ok(c[k], k);
+});
