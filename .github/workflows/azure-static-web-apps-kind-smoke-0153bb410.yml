@@ -22,11 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Build here (tests first) and hand Azure the finished files.
+      # Build here (type check and tests first) and hand Azure the finished files.
       - name: Install, test and build
         working-directory: app
         run: |
           npm install --no-audit --no-fund
+          npm run typecheck
           npm test
           npm run build
       # The server functions have one dependency (pdf-lib, for sealing signed PDFs). Install it here and
