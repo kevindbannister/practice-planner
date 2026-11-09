@@ -1,7 +1,7 @@
 // The analysis screens on the reporting centre that work from the monthly figures: the cash flow waterfall, the growth trail, the trend
 // measures and the goalseek model. Each takes the client's ReportData and a period and returns plain numbers for the screen to draw.
 import { PeriodKind, ReportData, RRow, addMonths, periodMonths } from "./reportData";
-import { figuresFor } from "./kpis";
+import { creditorDays, debtorDays, figuresFor } from "./kpis";
 import { r2 } from "./xero";
 
 type Src = Pick<ReportData, "months" | "pl" | "bsMonths" | "bs">;
@@ -99,25 +99,31 @@ export function cashFlow(d: Src, kind: PeriodKind, anchor: string, endMonth: num
 // ------------------------------------------------------------------ trend and growth measures
 
 export type MeasureUnit = "money" | "percent" | "days" | "ratio";
-export type Measure = { id: string; label: string; unit: MeasureUnit; balance?: boolean; get: (f: ReturnType<typeof figuresFor>) => number | undefined };
+export type Measure = { id: string; label: string; unit: MeasureUnit; balance?: boolean; /** -1 when less is better (costs): a fall is shown as favourable */ dir?: -1; get: (f: ReturnType<typeof figuresFor>) => number | undefined };
 const pct = (a: number, b: number) => (b ? r2((a / b) * 100) : undefined);
 
 export const MEASURES: Measure[] = [
   { id: "revenue", label: "Revenue", unit: "money", get: (f) => f.revenue },
-  { id: "cos", label: "Cost of Sales", unit: "money", get: (f) => f.cos },
+  { id: "cos", label: "Cost of Sales", unit: "money", dir: -1, get: (f) => f.cos },
   { id: "gross", label: "Gross Profit", unit: "money", get: (f) => f.gross },
-  { id: "expenses", label: "Expenses", unit: "money", get: (f) => f.expenses },
-  { id: "invest", label: "Total Operating Investment", unit: "money", get: (f) => r2(f.cos + f.expenses) },
+  { id: "expenses", label: "Expenses", unit: "money", dir: -1, get: (f) => f.expenses },
+  { id: "invest", label: "Total Operating Investment", unit: "money", dir: -1, get: (f) => r2(f.cos + f.expenses) },
   { id: "operating", label: "EBIT (Operating Profit)", unit: "money", get: (f) => f.operating },
   { id: "net", label: "Net Profit", unit: "money", get: (f) => f.net },
   { id: "cash", label: "Cash on Hand", unit: "money", balance: true, get: (f) => f.bank },
-  { id: "debtors", label: "Debtors", unit: "money", balance: true, get: (f) => f.debtors },
+  { id: "debtors", label: "Debtors", unit: "money", balance: true, dir: -1, get: (f) => f.debtors },
   { id: "creditors", label: "Creditors", unit: "money", balance: true, get: (f) => f.creditors },
   { id: "stock", label: "Stock", unit: "money", balance: true, get: (f) => f.stock },
   { id: "equity", label: "Equity", unit: "money", balance: true, get: (f) => f.equity },
   { id: "gpm", label: "Gross Profit Margin", unit: "percent", get: (f) => pct(f.gross, f.revenue) },
   { id: "opm", label: "Operating Profit Margin", unit: "percent", get: (f) => pct(f.operating, f.revenue) },
   { id: "npm", label: "Net Profit Margin", unit: "percent", get: (f) => pct(f.net, f.revenue) },
+  { id: "wcAssets", label: "Current Assets (with cash)", unit: "money", balance: true, get: (f) => (f.curAssets === undefined ? undefined : r2(f.curAssets + (f.bank || 0))) },
+  { id: "wcLiab", label: "Current Liabilities", unit: "money", balance: true, dir: -1, get: (f) => f.curLiab },
+  { id: "nwc", label: "Net Working Capital", unit: "money", balance: true, get: (f) => (f.curAssets === undefined || f.curLiab === undefined ? undefined : r2(f.curAssets + (f.bank || 0) - f.curLiab)) },
+  { id: "currentRatio", label: "Current Ratio", unit: "ratio", balance: true, get: (f) => (f.curAssets === undefined || !f.curLiab ? undefined : r2((f.curAssets + (f.bank || 0)) / f.curLiab)) },
+  { id: "ardays", label: "Debtor Days", unit: "days", balance: true, dir: -1, get: (f) => debtorDays(f) },
+  { id: "apdays", label: "Creditor Days", unit: "days", balance: true, get: (f) => creditorDays(f) },
 ];
 export const measureById = (id: string) => MEASURES.find((m) => m.id === id);
 

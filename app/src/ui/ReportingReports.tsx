@@ -4,17 +4,20 @@
 import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { cashFlow, measureById, monthlySeries } from "../lib/analysis";
+import { r2 } from "../lib/xero";
 import { AgedData } from "../lib/aged";
 import { KpiSettings, computeKpis, formatKpi } from "../lib/kpis";
+import { keyData } from "../lib/reportComponents";
 import {
-  Block, CHART_BLOCKS, LAYOUTS, chartH, spanOf, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, nextCopy, moveItem, newReport, periodWords, uid,
+  Block, CHART_BLOCKS, LAYOUTS, TEMPLATES, fromTemplate, chartH, spanOf, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, nextCopy, moveItem, newReport, periodWords, uid,
 } from "../lib/reportBuilder";
 import { PeriodKind, REPORT_FOLDER, ReportData, bsStatement, monthLabel, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { todayIso } from "../lib/domain";
 import { Icon, IconName, href } from "./bits";
 import { readSetting, useData } from "./data";
+import { brandOf, readBranding } from "../lib/docBranding";
 import { AgedView, useAgedData } from "./ReportingAged";
-import { ChartView, ComponentEditor, Ctx, KeyView, LINE, ObservationView, Swatch, T, TableView, TopView, observationHidden } from "./ReportingComponents";
+import { ChartView, ComponentEditor, Ctx, KeyView, LINE, MovementsView, NAVY, ObservationView, Swatch, T, TableView, TopView, observationHidden } from "./ReportingComponents";
 import { Seg, useReportData } from "./reportingKit";
 import { Thumb } from "./ReportingThumbs";
 
@@ -26,6 +29,7 @@ const money = (n?: number) => (n === undefined ? "–" : `${n < 0 ? "-" : ""}£$
 const short = (n: number) => { const a = Math.abs(n), s = n < 0 ? "-" : ""; return a >= 1e6 ? `${s}£${+(a / 1e6).toFixed(2)}M` : a >= 1e3 ? `${s}£${+(a / 1e3).toFixed(1)}K` : `${s}£${Math.round(a)}`; };
 const GREEN = "#6f9a3a";
 const fileOf = (clientKey: string, id: string) => `/me/drive/root:/${encodeURIComponent(REPORT_FOLDER)}/${encodeURIComponent(clientKey)}/reports/${encodeURIComponent(id)}.html`;
+const withP = (c: Ctx, p?: PeriodKind): Ctx => (p ? { ...c, kind: p } : c);
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 
 // ------------------------------------------------------------------ drawing the report (used on screen and in the published copy)
@@ -72,6 +76,12 @@ function CashFlowView({ c }: { c: Ctx }) {
             {cf.totals.filter((t) => t.after === i).map((t) => <tr key={t.total.label} style={{ borderTop: "1px solid #111", borderBottom: "1px solid #111", fontWeight: 700 }}><td colSpan={2} style={{ ...T.td, textAlign: "left" }}>{t.total.label}</td><td style={T.td}>{gbp(t.total.amount)}</td></tr>)}
           </Fragment>
         ))}
+        {/* from the net cash flow to the bank: opening cash, the cash flow, money borrowed or repaid, closing cash */}
+        {(() => {
+          const debt = r2(cf.debt.close - cf.debt.open), r = (label: string, v: number, strong = false) => (
+            <tr key={label} style={strong ? { borderTop: "1px solid #111", borderBottom: "1px solid #111", fontWeight: 700 } : { borderBottom: "1px solid #e6e6ea" }}><td colSpan={2} style={{ ...T.td, textAlign: "left" }}>{label}</td><td style={T.td}>{gbp(v)}</td></tr>);
+          return [<tr key="gap"><td colSpan={3} style={{ height: 10 }} /></tr>, r("Cash at bank at the start", cf.cash.open), r("Net cash flow", cf.net), r(debt >= 0 ? "Borrowing drawn" : "Borrowing repaid", debt), r("Cash at bank at the end", cf.cash.close, true)];
+        })()}
       </tbody>
     </table>
     </>
@@ -101,17 +111,24 @@ function BlockView({ b, c, edit, tone }: { b: Block; c?: Ctx; edit?: Edit; tone?
     ? <input aria-label="Block title" value={t} onChange={(e) => edit.change({ ...b, title: e.target.value } as Block)} style={{ ...T.cap, width: "100%", boxSizing: "border-box", border: 0, background: "transparent" }} />
     : <div style={T.cap}>{t}{suffix && <span style={{ color: "#a5a8b0" }}> ({suffix})</span>}</div>);
   if (!c) return null;
+  // "hide when empty": in the finished report a part with nothing to show is left out rather than shown with a placeholder
+  if (!edit && "hideEmpty" in b && b.hideEmpty) {
+    const cx = b.type === "key" ? withP(c, b.period) : c;
+    if (b.type === "key" && keyData(cx.d, b.measure, cx.kind, cx.anchor, cx.endMonth, "none").value === undefined) return null;
+    if (b.type === "aged" && !c.aged) return null;
+    if (b.type === "cashflow" && !cashFlow(c.d, c.kind, c.anchor, c.endMonth)) return null;
+  }
   const hidden = b.type === "observation" && observationHidden(b, c);
   if (hidden && !edit) return null;
   return (
     <div style={{ margin: "6px 0", pageBreakInside: "avoid", breakInside: "avoid", opacity: hidden ? 0.45 : 1 }} title={hidden ? "Hidden in the published report by its extra condition" : undefined}>
       {b.type !== "observation" && b.type !== "key" && title(b.title, b.type === "top" ? tagOf(c, b.period) : undefined)}
-      {b.type === "key" ? <KeyView b={b} c={c} tone={tone} label={edit ? <input aria-label="Block title" value={b.title} onChange={(e) => edit.change({ ...b, title: e.target.value })} style={{ font: "inherit", textTransform: "inherit", color: "inherit", letterSpacing: "inherit", border: 0, background: "transparent", width: "70%" }} /> : undefined} /> : b.type === "observation" ? <ObservationView b={b} c={c} /> : b.type === "top" ? <TopView b={b} c={c} /> : b.type === "aged" ? (c.aged ? <AgedView data={c.aged} kind={b.which} limit={15} /> : <p style={{ ...T.p, color: "#7a8591" }}>The unpaid invoices and bills haven't been read from Xero yet (Reporting › Receivables).</p>) : b.type === "chart" ? <ChartView b={b} c={c} /> : b.type === "table" ? <TableView b={b} c={c} /> : b.type === "kpis" ? <KpiView c={c} /> : <CashFlowView c={c} />}
+      {b.type === "key" ? <KeyView b={b} c={c} tone={tone} label={edit ? <input aria-label="Block title" value={b.title} onChange={(e) => edit.change({ ...b, title: e.target.value })} style={{ font: "inherit", textTransform: "inherit", color: "inherit", letterSpacing: "inherit", border: 0, background: "transparent", width: "70%" }} /> : undefined} /> : b.type === "observation" ? <ObservationView b={b} c={c} /> : b.type === "top" ? <TopView b={b} c={c} /> : b.type === "aged" ? (c.aged ? <AgedView data={c.aged} kind={b.which} limit={15} /> : <p style={{ ...T.p, color: "#7a8591" }}>The unpaid invoices and bills haven't been read from Xero yet (Reporting › Receivables).</p>) : b.type === "chart" ? <ChartView b={b} c={c} /> : b.type === "table" ? <TableView b={b} c={c} /> : b.type === "kpis" ? <KpiView c={c} /> : b.type === "movements" ? <MovementsView b={b} c={c} onNotes={edit ? (notes) => edit.change({ ...b, notes }) : undefined} /> : <CashFlowView c={c} />}
     </div>
   );
 }
 
-// the report's look: a cover page, then one page per section, in a restrained navy / red / amber palette
+// the report's look (the print rules in publishedHtml are written "html body …" so they win over these): a cover page, then one page per section, in a restrained navy / red / amber palette
 const REPORT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&display=swap');
 .rp{font-family:Figtree,"Avenir Next","Segoe UI",system-ui,-apple-system,Arial,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rp *{box-sizing:border-box}
@@ -124,6 +141,7 @@ const REPORT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Figtre
 .rp-logo{font-size:5.2cqw;font-weight:800;letter-spacing:-.045em;line-height:1;color:#111;margin-bottom:9cqw}
 .rp-land .rp-logo{font-size:3.8cqw;margin-bottom:4cqw}
 .rp-rule{border:0;border-top:1px solid #333;margin:0}
+.rp-prep{display:flex;align-items:center;gap:2cqw;margin-top:4cqw;font-size:1.6cqw;color:#59606d}.rp-prep img{max-height:5cqw;max-width:18cqw;object-fit:contain}
 .rp-title{font-size:3cqw;font-weight:500;margin:0;padding:2.6cqw 0;letter-spacing:-.01em}
 .rp-sub{font-size:2.35cqw;font-weight:300;line-height:1.5;margin-top:2.6cqw}
 .rp-band{position:absolute;left:0;right:0;bottom:0;height:33%;background:#141b2f}
@@ -177,6 +195,7 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
           <h1 className="rp-title">{doc.name}</h1>
           <hr className="rp-rule" />
           <div className="rp-sub">{clientName}<br />{words}</div>
+          {c?.brand && (c.brand.name || c.brand.logo) && <div className="rp-prep">{c.brand.logo && <img src={c.brand.logo} alt="" />}{c.brand.name && <span>Prepared by {c.brand.name}</span>}</div>}
         </div>
         <div className="rp-band"><Network /></div>
       </div>
@@ -198,7 +217,7 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
             <div className="rp-break" aria-hidden="true"><span>Page break</span></div>
             <section className="rp-sec rb-section">
               <div className="rp-in">
-                {sectionTools ? sectionTools(s, si) : <h2 style={T.h2}>{s.title}</h2>}
+                {sectionTools ? sectionTools(s, si) : <h2 style={doc.look === "management" ? { ...T.h2, color: NAVY, fontWeight: 600, fontSize: 21, borderBottom: `2px solid ${NAVY}` } : T.h2}>{s.title}{doc.look === "management" && words && <span style={{ fontWeight: 400, color: "#6b6f7a", fontSize: 15 }}> · {words}</span>}</h2>}
                 <div className="rp-grid">{items}</div>
                 {addButtons?.(s)}
                 {doc.disclaimer && si === doc.sections.length - 1 && <p className="rp-foot">{doc.disclaimerText}</p>}
@@ -216,8 +235,9 @@ export function publishedHtml(doc: ReportDoc, c: Ctx, clientName: string): strin
   const body = renderToStaticMarkup(<ReportView doc={doc} c={c} clientName={clientName} />);
   const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch] as string));
   const land = doc.orientation === "landscape";
+  const css = (t: string) => t.replace(/[\\"]/g, "\\$&").replace(/[<>\n\r]/g, " ");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(doc.name)} – ${esc(clientName)}</title>
-<style>@page{size:A4 ${doc.orientation};margin:19mm 0}@page cover{size:A4 ${doc.orientation};margin:0}body{margin:0;background:#e9ecef}main{max-width:${land ? 1180 : 840}px;margin:0 auto;padding-bottom:40px}.noprint{max-width:${land ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}@media print{body{background:#fff}main{max-width:none}.noprint{display:none}.rp-cover{aspect-ratio:auto;width:100%;height:${land ? 209 : 296}mm}.rp-sec{break-before:page;padding:0;border:0;aspect-ratio:auto;box-shadow:none;background:none}.rp-sec::after,.rp-break{display:none}.rp-cover{box-shadow:none}.rp-in{padding:0 19mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
+<style>@page{size:A4 ${doc.orientation};margin:${land ? "12mm 0 14mm" : "19mm 0"};@bottom-right{content:"Page " counter(page);font:9px Figtree,Arial,sans-serif;color:#9aa4b2;padding-right:12mm}@bottom-left{content:"${css(clientName)} · ${css(doc.name)}";font:9px Figtree,Arial,sans-serif;color:#9aa4b2;padding-left:12mm}}@page cover{size:A4 ${doc.orientation};margin:0;@bottom-right{content:none}@bottom-left{content:none}}body{margin:0;background:#e9ecef}main{max-width:${land ? 1180 : 840}px;margin:0 auto;padding-bottom:40px}.noprint{max-width:${land ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}@media print{body{background:#fff}main{max-width:none}.noprint{display:none}html body .rp .rp-cover{aspect-ratio:auto;width:100%;height:${land ? 209 : 296}mm;box-shadow:none}html body .rp .rp-sec{break-before:page;padding:0;border:0;aspect-ratio:auto;box-shadow:none;background:none}html body .rp .rp-sec::after,html body .rp .rp-break{display:none}html body .rp .rp-in{padding:0 ${land ? 12 : 19}mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
 <body><div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div><main>${body}</main></body></html>`;
 }
 
@@ -268,11 +288,14 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState(""), [kind, setKind] = useState<PeriodKind>("month"), [anchor, setAnchor] = useState(""), [orient, setOrient] = useState<Orientation>("portrait");
   const [confirm, setConfirm] = useState(""), [note, setNote] = useState("");
+  const [tpl, setTpl] = useState("");
+  const template = TEMPLATES.find((t) => t.name === tpl);
+  const pickTpl = (n: string) => { setTpl(n); const t = TEMPLATES.find((x) => x.name === n); if (t) { setKind(t.kind); setOrient(t.orientation); } };
   const months = d?.months || [];
   const at = anchor && months.includes(anchor) ? anchor : months[months.length - 1] || "";
   const shown = list.filter((x) => x.status === tab).sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   const create = async () => {
-    const doc = newReport(name, kind, at, orient, new Date().toISOString());
+    const doc = template ? fromTemplate(template, name.trim(), at, new Date().toISOString()) : newReport(name, kind, at, orient, new Date().toISOString());
     await save([...list, doc]);
     window.location.hash = href("reporting", clientKey, "reports", doc.id);
   };
@@ -330,11 +353,18 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
       {creating && (
         <div role="dialog" aria-modal="true" aria-label="Create report" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "grid", placeItems: "center", zIndex: 50 }}>
           <div className="card pad stack" style={{ gap: 12, width: 420, maxWidth: "92vw", background: "var(--card, #fff)" }}>
-            <h3 style={{ margin: 0 }}>Create report from scratch</h3>
-            <input aria-label="Report name" autoFocus placeholder="Report name" value={name} onChange={(e) => setName(e.target.value)} />
+            <h3 style={{ margin: 0 }}>Create report</h3>
+            <label className="stack" style={{ gap: 4, fontSize: 13 }}>Start from
+              <select aria-label="Start from" value={tpl} onChange={(e) => pickTpl(e.target.value)}>
+                <option value="">A blank report</option>
+                {TEMPLATES.map((t) => <option key={t.name} value={t.name}>Template: {t.name}</option>)}
+              </select>
+              {template && <span className="muted" style={{ fontSize: 12 }}>{template.note}.</span>}
+            </label>
+            <input aria-label="Report name" autoFocus placeholder={template ? template.name : "Report name"} value={name} onChange={(e) => setName(e.target.value)} />
             <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
               <span className="muted" style={{ fontSize: 13 }}>Reporting period: for the</span>
-              <Seg value={kind} set={setKind} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" />
+              {template ? <strong style={{ fontSize: 13 }}>month</strong> : <Seg value={kind} set={setKind} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" />}
               <span className="muted" style={{ fontSize: 13 }}>of</span>
               <select aria-label="Month" value={at} onChange={(e) => setAnchor(e.target.value)}>{[...months].reverse().map((m) => <option key={m} value={m}>{monthLong(m)}</option>)}</select>
             </div>
@@ -369,7 +399,9 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
 
   const months = d?.months || [];
   const anchor = anchorFor(doc, months);
-  const c: Ctx | undefined = d && anchor ? { d, kind: doc.kind, anchor, endMonth, kpi, aged, palette: doc.palette } : undefined;
+  const { data: app } = useData();
+  const brand = useMemo(() => { const b = brandOf(readBranding(app.settings)); return b ? { name: b.tradingName || b.practiceName, logo: b.logo } : undefined; }, [app.settings]);
+  const c: Ctx | undefined = d && anchor ? { d, kind: doc.kind, anchor, endMonth, kpi, aged, palette: doc.palette, brand } : undefined;
   const shown: ReportDoc = draft ? { ...doc, sections: doc.sections.map((s) => ({ ...s, blocks: s.blocks.map((x) => (x.id === draft.id ? draft : x)) })) } : doc;
   const EDITABLE = ["key", "observation", "top", "chart", "table", "kpis", "cashflow", "aged"];
   const WIDTHS: [number, string][] = [[3, "¼"], [4, "⅓"], [6, "½"], [8, "⅔"], [9, "¾"], [12, "Full"]];

@@ -3,7 +3,7 @@
 import { figuresFor } from "./kpis";
 import { Measure, measureById } from "./analysis";
 import { Fmt, Freq, Op, Operand, TopGroup, When } from "./reportBuilder";
-import { PeriodKind, ReportData, addMonths, monthLabel, periodCols, periodMonths } from "./reportData";
+import { FINANCE_COST, PeriodKind, ReportData, addMonths, monthLabel, periodCols, periodMonths } from "./reportData";
 import { r2 } from "./xero";
 
 type Src = Pick<ReportData, "months" | "pl" | "bsMonths" | "bs">;
@@ -88,4 +88,31 @@ export function keyData(d: Src, measureId: string, kind: PeriodKind, anchor: str
 export function tableCols(b: { cols?: string[]; compare: "none" | "prior" | "lastYear" | "months" }): string[] {
   if (b.cols?.length) return b.cols;
   return b.compare === "none" ? ["this"] : b.compare === "months" ? ["months"] : b.compare === "prior" ? ["this", "prior", "var", "varPct"] : ["this", "lastYear", "var", "varPct"];
+}
+
+/** The accounts in a group that moved most between two periods, biggest change first, keeping only changes of more than `amount` (£) and `pct` (%) –
+ *  an account that was nil before counts as a 100% change. */
+export type Movement = { name: string; code: string; now: number; before: number; change: number; pct?: number };
+export function movements(d: Src, group: TopGroup, now: string[], before: string[], n: number, amount: number, pct: number): Movement[] {
+  const pl = ["income", "cos", "expense", "other"].includes(group);
+  if (!pl || !now.length || !before.length) return [];
+  const total = (r: Src["pl"][number], ms: string[]) => r2(ms.reduce((a, m) => a + (r.amounts[d.months.indexOf(m)] || 0), 0));
+  return d.pl.filter((r) => r.group === group && before.every((m) => d.months.includes(m)))
+    .map((r) => { const a = total(r, now), b = total(r, before), change = r2(a - b); return { name: r.name, code: r.code, now: a, before: b, change, pct: b ? r2((change / Math.abs(b)) * 100) : undefined }; })
+    .filter((x) => Math.abs(x.change) > amount && (x.pct === undefined ? x.change !== 0 : Math.abs(x.pct) > pct))
+    .sort((x, y) => Math.abs(y.change) - Math.abs(x.change) || x.name.localeCompare(y.name))
+    .slice(0, Math.max(1, n));
+}
+
+/** For a stacked chart by account: the `n` biggest accounts in a group over the chart's periods, each period's amount, and the rest as "Other". */
+export function splitSeries(d: Src, group: TopGroup, periods: { months: string[] }[], n = 5): { labels: string[]; series: (number | undefined)[][] } {
+  // expenses are the overheads: interest and finance charges are left to finance costs, as in the management profit and loss
+  const rows = d.pl.filter((r) => r.group === group && !(group === "expense" && FINANCE_COST.test(r.name)));
+  const val = (r: Src["pl"][number], ms: string[]) => (ms.length ? r2(ms.reduce((a, m) => a + (r.amounts[d.months.indexOf(m)] || 0), 0)) : undefined);
+  const all = periods.flatMap((p) => p.months);
+  const ranked = rows.map((r) => ({ r, t: val(r, all) || 0 })).filter((x) => x.t !== 0).sort((a, b) => b.t - a.t);
+  const top = ranked.slice(0, n), rest = ranked.slice(n);
+  const labels = top.map((x) => x.r.name), series = top.map((x) => periods.map((p) => val(x.r, p.months)));
+  if (rest.length) { labels.push("Other"); series.push(periods.map((p) => (p.months.length ? r2(rest.reduce((a, x) => a + (val(x.r, p.months) || 0), 0)) : undefined))); }
+  return { labels, series };
 }

@@ -210,7 +210,13 @@ const m_total = (anchor: string, first: string, endMonth: number) => (anchor ===
 
 // ------------------------------------------------------------------ statements
 
-export type StRow = { label: string; kind: "head" | "line" | "sub" | "total"; vals: (number | undefined)[]; code?: string };
+export type StRow = {
+  label: string; kind: "head" | "line" | "sub" | "total"; vals: (number | undefined)[]; code?: string;
+  /** a percentage worked out from the column's own totals (never added up or averaged) */ pct?: boolean;
+  /** 1 when more is better (income, profit, assets), -1 when less is (costs, liabilities): for favourable and unfavourable variances */ dir?: 1 | -1;
+};
+/** "standard" is Revenue, Cost of Sales, Expenses, Other Income; "management" is the management accounts layout, with margins and finance costs shown on their own. */
+export type Layout = "standard" | "management";
 
 const sum = (row: RRow, months: string[], all: string[]): number => r2(months.reduce((a, m) => a + (row.amounts[all.indexOf(m)] || 0), 0));
 const colVal = (rows: RRow[], c: Col, all: string[]): number | undefined => (c.months.length ? r2(rows.reduce((a, r) => a + sum(r, c.months, all), 0)) : undefined);
@@ -225,7 +231,8 @@ const plus = (a: (number | undefined)[], b: (number | undefined)[]) => a.map((v,
 export type Detail = "summary" | "detailed";
 
 /** The profit and loss for the columns: revenue, cost of sales, gross profit, expenses, operating profit, other income and net profit. */
-export function plStatement(d: Pick<ReportData, "months" | "pl">, cols: Col[], detail: Detail): StRow[] {
+export function plStatement(d: Pick<ReportData, "months" | "pl">, cols: Col[], detail: Detail, layout: Layout = "standard"): StRow[] {
+  if (layout === "management") return plManagement(d, cols, detail);
   const out: StRow[] = [];
   const section = (title: string, key: string): (number | undefined)[] => {
     const rows = d.pl.filter((r) => r.group === key).sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }) || a.name.localeCompare(b.name));
@@ -249,8 +256,90 @@ export function plStatement(d: Pick<ReportData, "months" | "pl">, cols: Col[], d
   return out;
 }
 
+/** Finance costs: interest and finance charges, which the management layout takes out of overheads and shows below operating profit. */
+export const FINANCE_COST = /interest|finance (charge|cost)|hire purchase charge|loan charge/i;
+const ratio = (a: (number | undefined)[], b: (number | undefined)[]) => a.map((v, i) => (v === undefined || !b[i] ? undefined : r2((v / (b[i] as number)) * 100)));
+const byCode = (a: RRow, b: RRow) => a.code.localeCompare(b.code, undefined, { numeric: true }) || a.name.localeCompare(b.name);
+
+/** The management accounts profit and loss: revenue, cost of sales, gross profit and margin, overheads, operating profit, finance costs, other income,
+ *  net profit and margin. Margins are worked from each column's own totals. Net profit is the same as the standard layout's. */
+function plManagement(d: Pick<ReportData, "months" | "pl">, cols: Col[], detail: Detail): StRow[] {
+  const out: StRow[] = [];
+  const part = (title: string, rows: RRow[], dir: 1 | -1, always = true): (number | undefined)[] => {
+    rows = [...rows].sort(byCode);
+    const totals = cols.map((c) => colVal(rows, c, d.months));
+    if (!always && !totals.some((v) => v)) return totals.map((v) => (v === undefined ? undefined : 0));
+    if (detail === "detailed" && rows.length) {
+      out.push({ label: title, kind: "head", vals: [], dir });
+      for (const r of rows) out.push({ label: r.name, code: r.code, kind: "line", dir, vals: cols.map((c) => (c.months.length ? sum(r, c.months, d.months) : undefined)) });
+      out.push({ label: `Total ${title.toLowerCase()}`, kind: "sub", vals: totals, dir });
+    } else out.push({ label: title, kind: "line", vals: totals, dir });
+    return totals;
+  };
+  const of = (g: string) => d.pl.filter((r) => r.group === g);
+  const rev = part("Revenue", of("income"), 1);
+  const cos = part("Cost of sales", of("cos"), -1);
+  const gp = minus(rev, cos);
+  out.push({ label: "Gross profit", kind: "total", vals: gp, dir: 1 });
+  out.push({ label: "Gross margin %", kind: "line", vals: ratio(gp, rev), pct: true, dir: 1 });
+  const over = part("Overheads", of("expense").filter((r) => !FINANCE_COST.test(r.name)), -1);
+  const op = minus(gp, over);
+  out.push({ label: "Operating profit", kind: "total", vals: op, dir: 1 });
+  const fin = part("Finance costs", of("expense").filter((r) => FINANCE_COST.test(r.name)), -1);
+  const oth = part("Other income", of("other"), 1, false);
+  const net = plus(minus(op, fin), oth);
+  out.push({ label: "Net profit", kind: "total", vals: net, dir: 1 });
+  out.push({ label: "Net margin %", kind: "line", vals: ratio(net, rev), pct: true, dir: 1 });
+  return out;
+}
+
+/** Trade debtors on the management balance sheet (other debtors, prepayments and the like are "other current assets"). */
+export const TRADE_DEBTORS = /accounts receivable|trade debtors?|trade receivables?|^debtors$/i;
+const STOCK = /stock|inventory|work in progress|\bwip\b/i;
+
+/** The management accounts balance sheet: balances at the end of each column (not movements), liabilities shown as negatives so the columns add down to
+ *  net assets, which equal capital and reserves. */
+function bsManagement(d: Pick<ReportData, "bsMonths" | "bs">, cols: Col[], detail: Detail): StRow[] {
+  const out: StRow[] = [];
+  // a column whose month the balance sheet wasn't read for is blank, not nil
+  const at = (rows: RRow[], sign: 1 | -1) => cols.map((c): number | undefined => (c.months.length && d.bsMonths.includes(c.months[c.months.length - 1]) ? r2(sign * rows.reduce((a, r) => a + (lastIn(r, c, d.bsMonths) || 0), 0)) : undefined));
+  const part = (title: string, rows: RRow[], sign: 1 | -1, dir: 1 | -1) => {
+    rows = [...rows].sort(byCode);
+    const t = at(rows, sign);
+    if (detail === "detailed" && rows.length > 1) {
+      out.push({ label: title, kind: "head", vals: [], dir });
+      for (const r of rows) out.push({ label: r.name, code: r.code, kind: "line", dir, vals: cols.map((c) => { const v = lastIn(r, c, d.bsMonths); return v === undefined ? undefined : r2(sign * v); }) });
+      out.push({ label: `Total ${title.toLowerCase()}`, kind: "sub", vals: t, dir });
+    } else out.push({ label: title, kind: "line", vals: t, dir });
+    return t;
+  };
+  const g = (k: string) => d.bs.filter((r) => r.group === k);
+  const cur = g("curAsset"), stockRows = cur.filter((r) => STOCK.test(r.name)), debtorRows = cur.filter((r) => !STOCK.test(r.name) && TRADE_DEBTORS.test(r.name));
+  const fixed = part("Fixed assets", g("fixed"), 1, 1);
+  const stock = part("Stock", stockRows, 1, 1);
+  const debtors = part("Trade debtors", debtorRows, 1, 1);
+  const cash = part("Cash", g("bank"), 1, 1);
+  const other = part("Other current assets", cur.filter((r) => !stockRows.includes(r) && !debtorRows.includes(r)), 1, 1);
+  const cl = part("Current liabilities", g("curLiab"), -1, 1);
+  const nca = plus(plus(plus(plus(stock, debtors), cash), other), cl);
+  out.push({ label: "Net current assets", kind: "sub", vals: nca, dir: 1 });
+  const lt = part("Long-term liabilities", g("ltLiab"), -1, 1);
+  out.push({ label: "Net assets", kind: "total", vals: plus(plus(fixed, nca), lt), dir: 1 });
+  const eq = at(g("equity"), 1);
+  if (detail === "detailed") part("Capital and reserves", g("equity"), 1, 1);
+  else out.push({ label: "Capital and reserves", kind: "total", vals: eq, dir: 1 });
+  return out;
+}
+
+/** The balance at the end of the previous financial year, as a column beside the period. */
+export function yearEndCol(anchor: string, endMonth: number): Col {
+  const m = addMonths(yearOf(anchor, endMonth).first, -1);
+  return { key: "yearEnd", label: `Year end ${monthLabel(m)}`, months: [m] };
+}
+
 /** The balance sheet at the end of each column's period. */
-export function bsStatement(d: Pick<ReportData, "bsMonths" | "bs">, cols: Col[], detail: Detail): StRow[] {
+export function bsStatement(d: Pick<ReportData, "bsMonths" | "bs">, cols: Col[], detail: Detail, layout: Layout = "standard"): StRow[] {
+  if (layout === "management") return bsManagement(d, cols, detail);
   const out: StRow[] = [];
   const total = (rows: RRow[]) => cols.map((c): number | undefined => (c.months.length ? r2(rows.reduce((a, r) => a + (lastIn(r, c, d.bsMonths) || 0), 0)) : undefined));
   const block = (title: string, key: string): (number | undefined)[] => {

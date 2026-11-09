@@ -1,15 +1,15 @@
 // The report components that have their own settings: key numbers, rule-based observations, series charts, top-accounts charts and financial
 // tables, each drawn from the client's monthly figures; and the "Edit component" panel that changes them. Used on screen and in the published page.
-import { ReactNode, useEffect, useState } from "react";
+import { Fragment, ReactNode, useEffect, useState } from "react";
 import { MEASURES, measureById } from "../lib/analysis";
 import { AgedData } from "../lib/aged";
 import { figuresFor, KpiSettings } from "../lib/kpis";
-import { Block, ChartOpts, chartH, Fmt, Icon, Op, Operand, TopGroup, When } from "../lib/reportBuilder";
-import { OP_LABEL, TOP_GROUPS, WHEN_LABEL, buckets, evalRule, fmtValue, keyData, measureValue, periodMonthsFor, tableCols, topAccounts } from "../lib/reportComponents";
-import { PeriodKind, ReportData, bsStatement, monthLabel, periodCols, periodMonths, plStatement } from "../lib/reportData";
+import { Block, ChartOpts, chartH, spanOf, Fmt, Icon, Op, Operand, TopGroup, When } from "../lib/reportBuilder";
+import { OP_LABEL, TOP_GROUPS, WHEN_LABEL, buckets, evalRule, fmtValue, keyData, measureValue, movements, periodMonthsFor, splitSeries, tableCols, topAccounts } from "../lib/reportComponents";
+import { PeriodKind, ReportData, StRow, addMonths, bsStatement, monthLabel, periodCols, periodMonths, plStatement, yearEndCol } from "../lib/reportData";
 import { Seg } from "./reportingKit";
 
-export type Ctx = { d: ReportData; kind: PeriodKind; anchor: string; endMonth: number; kpi: KpiSettings; aged?: AgedData; land?: boolean; palette?: string[] };
+export type Ctx = { d: ReportData; kind: PeriodKind; anchor: string; endMonth: number; kpi: KpiSettings; aged?: AgedData; land?: boolean; palette?: string[]; /** the practice's name and logo, from its document branding */ brand?: { name: string; logo: string } };
 export const NAVY = "#131b30", RED = "#d4300f", AMBER = "#f5a30a", GREY = "#b8bbc4", MUTED = "#6b6f7a", RULE = "#dcdde1";
 export const LINE = [NAVY, RED, AMBER, "#5b7bb3", "#6f9a3a", "#8a8f9a"];
 export const pal = (c: { palette?: string[] }) => (c.palette && c.palette.length ? c.palette : LINE);
@@ -43,6 +43,14 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
   const ids = b.measures.filter((id) => measureById(id)?.unit === unit && (!measureById(id)?.balance || c.d.bs.length));
   let bk = buckets(b.freq || "month", c.anchor, c.endMonth, b.freq ? b.previous ?? 13 : b.months, c.d.months);
   let series = ids.map((id) => bk.map((x) => measureValue(c.d, id, x.months)));
+  let names = ids.map((id) => measureById(id)?.label || id);
+  const greyFrom = b.lastYear && !b.split ? ids.length : Infinity; // last year's series are drawn pale
+  if (b.split) ({ labels: names, series } = splitSeries(c.d, b.split, bk, 5));
+  else if (b.lastYear) {
+    const back = (ms: string[]) => { const x = ms.map((m) => addMonths(m, -12)); return x.length && x.every((m) => c.d.months.includes(m)) ? x : []; };
+    series = [...series, ...ids.map((id) => bk.map((x) => measureValue(c.d, id, back(x.months))))];
+    names = [...names, ...names.map((n) => `${n}, a year earlier`)];
+  }
   if (o.trim) {
     const has = (i: number) => series.some((s) => s[i] !== undefined && s[i] !== 0);
     let a = 0, z = bk.length - 1;
@@ -51,10 +59,12 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
     bk = bk.slice(a, z + 1); series = series.map((s) => s.slice(a, z + 1));
   }
   const all = series.flat().filter((v): v is number => v !== undefined);
+  const n = series.length;
   if (!all.length || !bk.length) return none(`There are no figures for this chart${ids.length < b.measures.length || !c.d.bs.length ? " yet (balance sheet measures need the balance sheet read from Xero)" : ""}.`);
-  const W = 760, H = chartH(b), L = 58, Tp = 22, B2 = 30, R = 16;
+  // a narrow chart is drawn on a smaller canvas (same shape), so its labels stay readable when printed
+  const W = Math.max(400, Math.round((760 * spanOf(b)) / 12)), H = Math.round(chartH(b) * (W / 760)), L = 58, Tp = 22, B2 = 30, R = 16;
   const bars = !!b.bars || !!o.stack;
-  const stacked = !!o.stack && unit === "money" && ids.length > 1;
+  const stacked = !!o.stack && unit === "money" && n > 1;
   const tot = stacked ? bk.map((_, i) => series.reduce((a, s) => a + Math.max(0, s[i] || 0), 0)) : [];
   const hi0 = stacked ? Math.max(...tot) : Math.max(...all), lo0 = stacked ? 0 : Math.min(...all);
   const forceZero = bars || !!o.zero;
@@ -66,25 +76,27 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
   const fmt = (v: number) => fmtValue(unit, v, { rounded: true });
   const axis = (v: number) => (unit === "money" ? axisMoney(v) : fmtValue(unit, v, { rounded: true }));
   const showLabels = labelsOn(o, bk.length);
-  const groupW = Math.max(4, slot * 0.72), bw = stacked ? groupW : groupW / ids.length;
-  const P = pal(c), col = (k: number) => o.colors?.[k] || P[k % P.length];
+  const groupW = Math.max(4, slot * 0.72), bw = stacked ? groupW : groupW / n;
+  const P = pal(c), col = (k: number) => (k >= greyFrom ? GREY : o.colors?.[k] || P[k % P.length]);
+  // label every month while they fit, otherwise every other (or third), always including the latest
+  const every = Math.max(bk.length > 13 ? 2 : 1, Math.ceil(40 / slot));
   const last = bk.length - 1, zero = Y(Math.max(lo, Math.min(hi, 0)));
   const halo = { stroke: "#fff", strokeWidth: 3, paintOrder: "stroke" } as const;
   return (
     <div>
-      {ids.length > 1 && o.legend !== false && <div style={{ display: "flex", gap: 16, fontSize: 9.3, flexWrap: "wrap", justifyContent: "flex-end", margin: "0 0 4px" }}>{ids.map((id, k) => <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, background: col(k), display: "inline-block" }} />{measureById(id)?.label}</span>)}</div>}
+      {n > 1 && o.legend !== false && <div style={{ display: "flex", gap: 16, fontSize: 9.3, flexWrap: "wrap", justifyContent: "flex-end", margin: "0 0 4px" }}>{names.map((nm, k) => <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, background: col(k), display: "inline-block" }} />{nm}</span>)}</div>}
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label={b.title}>
         {nz.ticks.map((v) => <g key={v}><line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke="#e4e5e9" /><text x={L - 8} y={Y(v)} fontSize={9.4} fill={MUTED} textAnchor="end" dominantBaseline="middle">{axis(v)}</text></g>)}
         {bk.map((_, i) => <line key={i} x1={X(i)} x2={X(i)} y1={Tp} y2={H - B2} stroke="#e4e5e9" strokeDasharray="1 3" />)}
         {o.highlight && <rect x={bars ? L + slot * last : X(last) - 14} y={Tp} width={bars ? slot : 28} height={H - Tp - B2} fill="#f1f1f4" />}
         {lo < 0 && hi > 0 && <line x1={L} x2={W - R} y1={zero} y2={zero} stroke="#8c8f97" />}
-        {bk.map((x, i) => (bk.length <= 13 || i % 2 === 0) && <text key={i} x={X(i)} y={H - 10} fontSize={9.4} fill={MUTED} textAnchor="middle">{x.label}</text>)}
+        {bk.map((x, i) => (last - i) % every === 0 && <text key={i} x={X(i)} y={H - 10} fontSize={9.4} fill={MUTED} textAnchor="middle">{x.label}</text>)}
         {bars
           ? series.map((s, k) => s.map((v, i) => {
             if (v === undefined) return null;
             const base = stacked ? series.slice(0, k).reduce((a, q) => a + Math.max(0, q[i] || 0), 0) : 0, top = base + (stacked ? Math.max(0, v) : v);
             const x0 = stacked ? X(i) - bw / 2 : X(i) - groupW / 2 + k * bw;
-            const fill = ids.length === 1 ? (v < 0 ? P[1] : col(0)) : col(k);
+            const fill = n === 1 ? (v < 0 ? P[1] : col(0)) : col(k);
             return (
               <g key={`${k}-${i}`}>
                 <rect x={x0} y={Math.min(Y(top), Y(stacked ? base : 0))} width={Math.max(1, bw - 1.5)} height={Math.abs(Y(top) - Y(stacked ? base : 0))} fill={fill} />
@@ -96,7 +108,7 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
             const pts = s.map((v, i) => (v === undefined ? undefined : [X(i), Y(v)] as [number, number])).filter(Boolean) as [number, number][];
             const lc = col(k);
             return (
-              <g key={ids[k]}>
+              <g key={k}>
                 {pts.length > 1 && <polygon fill={lc} opacity={0.16} points={[`${pts[0][0]},${zero}`, ...pts.map((q) => q.join(",")), `${pts[pts.length - 1][0]},${zero}`].join(" ")} />}
                 <polyline fill="none" stroke={lc} strokeWidth={2} strokeLinejoin="round" points={pts.map((q) => q.join(",")).join(" ")} />
                 {s.map((v, i) => v !== undefined && <g key={i}><circle cx={X(i)} cy={Y(v)} r={3} fill="#fff" stroke={lc} strokeWidth={1.6} />{showLabels && <text x={X(i)} y={v < 0 ? Y(v) + 14 : Y(v) - 7} fontSize={7.8} textAnchor="middle" fill="#2b2f36" {...halo}>{fmt(v)}</text>}</g>)}
@@ -111,7 +123,7 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
 
 // ------------------------------------------------------------------ financial tables
 
-const COLS: [string, string][] = [["this", "This period"], ["prior", "Last period"], ["lastYear", "Same period last year"], ["var", "Variance £"], ["varPct", "Variance %"], ["pctRev", "% of revenue"], ["months", "Every month of the year (instead of the others)"]];
+const COLS: [string, string][] = [["this", "This period"], ["prior", "Last period"], ["lastYear", "Same period last year"], ["var", "Variance £"], ["varPct", "Variance %"], ["pctRev", "% of revenue"], ["yearEnd", "Last financial year end (balance sheet)"], ["months", "Every month of the year (instead of the others)"]];
 
 function one(b: B<"table">, c: Ctx, which: "pl" | "bs") {
   const keys = new Set(tableCols(b));
@@ -119,15 +131,84 @@ function one(b: B<"table">, c: Ctx, which: "pl" | "bs") {
   const monthly = keys.has("months");
   let cols = monthly ? periodCols(c.kind, c.anchor, c.endMonth, "months") : [keys.has("this") && base("none", 0), keys.has("prior") && base("prior", 1), keys.has("lastYear") && base("lastYear", 1)].filter(Boolean) as ReturnType<typeof periodCols>;
   if (!cols.length) cols = [base("none", 0)];
+  if (!monthly && which === "bs" && keys.has("yearEnd")) cols = [...cols, yearEndCol(c.anchor, c.endMonth)];
   const hidden = new Set(b.hidden || []);
-  const rows = (which === "pl" ? plStatement(c.d, cols, b.detail) : bsStatement(c.d, cols, b.detail)).filter((r) => (r.kind !== "line" || r.code === undefined || r.vals.some((v) => v)) && !hidden.has(r.label));
+  const layout = b.layout || "standard", noZero = b.hideZero ?? layout === "management";
+  const rows = (which === "pl" ? plStatement(c.d, cols, b.detail, layout) : bsStatement(c.d, cols, b.detail, layout))
+    .filter((r) => (r.kind !== "line" || r.code === undefined || r.vals.some((v) => v)) && !hidden.has(r.label))
+    .filter((r) => !noZero || r.kind !== "line" || r.pct || r.vals.some((v) => v));
   const showVar = !monthly && cols.length >= 2;
   const revenue = figuresFor(c.d, cols[0].months).revenue;
   return { cols, rows, showVar, varCols: showVar && keys.has("var"), pctCols: showVar && keys.has("varPct"), pctRev: !monthly && which === "pl" && keys.has("pctRev"), revenue };
 }
 
+// the management accounts table: negatives in brackets, £ or £000, percentages from the column totals, variances beside the comparison,
+// material variances marked favourable (green) or unfavourable (red), shaded subtotals and lightly banded lines
+const FAV = "#2f7d32", ADV = "#c62828";
+function MgmtTable({ b, c, which }: { b: B<"table">; c: Ctx; which: "pl" | "bs" }) {
+  const t = one(b, c, which);
+  const k = !!b.fmt?.thousands;
+  const amt = (v?: number) => { if (v === undefined) return ""; const n = Math.round(k ? v / 1000 : v); return n === 0 ? "–" : n < 0 ? `(${Math.abs(n).toLocaleString("en-GB")})` : n.toLocaleString("en-GB"); };
+  const per = (v?: number) => (v === undefined ? "" : v < 0 ? `(${Math.abs(v).toFixed(1)}%)` : `${v.toFixed(1)}%`);
+  const monthly = t.cols.length > 6;
+  const vAt = t.showVar ? 2 : -1; // the variance columns sit straight after the comparison they are worked from
+  const [vHead, pHead] = t.cols[1]?.key === "lastYear" ? ["Change", "YoY %"] : t.cols[1]?.key === "prior" ? ["Movement", "Movement %"] : ["Variance", "Variance %"];
+  const size = monthly ? (c.land ? 8.6 : 7.2) : c.land ? 11 : 9.6;
+  const th: React.CSSProperties = { ...T.th, fontSize: size, padding: monthly ? "4px 3px" : "5px 6px", color: NAVY, borderBottom: `1.5px solid ${NAVY}`, whiteSpace: "normal", verticalAlign: "bottom" };
+  const varCells = (row: StRow) => {
+    if (!t.showVar) return null;
+    const v0 = row.vals[0], v1 = row.vals[1], head = row.kind === "head";
+    if (head || v0 === undefined || v1 === undefined) return <>{t.varCols && <td style={T.td} />}{t.pctCols && <td style={T.td} />}</>;
+    const ch = (v0 as number) - (v1 as number);
+    const pc = row.pct ? undefined : v1 ? (ch / Math.abs(v1 as number)) * 100 : undefined;
+    const m = b.material, big = !row.pct && !!m && Math.abs(ch) > m.amount && (pc === undefined ? ch !== 0 : Math.abs(pc) > m.pct);
+    const good = (row.dir || 1) * ch > 0;
+    const mark: React.CSSProperties = big ? { color: good ? FAV : ADV, fontWeight: 700, background: good ? "#e8f3e8" : "#fbe9e7" } : {};
+    return <>
+      {t.varCols && <td style={{ ...T.td, ...mark }}>{row.pct ? `${ch >= 0 ? "+" : "−"}${Math.abs(ch).toFixed(1)} pts` : amt(ch)}</td>}
+      {t.pctCols && <td style={{ ...T.td, ...mark }}>{pc === undefined ? "" : per(pc)}</td>}
+    </>;
+  };
+  let band = 0;
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: size, marginBottom: 12, color: "#111", tableLayout: monthly ? "fixed" : undefined }}>
+      <thead><tr>
+        <th style={{ ...th, textAlign: "left", width: monthly ? "19%" : "34%" }}>{k ? "£000" : "£"}</th>
+        {t.cols.map((col, j) => <Fragment key={col.key}>
+          {j === vAt && <>{t.varCols && <th style={th}>{vHead}</th>}{t.pctCols && <th style={th}>{pHead}</th>}</>}
+          <th style={{ ...th, ...(col.total ? { borderLeft: `1px solid ${RULE}` } : {}) }}>{col.label}</th>
+        </Fragment>)}
+        {vAt >= t.cols.length && <>{t.varCols && <th style={th}>{vHead}</th>}{t.pctCols && <th style={th}>{pHead}</th>}</>}
+      </tr></thead>
+      <tbody>
+        {t.rows.map((row, i) => {
+          const tot = row.kind === "total" || row.kind === "sub", head = row.kind === "head";
+          const zebra = row.kind === "line" && !row.pct && band++ % 2 === 1;
+          const rs: React.CSSProperties = { fontWeight: tot || head ? 700 : 400, background: tot ? "#eef1f6" : zebra ? "#f7f8fa" : undefined, borderTop: tot ? `1px solid ${NAVY}` : undefined, borderBottom: row.kind === "total" ? `1px solid ${NAVY}` : `1px solid #eceef2`, fontStyle: row.pct ? "italic" : undefined, color: row.pct ? "#3a4252" : undefined };
+          const pad = monthly ? "3px 3px" : "4px 6px";
+          if (head) band = 0;
+          return (
+            <tr key={i} style={rs}>
+              <td style={{ ...T.td, textAlign: "left", padding: pad, paddingLeft: row.kind === "line" && row.code !== undefined ? 14 : 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: head ? NAVY : undefined }}>{row.label}</td>
+              {t.cols.map((col, j) => <Fragment key={col.key}>
+                {j === vAt && varCells(row)}
+                <td style={{ ...T.td, padding: pad, whiteSpace: "nowrap", ...(col.total ? { borderLeft: `1px solid ${RULE}`, fontWeight: 700 } : {}) }}>{head ? "" : row.pct ? per(row.vals[j]) : amt(row.vals[j])}</td>
+              </Fragment>)}
+              {vAt >= t.cols.length && varCells(row)}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
   const cc = withPeriod(c, b.period);
+  if (b.layout === "management") {
+    const parts: ("pl" | "bs")[] = b.statement === "both" ? ["pl", "bs"] : [b.statement];
+    return <div>{parts.map((w) => <MgmtTable key={w} b={b} c={cc} which={w} />)}{b.material && tableCols(b).some((k) => k === "var" || k === "varPct") && !tableCols(b).includes("months") && <p style={{ ...T.p, fontSize: 8.4, color: MUTED }}>Variances of more than £{b.material.amount.toLocaleString("en-GB")} and {b.material.pct}% are marked: green favourable, red unfavourable.{b.fmt?.thousands ? " Amounts in £000." : ""}</p>}</div>;
+  }
   const fmtOn = !!(b.fmt?.rounded || b.fmt?.decimals || b.fmt?.symbol === false);
   const f = (v?: number) => (v === undefined ? "" : fmtOn ? fmtValue("money", v, b.fmt) : money0(v));
   const parts: ("pl" | "bs")[] = b.statement === "both" ? ["pl", "bs"] : [b.statement];
@@ -192,13 +273,19 @@ export function KeyView({ b, c, label, tone = 0 }: { b: B<"key">; c: Ctx; label?
   const head = <div style={{ borderBottom: "1px solid #8a8d94", paddingBottom: 6, marginBottom: 12, fontSize: 10.7, fontWeight: 700, letterSpacing: 0.2, textTransform: "uppercase", color: "#8a8d94", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label ?? b.title}{tag && <span style={{ fontWeight: 500, textTransform: "none" }}> ({tag})</span>}</div>;
   if (!m || k.value === undefined) return <div>{head}{none("No figure for this yet.")}</div>;
   const diff = k.compare !== undefined ? k.value - k.compare : undefined;
-  const up = (diff ?? 0) >= 0;
   const cmpLabel = b.compare === "none" ? "" : periodCols(cc.kind, cc.anchor, cc.endMonth, b.compare)[1]?.label;
+  // green when the change is good for the business: up for income and profit, down for costs
+  const good = (d?: number) => ((m.dir || 1) * (d ?? 0)) >= 0;
+  const line = (d: number | undefined, lbl: string | undefined) => d === undefined ? null : (
+    <div style={{ fontSize: 9.3, color: MUTED, marginTop: 6 }}><span style={{ color: good(d) ? "#5b8a2d" : RED }}>{d >= 0 ? "▲" : "▼"} {m.unit === "money" ? fmtValue(m.unit, Math.abs(d), b.fmt) : m.unit === "percent" ? `${Math.abs(d).toFixed(1)} pts` : m.unit === "ratio" ? Math.abs(d).toFixed(2) : fmtValue(m.unit, Math.abs(d), b.fmt)}</span> vs {lbl}</div>);
+  const k2 = b.compare2 ? keyData(cc.d, b.measure, cc.kind, cc.anchor, cc.endMonth, b.compare2) : undefined;
+  const lbl2 = b.compare2 ? periodCols(cc.kind, cc.anchor, cc.endMonth, b.compare2)[1]?.label : undefined;
   return (
     <div>
       {head}
       <div style={{ fontSize: 24, fontWeight: 500, letterSpacing: -0.25, lineHeight: 1.1, color: "#111" }}>{fmtValue(m.unit, k.value, b.fmt)}</div>
-      {diff !== undefined && <div style={{ fontSize: 9.3, color: MUTED, marginTop: 8 }}><span style={{ color: up ? "#7ea34f" : RED }}>{up ? "▲" : "▼"} {m.unit === "money" ? fmtValue(m.unit, Math.abs(diff), b.fmt) : fmtValue(m.unit, diff, b.fmt)}</span> from {cmpLabel}</div>}
+      {line(diff, cmpLabel)}
+      {k2 && line(k2.value !== undefined && k2.compare !== undefined ? k2.value - k2.compare : undefined, lbl2)}
       {b.spark && <Spark values={k.spark} color={b.color || pal(cc)[tone % 3]} shade={b.shade !== false} shadeColor={b.shadeColor} zeroLine={b.zeroLine !== false} />}
       {b.showDesc && b.desc && <div style={{ fontSize: 10.7, lineHeight: 1.4, color: "#222", marginTop: 4, whiteSpace: "pre-wrap" }}>{b.desc}</div>}
     </div>
@@ -257,6 +344,43 @@ export function TopView({ b, c }: { b: B<"top">; c: Ctx }) {
   );
 }
 
+/** The accounts that moved most against the period before, past the materiality threshold, with a comment against each (typed in the editor). */
+export function MovementsView({ b, c, onNotes }: { b: B<"movements">; c: Ctx; onNotes?: (notes: Record<string, string>) => void }) {
+  const cc = withPeriod(c, b.period);
+  const cols = periodCols(cc.kind, cc.anchor, cc.endMonth, "prior");
+  const rows = movements(cc.d, b.group, cols[0].months, cols[1]?.months || [], b.n, b.amount, b.pct);
+  const cost = b.group === "expense" || b.group === "cos";
+  const amt = (v: number) => { const n = Math.round(v); return n === 0 ? "–" : n < 0 ? `(${Math.abs(n).toLocaleString("en-GB")})` : n.toLocaleString("en-GB"); };
+  const th: React.CSSProperties = { ...T.th, fontSize: 9.4, padding: "5px 6px", color: NAVY, borderBottom: `1.5px solid ${NAVY}`, whiteSpace: "normal" };
+  if (!rows.length) return none(`No account moved by more than £${b.amount.toLocaleString("en-GB")} and ${b.pct}% against ${cols[1]?.label || "the period before"}.`);
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9.4, color: "#111" }}>
+      <thead><tr>
+        <th style={{ ...th, textAlign: "left", width: "26%" }}>Account</th><th style={th}>{cols[0].label}</th><th style={th}>{cols[1]?.label}</th><th style={th}>Movement £</th><th style={th}>Movement %</th>
+        <th style={{ ...th, textAlign: "left", width: "34%" }}>Comment</th>
+      </tr></thead>
+      <tbody>
+        {rows.map((r, i) => {
+          const good = (cost ? -1 : 1) * r.change > 0;
+          const mark: React.CSSProperties = { color: good ? "#2f7d32" : "#c62828", fontWeight: 700 };
+          const note = b.notes?.[r.name] || "";
+          return (
+            <tr key={r.name} style={{ background: i % 2 ? "#f7f8fa" : undefined, borderBottom: "1px solid #eceef2" }}>
+              <td style={{ ...T.td, textAlign: "left", padding: "4px 6px" }}>{r.name}</td>
+              <td style={{ ...T.td, padding: "4px 6px" }}>{amt(r.now)}</td><td style={{ ...T.td, padding: "4px 6px" }}>{amt(r.before)}</td>
+              <td style={{ ...T.td, padding: "4px 6px", ...mark }}>{amt(r.change)}</td>
+              <td style={{ ...T.td, padding: "4px 6px", ...mark }}>{r.pct === undefined ? "new" : `${r.pct < 0 ? "(" : ""}${Math.abs(r.pct).toFixed(1)}%${r.pct < 0 ? ")" : ""}`}</td>
+              <td style={{ ...T.td, textAlign: "left", padding: "4px 6px", whiteSpace: "pre-wrap" }}>{onNotes
+                ? <input aria-label={`Comment on ${r.name}`} value={note} placeholder="Add a comment…" onChange={(e) => onNotes({ ...(b.notes || {}), [r.name]: e.target.value })} style={{ width: "100%", boxSizing: "border-box", font: "inherit", border: "1px dashed #cbd5e1", padding: "2px 4px" }} />
+                : note}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 // ------------------------------------------------------------------ the Edit component panel
 
 const Sec = ({ title, children }: { title: string; children: ReactNode }) => <div className="stack" style={{ gap: 6, borderTop: "1px solid var(--line-soft, #eef2f7)", paddingTop: 8 }}><div style={{ fontWeight: 600, fontSize: 13 }}>{title}</div>{children}</div>;
@@ -292,7 +416,7 @@ export function ComponentEditor({ block, c, onSave, onCancel, preview, onDraft }
   const rowLabels = (() => {
     if (b.type !== "table" || !c) return [] as string[];
     const cols = [periodCols(c.kind, c.anchor, c.endMonth, "none")[0]];
-    const labels = (b.statement === "bs" ? [] : plStatement(c.d, cols, b.detail)).concat(b.statement === "pl" ? [] : bsStatement(c.d, cols, b.detail));
+    const labels = (b.statement === "bs" ? [] : plStatement(c.d, cols, b.detail, b.layout)).concat(b.statement === "pl" ? [] : bsStatement(c.d, cols, b.detail, b.layout));
     return [...new Set(labels.filter((r) => r.kind !== "head" || true).map((r) => r.label))];
   })();
   return (
@@ -307,6 +431,8 @@ export function ComponentEditor({ block, c, onSave, onCancel, preview, onDraft }
           <PeriodSec value={b.period} set={(p) => upd({ period: p })} />
         </Sec>
         <FmtSec f={b.fmt} set={(fmt) => upd({ fmt })} only />
+        <Sec title="Second comparison"><select aria-label="Second comparison" value={b.compare2 || ""} onChange={(e) => upd({ compare2: (e.target.value || undefined) as typeof b.compare2 })}><option value="">None</option><option value="prior">Last period</option><option value="lastYear">Same period last year</option></select></Sec>
+        <Check label="Leave out of the finished report when there is no figure" on={!!b.hideEmpty} set={(v) => upd({ hideEmpty: v })} />
         <Sec title="Show comparative"><select aria-label="Comparative" value={b.compare} onChange={(e) => upd({ compare: e.target.value as typeof b.compare })}><option value="none">None</option><option value="prior">Last period</option><option value="lastYear">Same period last year</option></select></Sec>
         <Sec title="Sparkline"><Check label="Show sparkline (last 13 months)" on={b.spark} set={(v) => upd({ spark: v })} />{b.spark && <>
           <Swatch label="Line colour" value={b.color} fallback={P[0]} set={(color) => upd({ color })} />
@@ -359,6 +485,8 @@ export function ComponentEditor({ block, c, onSave, onCancel, preview, onDraft }
         const unit = measureById(b.measures[0])?.unit;
         const setO = (p: Partial<ChartOpts>) => upd({ opts: { ...o, ...p } });
         return <>
+          <Check label="Add the same months a year earlier" on={!!b.lastYear} disabled={!!b.split} set={(v) => upd({ lastYear: v })} />
+          <Sec title="Split by account (instead of the series below)"><select aria-label="Split by account" value={b.split || ""} onChange={(e) => upd({ split: (e.target.value || undefined) as TopGroup | undefined })}><option value="">No: show the series</option>{TOP_GROUPS.filter(([g]) => ["income", "cos", "expense", "other"].includes(g)).map(([g, l]) => <option key={g} value={g}>{l}: the five biggest and the rest</option>)}</select></Sec>
           <Sec title={`Series (${b.measures.length} of ${MEASURES.length} selected)`}>
             <div style={{ maxHeight: 190, overflowY: "auto" }} className="stack">
               {MEASURES.map((m) => <Check key={m.id} label={m.label} on={b.measures.includes(m.id)} disabled={!!unit && m.unit !== unit && !b.measures.includes(m.id)} set={(v) => upd({ measures: v ? [...b.measures, m.id] : b.measures.length > 1 ? b.measures.filter((x) => x !== m.id) : b.measures })} />)}
@@ -384,6 +512,14 @@ export function ComponentEditor({ block, c, onSave, onCancel, preview, onDraft }
 
       {b.type === "table" && <>
         <Check label="Hide default financial statement titles" on={!!b.hideTitles} set={(v) => upd({ hideTitles: v })} />
+        <Sec title="Layout"><select aria-label="Layout" value={b.layout || "standard"} onChange={(e) => upd({ layout: e.target.value as "standard" | "management" })}><option value="standard">Standard</option><option value="management">Management accounts (margins, finance costs, trade debtors, net current assets)</option></select></Sec>
+        {b.layout === "management" && <>
+          <Sec title="Highlight variances of more than">
+            <div className="row-wrap" style={{ gap: 6, alignItems: "center", fontSize: 13 }}>£<input aria-label="Material amount" type="number" min={0} style={{ width: 90 }} value={b.material?.amount ?? ""} onChange={(e) => upd({ material: e.target.value === "" ? undefined : { amount: Number(e.target.value), pct: b.material?.pct ?? 10 } })} /> and <input aria-label="Material percent" type="number" min={0} style={{ width: 60 }} value={b.material?.pct ?? ""} onChange={(e) => upd({ material: e.target.value === "" ? undefined : { amount: b.material?.amount ?? 1000, pct: Number(e.target.value) } })} />%</div>
+          </Sec>
+          <Check label="Amounts in £000" on={!!b.fmt?.thousands} set={(v) => upd({ fmt: { ...(b.fmt || {}), thousands: v } })} />
+          <Check label="Leave out lines that are nil in every column" on={b.hideZero ?? true} set={(v) => upd({ hideZero: v })} />
+        </>}
         <PeriodSec value={b.period} set={(p) => upd({ period: p })} />
         <Sec title="Statements"><select aria-label="Statements" value={b.statement} onChange={(e) => upd({ statement: e.target.value as "pl" | "bs" | "both" })}><option value="both">Both Financial Statements</option><option value="pl">Profit & Loss</option><option value="bs">Balance Sheet</option></select>
           <select aria-label="Detail" value={b.detail} onChange={(e) => upd({ detail: e.target.value as "summary" | "detailed" })}><option value="summary">Summary</option><option value="detailed">Detailed (every account)</option></select></Sec>
@@ -402,6 +538,16 @@ export function ComponentEditor({ block, c, onSave, onCancel, preview, onDraft }
       </>}
 
       {(b.type === "kpis" || b.type === "cashflow" || b.type === "aged") && <p className="muted" style={{ margin: 0, fontSize: 12 }}>This component uses the report's period. Change its title above.</p>}
+      {(b.type === "cashflow" || b.type === "aged") && <Check label="Leave out of the finished report when there are no figures" on={!!b.hideEmpty} set={(v) => upd({ hideEmpty: v })} />}
+      {b.type === "movements" && <>
+        <PeriodSec value={b.period} set={(p) => upd({ period: p })} />
+        <Sec title="Accounts"><select aria-label="Accounts" value={b.group} onChange={(e) => upd({ group: e.target.value as TopGroup })}>{TOP_GROUPS.filter(([g]) => ["income", "cos", "expense", "other"].includes(g)).map(([g, l]) => <option key={g} value={g}>{l}</option>)}</select></Sec>
+        <Sec title="Show up to"><input aria-label="How many" type="number" min={1} max={30} style={{ width: 70 }} value={b.n} onChange={(e) => upd({ n: Math.max(1, Math.min(30, Number(e.target.value) || 10)) })} /></Sec>
+        <Sec title="Only movements of more than">
+          <div className="row-wrap" style={{ gap: 6, alignItems: "center", fontSize: 13 }}>£<input aria-label="Movement amount" type="number" min={0} style={{ width: 90 }} value={b.amount} onChange={(e) => upd({ amount: Math.max(0, Number(e.target.value) || 0) })} /> and <input aria-label="Movement percent" type="number" min={0} style={{ width: 60 }} value={b.pct} onChange={(e) => upd({ pct: Math.max(0, Number(e.target.value) || 0) })} />%</div>
+        </Sec>
+        <p className="muted" style={{ margin: 0, fontSize: 12 }}>Type a comment against each account straight on the report.</p>
+      </>}
 
       <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn primary" onClick={() => onSave(b)}>Save changes</button><button type="button" className="btn" onClick={onCancel}>Cancel</button></div>
     </div>

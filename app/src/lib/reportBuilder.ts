@@ -1,6 +1,6 @@
 // The report builder on the reporting centre: a report is a cover and sections, each a list of blocks (text, charts, tables, KPIs, cash flow).
 // The blocks only say what to show; the figures come from the client's monthly figures for the report's period when it is drawn or published.
-import { PeriodKind, addMonths } from "./reportData";
+import { Layout as StLayout, PeriodKind, addMonths } from "./reportData";
 
 const FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const fullMonth = (ym: string) => `${FULL[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
@@ -11,7 +11,7 @@ export type Op = "gt" | "lt" | "gte" | "lte" | "eq";
 export type When = "this" | "prior" | "lastYear";
 export type Operand = { measure: string; when: When } | { value: number };
 export type Icon = "up" | "down" | "none";
-export type Fmt = { rounded?: boolean; decimals?: boolean; /** default true */ symbol?: boolean };
+export type Fmt = { rounded?: boolean; decimals?: boolean; /** default true */ symbol?: boolean; /** tables: amounts in £000 */ thousands?: boolean };
 export type TopGroup = "income" | "cos" | "expense" | "other" | "bank" | "curAsset" | "fixed" | "curLiab" | "ltLiab" | "equity";
 export type ChartOpts = { highlight?: boolean; trim?: boolean; stack?: boolean; zero?: boolean; legend?: boolean; labels?: boolean; /** one colour per series; blank = the report palette */ colors?: string[] };
 /** Colour sets for a whole report: the series colours in order. */
@@ -25,17 +25,18 @@ export const PALETTES: { name: string; colors: string[] }[] = [
 export type Freq = "month" | "quarter" | "year";
 export type Block =
   | { w?: number; h?: number; id: string; type: "text"; style: TextStyle; title?: string; text: string }
-  | { w?: number; h?: number; id: string; type: "key"; color?: string; /** shade under the sparkline (default on) */ shade?: boolean; shadeColor?: string; /** draw a line at zero under the sparkline (default on) */ zeroLine?: boolean; title: string; measure: string; compare: "none" | "prior" | "lastYear"; spark: boolean; showDesc: boolean; desc: string; fmt: Fmt; period?: PeriodKind }
+  | { w?: number; h?: number; id: string; type: "key"; color?: string; /** shade under the sparkline (default on) */ shade?: boolean; shadeColor?: string; /** draw a line at zero under the sparkline (default on) */ zeroLine?: boolean; title: string; measure: string; compare: "none" | "prior" | "lastYear"; /** a second comparison under the first */ compare2?: "prior" | "lastYear"; spark: boolean; showDesc: boolean; desc: string; fmt: Fmt; period?: PeriodKind; /** left out of the finished report when there is no figure */ hideEmpty?: boolean }
   | { w?: number; h?: number; id: string; type: "observation"; thenColor?: string; elseColor?: string; title: string; left: { measure: string; when: When }; op: Op; right: Operand; thenIcon: Icon; thenText: string; elseIcon: Icon; elseText: string; hideWhen: "never" | "true" | "false"; period?: PeriodKind }
   | { w?: number; h?: number; id: string; type: "top"; color?: string; color2?: string; title: string; group: TopGroup; n: number; order: "top" | "bottom"; hideNil: boolean; period?: PeriodKind }
   | { w?: number; h?: number; id: string; type: "columns"; left: string; right: string }
   | { w?: number; h?: number; id: string; type: "line" }
   | { w?: number; h?: number; id: string; type: "page" }
-  | { w?: number; h?: number; id: string; type: "chart"; title: string; measures: string[]; months: 13 | 24 | 36; bars?: boolean; freq?: Freq; previous?: number; opts?: ChartOpts }
-  | { w?: number; h?: number; id: string; type: "table"; tint?: string; statement: "pl" | "bs" | "both"; compare: "none" | "prior" | "lastYear" | "months"; detail: "summary" | "detailed"; title: string; cols?: string[]; hidden?: string[]; fmt?: Fmt; hideTitles?: boolean; period?: PeriodKind }
+  | { w?: number; h?: number; id: string; type: "chart"; title: string; measures: string[]; months: 13 | 24 | 36; bars?: boolean; freq?: Freq; previous?: number; opts?: ChartOpts; /** add the same months a year earlier as a second, paler series */ lastYear?: boolean; /** instead of measures: the biggest accounts in a group, month by month, stacked, with the rest as Other */ split?: TopGroup }
+  | { w?: number; h?: number; id: string; type: "table"; tint?: string; statement: "pl" | "bs" | "both"; compare: "none" | "prior" | "lastYear" | "months"; detail: "summary" | "detailed"; title: string; cols?: string[]; hidden?: string[]; fmt?: Fmt; hideTitles?: boolean; period?: PeriodKind; /** the management accounts rows (margins, finance costs, trade debtors, net current assets) */ layout?: StLayout; /** variances at least this big in both £ and % are highlighted */ material?: { amount: number; pct: number }; /** leave out lines that are nil in every column (default: on for the management layout) */ hideZero?: boolean }
   | { w?: number; h?: number; id: string; type: "kpis"; title: string }
-  | { w?: number; h?: number; id: string; type: "cashflow"; title: string }
-  | { w?: number; h?: number; id: string; type: "aged"; which: "rec" | "pay"; title: string };
+  | { w?: number; h?: number; id: string; type: "cashflow"; title: string; hideEmpty?: boolean }
+  | { w?: number; h?: number; id: string; type: "aged"; which: "rec" | "pay"; title: string; hideEmpty?: boolean }
+  | { w?: number; h?: number; id: string; type: "movements"; title: string; group: TopGroup; n: number; /** shown only when the change is at least this much in £ and in % */ amount: number; pct: number; /** a comment against each account, by name */ notes?: Record<string, string>; period?: PeriodKind };
 /** How many of the section's 12 columns a block takes: its own width, else a third for key numbers and the full width for the rest. */
 export const spanOf = (b: Block): number => (b.type === "line" || b.type === "page" ? 12 : Math.max(2, Math.min(12, Math.round(b.w || (b.type === "key" ? 4 : 12)))));
 export const CHART_H = 340;
@@ -44,6 +45,7 @@ export type Section = { id: string; title: string; blocks: Block[] };
 export type ReportDoc = {
   id: string; name: string; kind: PeriodKind; /** the month the period ends in; empty = the latest month read */ anchor: string;
   orientation: Orientation; /** series colours for the whole report; blank = the default set */ palette?: string[]; sections: Section[]; disclaimer: boolean; disclaimerText: string;
+  /** "management": navy section headings with the period beside them */ look?: "standard" | "management";
   status: "draft" | "published"; createdAt: string; updatedAt: string; publishedAt?: string; /** where the published copy is kept on OneDrive */ file?: string;
 };
 
@@ -113,9 +115,13 @@ export const TABLE_BLOCKS: Pick[] = [
 ];
 
 const aged = (which: "rec" | "pay"): Block => ({ id: uid(), type: "aged", which, title: which === "rec" ? "Aged Receivables" : "Aged Payables" });
+/** The default materiality for management accounts: a variance or movement of more than £1,000 and 10%. */
+export const MATERIAL = { amount: 1000, pct: 10 };
+const movements = (): Block => ({ id: uid(), type: "movements", title: "Largest overhead movements", group: "expense", n: 10, ...MATERIAL });
 TABLE_BLOCKS.push(
   { name: "Aged Receivables", note: "Who owes the business, by how late", make: () => aged("rec") },
   { name: "Aged Payables", note: "Who the business owes, by how late", make: () => aged("pay") },
+  { name: "Significant movements", note: "The biggest changes in overheads on the period before, with a comment against each", make: movements },
 );
 
 const tableNamed = (name: string): Pick => TABLE_BLOCKS.find((p) => p.name === name) as Pick;
@@ -134,6 +140,65 @@ export const LAYOUTS: Layout[] = [
     { id: uid(), type: "text", style: "summary", title: "Executive summary", text: "" }, TABLE_BLOCKS[1].make(), CHART_BLOCKS[2].make(), chartNamed("KPI results").make(), { id: uid(), type: "page" }, chartNamed("Cash flow").make(), tableNamed("Balance Sheet vs last period").make(), { id: uid(), type: "page" }, TABLE_BLOCKS[3].make()] },
 ];
 
+// ------------------------------------------------------------------ whole-report templates
+
+/** A ready-made report: its sections (one page each), period and orientation. The figures, dates and headings come from the client's figures
+ *  and the chosen month when it is drawn, so nothing in a template names a client, a date or an amount. */
+export type Template = { name: string; note: string; kind: PeriodKind; orientation: Orientation; disclaimer: boolean; sections: () => Section[] };
+
+const sec = (title: string, blocks: Block[]): Section => ({ id: uid("s"), title, blocks });
+const note = (title: string, w = 12): Block => ({ id: uid(), type: "text", style: "summary", title, text: "", w });
+const card = (title: string, measure: string, compare: "prior" | "lastYear", compare2?: "prior" | "lastYear", w = 4): Block =>
+  ({ id: uid(), type: "key", title, measure, compare, ...(compare2 ? { compare2 } : {}), spark: true, showDesc: false, desc: "", fmt: {}, w, hideEmpty: true });
+const mgmt = (title: string, statement: "pl" | "bs", cols: string[], period?: PeriodKind, detail: "summary" | "detailed" = "summary"): Block =>
+  ({ id: uid(), type: "table", title, statement, compare: "none", detail, cols, layout: "management", material: { ...MATERIAL }, hideTitles: true, ...(period ? { period } : {}) });
+const roll = (title: string, measures: string[], w: number, h: number, extra: Partial<Extract<Block, { type: "chart" }>> = {}): Block =>
+  ({ id: uid(), type: "chart", title, measures, months: 13, freq: "month", previous: 12, bars: true, w, h, opts: { labels: false }, ...extra });
+
+export const TEMPLATES: Template[] = [
+  {
+    name: "Monthly Management Accounts",
+    note: "Eight landscape pages for directors: dashboard, month and year-to-date profit and loss, every month of the year, trends, balance sheet, cash and working capital, and the significant movements, with commentary",
+    kind: "month", orientation: "landscape", disclaimer: true,
+    sections: () => [
+      sec("Executive dashboard", [
+        card("Revenue", "revenue", "prior", "lastYear"), card("Gross profit", "gross", "prior"), card("Gross margin", "gpm", "prior"),
+        card("Net profit", "net", "prior"), card("Net profit margin", "npm", "prior"), card("Cash at bank", "cash", "prior"),
+        roll("Revenue, last 12 months", ["revenue"], 4, 230), roll("Net profit, last 12 months", ["net"], 4, 230), roll("Cash at bank, last 12 months", ["cash"], 4, 230, { bars: false }),
+        note("Management commentary"),
+      ]),
+      sec("Profit and loss for the month", [mgmt("The month, against the same month last year", "pl", ["this", "lastYear", "var", "varPct"], "month")]),
+      sec("Profit and loss for the year to date", [mgmt("The financial year to date, against the same months last year", "pl", ["this", "lastYear", "var", "varPct"], "year")]),
+      sec("Profit and loss by month", [mgmt("Each month of the financial year, with the total to date", "pl", ["months"], "year", "detailed")]),
+      sec("Monthly trends", [
+        roll("Revenue by month, with last year", ["revenue"], 6, 220, { lastYear: true }),
+        roll("Gross profit margin by month", ["gpm"], 6, 220, { bars: false }),
+        roll("Net profit by month", ["net"], 6, 220),
+        roll("Overheads by month", ["expenses"], 6, 220, { split: "expense", opts: { labels: false, stack: true } }),
+        note("Trends"),
+      ]),
+      sec("Balance sheet", [mgmt("Balances at the month end, the month before and the last financial year end", "bs", ["this", "prior", "var", "yearEnd"], "month")]),
+      sec("Cash and working capital", [
+        { id: uid(), type: "cashflow", title: "Cash movements for the month", w: 6, hideEmpty: true },
+        roll("Cash at bank, last 12 months", ["cash"], 6, 230, { bars: false }),
+        card("Debtors", "debtors", "prior", undefined, 3), card("Debtor days", "ardays", "prior", undefined, 3), card("Creditors", "creditors", "prior", undefined, 3), card("Creditor days", "apdays", "prior", undefined, 3),
+        card("Current assets", "wcAssets", "prior", undefined, 3), card("Current liabilities", "wcLiab", "prior", undefined, 3), card("Net working capital", "nwc", "prior", undefined, 3), card("Current ratio", "currentRatio", "prior", undefined, 3),
+        { id: uid(), type: "aged", which: "rec", title: "Aged Receivables", w: 6, hideEmpty: true }, { id: uid(), type: "aged", which: "pay", title: "Aged Payables", w: 6, hideEmpty: true },
+      ]),
+      sec("Significant movements and commentary", [
+        movements(),
+        note("Trading performance", 6), note("Gross margin changes", 6), note("Overhead movements", 6), note("Cash and working capital", 6),
+        note("Risks and opportunities", 6), note("Recommended actions", 6),
+      ]),
+    ],
+  },
+];
+
+/** A new draft from a template, for a month (empty = the latest month read). */
+export function fromTemplate(t: Template, name: string, anchor: string, now: string): ReportDoc {
+  return { ...newReport(name || t.name, t.kind, anchor, t.orientation, now), sections: t.sections(), disclaimer: t.disclaimer, look: "management" };
+}
+
 /** A copy to work on from a published report: new ids, back to a draft. */
 export function copyReport(r: ReportDoc, now: string): ReportDoc {
   return { ...JSON.parse(JSON.stringify(r)), id: uid("r"), name: `${r.name} (copy)`, status: "draft", createdAt: now, updatedAt: now, publishedAt: undefined, file: undefined };
@@ -147,7 +212,10 @@ export function nextCopy(r: ReportDoc, now: string, latest: string): ReportDoc {
   const anchor = moved && latest && moved <= latest ? moved : "";
   const was = periodWords(r.kind, base), will = periodWords(r.kind, anchor || latest);
   const c = JSON.parse(JSON.stringify(r)) as ReportDoc;
-  for (const s of c.sections) for (const b of s.blocks) if (b.type === "text" && (b.style === "paragraph" || b.style === "summary" || b.style === "observation")) b.text = "";
+  for (const s of c.sections) for (const b of s.blocks) {
+    if (b.type === "text" && (b.style === "paragraph" || b.style === "summary" || b.style === "observation")) b.text = "";
+    if (b.type === "movements") delete b.notes;
+  }
   return { ...c, id: uid("r"), name: was && r.name.includes(was) ? r.name.replace(was, will) : `${r.name} (next)`, anchor, status: "draft", createdAt: now, updatedAt: now, publishedAt: undefined, file: undefined };
 }
 

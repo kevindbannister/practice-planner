@@ -82,6 +82,12 @@ export function figuresFor(d: Pick<ReportData, "months" | "pl" | "bsMonths" | "b
   return { vat, revenue, cos, expenses, other, gross, operating, net, bank, curAssets, fixed, curLiab, ltLiab, equity, stock, debtors, creditors, debt, assets, days: daysIn(months) };
 }
 
+type Figures = ReturnType<typeof figuresFor>;
+/** Debtors over revenue (with VAT added when the client charges it), times the days in the period. */
+export const debtorDays = (f: Figures) => (f.debtors === undefined || !f.revenue ? undefined : r2((f.debtors / (f.revenue * (f.vat ? VAT_UP : 1))) * f.days));
+/** Creditors over cost of sales (with VAT added when the client charges it), or over costs when there is no cost of sales, times the days in the period. */
+export const creditorDays = (f: Figures) => (f.creditors === undefined ? undefined : f.cos || f.expenses ? r2((f.creditors / (f.cos ? f.cos * (f.vat ? VAT_UP : 1) : f.expenses)) * f.days) : undefined);
+
 /** Every KPI for a period, with its target and whether it is met. */
 export function computeKpis(d: Pick<ReportData, "months" | "pl" | "bsMonths" | "bs">, kind: PeriodKind, anchor: string, endMonth: number, settings: KpiSettings = {}): KpiResult[] {
   const months = periodMonths(kind, anchor, endMonth);
@@ -96,9 +102,9 @@ export function computeKpis(d: Pick<ReportData, "months" | "pl" | "bsMonths" | "
     gpm: pc(div(f.gross, f.revenue)),
     opm: pc(div(f.operating, f.revenue)),
     npm: pc(div(f.net, f.revenue)),
-    ardays: f.debtors === undefined || !f.revenue ? undefined : r2((f.debtors / (f.revenue * (f.vat ? VAT_UP : 1))) * f.days),
+    ardays: debtorDays(f),
     invdays: f.stock === undefined || !f.cos ? undefined : r2((f.stock / f.cos) * f.days),
-    apdays: f.creditors === undefined ? undefined : f.cos || f.expenses ? r2((f.creditors / (f.cos ? f.cos * (f.vat ? VAT_UP : 1) : f.expenses)) * f.days) : undefined,
+    apdays: creditorDays(f),
     roe: pc(div(f.net * year, f.equity)),
     roa: pc(div(f.net * year, f.assets)),
     roce: f.assets === undefined || f.curLiab === undefined ? undefined : pc(div(f.operating * year, f.assets - f.curLiab)),
