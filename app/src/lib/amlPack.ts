@@ -234,6 +234,38 @@ export const newRec = (def: FormDef, today: string, copyOf?: Rec): Rec => ({
 export const readStore = (v: unknown): Store => ({ records: Array.isArray((v as Store | undefined)?.records) ? (v as Store).records : [] });
 export const settingKey = (id: string) => `aml.${id}`;
 
+// ------------------------------------------------------------------ where the registers are kept
+// Each record is one row of the AmlRecords list (Key = record id, Form = form id, Data = the record as JSON). Registers used to be one
+// Settings row per form, which would outgrow SharePoint's limit on a text column as they filled up; a form that still has only that old
+// row is read from it until its first save, which moves the records across and empties the old row.
+
+type RowLike = Record<string, unknown>;
+const parseRec = (v: unknown): Rec | null => { try { const r = JSON.parse(String(v || "")); return r && typeof r.id === "string" && r.values ? (r as Rec) : null; } catch { return null; } };
+export function legacyStore(settings: RowLike[], id: string): Store {
+  const row = settings.find((x) => x.Key === settingKey(id));
+  try { return readStore(row ? JSON.parse(String(row.Value || "null")) : undefined); } catch { return { records: [] }; }
+}
+export function storeFrom(rows: RowLike[], settings: RowLike[], id: string): Store {
+  const mine = rows.filter((r) => r.Form === id).map((r) => parseRec(r.Data)).filter((r): r is Rec => !!r);
+  return mine.length ? { records: mine.sort((a, b) => a.created.localeCompare(b.created) || a.id.localeCompare(b.id)) } : legacyStore(settings, id);
+}
+export type StoreWrites = { creates: RowLike[]; updates: { row: RowLike; patch: RowLike }[]; removes: RowLike[]; clearLegacy: boolean };
+/** What to write to make the list hold `next` for this form. */
+export function storeWrites(rows: RowLike[], settings: RowLike[], id: string, next: Store, o: { now: string; actor: string; pid: string }): StoreWrites {
+  const mine = rows.filter((r) => r.Form === id);
+  const byKey = new Map(mine.map((r) => [String(r.Key), r]));
+  const out: StoreWrites = { creates: [], updates: [], removes: [], clearLegacy: legacyStore(settings, id).records.length > 0 };
+  for (const rec of next.records) {
+    const data = JSON.stringify(rec);
+    const row = byKey.get(rec.id);
+    if (!row) out.creates.push({ Key: rec.id, PracticeId: o.pid, Form: id, Data: data, Created: o.now, Updated: o.now, UpdatedBy: o.actor });
+    else if (String(row.Data) !== data) out.updates.push({ row, patch: { Data: data, Updated: o.now, UpdatedBy: o.actor } });
+  }
+  const keep = new Set(next.records.map((r) => r.id));
+  for (const r of mine) if (!keep.has(String(r.Key))) out.removes.push(r);
+  return out;
+}
+
 export type Standing = "none" | "draft" | "overdue" | "soon" | "ok";
 /** Where a form stands: nothing yet, not approved, review overdue, review soon, or in date. */
 export function standing(def: FormDef, store: Store, today: string): { state: Standing; text: string; latest?: Rec } {

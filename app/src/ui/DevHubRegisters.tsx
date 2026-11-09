@@ -1,3 +1,4 @@
+import { todayIso } from "../lib/domain";
 // Development Hub: the roadmap, the external approvals tracker and the architecture decision register.
 import React, { useMemo, useState } from "react";
 import {
@@ -7,7 +8,7 @@ import {
 import { SEED_ROADMAP } from "../lib/devHubSeed";
 import { Bar, STATUS_COLOR, StatusChip, statusParts, useHub } from "./devHubKit";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayIso();
 
 // ------------------------------------------------------------------ roadmap
 

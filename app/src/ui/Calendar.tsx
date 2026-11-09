@@ -206,7 +206,7 @@ export function CalendarProvider({ demo, children }: { demo: boolean; children: 
     const next = { ...doneRef.current };
     if (next[id]) delete next[id];
     else next[id] = todayIso();
-    const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    const cutoff = todayIso(new Date(Date.now() - 90 * 86400000));
     for (const k of Object.keys(next)) if (next[k] < cutoff) delete next[k];
     doneRef.current = next;
     await latest.current.saveSetting("calendar.done", next);

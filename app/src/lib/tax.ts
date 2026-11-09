@@ -618,7 +618,7 @@ export function rollForward(prev: TaxReturn, prevYear: number): { expectedPoa1: 
 /** A new return started from last year's: the same people, employers, businesses, payers and claims, with every figure cleared,
  * and the losses and reliefs that carry forward worked out from last year (trading and property losses, unused finance costs,
  * capital losses). Payments on account roll forward separately (rollForward). Businesses that ceased last year are left out. */
-export function bringForward(prev: TaxReturn, prevYear: number, on = new Date().toISOString().slice(0, 10)): TaxReturn {
+export function bringForward(prev: TaxReturn, prevYear: number, on = todayIso()): TaxReturn {
   const c = compute(prev, prevYear);
   const r = emptyReturn();
   const fresh = <T extends { id: string }>(x: T, keep: Partial<T>) => ({ ...keep, id: newId() } as T);

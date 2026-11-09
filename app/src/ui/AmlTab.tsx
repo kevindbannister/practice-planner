@@ -23,7 +23,7 @@ import { readSetting, useData } from "./data";
 import { useRoute } from "./bits";
 import { matchProblems, screeningProblems } from "../lib/amlScreening";
 import { screeningPolicy } from "../lib/amlPolicy";
-import { readStore, settingKey } from "../lib/amlPack";
+import { storeFrom } from "../lib/amlPack";
 import { clientTypeFor as typeOfClient } from "../lib/proposals";
 
 /** The firm's re-screen periods and the Screening register, for the screening rules. */
@@ -31,7 +31,7 @@ function useScreening() {
   const { data } = useData();
   const settings = readOnboardingSettings(data.settings);
   const sp = screeningPolicy(data.settings, { high: settings.amlMonths.high, medium: settings.amlMonths.medium, low: settings.amlMonths.low });
-  const register = readStore(readSetting<unknown>(data.settings, settingKey("screening"))).records;
+  const register = storeFrom(data.amlRecords, data.settings, "screening").records;
   return { sp, register };
 }
 import { useSales } from "./salesKit";
@@ -278,7 +278,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
     setBusy(true); setMsg(null);
     try {
       const bytes = new Uint8Array(await f.arrayBuffer());
-      const name = `${new Date().toISOString().slice(0, 10)} ${f.name}`.replace(/[\\/:*?"<>|#%{}~&]+/g, " ");
+      const name = `${todayIso()} ${f.name}`.replace(/[\\/:*?"<>|#%{}~&]+/g, " ");
       const item = await store.graph.put<{ webUrl?: string }>(`/me/drive/root:/${encodeURIComponent(FOLDER)}/${encodeURIComponent(clientFolder(String(client.Title)))}/${encodeURIComponent(name)}:/content`, bytes, f.type || "application/octet-stream");
       const next = [...evidence, { id: `E${Date.now()}`, name: f.name, url: item.webUrl || "", at: new Date().toISOString(), by: user || "", note: "" }];
       setEvidence(next); await save(next);

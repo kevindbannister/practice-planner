@@ -1,5 +1,6 @@
 // Loads the planner's lists once, keeps them in memory, and saves edits straight
 // back to SharePoint. Components read from here with useData().
+import { tooLong } from "../lib/textLimit";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Client, Job, Task, isOpen, setTightDays } from "../lib/domain";
 import { PlannerSettings, newKey, readSettings } from "../lib/planning";
@@ -61,6 +62,7 @@ export type Data = {
   cosecShareClasses: Row[];
   clearances: Row[];
   amlAssessments: Row[];
+  amlRecords: Row[];
   authorisations: Row[];
   hmrcAuths: Row[];
   cosecProfiles: Row[];
@@ -120,7 +122,7 @@ type Ctx = {
 const EMPTY: Data = {
   clients: [], contacts: [], groups: [], members: [], services: [], stageTemplates: [],
   clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [], comms: [], taxPayments: [], meetings: [], papers: [], paperLines: [], projects: [], docTemplates: [], docVersions: [], documents: [], activities: [],
-  checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [], feeHistory: [], feeCharges: [], clientCosts: [], actions: [], cosecEvents: [], cosecTx: [], cosecOfficers: [], cosecPscs: [], cosecShares: [], cosecShareClasses: [], clearances: [], amlAssessments: [], authorisations: [], hmrcAuths: [], cosecProfiles: [], cosecLedger: [], cosecImports: [], cosecCertificates: [], cosecDividends: [], cosecAccounts: [], hmrcEvents: [], formTemplates: [], formRequests: [], advisoryPlans: [], jobTime: [], customValues: [], billingLinks: [], billingChases: [], complianceLog: [], obligations: [], taxPlans: [], payrollSchemes: [], payrollPeople: [], payYears: [], payRuns: [], rtiSubmissions: [], hmrcFilings: [], hmrcFilingLog: [],
+  checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [], feeHistory: [], feeCharges: [], clientCosts: [], actions: [], cosecEvents: [], cosecTx: [], cosecOfficers: [], cosecPscs: [], cosecShares: [], cosecShareClasses: [], clearances: [], amlAssessments: [], amlRecords: [], authorisations: [], hmrcAuths: [], cosecProfiles: [], cosecLedger: [], cosecImports: [], cosecCertificates: [], cosecDividends: [], cosecAccounts: [], hmrcEvents: [], formTemplates: [], formRequests: [], advisoryPlans: [], jobTime: [], customValues: [], billingLinks: [], billingChases: [], complianceLog: [], obligations: [], taxPlans: [], payrollSchemes: [], payrollPeople: [], payYears: [], payRuns: [], rtiSubmissions: [], hmrcFilings: [], hmrcFilingLog: [],
 };
 
 export const DataContext = createContext<Ctx | null>(null); // exported so a screen can be rendered with made-up data in a test
@@ -141,7 +143,7 @@ export const SOURCE: [keyof Data, ListKey][] = [
   ["clientStages", "ClientServiceStages"], ["jobs", "Jobs"], ["history", "JobHistory"], ["tasks", "Tasks"],
   ["settings", "Settings"], ["chFlags", "CHFlags"], ["comms", "Communications"], ["taxPayments", "TaxPayments"], ["meetings", "Meetings"], ["papers", "WorkingPapers"], ["paperLines", "PaperLines"], ["projects", "Projects"],
   ["docTemplates", "DocTemplates"], ["docVersions", "DocVersions"], ["documents", "Documents"], ["activities", "Activities"],
-  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"], ["feeHistory", "FeeHistory"], ["feeCharges", "FeeCharges"], ["clientCosts", "ClientCosts"], ["actions", "Actions"], ["cosecEvents", "CoSecEvents"], ["cosecTx", "CoSecTransactions"], ["cosecOfficers", "CoSecOfficers"], ["cosecPscs", "CoSecPscs"], ["cosecShares", "CoSecShares"], ["cosecShareClasses", "CoSecShareClasses"], ["clearances", "Clearances"], ["amlAssessments", "AmlAssessments"], ["authorisations", "Authorisations"], ["hmrcAuths", "HmrcAuthorisations"], ["cosecProfiles", "CoSecProfiles"], ["cosecLedger", "CoSecLedger"], ["cosecImports", "CoSecImports"], ["cosecCertificates", "CoSecCertificates"], ["cosecDividends", "CoSecDividends"], ["cosecAccounts", "CoSecAccounts"], ["hmrcEvents", "HmrcAuthEvents"], ["formTemplates", "FormTemplates"], ["formRequests", "FormRequests"], ["advisoryPlans", "AdvisoryPlans"], ["jobTime", "JobTime"], ["customValues", "CustomValues"], ["billingLinks", "BillingLinks"], ["billingChases", "BillingChases"], ["complianceLog", "ComplianceLog"], ["obligations", "Obligations"], ["taxPlans", "TaxPlans"], ["payrollSchemes", "PayrollSchemes"], ["payrollPeople", "PayrollPeople"], ["payYears", "PayYears"], ["payRuns", "PayRuns"], ["rtiSubmissions", "RtiSubmissions"], ["hmrcFilings", "HmrcFilings"], ["hmrcFilingLog", "HmrcFilingLog"],
+  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"], ["feeHistory", "FeeHistory"], ["feeCharges", "FeeCharges"], ["clientCosts", "ClientCosts"], ["actions", "Actions"], ["cosecEvents", "CoSecEvents"], ["cosecTx", "CoSecTransactions"], ["cosecOfficers", "CoSecOfficers"], ["cosecPscs", "CoSecPscs"], ["cosecShares", "CoSecShares"], ["cosecShareClasses", "CoSecShareClasses"], ["clearances", "Clearances"], ["amlAssessments", "AmlAssessments"], ["amlRecords", "AmlRecords"], ["authorisations", "Authorisations"], ["hmrcAuths", "HmrcAuthorisations"], ["cosecProfiles", "CoSecProfiles"], ["cosecLedger", "CoSecLedger"], ["cosecImports", "CoSecImports"], ["cosecCertificates", "CoSecCertificates"], ["cosecDividends", "CoSecDividends"], ["cosecAccounts", "CoSecAccounts"], ["hmrcEvents", "HmrcAuthEvents"], ["formTemplates", "FormTemplates"], ["formRequests", "FormRequests"], ["advisoryPlans", "AdvisoryPlans"], ["jobTime", "JobTime"], ["customValues", "CustomValues"], ["billingLinks", "BillingLinks"], ["billingChases", "BillingChases"], ["complianceLog", "ComplianceLog"], ["obligations", "Obligations"], ["taxPlans", "TaxPlans"], ["payrollSchemes", "PayrollSchemes"], ["payrollPeople", "PayrollPeople"], ["payYears", "PayYears"], ["payRuns", "PayRuns"], ["rtiSubmissions", "RtiSubmissions"], ["hmrcFilings", "HmrcFilings"], ["hmrcFilingLog", "HmrcFilingLog"],
 ];
 const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 
@@ -270,6 +272,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
 
   const update = useCallback(
     async (list: ListKey, row: Row, patch: Row, meta?: { source?: CoSecSource }) => {
+      tooLong(list, patch);
       const key = keyFor(list);
       const apply = (values: Row) =>
         setData((d) => ({
@@ -312,6 +315,7 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
 
   const create = useCallback(
     async (list: ListKey, row: Row) => {
+      tooLong(list, row);
       const created = await track(() => store.create(list, row));
       const full = { ...row, ...created };
       setData((d) => ({ ...d, [keyFor(list)]: [...(d[keyFor(list)] as Row[]), full] }));

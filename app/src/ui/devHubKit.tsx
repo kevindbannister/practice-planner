@@ -1,3 +1,4 @@
+import { todayIso } from "../lib/domain";
 // Development Hub: the shared state for all of its screens. The inventory ships in code and the practice's changes are kept
 // as small overlays in the Settings list; GitHub is read through the server bridge (api/devhub), never from the browser.
 import React, { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -248,10 +249,10 @@ export function FeatureDetail({ id, onSelect, onClose }: { id: string; onSelect:
   const act = async (label: string, fn: () => Promise<void>) => { setBusy(label); try { await fn(); } finally { setBusy(""); } };
   const setStatus = (s: Status) => {
     if (s === "Complete") { setPendingComplete(true); return; }
-    void act("status", () => hub.editFeature(f.id, { status: s, reviewed: new Date().toISOString().slice(0, 10), live: s !== f.status && f.live ? null : f.live }, `${f.name}: ${f.status} → ${s}`));
+    void act("status", () => hub.editFeature(f.id, { status: s, reviewed: todayIso(), live: s !== f.status && f.live ? null : f.live }, `${f.name}: ${f.status} → ${s}`));
   };
   const confirmComplete = () => act("status", async () => {
-    const day = new Date().toISOString().slice(0, 10);
+    const day = todayIso();
     await hub.editFeature(f.id, { status: "Complete", reviewed: day, live: { on: day, by: hub.user, note: evidence.trim() } }, `${f.name}: ${f.status} → Complete (${evidence.trim()})`);
     setPendingComplete(false); setEvidence("");
   });
@@ -321,7 +322,7 @@ export function FeatureDetail({ id, onSelect, onClose }: { id: string; onSelect:
       </section>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <span className="muted" style={{ fontSize: 12 }}>Last reviewed {f.reviewed}</span>
-        {!group && <button type="button" className="btn small" disabled={!!busy} onClick={() => void act("reviewed", () => hub.editFeature(f.id, { reviewed: new Date().toISOString().slice(0, 10) }, `${f.name}: reviewed`))}>Mark reviewed today</button>}
+        {!group && <button type="button" className="btn small" disabled={!!busy} onClick={() => void act("reviewed", () => hub.editFeature(f.id, { reviewed: todayIso() }, `${f.name}: reviewed`))}>Mark reviewed today</button>}
       </div>
     </aside>
   );

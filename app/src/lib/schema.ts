@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions" | "HmrcFilings" | "HmrcFilingLog"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "AmlRecords" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions" | "HmrcFilings" | "HmrcFilingLog"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -411,6 +411,11 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("PracticeId", true), t("ClientKey", true), t("Status", true), t("PrevFirm"), t("PrevContact"), t("PrevEmail"), note("PrevAddress"), note("Items"), note("Letter"),
       t("GeneratedOn"), t("SentOn"), t("SentBy"), t("ReceivedOn"), note("Reply"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"),
     ],
+  },
+  {
+    // The AML pack's registers and records (screening register, training log, actions, reviews...): one row per record. See lib/amlPack.ts.
+    key: "AmlRecords", displayName: "PP AML Records", description: "Practice Planner: AML registers and records, one row per record",
+    columns: [t("Key", true), t("PracticeId", true), t("Form", true), note("Data"), t("Created"), t("Updated"), t("UpdatedBy")],
   },
   {
     // A client's own AML risk assessment, kept apart from onboarding so existing clients can have one and be reviewed. See lib/amlAssessment.ts.

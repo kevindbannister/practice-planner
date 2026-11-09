@@ -6,8 +6,7 @@ import { lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf 
 import { idStampRead } from "../lib/xamaActions";
 import { Screened, screening } from "../lib/amlScreening";
 import { screeningPolicy } from "../lib/amlPolicy";
-import { readStore, settingKey } from "../lib/amlPack";
-import { readSetting } from "./data";
+import { storeFrom } from "../lib/amlPack";
 import { idCheckedOn } from "../lib/amlTimeline";
 import { amlLabel, fmtDate, todayIso } from "../lib/domain";
 import { readAml, readOnboardingSettings } from "../lib/onboarding";
@@ -31,7 +30,7 @@ export function AmlClients() {
   const today = todayIso();
   const policy = useMemo(() => readReviewPolicy(data.settings, readOnboardingSettings(data.settings).amlMonths), [data.settings]);
   const sp = useMemo(() => screeningPolicy(data.settings, policy), [data.settings, policy]);
-  const register = useMemo(() => readStore(readSetting<unknown>(data.settings, settingKey("screening"))).records, [data.settings]);
+  const register = useMemo(() => storeFrom(data.amlRecords, data.settings, "screening").records, [data.amlRecords, data.settings]);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("action");
   const [risk, setRisk] = useState("");

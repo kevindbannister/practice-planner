@@ -16,6 +16,7 @@ import { amlStampRead } from "../lib/xamaActions";
 import { screening as screeningOf } from "../lib/amlScreening";
 import { screeningPolicy } from "../lib/amlPolicy";
 import { readSetting, useData } from "./data";
+import { practiceId } from "../lib/checklistRows";
 import { AmlClients } from "./AmlClients";
 import { readiness, Facts, Standing as RStanding } from "../lib/amlReadiness";
 import { Cfg, FWRA_CFG, PolicyBuilder, POLICY_CFG } from "./AmlBuilder";
@@ -29,12 +30,26 @@ const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const fmt = (d: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
 
 function useAml() {
-  const { data, saveSetting } = useData();
+  const { data, saveSetting, create, update, remove, user, store } = useData();
   const firm = useFirm();
   const clients = useMemo(() => [...(data.clients as Row[])].sort((a, b) => s(a.Title).localeCompare(s(b.Title))), [data.clients]);
   const clientName = (k: string) => (k ? s(clients.find((c) => c.Key === k)?.Title || k) : "");
-  const storeOf = (id: string) => p.readStore(readSetting<p.Store>(data.settings, p.settingKey(id)));
-  return { data, saveSetting, firm: s(firm.firmName).trim() || "The practice", clients, clientName, storeOf };
+  const hasList = store.hasList("AmlRecords");
+  const storeOf = (id: string) => (hasList ? p.storeFrom(data.amlRecords, data.settings, id) : p.readStore(readSetting<p.Store>(data.settings, p.settingKey(id))));
+  // Rows created during this screen's life, so back-to-back saves don't create the same record twice before the list refreshes.
+  const made = useRef(new Map<string, Row>());
+  const rowsRef = useRef(data.amlRecords); rowsRef.current = data.amlRecords;
+  const settingsRef = useRef(data.settings); settingsRef.current = data.settings;
+  const saveStore = async (id: string, next: p.Store) => {
+    if (!hasList) return saveSetting(p.settingKey(id), next);
+    const rows = [...rowsRef.current.filter((r) => !made.current.has(String(r.Key))), ...made.current.values()];
+    const w = p.storeWrites(rows, settingsRef.current, id, next, { now: new Date().toISOString(), actor: user || "", pid: practiceId(settingsRef.current) });
+    for (const row of w.creates) made.current.set(String(row.Key), await create("AmlRecords", row as Row));
+    for (const u of w.updates) { await update("AmlRecords", u.row as Row, u.patch as Row); const k = String(u.row.Key); if (made.current.has(k)) made.current.set(k, { ...made.current.get(k)!, ...u.patch } as Row); }
+    for (const r of w.removes) { await remove("AmlRecords", r as Row); made.current.delete(String(r.Key)); }
+    if (w.clearLegacy) await saveSetting(p.settingKey(id), { records: [], movedTo: "AmlRecords" });
+  };
+  return { data, saveSetting, saveStore, firm: s(firm.firmName).trim() || "The practice", clients, clientName, storeOf };
 }
 
 function download(name: string, bytes: Uint8Array | Blob, type: string) {
@@ -168,12 +183,13 @@ function FormScreen({ def }: { def: p.FormDef }) {
   const latest = useRef<p.Store | null>(null);
   const counter = useRef(0);
   const chain = useRef<Promise<void>>(Promise.resolve());
-  const saveRef = useRef(a.saveSetting); saveRef.current = a.saveSetting;
+  const saveRef = useRef(a.saveStore); saveRef.current = a.saveStore;
+  const [why, setWhy] = useState("");
   const cur = local ?? stored;
 
   const persist = (next: p.Store, n: number) => {
     chain.current = chain.current.then(async () => {
-      try { await saveRef.current(p.settingKey(def.id), next); if (counter.current === n) { setLocal(null); latest.current = null; setState("saved"); } } catch { setState("failed"); }
+      try { await saveRef.current(def.id, next); if (counter.current === n) { setLocal(null); latest.current = null; setState("saved"); setWhy(""); } } catch (e) { setState("failed"); setWhy(e instanceof Error ? e.message : ""); }
     });
   };
   const edit = (next: p.Store, now = false) => {
@@ -242,7 +258,7 @@ function FormScreen({ def }: { def: p.FormDef }) {
         </div>
         <div className="row-wrap" style={{ gap: 8 }}>
           {!def.single && <span className={`chip ${status.state === "overdue" ? "red" : status.state === "soon" || status.state === "draft" ? "amber" : status.state === "ok" ? "green" : ""}`}>{status.text}</span>}
-          <span className="muted" role="status" aria-live="polite">{state === "saving" ? "Saving…" : state === "saved" ? "Saved" : state === "failed" ? "Couldn't save. Your changes are still on screen: try again." : "Saves as you type."}</span>
+          <span className="muted" role="status" aria-live="polite">{state === "saving" ? "Saving…" : state === "saved" ? "Saved" : state === "failed" ? `Couldn't save. ${why ? `${why} ` : ""}Your changes are still on screen: try again.` : "Saves as you type."}</span>
         </div>
       </section>
       {def.sections.map((sec) => (

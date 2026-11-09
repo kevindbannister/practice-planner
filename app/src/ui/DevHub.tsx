@@ -1,3 +1,4 @@
+import { todayIso } from "../lib/domain";
 // Development Hub: the one place to see what Practice Planner contains, how far each part has really got, and what to work on next.
 // Route: #/devhub/<section>[/<feature id>]. Only development administrators get in; it is not part of the client portal.
 import React, { useMemo, useState } from "react";
@@ -27,7 +28,7 @@ function Shell() {
   const { parts } = useRoute();
   const section = SECTIONS.some(([k]) => k === parts[1]) ? parts[1] : "overview";
   const id = parts[2] || "";
-  const due = dueFollowUps(hub.integrations, new Date().toISOString().slice(0, 10)).length;
+  const due = dueFollowUps(hub.integrations, todayIso()).length;
 
   if (!hub.admin.allowed) {
     return (
@@ -212,7 +213,7 @@ function Inventory({ selected }: { selected: string }) {
                     <td data-label="Feature"><strong>{f.name}</strong><div className="muted" style={{ fontSize: 12 }}>{crumb(f)}{n && n.kind === "module" ? "" : ""}</div></td>
                     <td data-label="Status" onClick={(e) => e.stopPropagation()}>
                       {group ? <StatusChip status={n ? rollup(n) : f.status} /> : (
-                        <select className="input" aria-label={`Status of ${f.name}`} value={f.status} onChange={(e) => { const s = e.target.value as Status; if (s === "Complete") { window.location.hash = href("devhub", "inventory", f.id); return; } void hub.editFeature(f.id, { status: s, reviewed: new Date().toISOString().slice(0, 10), live: f.live ? null : undefined }, `${f.name}: ${f.status} → ${s}`); }}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
+                        <select className="input" aria-label={`Status of ${f.name}`} value={f.status} onChange={(e) => { const s = e.target.value as Status; if (s === "Complete") { window.location.hash = href("devhub", "inventory", f.id); return; } void hub.editFeature(f.id, { status: s, reviewed: todayIso(), live: f.live ? null : undefined }, `${f.name}: ${f.status} → ${s}`); }}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
                       )}
                     </td>
                     <td data-label="Priority"><PriorityChip p={f.priority} /></td>
@@ -243,7 +244,7 @@ function AddFeature({ onClose }: { onClose: () => void }) {
   const add = async () => {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
     const id = `${parent}.${slug}-${Date.now().toString(36).slice(-3)}`;
-    await hub.addFeature({ id, parent, name: name.trim(), desc: desc.trim(), status, priority, files: [], tests: [], issues: [], deps: [], blockers: [], bugs: [], next: [], notes: "", reviewed: new Date().toISOString().slice(0, 10), custom: true });
+    await hub.addFeature({ id, parent, name: name.trim(), desc: desc.trim(), status, priority, files: [], tests: [], issues: [], deps: [], blockers: [], bugs: [], next: [], notes: "", reviewed: todayIso(), custom: true });
     onClose();
   };
   return (

@@ -1,7 +1,7 @@
 // One company's statutory records in Co Sec: its details (the planner's record beside what Companies House showed and what is
 // waiting to be filed), officers, persons with significant control, shares, the printable registers and its filings.
 import { useMemo, useState } from "react";
-import { fmtDate } from "../lib/domain";
+import { fmtDate , todayIso } from "../lib/domain";
 import { PENDING_TARGET, STATUS_LABEL, appointPerson, allotShares, changePerson, companyKind, isOpenTx, officersFromCh, pendingFor, pscsFromCh, terminatePerson, prepareTransfer, txStatus, verifiedFrom, verifiedOf } from "../lib/cosec";
 import { OFFICER_ROLES, PSC_KINDS, officerName, pscName } from "../lib/cosecForms";
 import { chNumber } from "../lib/companiesHouse";
@@ -181,7 +181,7 @@ function People({ client, entity }: { client: Row; entity: "officer" | "psc" }) 
               <td>{nameOf(x)}</td>{isOff && <td>{OFFICER_ROLES.find(([r]) => r === x.Role)?.[1] || s(x.Role)}</td>}
               <td>{s(x.Status) === "current" ? "Current" : s(x.Status) === "pending" ? <span className="chip amber">Pending filing</span> : s(x.Status) === "resigned" || s(x.Status) === "ceased" ? `Ended ${fmtDate(s(x.ResignedOn || x.CeasedOn))}` : s(x.Status)}{open.length > 0 && s(x.Status) === "current" && <> <a className="chip amber" href={href("cosec", "filing", s(open[0].Key))}>Pending Co Sec review</a></>}</td>
               <td>{fmtDate(s(x.AppointedOn || x.NotifiedOn))}</td>
-              <td>{s(x.Status) === "current" ? <select className="input" aria-label={`Identity verification for ${nameOf(x)}`} disabled={!k.can("edit")} value={idOf(x)} onChange={(e) => void k.update(isOff ? "CoSecOfficers" : "CoSecPscs", x, { IdStatus: e.target.value, IdCheckedOn: new Date().toISOString().slice(0, 10) } as Row)} style={{ width: "auto" }}>{(Object.keys(ID_LABEL) as IdStatus[]).map((v) => <option key={v} value={v}>{ID_LABEL[v]}</option>)}</select> : null}</td>
+              <td>{s(x.Status) === "current" ? <select className="input" aria-label={`Identity verification for ${nameOf(x)}`} disabled={!k.can("edit")} value={idOf(x)} onChange={(e) => void k.update(isOff ? "CoSecOfficers" : "CoSecPscs", x, { IdStatus: e.target.value, IdCheckedOn: todayIso() } as Row)} style={{ width: "auto" }}>{(Object.keys(ID_LABEL) as IdStatus[]).map((v) => <option key={v} value={v}>{ID_LABEL[v]}</option>)}</select> : null}</td>
               <td><PersonLink row={x} /></td>
               <td>{s(x.Status) === "current" && k.can("edit") && <div className="row-wrap"><button type="button" className="linkbtn" onClick={() => setChanging({ row: x, changes: {} })}>Change details</button><button type="button" className="linkbtn" onClick={() => setEnding({ row: x, date: "" })}>{isOff ? "End appointment" : "Ceased"}</button></div>}</td>
             </tr>);
@@ -245,7 +245,7 @@ function Shares({ client }: { client: Row }) {
     <section className="card pad stack" aria-label="Shares">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <h3 style={{ margin: 0 }}>Shareholders <span className="muted">{total.toLocaleString("en-GB")} shares in issue</span></h3>
-        <button type="button" className="btn" disabled={!k.can("edit") || !classes.length} title={classes.length ? undefined : "Set up a share class first"} onClick={() => { const c = classes[0]; setA({ Class: s(c.Name), Currency: s(c.Currency) || "GBP", NominalValue: s(c.NominalValue) || "1", PaidPerShare: s(c.NominalValue) || "1", Date: new Date().toISOString().slice(0, 10) }); }}>Allot shares</button>
+        <button type="button" className="btn" disabled={!k.can("edit") || !classes.length} title={classes.length ? undefined : "Set up a share class first"} onClick={() => { const c = classes[0]; setA({ Class: s(c.Name), Currency: s(c.Currency) || "GBP", NominalValue: s(c.NominalValue) || "1", PaidPerShare: s(c.NominalValue) || "1", Date: todayIso() }); }}>Allot shares</button>
       </div>
       {!classes.length && <p className="alert amber" role="status" style={{ margin: 0 }}>Shares can't be allotted until a share class is set up. <a href={`#/cosec/company/${s(client.Key)}/classes`}>Set up share classes</a></p>}
       <div className="table-wrap"><table className="grid" style={{ minWidth: 620 }}>
@@ -253,7 +253,7 @@ function Shares({ client }: { client: Row }) {
         <tbody>{list.length ? list.map((x) => (
           <tr key={s(x.Key)}><td>{s(x.Holder)}</td><td>{s(x.Class)}</td><td>{Number(x.Number).toLocaleString("en-GB")}</td><td>{s(x.Currency)} {s(x.NominalValue)}</td>
             <td>{x.Status === "pending" ? <span className="chip amber">Pending filing</span> : x.Status === "current" ? "Current" : `Former (to ${fmtDate(s(x.To))})`}</td><td>{fmtDate(s(x.From))}</td>
-            <td>{x.Status === "current" && k.can("edit") && <button type="button" className="linkbtn" onClick={() => setT({ from: x, to: "", number: s(x.Number), date: new Date().toISOString().slice(0, 10) })}>Transfer</button>}</td></tr>
+            <td>{x.Status === "current" && k.can("edit") && <button type="button" className="linkbtn" onClick={() => setT({ from: x, to: "", number: s(x.Number), date: todayIso() })}>Transfer</button>}</td></tr>
         )) : <tr><td colSpan={7} className="muted">No shareholders recorded yet.</td></tr>}</tbody>
       </table></div>
       {a && (

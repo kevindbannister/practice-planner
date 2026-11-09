@@ -4559,6 +4559,41 @@
    ]
   },
   {
+   "key": "AmlRecords",
+   "displayName": "PP AML Records",
+   "description": "AML registers and records, one row per record",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Form",
+     "type": "text"
+    },
+    {
+     "name": "Data",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "UpdatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
    "key": "AmlAssessments",
    "displayName": "PP AML Assessments",
    "description": "AML risk assessments and their reviews",

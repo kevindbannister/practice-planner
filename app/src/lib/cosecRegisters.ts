@@ -1,3 +1,4 @@
+import { todayIso } from "./domain";
 // The company's records as printable registers, at any date. Built from the share ledger and the officer and PSC records, never typed in.
 // The register of members is the one register every company must still keep; the others are the company's own records now that
 // Companies House holds the official information (see the note on each register).
@@ -109,6 +110,6 @@ export async function registersPdf(company: { name: string; number: string }, re
       y -= h + 3;
     }
   });
-  pdf.getPages().forEach((p, i, all) => p.drawText(clean(`Prepared ${new Date().toISOString().slice(0, 10)} by ${preparedBy}. Page ${i + 1} of ${all.length}`), { x: M, y: 18, size: 7, font, color: rgb(0.4, 0.4, 0.4) }));
+  pdf.getPages().forEach((p, i, all) => p.drawText(clean(`Prepared ${todayIso()} by ${preparedBy}. Page ${i + 1} of ${all.length}`), { x: M, y: 18, size: 7, font, color: rgb(0.4, 0.4, 0.4) }));
   return pdf.save();
 }

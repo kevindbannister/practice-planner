@@ -1,3 +1,4 @@
+import { todayIso } from "../lib/domain";
 // Client approval on a Co Sec transaction: the question, the approval document, sending it through the portal (the existing signing) or
 // signing on paper, and recording the outcome. All state lives on the transaction (see lib/cosecApproval.ts).
 import { useState } from "react";
@@ -22,7 +23,7 @@ export function ApprovalPanel({ tx, client }: { tx: Row; client?: Row }) {
   const def = defaultApproval(form);
   const [note, setNote] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
-  const [manual, setManual] = useState({ by: "", at: new Date().toISOString().slice(0, 10), evidence: "" });
+  const [manual, setManual] = useState({ by: "", at: todayIso(), evidence: "" });
   const [signed, setSigned] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string }>();

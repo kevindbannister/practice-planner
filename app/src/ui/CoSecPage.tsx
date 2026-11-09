@@ -1,7 +1,7 @@
 // Co Sec: company secretarial. Overview of what needs attention, every filing, and each company's statutory records.
 // Everything that changes a record goes through lib/cosec.ts, which also writes the audit line and the timeline entry.
 import { useMemo, useState } from "react";
-import { fmtDate } from "../lib/domain";
+import { fmtDate , todayIso } from "../lib/domain";
 import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, TxAction, TxInput } from "../lib/cosec";
 import { Addr, BLANK_ADDR, addrIssues, addrText, formTitle, formDef } from "../lib/cosecForms";
 import { GatewayError } from "../lib/cosecGateway";
@@ -45,7 +45,7 @@ export function CoSecPage() {
 
 function Overview() {
   const k = useCoSec();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const items = useMemo(() => coSecItems(k.data.cosecTx, k.data.clients, k.data.chFlags, today), [k.data.cosecTx, k.data.clients, k.data.chFlags, today]);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -95,7 +95,7 @@ const sortValue = (r: PortfolioRow, k: SortKey): string => {
 function Portfolio() {
   const k = useCoSec();
   const ch = useCompaniesHouse();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
   const [level, setLevelFilter] = useState<Level | "">("");
