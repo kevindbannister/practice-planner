@@ -99,7 +99,7 @@ export function KpiScreen({ clientKey, clientName, yearEnd, tenant }: { clientKe
                       <tr key={x.def.id} style={{ opacity: off.has(x.def.id) ? 0.45 : 1 }} title={x.def.how}>
                         <td>{x.def.name}{x.def.lowerIsBetter ? "*" : ""}</td>
                         <td className="num mono" style={{ textAlign: "right" }}>{x.note && x.value === undefined ? <span className="muted" style={{ fontSize: 11 }}>{x.note}</span> : formatKpi(x.def.unit, x.value)}</td>
-                        <td className="num mono muted" style={{ textAlign: "right" }}>{formatKpi(x.def.unit, x.target)}</td>
+                        <td className="num mono muted" style={{ textAlign: "right" }}>{x.hasTarget ? formatKpi(x.def.unit, x.target) : "not set"}</td>
                         <td style={{ textAlign: "center", color: x.onTrack === undefined ? "var(--muted)" : x.onTrack ? "#2f8f4e" : "#c0392b", fontWeight: 700 }} aria-label={x.onTrack === undefined ? "No result" : x.onTrack ? "On track" : "Off track"}>{x.onTrack === undefined ? "–" : x.onTrack ? "✓" : "✕"}</td>
                         <td className="num mono" style={{ textAlign: "right" }}>{x.gap === undefined ? "–" : `${x.gap > 0 ? "+" : ""}${formatKpi(x.def.unit === "days" ? "days" : x.def.unit, x.gap)}`}</td>
                         {edit && (

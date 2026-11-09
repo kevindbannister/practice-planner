@@ -107,8 +107,8 @@ export function ReportingSettings({ clientKey, clientName, yearEnd, tenant, tab 
               {KPI_DEFS.filter((k) => k.category === cat).map((k) => (
                 <div key={k.id} style={rowStyle}>
                   <span style={{ opacity: off.has(k.id) ? 0.5 : 1 }}>{k.name}</span>
-                  <span className="muted" style={{ fontSize: 12 }}>{k.lowerIsBetter ? "Aim to stay under" : "Aim to reach"} · standard {formatKpi(k.unit, k.target)}{k.perMonth ? " a month" : ""}</span>
-                  <input type="number" step="any" aria-label={`${k.name} target`} defaultValue={settings.targets?.[k.id] ?? ""} placeholder={String(k.target)} key={`${k.id}-${settings.targets?.[k.id] ?? ""}`} onBlur={(e) => { if (e.target.value !== String(settings.targets?.[k.id] ?? "")) setTarget(k.id, e.target.value); }} style={{ textAlign: "right" }} />
+                  <span className="muted" style={{ fontSize: 12 }}>{k.lowerIsBetter ? "Aim to stay under" : "Aim to reach"} · {k.noStandard ? "no standard: set one for this client" : `standard ${formatKpi(k.unit, k.target)}${k.perMonth ? " a month" : ""}`}</span>
+                  <input type="number" step="any" aria-label={`${k.name} target`} defaultValue={settings.targets?.[k.id] ?? ""} placeholder={k.noStandard ? "not set" : String(k.target)} key={`${k.id}-${settings.targets?.[k.id] ?? ""}`} onBlur={(e) => { if (e.target.value !== String(settings.targets?.[k.id] ?? "")) setTarget(k.id, e.target.value); }} style={{ textAlign: "right" }} />
                   <span className="muted" style={{ fontSize: 12 }}>{unitNote(k)}</span>
                 </div>
               ))}

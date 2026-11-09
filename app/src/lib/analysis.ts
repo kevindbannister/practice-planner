@@ -19,6 +19,7 @@ export type CfTotal = { label: string; amount: number };
 export type CashFlow = {
   lines: CfLine[]; /** a subtotal shown after the line at this position */ totals: { after: number; total: CfTotal }[];
   operating: number; free: number; net: number;
+  /** what the movements in the balance sheet and the profit and loss don't account for: should be small */ unexplained: number; /** true when it is big enough to question */ unexplainedBig: boolean;
   cash: { open: number; close: number }; debt: { open: number; close: number };
 };
 
@@ -60,7 +61,7 @@ export function cashFlow(d: Src, kind: PeriodKind, anchor: string, endMonth: num
     { label: "Cost of Sales", amount: -cos, tag: "LESS" },
     { label: "Expenses", amount: -expenses, tag: "LESS" },
     { label: "Other Income", amount: otherInc, tag: "ADD" },
-    { label: "Cash Tax Paid", amount: -tax, tag: "LESS" },
+    { label: "Tax (charge for the period)", amount: -tax, tag: "LESS" },
     { label: "Change in Accounts Payable", amount: dAP, tag: "ADD", gapBefore: true },
     { label: "Change in Other Current Liabilities", amount: dOcl, tag: "ADD" },
     { label: "Change in Accounts Receivable", amount: -dAR, tag: "LESS", gapBefore: true },
@@ -76,16 +77,16 @@ export function cashFlow(d: Src, kind: PeriodKind, anchor: string, endMonth: num
   ];
   const free = r2(operating + inv.reduce((a, l) => a + l.amount, 0));
   const fin: CfLine[] = [
-    { label: "Net Interest (after tax)", amount: r2(intInc - intExp), tag: "LESS" },
+    { label: "Net Interest", amount: r2(intInc - intExp), tag: "LESS" },
     { label: "Change in Other Non-Current Liabilities", amount: dOnc, tag: "ADD" },
     { label: "Dividends", amount: dDiv, tag: "LESS", gapBefore: true },
     { label: "Change in Retained Earnings and Other Equity", amount: dEq, tag: "ADD" },
   ];
   const before = r2(free + fin.reduce((a, l) => a + l.amount, 0));
-  const adjust: CfLine = { label: "Adjustments", amount: r2(net - before), tag: "LESS" };
+  const adjust: CfLine = { label: "Unexplained difference", amount: r2(net - before), tag: "LESS" };
   const all = [...lines, ...inv, ...fin, adjust];
   return {
-    lines: all, operating, free, net,
+    lines: all, operating, free, net, unexplained: adjust.amount, unexplainedBig: Math.abs(adjust.amount) > Math.max(100, Math.abs(revenue) * 0.01),
     totals: [
       { after: lines.length - 1, total: { label: "OPERATING CASH FLOW", amount: operating } },
       { after: lines.length + inv.length - 1, total: { label: "FREE CASH FLOW", amount: free } },

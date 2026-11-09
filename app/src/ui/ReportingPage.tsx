@@ -212,7 +212,7 @@ function Financials({ clientKey, clientName, yearEnd, tenant }: { clientKey: str
             </table>
           </div>
           <p className="muted" style={{ margin: 0, fontSize: 12 }}>
-            Figures are whole pounds, as Xero holds them by month. A quarter or year is the months added together; a balance sheet is the balance at the end of the period.
+            Figures are shown in whole pounds (Xero holds pence, so columns can differ from their total by £1). A quarter or year is the months added together; a balance sheet is the balance at the end of the period.
             The year runs to {monthLong(`2000-${String(endMonth).padStart(2, "0")}`).slice(0, 3)} (the client's year end).
           </p>
         </>

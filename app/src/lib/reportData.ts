@@ -112,6 +112,7 @@ export async function readReportData(api: XeroApi, t: { tenantId: string; tenant
   // balance sheet: the month end balances, newest first from each date asked for
   const bsMap = new Map<string, RRow>();
   let bsOk = true;
+  let bsFrom = months.length; // the earliest month the balance sheet was read for
   for (let i = months.length; i > 0 && bsOk; i -= 12) {
     const upto = i - 1, from = Math.max(0, i - 12);
     say(`Reading the balance sheet, ${monthLong(months[from])} to ${monthLong(months[upto])}…`);
@@ -119,6 +120,7 @@ export async function readReportData(api: XeroApi, t: { tenantId: string; tenant
       const json = await api.get(id, "accounting", "Reports/BalanceSheet", { date: lastDayOf(months[upto]), periods: Math.min(11, upto - from), timeframe: "MONTH", standardLayout: true });
       const bs = parseBalanceSheet(json, accounts);
       const n = upto - from + 1;
+      bsFrom = Math.min(bsFrom, from);
       for (const row of bs.rows) {
         const k = keyOf(row);
         const have = bsMap.get(k) || { code: row.code, name: row.name, group: row.group, amounts: Array(months.length).fill(0) };
@@ -131,7 +133,23 @@ export async function readReportData(api: XeroApi, t: { tenantId: string; tenant
       notes.push(e instanceof XeroError ? `The balance sheet couldn't be read (${e.message})` : "The balance sheet couldn't be read from Xero.");
     }
   }
-  return { v: 3, at: new Date().toISOString(), tenantId: id, tenantName: t.tenantName, months, pl: [...plMap.values()], bsMonths: months, bs: bsOk ? [...bsMap.values()] : [], notes };
+  // an older year that couldn't be read doesn't throw away the newer ones: the balance sheet is kept for the months that were read
+  const bsMonths = bsFrom < months.length ? months.slice(bsFrom) : [];
+  const bsRows = bsMonths.length ? [...bsMap.values()].map((r) => ({ ...r, amounts: r.amounts.slice(bsFrom) })) : [];
+  if (!bsOk && bsMonths.length) notes.push(`The balance sheet was only read back to ${monthLong(bsMonths[0])}; the earlier months couldn't be read.`);
+  const off = balanceProblem(bsMonths, bsRows);
+  if (off) notes.push(off);
+  return { v: 3, at: new Date().toISOString(), tenantId: id, tenantName: t.tenantName, months, pl: [...plMap.values()], bsMonths, bs: bsRows, notes };
+}
+
+/** A note when the balance sheet doesn't balance in the latest month (assets less liabilities should equal equity): usually an account that has landed in the wrong group. */
+export function balanceProblem(bsMonths: string[], bs: RRow[]): string | undefined {
+  if (!bs.length || !bsMonths.length) return undefined;
+  const i = bsMonths.length - 1;
+  const tot = (gs: string[]) => r2(bs.filter((r) => gs.includes(r.group)).reduce((a, r) => a + (r.amounts[i] || 0), 0));
+  const net = r2(tot(["bank", "curAsset", "fixed"]) - tot(["curLiab", "ltLiab"])), equity = tot(["equity"]);
+  const gap = r2(net - equity);
+  return Math.abs(gap) > 1 ? `The balance sheet for ${monthLong(bsMonths[i])} doesn't balance: assets less liabilities are £${Math.round(net).toLocaleString("en-GB")} but equity is £${Math.round(equity).toLocaleString("en-GB")}, a difference of £${Math.abs(Math.round(gap)).toLocaleString("en-GB")}. An account may be in the wrong group, so check the balance sheet and KPIs against Xero.` : undefined;
 }
 
 // ------------------------------------------------------------------ periods and columns

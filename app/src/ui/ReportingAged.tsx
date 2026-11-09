@@ -1,7 +1,7 @@
 // Reporting › Receivables and Payables: who owes the client money and who the client owes, by how late it is. Read from Xero's open invoices
 // and bills as at the day of the read (Refresh reads them again) and kept on OneDrive, so reports can use them too.
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { AGED_BUCKETS, AGED_TITLE, AgedBook, AgedData, AgedKind, agedBook, agedItem, fetchOpenInvoices } from "../lib/aged";
+import { AGED_BUCKETS, AGED_TITLE, AgedBook, AgedData, AgedKind, agedBook, agedItem, fetchOpenCreditNotes, fetchOpenInvoices } from "../lib/aged";
 import { todayIso } from "../lib/domain";
 import { REPORT_FOLDER } from "../lib/reportData";
 import { XeroError } from "../lib/xero";
@@ -37,7 +37,13 @@ export function useAgedData(clientKey: string, tenant?: Tenant) {
       const rec = await fetchOpenInvoices(api, tenantId, "ACCREC", today, (n) => setS((x) => ({ ...x, busy: `Reading unpaid sales invoices… ${n}` })));
       setS((x) => ({ ...x, busy: "Reading unpaid bills from Xero…" }));
       const pay = await fetchOpenInvoices(api, tenantId, "ACCPAY", today, (n) => setS((x) => ({ ...x, busy: `Reading unpaid bills… ${n}` })));
-      const d: AgedData = { v: 1, at: new Date().toISOString(), asAt: today, tenantId, rec, pay };
+      const notes: string[] = [];
+      setS((x) => ({ ...x, busy: "Reading unused credit notes from Xero…" }));
+      try {
+        rec.push(...(await fetchOpenCreditNotes(api, tenantId, "ACCRECCREDIT", today)));
+        pay.push(...(await fetchOpenCreditNotes(api, tenantId, "ACCPAYCREDIT", today)));
+      } catch { notes.push("Credit notes couldn't be read from Xero, so they are not netted off."); }
+      const d: AgedData = { v: 1, at: new Date().toISOString(), asAt: today, tenantId, rec, pay, notes };
       await store.graph.put(`${agedItem(REPORT_FOLDER, clientKey)}:/content`, new TextEncoder().encode(JSON.stringify(d)), "application/json");
       setS({ data: d, busy: "", checked: true });
     } catch (e) {
@@ -91,7 +97,7 @@ export function AgedView({ data, kind, limit, open, onOpen }: { data: AgedData; 
           <tr style={{ borderTop: "1px solid #111", borderBottom: "1px solid #111", fontWeight: 700 }}><td style={{ ...td, textAlign: "left" }}>Total</td>{AGED_BUCKETS.map(([k]) => <td key={k} style={td}>{money(book.totals[k])}</td>)}<td style={td}>{money(book.totals.total)}</td></tr>
         </tbody>
       </table>
-      <p style={{ fontSize: 11, color: "#7a8591", margin: "8px 0 0" }}>As at {dmy(data.asAt)}. Days are counted from the due date. Credit notes and unallocated payments are not netted off.</p>
+      <p style={{ fontSize: 11, color: "#7a8591", margin: "8px 0 0" }}>As at {dmy(data.asAt)}. Days are counted from the due date; credit notes still to be used are netted off (aged from their own date). Overpayments and prepayments are not included. Amounts in other currencies are converted at the rate on the invoice. This is how it stood on the day it was read, so it can differ from the period end.</p>
     </div>
   );
 }
@@ -116,6 +122,7 @@ export function AgedScreen({ clientKey, clientName, tenant, kind: first }: { cli
           <button type="button" className="btn small" disabled={!!r.busy} onClick={() => void r.refresh()}>{d ? "Refresh from Xero" : "Read from Xero"}</button>
         </div>
       </div>
+      {d?.notes?.map((n) => <div key={n} className="alert amber"><span>{n}</span></div>)}
       {r.error && <div className="alert red"><strong>Couldn't read the invoices</strong><span>{r.error}</span></div>}
       {d && (
         <>

@@ -105,7 +105,7 @@ export function KpiExplorer({ clientKey, clientName, yearEnd, tenant }: { client
           {chosen ? (
             <div className="card pad stack" style={{ gap: 4 }} aria-live="polite">
               <strong>{chosen.def.name}</strong>
-              <span>Result <strong className="mono">{chosen.note && chosen.value === undefined ? chosen.note : formatKpi(chosen.def.unit, chosen.value)}</strong> against a target of <span className="mono">{formatKpi(chosen.def.unit, chosen.target)}</span>
+              <span>Result <strong className="mono">{chosen.note && chosen.value === undefined ? chosen.note : formatKpi(chosen.def.unit, chosen.value)}</strong> against a target of <span className="mono">{chosen.hasTarget ? formatKpi(chosen.def.unit, chosen.target) : "(not set)"}</span>
                 {chosen.onTrack === undefined ? "" : chosen.onTrack ? " · on track" : " · off track"}</span>
               <span className="muted" style={{ fontSize: 13 }}>{chosen.def.how}</span>
             </div>

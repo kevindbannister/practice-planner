@@ -39,7 +39,7 @@ test("a month's profit measures, days and ratios are worked out from the figures
 });
 
 test("the target for an amount is added up over a quarter or a year; ratios are not", () => {
-  const q = computeKpis(d, "quarter", "2026-09", 9);
+  const q = computeKpis(d, "quarter", "2026-09", 9, { targets: { revenue: 90000 } });
   assert.equal(k(q, "revenue").value, 300000);
   assert.equal(k(q, "revenue").target, 270000);
   assert.equal(k(q, "gpm").target, 35);
@@ -82,7 +82,7 @@ test("figures show in their own units", () => {
 });
 
 test("wheelLayout puts every KPI on the circle with a gap after each category", () => {
-  const res = KPI_DEFS.map((def, i) => ({ def, target: 1, value: i % 3 === 0 ? undefined : 2, onTrack: i % 3 === 0 ? undefined : i % 2 === 0 }));
+  const res = KPI_DEFS.map((def, i) => ({ def, target: 1, hasTarget: true, value: i % 3 === 0 ? undefined : 2, onTrack: i % 3 === 0 ? undefined : i % 2 === 0 }));
   const { items, groups } = wheelLayout(res);
   assert.equal(items.length, KPI_DEFS.length);
   assert.equal(groups.length, 7);
@@ -119,9 +119,9 @@ test("importance falls back to the standard and can be overridden", () => {
 test("alerts fire on the wrong side of the threshold, scaled for amounts", () => {
   const rev = KPI_DEFS.find((k) => k.id === "revenue")!, ar = KPI_DEFS.find((k) => k.id === "ardays")!, gpm = KPI_DEFS.find((k) => k.id === "gpm")!;
   const res = [
-    { def: rev, target: 270000, value: 200000, onTrack: false },   // a quarter: target 90,000 a month
-    { def: ar, target: 40, value: 55, onTrack: false },
-    { def: gpm, target: 35, value: 40, onTrack: true },
+    { def: rev, target: 270000, hasTarget: true, months: 3, value: 200000, onTrack: false },   // a quarter: target 90,000 a month
+    { def: ar, target: 40, hasTarget: true, months: 3, value: 55, onTrack: false },
+    { def: gpm, target: 35, hasTarget: true, months: 3, value: 40, onTrack: true },
   ];
   const s = { alerts: { revenue: { on: true, threshold: 80000 }, ardays: { on: true }, gpm: { on: true, threshold: 45 } } };
   const t = triggeredAlerts(res, s);
@@ -131,4 +131,28 @@ test("alerts fire on the wrong side of the threshold, scaled for amounts", () =>
   assert.deepEqual(triggeredAlerts(res, { alerts: { gpm: { on: true, threshold: 30 }, ardays: { on: false } } }), []);
   assert.equal(alertWording(ar), "Accounts Receivable Days exceeds");
   assert.equal(alertWording(gpm), "Gross Profit Margin is less than");
+});
+
+test("the money KPIs have no target until one is set, so they are neither on nor off track and raise no alert", () => {
+  const r = computeKpis(d, "month", "2026-09", 9);
+  assert.equal(k(r, "revenue").hasTarget, false);
+  assert.equal(k(r, "revenue").onTrack, undefined);
+  assert.equal(k(r, "cash").onTrack, undefined);
+  assert.equal(k(r, "gpm").hasTarget, true);
+  assert.deepEqual(triggeredAlerts(r, { alerts: { revenue: { on: true }, cash: { on: true } } }), []);
+  const set = computeKpis(d, "month", "2026-09", 9, { targets: { cash: 1 } });
+  assert.equal(k(set, "cash").hasTarget, true);
+  assert.equal(k(set, "cash").onTrack, true);
+});
+
+test("debtor days compare debtors with revenue plus VAT when the client has a VAT account", () => {
+  const month = ["2026-09"];
+  const mk = (vatAccount: boolean) => ({
+    months: month, bsMonths: month,
+    pl: [{ code: "200", name: "Sales", group: "income", amounts: [10000] }],
+    bs: [{ code: "610", name: "Accounts Receivable", group: "curAsset", amounts: [12000] }, ...(vatAccount ? [{ code: "820", name: "VAT", group: "curLiab", amounts: [500] }] : [])],
+  });
+  const days = (x: ReturnType<typeof mk>) => computeKpis(x, "month", "2026-09", 9).find((r) => r.def.id === "ardays")!.value;
+  assert.equal(days(mk(false)), 36);  // 12,000 over 10,000 for 30 days
+  assert.equal(days(mk(true)), 30);   // 12,000 over 12,000 (10,000 plus 20% VAT)
 });

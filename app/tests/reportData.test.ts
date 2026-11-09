@@ -175,3 +175,32 @@ test("a part year or part quarter says so, and a part quarter is set beside the 
   assert.equal(periodCols("quarter", "2026-02", 4, "prior")[0].label, "Feb 26 (quarter to date)");
   assert.deepEqual(periodCols("quarter", "2026-04", 4, "prior")[1].months, ["2025-11", "2025-12", "2026-01"]);
 });
+
+test("a balance sheet that doesn't balance is flagged, and one that does is not", async () => {
+  const { balanceProblem } = await import("../src/lib/reportData");
+  const row = (group: string, v: number) => ({ code: "", name: group, group, amounts: [v] });
+  assert.equal(balanceProblem(["2026-04"], [row("bank", 1000), row("curLiab", 300), row("equity", 700)]), undefined);
+  assert.match(balanceProblem(["2026-04"], [row("bank", 1000), row("curLiab", 300), row("equity", 500)])!, /doesn't balance.*£200/);
+});
+
+test("if an older year of the balance sheet is refused, the newer months are kept", async () => {
+  let calls = 0;
+  const api: any = {
+    async get(_id: string, _api: string, path: string, q: any = {}) {
+      if (path === "Accounts") return { Accounts: [] };
+      if (path === "Reports/ProfitAndLoss") { const n = Number(q.periods) + 1; return { Reports: [{ Rows: [{ RowType: "Header", Cells: [{ Value: "" }, ...Array.from({ length: n }, (_, i) => ({ Value: `${addMonths(String(q.toDate).slice(0, 7), -i)}-28` }))] }] }] }; }
+      if (path === "Reports/BalanceSheet") {
+        if (++calls > 1) throw Object.assign(new Error("no"), { code: "not-found" });
+        const n = Number(q.periods) + 1;
+        const head = { RowType: "Header", Cells: [{ Value: "" }, ...Array.from({ length: n }, (_, i) => ({ Value: `${i}` }))] };
+        return { Reports: [{ Rows: [head, { RowType: "Section", Title: "Bank", Rows: [{ RowType: "Row", Cells: [{ Value: "Current" }, ...Array.from({ length: n }, () => ({ Value: "100" }))] }] }, { RowType: "Section", Title: "Equity", Rows: [{ RowType: "Row", Cells: [{ Value: "Capital" }, ...Array.from({ length: n }, () => ({ Value: "100" }))] }] }] }] };
+      }
+      throw Object.assign(new Error("no"), { code: "not-found" });
+    },
+  };
+  const d = await readReportData(api, { tenantId: "t", tenantName: "T" }, "2026-10", 24);
+  assert.equal(d.bsMonths.length, 12);
+  assert.equal(d.bsMonths[11], "2026-10");
+  assert.ok(d.bs[0].amounts.length === 12 && d.bs[0].amounts.every((v) => v === 100));
+  assert.ok(d.notes.some((n) => /only read back to/.test(n)));
+});

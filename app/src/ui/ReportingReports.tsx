@@ -46,7 +46,7 @@ function KpiView({ c }: { c: Ctx }) {
               <Fragment key={r.def.id}>
                 {head && <tr style={{ borderBottom: "1px solid #111" }}><td colSpan={4} style={{ padding: "8px 4px 3px", fontWeight: 700, fontSize: 8.8, letterSpacing: 0.3, color: "#111" }}>{r.def.category.toUpperCase()}</td></tr>}
                 <tr style={{ borderBottom: "1px solid #e6e6ea" }}>
-                  <td style={{ ...T.td, textAlign: "left", paddingLeft: 14 }}>{r.def.name}</td><td style={T.td}>{r.note && r.value === undefined ? "–" : formatKpi(r.def.unit, r.value)}</td><td style={T.td}>{formatKpi(r.def.unit, r.target)}</td>
+                  <td style={{ ...T.td, textAlign: "left", paddingLeft: 14 }}>{r.def.name}</td><td style={T.td}>{r.note && r.value === undefined ? "–" : formatKpi(r.def.unit, r.value)}</td><td style={T.td}>{r.hasTarget ? formatKpi(r.def.unit, r.target) : "not set"}</td>
                   <td style={{ ...T.td, textAlign: "center", color: r.onTrack === undefined ? "#9aa5b1" : r.onTrack ? "#5b8a2d" : "#d4300f", fontWeight: 700 }}>{r.onTrack === undefined ? "–" : r.onTrack ? "On track" : "Off track"}</td>
                 </tr>
               </Fragment>
@@ -62,6 +62,8 @@ function CashFlowView({ c }: { c: Ctx }) {
   const cf = cashFlow(c.d, c.kind, c.anchor, c.endMonth);
   if (!cf) return <p style={{ ...T.p, color: "#7a8591" }}>The cash flow needs the balance sheet for this period and the month before it.</p>;
   return (
+    <>
+    {cf.unexplainedBig && <p style={{ ...T.p, color: "#d4300f" }}>Note: £{Math.abs(Math.round(cf.unexplained)).toLocaleString("en-GB")} of the movement in cash isn't explained by the figures (see the unexplained difference below).</p>}
     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 8.8 }}>
       <tbody>
         {cf.lines.map((l, i) => (
@@ -72,6 +74,7 @@ function CashFlowView({ c }: { c: Ctx }) {
         ))}
       </tbody>
     </table>
+    </>
   );
 }
 
@@ -221,17 +224,33 @@ export function publishedHtml(doc: ReportDoc, c: Ctx, clientName: string): strin
 // ------------------------------------------------------------------ the list and the editor
 
 export function ReportsScreen({ clientKey, clientName, yearEnd, tenant, id }: Props) {
-  const { data: app, saveSetting, store } = useData();
+  const { data: app, saveSetting, remove, store } = useData();
   const r = useReportData(clientKey, tenant);
   const ag = useAgedData(clientKey, tenant);
   const tried = useRef("");
   useEffect(() => {
     if (r.checked && !r.data && !r.busy && !r.error && tried.current !== clientKey) { tried.current = clientKey; void r.refresh(); }
   }, [r.checked, r.data, r.busy, r.error, clientKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const key = `reports.${clientKey}`;
-  const list = readSetting<ReportDoc[]>(app.settings, key) || [];
+  // Each report is saved as a setting of its own (a setting holds about 60,000 characters, which a few full reports would use up).
+  // Reports saved the old way, all together under reports.<client>, are moved across the first time anything is saved.
+  const legacyKey = `reports.${clientKey}`, prefix = `report.${clientKey}.`;
+  const own = app.settings.filter((s) => String(s.Key).startsWith(prefix)).map((s) => readSetting<ReportDoc>(app.settings, String(s.Key))).filter((x): x is ReportDoc => !!x && !!x.id);
+  const old = (readSetting<ReportDoc[]>(app.settings, legacyKey) || []).filter((x) => !own.some((o) => o.id === x.id));
+  const list = [...own, ...old];
   const listRef = useRef(list); listRef.current = list;
-  const save = (next: ReportDoc[]) => saveSetting(key, next);
+  const save = async (next: ReportDoc[]) => {
+    const now = listRef.current;
+    for (const d of next) {
+      const have = own.find((o) => o.id === d.id);
+      if (!have || JSON.stringify(have) !== JSON.stringify(d)) await saveSetting(prefix + d.id, d);
+    }
+    for (const gone of now.filter((x) => !next.some((n) => n.id === x.id))) {
+      const row = app.settings.find((s) => s.Key === prefix + gone.id);
+      if (row) await remove("Settings", row);
+      if (gone.file) { try { await store.graph.delete(gone.file); } catch { /* the published copy was already gone */ } }
+    }
+    if (readSetting<ReportDoc[]>(app.settings, legacyKey)?.length) await saveSetting(legacyKey, []);
+  };
   const kpi = readSetting<KpiSettings>(app.settings, `reporting.kpi.${clientKey}`) || {};
   const endMonth = endMonthOf(yearEnd);
   const d = r.data;

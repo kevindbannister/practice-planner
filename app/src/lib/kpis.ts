@@ -14,17 +14,19 @@ export type KpiDef = {
   target: number;
   /** the target is per month, so a quarter or year has it added up */
   perMonth?: boolean;
+  /** money amounts differ for every business, so there is no standard target: the KPI has none until one is set for the client */
+  noStandard?: boolean;
   how: string;
 };
 
 export const KPI_DEFS: KpiDef[] = [
-  { id: "revenue", name: "Total Revenue", category: "Profitability", unit: "money", target: 90000, perMonth: true, how: "Sales and other trading income for the period." },
+  { id: "revenue", name: "Total Revenue", category: "Profitability", unit: "money", target: 0, perMonth: true, noStandard: true, how: "Sales and other trading income for the period." },
   { id: "gpm", name: "Gross Profit Margin", category: "Profitability", unit: "percent", target: 35, how: "Gross profit as a share of revenue." },
   { id: "opm", name: "Operating Profit Margin", category: "Profitability", unit: "percent", target: 25, how: "Gross profit less expenses, as a share of revenue." },
   { id: "npm", name: "Net Profit Margin", category: "Profitability", unit: "percent", target: 15, how: "Net profit (including other income) as a share of revenue." },
-  { id: "ardays", name: "Accounts Receivable Days", category: "Activity", unit: "days", target: 40, lowerIsBetter: true, how: "Debtors at the end of the period, over revenue, times the days in the period." },
+  { id: "ardays", name: "Accounts Receivable Days", category: "Activity", unit: "days", target: 40, lowerIsBetter: true, how: "Debtors at the end of the period, over revenue, times the days in the period. Debtors include VAT, so for a client with a VAT account on the balance sheet revenue is taken with 20% VAT added." },
   { id: "invdays", name: "Inventory Days", category: "Activity", unit: "days", target: 30, lowerIsBetter: true, how: "Stock at the end of the period, over cost of sales, times the days in the period." },
-  { id: "apdays", name: "Accounts Payable Days", category: "Activity", unit: "days", target: 45, how: "Creditors at the end of the period, over cost of sales (or costs if there are none), times the days in the period." },
+  { id: "apdays", name: "Accounts Payable Days", category: "Activity", unit: "days", target: 45, how: "Creditors at the end of the period, over cost of sales (or costs if there are none), times the days in the period. For a client with a VAT account, cost of sales is taken with 20% VAT added." },
   { id: "roe", name: "Return on Equity", category: "Efficiency", unit: "percent", target: 15, how: "Net profit for the year (the period scaled up) over equity at the end." },
   { id: "roa", name: "Return on Assets", category: "Efficiency", unit: "percent", target: 10, how: "Net profit for the year (the period scaled up) over total assets at the end." },
   { id: "roce", name: "Return on Capital Employed", category: "Efficiency", unit: "percent", target: 12.5, how: "Operating profit for the year (the period scaled up) over total assets less current liabilities." },
@@ -32,7 +34,7 @@ export const KPI_DEFS: KpiDef[] = [
   { id: "quick", name: "Quick Ratio", category: "Liquidity", unit: "ratio", target: 1, how: "Current assets less stock, plus cash, over current liabilities." },
   { id: "dte", name: "Debt to Equity", category: "Gearing", unit: "percent", target: 100, lowerIsBetter: true, how: "Loans, hire purchase, overdrafts, cards and long-term liabilities over equity." },
   { id: "dta", name: "Debt to Total Assets", category: "Gearing", unit: "percent", target: 50, lowerIsBetter: true, how: "The same debt over total assets." },
-  { id: "cash", name: "Cash on Hand", category: "Cash Flow", unit: "money", target: 10000, how: "Bank and cash balances at the end of the period." },
+  { id: "cash", name: "Cash on Hand", category: "Cash Flow", unit: "money", target: 0, noStandard: true, how: "Bank and cash balances at the end of the period." },
   { id: "revg", name: "Revenue Growth", category: "Growth", unit: "percent", target: 5, how: "Revenue against the same months a year earlier." },
   { id: "gpg", name: "Gross Profit Growth", category: "Growth", unit: "percent", target: 5, how: "Gross profit against the same months a year earlier." },
   { id: "ebitg", name: "EBIT Growth", category: "Growth", unit: "percent", target: 5, how: "Operating profit against the same months a year earlier." },
@@ -43,12 +45,14 @@ export const CATEGORIES: KpiCategory[] = ["Profitability", "Activity", "Efficien
 /** Per client: the targets changed from the standard, and the KPIs switched off. */
 export type KpiSettings = { targets?: Record<string, number>; off?: string[]; importance?: Record<string, Importance>; alerts?: Record<string, { on: boolean; threshold?: number }> };
 
-export type KpiResult = { def: KpiDef; value?: number; target: number; /** result less target, in the result's own unit */ gap?: number; onTrack?: boolean; note?: string };
+export type KpiResult = { def: KpiDef; value?: number; target: number; /** false when no target has been set (the money KPIs start without one) */ hasTarget: boolean; /** how many months the period covers */ months: number; /** result less target, in the result's own unit */ gap?: number; onTrack?: boolean; note?: string };
 
 const sumRows = (rows: RRow[], months: string[], all: string[]) => r2(rows.reduce((a, r) => a + months.reduce((b, m) => b + (r.amounts[all.indexOf(m)] || 0), 0), 0));
 const endOf = (rows: RRow[], month: string, all: string[]) => r2(rows.reduce((a, r) => a + (r.amounts[all.indexOf(month)] || 0), 0));
 const daysIn = (months: string[]) => months.reduce((n, m) => n + new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).getUTCDate(), 0);
 
+/** The standard rate: sales and costs are scaled up by this to compare them with debtors and creditors, which include VAT. */
+const VAT_UP = 1.2;
 const DEBT = /loan|hire purchase|\bhp\b|overdraft|credit card|finance|mortgage|bounce back|cbils|director'?s? (loan|current)/i;
 
 /** The figures a period is made of. */
@@ -65,7 +69,9 @@ export function figuresFor(d: Pick<ReportData, "months" | "pl" | "bsMonths" | "b
   const stock = at(match("curAsset", /stock|inventory/i)), debtors = at(match("curAsset", /debtor|receivable/i)), creditors = at(match("curLiab", /creditor|payable/i));
   const debt = d.bs.length ? r2(endOf([...bs("curLiab").filter((r) => DEBT.test(r.name)), ...bs("ltLiab")], last, d.bsMonths)) : undefined;
   const assets = d.bs.length ? r2((bank || 0) + (curAssets || 0) + (fixed || 0)) : undefined;
-  return { revenue, cos, expenses, other, gross, operating, net, bank, curAssets, fixed, curLiab, ltLiab, equity, stock, debtors, creditors, debt, assets, days: daysIn(months) };
+  // debtors and creditors include VAT but the profit and loss doesn't: a VAT account on the balance sheet shows the client charges it
+  const vat = d.bs.some((r) => /\bvat\b|sales tax/i.test(r.name) && r.amounts.some((v) => v));
+  return { vat, revenue, cos, expenses, other, gross, operating, net, bank, curAssets, fixed, curLiab, ltLiab, equity, stock, debtors, creditors, debt, assets, days: daysIn(months) };
 }
 
 /** Every KPI for a period, with its target and whether it is met. */
@@ -82,9 +88,9 @@ export function computeKpis(d: Pick<ReportData, "months" | "pl" | "bsMonths" | "
     gpm: pc(div(f.gross, f.revenue)),
     opm: pc(div(f.operating, f.revenue)),
     npm: pc(div(f.net, f.revenue)),
-    ardays: f.debtors === undefined || !f.revenue ? undefined : r2((f.debtors / f.revenue) * f.days),
+    ardays: f.debtors === undefined || !f.revenue ? undefined : r2((f.debtors / (f.revenue * (f.vat ? VAT_UP : 1))) * f.days),
     invdays: f.stock === undefined || !f.cos ? undefined : r2((f.stock / f.cos) * f.days),
-    apdays: f.creditors === undefined ? undefined : f.cos || f.expenses ? r2((f.creditors / (f.cos || f.expenses)) * f.days) : undefined,
+    apdays: f.creditors === undefined ? undefined : f.cos || f.expenses ? r2((f.creditors / (f.cos ? f.cos * (f.vat ? VAT_UP : 1) : f.expenses)) * f.days) : undefined,
     roe: pc(div(f.net * year, f.equity)),
     roa: pc(div(f.net * year, f.assets)),
     roce: f.assets === undefined || f.curLiab === undefined ? undefined : pc(div(f.operating * year, f.assets - f.curLiab)),
@@ -103,9 +109,10 @@ export function computeKpis(d: Pick<ReportData, "months" | "pl" | "bsMonths" | "
     const value = raw === undefined || Number.isNaN(raw) ? undefined : r2(raw);
     const base = settings.targets?.[def.id] ?? def.target;
     const target = def.perMonth ? r2(base * months.length) : base;
-    const gap = value === undefined ? undefined : r2(value - target);
-    const onTrack = value === undefined ? undefined : def.lowerIsBetter ? value <= target : value >= target;
-    return { def, value: value === undefined ? undefined : value, target, gap, onTrack, note: value === undefined && d.bs.length === 0 && /ardays|invdays|apdays|roe|roa|roce|current|quick|dte|dta|cash/.test(def.id) ? "Needs the balance sheet" : undefined };
+    const hasTarget = !(def.noStandard && settings.targets?.[def.id] === undefined);
+    const gap = value === undefined || !hasTarget ? undefined : r2(value - target);
+    const onTrack = value === undefined || !hasTarget ? undefined : def.lowerIsBetter ? value <= target : value >= target;
+    return { def, value: value === undefined ? undefined : value, target, hasTarget, months: months.length, gap, onTrack, note: value === undefined && d.bs.length === 0 && /ardays|invdays|apdays|roe|roa|roce|current|quick|dte|dta|cash/.test(def.id) ? "Needs the balance sheet" : undefined };
   });
 }
 
@@ -136,9 +143,8 @@ export function triggeredAlerts(results: KpiResult[], settings: KpiSettings = {}
   const out: TriggeredAlert[] = [];
   for (const r of results) {
     const a = settings.alerts?.[r.def.id];
-    if (!a?.on || r.value === undefined) continue;
-    const base = settings.targets?.[r.def.id] ?? r.def.target;
-    const threshold = a.threshold === undefined ? r.target : r.def.perMonth && base ? r2(a.threshold * (r.target / base)) : a.threshold;
+    if (!a?.on || r.value === undefined || (!r.hasTarget && a.threshold === undefined)) continue;
+    const threshold = a.threshold === undefined ? r.target : r.def.perMonth ? r2(a.threshold * r.months) : a.threshold;
     if (r.def.lowerIsBetter ? r.value > threshold : r.value < threshold) out.push({ def: r.def, value: r.value, threshold });
   }
   return out;

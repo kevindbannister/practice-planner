@@ -22,7 +22,7 @@ test("cash flow: the lines add up to the change in cash less the change in debt"
   const get = (l: string) => c.lines.find((x) => x.label === l)!.amount;
   assert.equal(get("Revenue"), 300); assert.equal(get("Cost of Sales"), -90); assert.equal(get("Expenses"), -10);
   assert.equal(get("Change in Accounts Receivable"), -20); assert.equal(get("Change in Inventory"), -10); assert.equal(get("Change in Accounts Payable"), 10);
-  assert.equal(get("Net Interest (after tax)"), -1);
+  assert.equal(get("Net Interest"), -1);
   assert.equal(c.cash.open, 150); assert.equal(c.debt.close, 56);
   assert.equal(c.totals.length, 3);
 });
@@ -57,4 +57,9 @@ test("goalseek: a solo change reaches the goal and levers add up to the metric",
   const sum = contributions(base, "opm", l).reduce((a, c) => a + c.delta, 0);
   assert.ok(Math.abs(start + sum - goalValue(base, "opm", l)!) < 1e-9);
   assert.equal(soloChange({ ...base, fixedExp: 0 }, "opm", 20, "volume"), undefined); // volume can't lift a margin with no fixed costs
+});
+test("cash flow: a gap the figures don't explain is reported, and a small one is not", () => {
+  const c = cashFlow(d as never, "month", "2026-03", 12)!;
+  assert.equal(c.unexplained, c.lines[c.lines.length - 1].amount);
+  assert.equal(c.unexplainedBig, Math.abs(c.unexplained) > Math.max(100, 3));
 });

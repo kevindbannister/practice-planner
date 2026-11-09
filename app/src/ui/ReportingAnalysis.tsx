@@ -72,6 +72,7 @@ export function CashFlowScreen({ clientKey, clientName, yearEnd, tenant }: Props
         <Lbl>For the</Lbl><Seg value={kind} set={setKind} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" /><Lbl>of</Lbl><MonthSelect months={months} at={at} set={setAnchor} />
       </div>
       {!cf && <div className="alert amber"><strong>No cash flow for this period</strong><span>It needs the balance sheet for the period and the month before it. Choose Refresh from Xero (and reconnect Xero in Settings if the balance sheet was refused).</span></div>}
+      {cf?.unexplainedBig && <div className="alert amber"><strong>The cash flow doesn't fully add up</strong><span>£{Math.abs(Math.round(cf.unexplained)).toLocaleString("en-GB")} of the movement in cash isn't explained by the profit and loss and the balance sheet (the "Unexplained difference" line). An account may be in the wrong group, or entries may have been made to a closed period.</span></div>}
       {cf && layout && (
         <>
           <div className="row-wrap" style={{ gap: 16 }}>
