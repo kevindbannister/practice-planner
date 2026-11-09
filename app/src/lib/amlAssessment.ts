@@ -13,7 +13,16 @@ const str = (v: unknown): string => (v === undefined || v === null ? "" : String
 const json = <T,>(v: unknown, fallback: T): T => { try { const x = JSON.parse(str(v) || ""); return x ?? fallback; } catch { return fallback; } };
 
 export type Evidence = { id: string; name: string; url: string; at: string; by: string; note: string };
-export type Assessment = Aml & { evidence: Evidence[]; doneOn: string; source: string; answers: Ans };
+export type Assessment = Aml & { evidence: Evidence[]; doneOn: string; source: string; answers: Ans; reason: string };
+/** Why an assessment is being done. A review raised by a trigger records the trigger instead (see amlReview). */
+export const REASONS: { v: string; label: string }[] = [
+  { v: "new", label: "First assessment: new client" },
+  { v: "existing", label: "First assessment on the planner: existing client" },
+  { v: "periodic", label: "Scheduled periodic review" },
+  { v: "change", label: "Change in the client's circumstances" },
+  { v: "other", label: "Other" },
+];
+export const reasonLabel = (v: string) => REASONS.find((r) => r.v === v)?.label || "";
 export type AssessmentStatus = "inprogress" | "approved" | "declined" | "superseded" | "discarded";
 export const asStatus = (v: unknown): AssessmentStatus => (v === "approved" || v === "declined" || v === "superseded" || v === "discarded" ? v : "inprogress");
 
@@ -22,23 +31,23 @@ export function readAssessment(r: Row): Assessment {
   return {
     status: st === "inprogress" ? "inprogress" : st === "superseded" ? "approved" : st === "discarded" ? "notstarted" : st, risk: (["low", "medium", "high"].includes(str(r.Risk)) ? str(r.Risk) : "") as Risk, riskBasis: str(r.RiskBasis),
     owners: json<Owner[]>(r.Owners, []), noOwnerNote: str(r.NoOwnerNote), checks: json<Check[]>(r.Checks, []), preparedBy: str(r.PreparedBy), approvedBy: str(r.ApprovedBy), approvedAt: str(r.ApprovedAt),
-    reviewDate: str(r.ReviewDate), declinedReason: str(r.DeclinedReason), evidence: json<Evidence[]>(r.Evidence, []), doneOn: str(r.DoneOn), source: str(r.Source) || "manual", answers: readAnswers(r.Factors),
+    reviewDate: str(r.ReviewDate), declinedReason: str(r.DeclinedReason), evidence: json<Evidence[]>(r.Evidence, []), doneOn: str(r.DoneOn), source: str(r.Source) || "manual", answers: readAnswers(r.Factors), reason: str(r.Reason),
   };
 }
 
-export function startAssessment(client: Row, rows: Row[], o: Ctx): Written | { error: string } {
+export function startAssessment(client: Row, rows: Row[], o: Ctx, reason?: string): Written | { error: string } {
   const mine = rows.filter((r) => r.ClientKey === client.Key);
   if (mine.some((r) => asStatus(r.Status) === "inprogress")) return { error: "There is already an assessment in progress." };
   const prev = mine.filter((r) => ["approved", "superseded"].includes(asStatus(r.Status))).sort((a, b) => str(b.ApprovedAt).localeCompare(str(a.ApprovedAt)))[0];
   const p = prev ? readAssessment(prev) : undefined;
   const row: Row = {
     Key: o.newKey("AML"), PracticeId: o.pid, ClientKey: str(client.Key), Status: "inprogress", Risk: p?.risk || "", RiskBasis: p?.riskBasis || "", Owners: JSON.stringify(p?.owners || []), NoOwnerNote: p?.noOwnerNote || "",
-    Checks: "[]", Evidence: "[]", PreparedBy: "", Source: prev ? "review" : "manual", Created: o.now, CreatedBy: o.actor, Updated: o.now,
+    Checks: "[]", Evidence: "[]", PreparedBy: "", Source: prev ? "review" : "manual", Reason: REASONS.some((x) => x.v === reason) ? reason : prev ? "periodic" : "new", Created: o.now, CreatedBy: o.actor, Updated: o.now,
   };
-  return { patches: [], creates: [{ list: "AmlAssessments", row }], log: [logRow(o, "aml-started", "aml", str(row.Key), { clientKey: str(client.Key) }, { review: !!prev })], activities: [] };
+  return { patches: [], creates: [{ list: "AmlAssessments", row }], log: [logRow(o, "aml-started", "aml", str(row.Key), { clientKey: str(client.Key) }, { review: !!prev, reason: str(row.Reason) })], activities: [] };
 }
 
-export type Edit = { risk?: Risk; riskBasis?: string; owners?: Owner[]; noOwnerNote?: string; checks?: Check[]; evidence?: Evidence[]; notes?: string; answers?: Ans };
+export type Edit = { risk?: Risk; riskBasis?: string; owners?: Owner[]; noOwnerNote?: string; checks?: Check[]; evidence?: Evidence[]; notes?: string; answers?: Ans; reason?: string };
 export function saveAssessment(row: Row, edit: Edit, can: (a: ProposalAction) => boolean, o: Ctx): Written | { error: string } {
   if (!can("edit")) return { error: "You can't change AML records." };
   if (asStatus(row.Status) !== "inprogress" && asStatus(row.Status) !== "declined") return { error: "This assessment has been approved. Start a new review to change it." };
@@ -46,7 +55,7 @@ export function saveAssessment(row: Row, edit: Edit, can: (a: ProposalAction) =>
   const checks = (edit.checks ?? cur.checks).map((c) => ({ ...c, id: c.id || o.newKey("CK"), by: c.by || o.actor, at: c.at || o.now }));
   const patch: Row = {
     Status: "inprogress", Risk: edit.risk ?? cur.risk, RiskBasis: edit.riskBasis ?? cur.riskBasis, Owners: JSON.stringify(edit.owners ?? cur.owners), NoOwnerNote: edit.noOwnerNote ?? cur.noOwnerNote,
-    Checks: JSON.stringify(checks), Evidence: JSON.stringify(edit.evidence ?? cur.evidence), PreparedBy: o.actor, DeclinedReason: "", Updated: o.now, ...(edit.answers ? { Factors: JSON.stringify(edit.answers) } : {}), ...(edit.notes !== undefined ? { Notes: edit.notes } : {}),
+    Checks: JSON.stringify(checks), Evidence: JSON.stringify(edit.evidence ?? cur.evidence), PreparedBy: o.actor, DeclinedReason: "", Updated: o.now, ...(edit.answers ? { Factors: JSON.stringify(edit.answers) } : {}), ...(edit.notes !== undefined ? { Notes: edit.notes } : {}), ...(edit.reason && REASONS.some((x) => x.v === edit.reason) ? { Reason: edit.reason } : {}),
   };
   return { patches: [{ list: "AmlAssessments", row, patch }], log: [logRow(o, "aml-saved", "aml", str(row.Key), { clientKey: str(row.ClientKey) }, { risk: patch.Risk, checks: checks.length })], activities: [] };
 }

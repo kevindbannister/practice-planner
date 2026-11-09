@@ -106,3 +106,19 @@ test("an assessment can be discarded, stays in history, and doesn't change the c
   apply(rows, startAssessment(client, rows, o()) as any);
   assert.ok("error" in (discardAssessment(rows[0], yes, o()) as any));
 });
+
+test("an assessment records why it is being done: defaults to new for a first one, periodic for later, and can be changed", async () => {
+  const { REASONS } = await import("../src/lib/amlAssessment.ts");
+  const rows: any[] = [];
+  apply(rows, startAssessment(client, rows, o()) as any);
+  assert.equal(rows[0].Reason, "new");
+  assert.equal(readAssessment(rows[0]).reason, "new");
+  apply(rows, saveAssessment(rows[0], { reason: "existing" }, yes, o()) as any);
+  assert.equal(rows[0].Reason, "existing");
+  apply(rows, saveAssessment(rows[0], { reason: "nonsense" }, yes, o()) as any);
+  assert.equal(rows[0].Reason, "existing");
+  const r2: any[] = [];
+  apply(r2, startAssessment(client, r2, o(), "change") as any);
+  assert.equal(r2[0].Reason, "change");
+  assert.ok(REASONS.length >= 4);
+});

@@ -2,9 +2,9 @@
 // review date) and, separately, what Xama holds. The Overview card summarises it. See lib/amlAssessment.ts.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
-import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, discardAssessment, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
+import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, discardAssessment, REASONS, reasonLabel, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
-import { TRIGGER_KINDS, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
+import { TRIGGER_KINDS, isTriggerSource, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
 import { Ans, LEVEL_LABEL, basisFrom, evaluate, templateFor, templateProblems } from "../lib/amlTemplate";
 import { AmlRiskForm } from "./AmlRiskForm";
 import { idStampRead } from "../lib/xamaActions";
@@ -39,6 +39,8 @@ export function AmlTab({ client }: { client: Client }) {
 
   const go = async (w: ReturnType<typeof startAssessment>) => { setError(""); if ("error" in w) return setError(w.error); setBusy(true); try { await s.apply(w); } catch { setError("Couldn't save that. Try again."); } finally { setBusy(false); } };
   const open = pos.row;
+  const hasApproved = !!pos.current || pos.source === "onboarding" || pos.source === "client record";
+  const [reason, setReason] = useState(hasApproved ? "periodic" : "new");
   const policy = readReviewPolicy(data.settings, settings.amlMonths);
   const trig = triggerOf(open);
   const seen = trig ? [] : seenTriggers(clientRow(), data as never, policy, lastApprovedAt(clientRow(), data.amlAssessments, data.onboardings, readAml));
@@ -52,7 +54,10 @@ export function AmlTab({ client }: { client: Client }) {
         <div className="kv"><span>Next review</span><span style={pos.state === "overdue" || pos.state === "soon" ? { color: pos.state === "overdue" ? "var(--red-ink, #b42318)" : "var(--amber-ink)", fontWeight: 600 } : undefined}>{pos.reviewDate ? `${fmtDate(pos.reviewDate)}${pos.daysToReview !== null ? (pos.daysToReview < 0 ? ` (${-pos.daysToReview} days overdue)` : ` (in ${pos.daysToReview} days)`) : ""}` : "—"}</span></div>
         {pos.source && <div className="kv"><span>Source</span><span>{pos.source === "onboarding" ? "Approved during onboarding" : pos.source === "client record" ? "Review date on the client record only" : "Recorded here"}</span></div>}
         {error && <p className="error-text" role="alert">{error}</p>}
-        {!open && canEdit && <div><button type="button" className="btn primary" disabled={busy} onClick={() => void go(startAssessment(clientRow(), data.amlAssessments, s.ctx()))}>{pos.current || pos.source === "onboarding" || pos.source === "client record" ? "Start a review" : "Start an assessment"}</button></div>}
+        {!open && canEdit && <div className="row-wrap">
+          <label className="stack" style={{ gap: 2 }}><span className="muted" style={{ fontSize: 12 }}>Why is this being done?</span>
+            <select className="input" aria-label="Reason for the assessment" value={reason} onChange={(e) => setReason(e.target.value)}>{REASONS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</select></label>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => void go(startAssessment(clientRow(), data.amlAssessments, s.ctx(), reason))}>{pos.current || pos.source === "onboarding" || pos.source === "client record" ? "Start a review" : "Start an assessment"}</button></div>}
       </section>
 
       <section className="card pad stack" aria-label="Review triggers">
@@ -106,7 +111,7 @@ export function AmlTab({ client }: { client: Client }) {
           <h2 className="sec-h">History</h2>
           {mine.filter((r) => !open || r.Key !== open.Key).map((r) => { const a = readAssessment(r); const st = asStatus(r.Status); return (
             <div key={String(r.Key)} className="row-wrap" style={{ justifyContent: "space-between" }}>
-              <span>{RISK[a.risk]} risk · {a.doneOn ? `done ${fmtDate(a.doneOn)}` : `started ${fmtDate(String(r.Created).slice(0, 10))}`}{a.approvedBy ? ` · approved by ${a.approvedBy}` : ""}{a.evidence.length ? ` · ${a.evidence.length} file${a.evidence.length === 1 ? "" : "s"}` : ""}</span>
+              <span>{RISK[a.risk]} risk · {a.doneOn ? `done ${fmtDate(a.doneOn)}` : `started ${fmtDate(String(r.Created).slice(0, 10))}`}{a.reason ? ` · ${reasonLabel(a.reason)}` : ""}{a.approvedBy ? ` · approved by ${a.approvedBy}` : ""}{a.evidence.length ? ` · ${a.evidence.length} file${a.evidence.length === 1 ? "" : "s"}` : ""}</span>
               <span className={`chip ${st === "approved" ? "green" : st === "declined" ? "red" : ""}`}>{st === "discarded" ? "Discarded" : st === "superseded" ? "Replaced by a newer review" : st === "approved" ? "Current" : st === "declined" ? "Not approved" : "In progress"}</span>
             </div>
           ); })}
@@ -136,6 +141,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const { store, user, data } = useData();
   const saved = readAssessment(row);
   const [answers, setAnswers] = useState<Ans>(saved.answers);
+  const [rsn, setRsn] = useState(saved.reason);
   const co = useMemo(() => cosecOwnership(String(client.Key), data as never, today), [data, client.Key, today]);
   const type = clientTypeFor(String(client.Kind));
   const isCo = type === "limited" || type === "llp";
@@ -161,7 +167,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
     setBusy(true); setMsg(null);
     try { const x = typeof w === "function" ? await w() : w; if ("error" in x) setMsg({ ok: false, text: x.error }); else { await s.apply(x); setMsg({ ok: true, text: ok }); } } catch { setMsg({ ok: false, text: "Couldn't save that. Try again." }); } finally { setBusy(false); }
   };
-  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, answers }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
+  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, answers, reason: rsn }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
   const upload = async (f: File) => {
     setBusy(true); setMsg(null);
     try {
@@ -178,6 +184,8 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
     <section className="card pad stack" aria-label="Assessment in progress">
       <div className="card-title-row"><h2 className="sec-h">{row.Source === "review" ? "Review in progress" : "Assessment in progress"}</h2>{asStatus(row.Status) === "declined" && <span className="chip red">Not approved: {saved.declinedReason}</span>}</div>
       <fieldset disabled={!edit || busy} style={{ border: 0, padding: 0, margin: 0 }} className="stack">
+        {!isTriggerSource(row.Source) && <label className="stack" style={{ gap: 2, maxWidth: 420 }}><span style={{ fontWeight: 600 }}>Why is this assessment being done?</span>
+          <select className="input" aria-label="Reason for this assessment" value={rsn} onChange={(e) => setRsn(e.target.value)}><option value="">Not recorded</option>{REASONS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</select></label>}
         <AmlRiskForm tpl={tpl} answers={answers} setAnswers={setAnswers} ctx={{
           companyNumber: String(client.CompanyNumber || "").trim(), owners: cleanOwners.length,
           passedIdentity: checks.some((c) => c.result === "pass" && /identity/i.test(c.kind)), passedScreening: checks.some((c) => c.result === "pass" && /sanction|pep/i.test(c.kind)),

@@ -4616,6 +4616,10 @@
      "type": "text"
     },
     {
+     "name": "Reason",
+     "type": "text"
+    },
+    {
      "name": "OnboardingKey",
      "type": "text"
     },
