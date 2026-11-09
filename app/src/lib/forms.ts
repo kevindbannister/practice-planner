@@ -93,6 +93,9 @@ export const STATUS_LABEL = { open: "Waiting for answers", complete: "Completed"
 export const STATUS_CHIP = { open: "amber", complete: "green", cancelled: "" } as const;
 
 const f = (id: string, label: string, type: FieldType, o: Partial<Field> = {}): Field => ({ id, label, type, required: false, ...o });
+/** The know-your-client questionnaires: the client's own account of who they are, what they do and where their money comes from. The answers
+ *  are shown on the client's AML tab as a reference for the risk assessment; they are the client's statements, not verification. */
+export const KYC_PREFIX = "Know your client";
 export const STARTERS: { name: string; category: string; description: string; fields: Field[] }[] = [
   { name: "New client questionnaire", category: "Onboarding", description: "The basics we need to start acting for a new client.", fields: [
     f("n1", "Full name", "text", { required: true, prefill: "Title" }), f("n2", "Date of birth", "date", { prefill: "DateOfBirth", writeBack: true }), f("n3", "Email", "text", { required: true, prefill: "Email", writeBack: true }),
@@ -109,5 +112,25 @@ export const STARTERS: { name: string; category: string; description: string; fi
     f("i1", "Did you receive income from employment, self-employment, property or investments?", "longtext", { required: true }), f("i2", "Any new bank, savings or investment accounts?", "longtext"),
     f("i3", "Did you sell any assets, shares or property?", "yesno", { required: true }), f("i4", "Pension contributions or charitable gifts made", "longtext"), f("i5", "Has your address or family situation changed?", "yesno"),
     f("i6", "Anything else we should know?", "longtext"),
+  ] },
+  { name: "Know your client: individual", category: "AML", description: "Who the client is, what they do and where their money comes from, in their own words, for the AML risk assessment.", fields: [
+    f("k1", "Full name", "text", { required: true, prefill: "Title" }), f("k2", "Date of birth", "date", { required: true, prefill: "DateOfBirth", writeBack: true }), f("k3", "Nationality", "text", { required: true }),
+    f("k4", "Home address", "longtext", { required: true, prefill: "HomeAddress", writeBack: true }), f("k5", "If you have lived there less than 3 years, your previous addresses", "longtext"),
+    f("k6", "Occupation and employer or business", "text", { required: true }), f("k7", "Where does your income come from?", "longtext", { required: true }),
+    f("k8", "How did you build up your savings and assets (for example salary, a business sale, inheritance)?", "longtext", { required: true }),
+    f("k9", "What would you like us to do for you?", "longtext", { required: true }), f("k10", "Roughly what is your yearly income?", "choice", { required: true, options: ["Under £50,000", "£50,000 to £150,000", "£150,000 to £500,000", "Over £500,000"] }),
+    f("k11", "Do you, or does a close family member or close associate, hold or have held in the last 12 months a prominent public position (for example MP, senior official, judge, senior military officer, ambassador, board of a state-owned company), in the UK or abroad?", "yesno", { required: true }),
+    f("k12", "If yes, please give details", "longtext"), f("k13", "Countries outside the UK you live in, work in, own property in or receive money from", "longtext"),
+    f("k14", "Will anyone else give us instructions for you? If so, who and why?", "longtext"), f("k15", "I confirm the information given is true and complete, and I will tell you if it changes", "tick", { required: true }),
+  ] },
+  { name: "Know your client: company", category: "AML", description: "Who owns and runs the company, what it does and where its money comes from, in the client's words, for the AML risk assessment.", fields: [
+    f("q1", "Company name", "text", { required: true, prefill: "Title" }), f("q2", "Company number", "text", { prefill: "CompanyNumber" }), f("q3", "Trading address, if different from the registered office", "longtext", { prefill: "TradingAddress", writeBack: true }),
+    f("q4", "What does the company do?", "longtext", { required: true, prefill: "BusinessActivity", writeBack: true }), f("q5", "Roughly what is its yearly turnover?", "choice", { required: true, options: ["Under £85,000", "£85,000 to £500,000", "£500,000 to £2 million", "Over £2 million"] }),
+    f("q6", "Where did the money to start or fund the company come from?", "longtext", { required: true }), f("q7", "Everyone who owns more than 25% of the shares or votes, with their percentage", "longtext", { required: true }),
+    f("q8", "Anyone else who controls the company (for example through an agreement, or by appointing directors)", "longtext"), f("q9", "The directors", "longtext", { required: true }),
+    f("q10", "Countries outside the UK the company trades with, has customers or suppliers in, or receives money from", "longtext"), f("q11", "Does the company take or handle cash in significant amounts?", "yesno", { required: true }),
+    f("q12", "Is any owner, director or controller (or a close family member or associate of one) someone who holds or has held in the last 12 months a prominent public position, in the UK or abroad?", "yesno", { required: true }),
+    f("q13", "If yes, please give details", "longtext"), f("q14", "Who will give us instructions for the company?", "text", { required: true }),
+    f("q15", "I confirm the information given is true and complete, and I will tell you if it changes", "tick", { required: true }),
   ] },
 ];

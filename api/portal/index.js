@@ -10,6 +10,7 @@
 // Settings (Azure application settings) are listed in docs/client-portal.md. Until they're set,
 // /api/portal/admin/status says which are missing and the rest answers "not set up".
 
+const { createHashScanner } = require("./lib/hashScanner.js");
 const { createSignIn, reply, header, claims } = require("../shared/signin.js");
 const { createVerifier, identityOf } = require("./lib/jwt.js");
 const crypto = require("node:crypto");
@@ -97,7 +98,7 @@ function createHandler(deps = {}) {
     };
     const service = createService({ audit, mailer, now, portalUrl: env.PORTAL_URL || "", practiceName: env.PORTAL_PRACTICE_NAME || "Your accountant", policy });
     parts = { raw, files: deps.files || raw.files, verifier, mailer, audit, reader, service, store, branding };
-    parts.mods = modules(parts, { now, env, policy, fetch, scanner: deps.scanner });
+    parts.mods = modules(parts, { now, env, policy, fetch, scanner: deps.scanner || (String(env.VIRUSTOTAL_API_KEY || "").trim() ? createHashScanner({ apiKey: String(env.VIRUSTOTAL_API_KEY).trim(), fetch }) : null) });
     return parts;
   }
 

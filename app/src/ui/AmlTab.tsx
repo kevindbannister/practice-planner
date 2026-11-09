@@ -8,7 +8,8 @@ import { Choice } from "./Choice";
 import { completeShortReview, readShortReviews, shortFacts, shortQuestions } from "../lib/amlShortReview";
 import { TRIGGER_KINDS, isTriggerSource, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
 import { Ans, LEVEL_LABEL, basisFrom, eddNeeded, evaluate, questions, ratingProblems, templateFor, templateProblems } from "../lib/amlTemplate";
-import { AmlRiskForm } from "./AmlRiskForm";
+import { AmlRiskForm, Knows } from "./AmlRiskForm";
+import { KYC_PREFIX, STATUS_CHIP, STATUS_LABEL, readRequest } from "../lib/forms";
 import { amlStampRead, idStampRead } from "../lib/xamaActions";
 import { cosecOwnership, mergeOwners } from "../lib/amlCosec";
 import { PEP_KINDS, Pep, PepPerson, blankPep, pepUntil } from "../lib/amlPep";
@@ -125,6 +126,7 @@ export function AmlTab({ client }: { client: Client }) {
 
       {open && <Editor client={client} row={open} all={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} today={today} s={s} clientRow={clientRow()} />}
 
+      <KycCard client={clientRow()} />
       <section className="card pad stack" aria-label="Xama">
         <div className="card-title-row"><h2 className="sec-h">Xama</h2><span className={`chip ${xama.warn ? "amber" : "green"}`}>{xama.text}</span></div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Identity verification through Xama is kept separate from the manual assessment above. Either can be the record you rely on.</p>
@@ -240,6 +242,20 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [rsn, setRsn] = useState(saved.reason);
   const co = useMemo(() => cosecOwnership(String(client.Key), data as never, today), [data, client.Key, today]);
   const type = clientTypeFor(String(client.Kind));
+  // The last approved assessment's answers, offered as suggestions in a new review (never filled in by themselves).
+  const prev = useMemo(() => { const r = all.filter((x) => x.ClientKey === client.Key && x.Key !== row.Key && ["approved", "superseded"].includes(asStatus(x.Status))).sort((a, b) => String(b.ApprovedAt || "").localeCompare(String(a.ApprovedAt || "")))[0]; return r ? readAssessment(r) : undefined; }, [all, client.Key, row.Key]);
+  // What the planner already holds, shown beside the questions it bears on.
+  const knows = useMemo<Knows>(() => {
+    const isCo = type === "limited" || type === "llp";
+    const xi = idStampRead(client.XamaIdCheck), xa = amlStampRead(client.XamaAmlCheck);
+    const reg = storeFrom(data.amlRecords, data.settings, "screening").records.filter((r) => String(r.values.client || "") === client.Key).sort((a, b) => String(b.values.on || "").localeCompare(String(a.values.on || "")))[0];
+    const identity = [xi.state === "done" ? `Xama ID verification done${xi.on ? ` ${fmtDate(xi.on)}` : ""} (main contact).` : "", xa.state === "done" ? `Xama AML check (identity and address) done ${fmtDate(xa.on)} (main contact).` : "", ...(isCo ? co.people.filter((p) => p.psc || (p.sharePercent !== null && p.sharePercent > 25)).map((p) => `${p.name}: ID ${p.id === "verified" ? "verified" : p.id === "exempt" ? "exempt" : "not verified yet"} (Company Secretarial).`) : [])].filter(Boolean);
+    const screeningLines = [xa.state === "done" ? `Xama AML check ${fmtDate(xa.on)}: no PEP or sanctions matches.` : xa.state === "check" ? `Xama AML check ${fmtDate(xa.on)}: possible matches (${xa.pep} PEP, ${xa.sanctions} sanctions) to resolve.` : "", reg ? `Screening register ${fmtDate(String(reg.values.on || ""))}: ${String(reg.values.result || "")}.` : ""].filter(Boolean);
+    const ownership = isCo && co.hasData ? [`Company Secretarial: ${co.people.filter((p) => p.psc).length} person(s) with significant control; ${co.people.filter((p) => p.sharePercent !== null && p.sharePercent > 25).map((p) => `${p.name} ${p.sharePercent}%`).join(", ") || "no shareholder over 25% recorded"}.`, ...co.findings.slice(0, 3)] : [];
+    const ch = String(client.CompanyNumber || "").trim() ? [`Company number ${String(client.CompanyNumber)}${client.CHStatus ? `, status ${String(client.CHStatus)}` : ""}.`] : [];
+    const svc = (data.clientServices as Row[]).filter((x) => x.ClientKey === client.Key && !x.EndedOn).map((x) => String((data.services as Row[]).find((y) => y.Key === x.ServiceKey)?.Title || x.ServiceKey || ""));
+    return { identity, screening: screeningLines, ownership, companiesHouse: ch, services: svc.length ? [`Services now: ${svc.join(", ")}.`] : [] };
+  }, [client, data, co, type]);
   const isCo = type === "limited" || type === "llp";
   const tpl = templateFor(type);
   const tres = useMemo(() => evaluate(tpl, answers), [tpl, answers]);
@@ -321,7 +337,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
           xamaIdDone: idStampRead(client.XamaIdCheck).state === "done", xamaAmlDone: amlStampRead(client.XamaAmlCheck).state === "done", ownersCovered: ocAll, pep: pep.status,
           ownershipAgrees: isCo && co.hasData ? co.findings.filter((f) => /ownership|shareholder|PSC|significant control|share ledger/i.test(f)).length === 0 : null,
           services: (data.clientServices as Row[]).filter((x) => x.ClientKey === client.Key && !x.EndedOn).map((x) => String((data.services as Row[]).find((y) => y.Key === x.ServiceKey)?.Title || x.ServiceKey || "")),
-        }} />
+        }} previous={prev?.answers} previousOn={prev ? fmtDate(prev.doneOn || String(prev.approvedAt || "").slice(0, 10)) : ""} knows={knows} />
 
         <div className="row-wrap">
           <label className="doc-field"><span>Risk rating</span><select className="input" value={risk} onChange={(e) => setRisk(e.target.value as Risk)}><option value="">Not assessed</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
@@ -473,6 +489,28 @@ export function AmlCard({ client }: { client: Client }) {
       <div className="kv"><span>Next review</span><span style={pos.state === "overdue" ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : pos.state === "soon" ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{pos.reviewDate ? fmtDate(pos.reviewDate) : "—"}</span></div>
       <div className="kv"><span>Xama</span><span style={xama.warn ? { color: "var(--amber-ink)", fontWeight: 600 } : undefined}>{xama.text}</span></div>
       <div><a className="btn small" href={href("clients", client.Key, "aml")}>{pos.state === "none" ? "Start an assessment" : "Open"}</a></div>
+    </section>
+  );
+}
+
+/** The client's own answers to the know-your-client questionnaire (Forms), as a reference for the risk assessment. */
+function KycCard({ client }: { client: Row }) {
+  const { data } = useData();
+  const reqs = (data.formRequests as Row[]).map(readRequest).filter((r) => r.clientKey === client.Key && r.title.startsWith(KYC_PREFIX)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const r = reqs[0];
+  return (
+    <section className="card pad stack" aria-label="Know your client questionnaire">
+      <h2 className="sec-h">Know your client questionnaire</h2>
+      {!r ? (
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>Not sent yet. Send "{KYC_PREFIX}: {String(client.Kind) === "Individual" ? "individual" : "company"}" from the client's <a href={href("clients", String(client.Key), "forms")}>Forms tab</a> (add it from the Forms library's starter questionnaires the first time). The client's answers then show here, beside the risk assessment. They are what the client tells you, not verification.</p>
+      ) : (
+        <>
+          <div className="row-wrap" style={{ gap: 8 }}><span className={`chip ${STATUS_CHIP[r.status]}`}>{STATUS_LABEL[r.status]}</span><span className="muted" style={{ fontSize: 13 }}>Sent {fmtDate(r.createdAt.slice(0, 10))}{r.due ? `, due ${fmtDate(r.due)}` : ""} · <a href={href("clients", String(client.Key), "forms")}>Open in Forms</a></span></div>
+          {r.status === "complete" ? (
+            <dl className="kv-list" style={{ margin: 0 }}>{r.fields.filter((f) => String(r.answers[f.id] ?? "").trim()).map((f) => <div key={f.id} style={{ marginBottom: 6 }}><dt className="muted" style={{ fontSize: 12 }}>{f.label}</dt><dd style={{ margin: 0, whiteSpace: "pre-wrap" }}>{f.type === "tick" ? "Confirmed" : String(r.answers[f.id])}</dd></div>)}</dl>
+          ) : <p className="muted" style={{ margin: 0, fontSize: 13 }}>Waiting for the client's answers.</p>}
+        </>
+      )}
     </section>
   );
 }

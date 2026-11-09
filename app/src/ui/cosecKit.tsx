@@ -12,6 +12,7 @@ import { useData } from "./data";
 let demoMode = false;
 /** The demo build has no server, so filings are accepted by a stand-in. Set once by the app. */
 export const setCoSecDemo = (v: boolean) => { demoMode = v; };
+export const isCoSecDemo = () => demoMode;
 
 export function useCoSec() {
   const { data, user, create, updateMany, update, status } = useData();

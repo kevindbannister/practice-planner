@@ -18,7 +18,8 @@ async function post<T>(path: string, token: () => Promise<string>, body: unknown
 }
 
 export const approveOnServer = (key: string, token: () => Promise<string>) => post<{ ok: true; by: string }>("/api/approve/aml", token, { key });
-export const verifySeals = (token: () => Promise<string>) => post<{ results: Record<string, SealState> }>("/api/approve/verify", token);
+export const approveCosecOnServer = (key: string, note: string, token: () => Promise<string>) => post<{ ok: true; by: string }>("/api/approve/cosec", token, { key, note });
+export const verifySeals = (token: () => Promise<string>) => post<{ results: Record<string, SealState>; cosec?: Record<string, SealState> }>("/api/approve/verify", token);
 export type DigestPreview = { to: string; name: string; subject: string; count: number; sections: { title: string; items: string[] }[] };
 export const previewDigest = (token: () => Promise<string>) => post<{ digests: DigestPreview[] }>("/api/digest/preview", token);
 export const testDigest = (token: () => Promise<string>) => post<{ ok: true; to: string; count: number }>("/api/digest/test", token);

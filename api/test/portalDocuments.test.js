@@ -250,3 +250,16 @@ test("audit events never contain file contents", async () => {
   const all = JSON.stringify((await h.staff("GET", "events")).body.events);
   assert.ok(!all.includes("TOPSECRETCONTENT") && !all.includes(b64(pdf("TOPSECRETCONTENT")).slice(0, 40)));
 });
+
+test("the hash scanner refuses files VirusTotal knows as malicious, sends only the fingerprint, and never blocks when VirusTotal is down", async () => {
+  const { createHashScanner } = require("../portal/lib/hashScanner.js");
+  const calls = [];
+  const reply = (status, body) => ({ ok: status < 300, status, json: async () => body });
+  const scan = (answer) => createHashScanner({ apiKey: "k", fetch: async (url, opts) => { calls.push({ url, opts }); if (answer instanceof Error) throw answer; return answer; } });
+  const chk = { sha256: "a".repeat(64) };
+  assert.deepEqual(await scan(reply(404, {}))(Buffer.from("x"), chk), { ok: true, result: "not-known" });
+  assert.equal((await scan(reply(200, { data: { attributes: { last_analysis_stats: { malicious: 3 } } } }))(Buffer.from("x"), chk)).ok, false);
+  assert.equal((await scan(reply(200, { data: { attributes: { last_analysis_stats: { malicious: 0, harmless: 60 } } } }))(Buffer.from("x"), chk)).result, "clean");
+  assert.deepEqual(await scan(new Error("down"))(Buffer.from("x"), chk), { ok: true, result: "unchecked" });
+  assert.ok(calls.every((c) => c.url.endsWith("a".repeat(64)) && !c.opts.body), "only the fingerprint is sent");
+});

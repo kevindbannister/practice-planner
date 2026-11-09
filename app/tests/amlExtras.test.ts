@@ -24,3 +24,13 @@ test("billing can't be set up for a client whose AML due diligence wasn't comple
   assert.ok(!setupProblems(base).includes(AML_STOPPED));
   assert.equal(setupProblems({ ...base, amlStopped: true })[0], AML_STOPPED);
 });
+
+test("a fee that doesn't match its last recorded change is flagged; imported fees with no history aren't", async () => {
+  const { feeDrift } = await import("../src/lib/fees.ts");
+  const cs: any = { ClientKey: "C1", ServiceKey: "S1", Fee: 120, FeePeriod: "monthly" };
+  const h = (fee: number, at: string, action = "adjusted") => ({ ClientKey: "C1", ServiceKey: "S1", Action: action, At: at, New: JSON.stringify({ fee, period: "monthly" }) });
+  assert.equal(feeDrift(cs, []), null);
+  assert.equal(feeDrift(cs, [h(100, "2026-01-01"), h(120, "2026-06-01")]), null);
+  assert.deepEqual(feeDrift(cs, [h(120, "2026-01-01"), h(100, "2026-06-01")]), { recorded: 100, period: "monthly", at: "2026-06-01" });
+  assert.equal(feeDrift(cs, [h(100, "2026-06-01", "reviewed")]), null);
+});

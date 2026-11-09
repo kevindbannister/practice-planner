@@ -122,3 +122,23 @@ test("a passed approval is written with the approver from the sign-in and a seal
   assert.deepEqual((await call(h, "verify")).body.results, { A1: "sealed" });
   assert.ok(p.writes.some(([w, k]) => w === "create" && k === "SalesLog"));
 });
+
+test("a Co Sec filing's approval goes through the same rules and is sealed; later status changes keep the seal, edits to the details don't", async () => {
+  const real = require("../shared/plannerlib.js");
+  const lib = { ...real, approveCosec: (i) => { const tx = i.lists.CoSecTransactions[0]; return { patches: [{ list: "CoSecTransactions", row: tx, patch: { Status: "approved", ApprovedBy: i.user, ApprovedAt: i.now } }], creates: [], log: [], activities: [] }; } };
+  const w = world(); w.CoSecTransactions = [{ Key: "T1", ClientKey: "C1", Form: "AD01", Status: "draft", Payload: "{\"address\":\"1 High St\"}", EditedBy: "Ann Lee" }];
+  const p = fakePlanner(w);
+  const h = createHandler({ fetch, env: ENV, now: () => NOW, planner: p, lib });
+  const r = await call(h, "cosec", { body: { key: "T1" } });
+  assert.equal(r.status, 200); assert.equal(p.lists.CoSecTransactions[0].ApprovedBy, "Bob Ray"); assert.ok(p.lists.CoSecTransactions[0].Seal);
+  assert.equal((await call(h, "verify")).body.cosec.T1, "sealed");
+  p.lists.CoSecTransactions[0].Status = "submitted";
+  assert.equal((await call(h, "verify")).body.cosec.T1, "sealed");
+  p.lists.CoSecTransactions[0].Payload = "{\"address\":\"9 Other Rd\"}";
+  assert.equal((await call(h, "verify")).body.cosec.T1, "changed");
+  // the real rules refuse a filing that isn't ready (the planner's own check)
+  const p2 = fakePlanner({ ...world(), CoSecTransactions: [{ Key: "T2", ClientKey: "C1", Form: "AP01", Status: "draft", Payload: "{}", EditedBy: "Ann Lee" }] });
+  const h2 = createHandler({ fetch, env: ENV, now: () => NOW, planner: p2 });
+  const refused = await call(h2, "cosec", { body: { key: "T2" } });
+  assert.equal(refused.status, 409);
+});

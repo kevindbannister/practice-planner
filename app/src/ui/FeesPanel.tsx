@@ -5,7 +5,7 @@ import { fmtDate, todayIso } from "../lib/domain";
 import { readAgreed } from "../lib/engagements";
 import {
   COST_KINDS, CostKind, FEE_STATUS_LABEL, FeeLine, PERIOD_OPTIONS, VAT_OPTIONS, addCharge, addCost, adjustFee, applyProposal, cancelCharge, contribution, costKindLabel, discountText, endFee, feeCan, periodLabel,
-  readCharge, readCost, readFeeLine, readFeeSettings, restartFee, revenue, reviewFee, stopCost, unappliedProposals, vatLabel,
+  feeDrift, readCharge, readCost, readFeeLine, readFeeSettings, restartFee, revenue, reviewFee, stopCost, unappliedProposals, vatLabel,
 } from "../lib/fees";
 import { Row } from "../lib/schema";
 import { href } from "./bits";
@@ -81,7 +81,7 @@ export function ClientFees({ client }: { client: Row }) {
             <tbody>{lines.map(({ row, line }) => (
               <tr key={line.key}>
                 <td>{f.svcName(line.serviceKey)}</td>
-                <td>{line.status === "included" ? <span className="muted">Included</span> : gbp(line.fee)}{line.discount && line.listFee !== line.fee ? <div className="muted">was {gbp(line.listFee)}</div> : null}</td>
+                <td>{line.status === "included" ? <span className="muted">Included</span> : gbp(line.fee)}{line.discount && line.listFee !== line.fee ? <div className="muted">was {gbp(line.listFee)}</div> : null}{(() => { const d = feeDrift(row, f.data.feeHistory as Row[]); return d ? <div style={{ fontSize: 12, color: "var(--red-ink, #b42318)", fontWeight: 600 }} title="The fee doesn't match the last change recorded in the planner, so it was probably changed directly in SharePoint.">Changed outside the planner: last recorded {gbp(d.recorded)}{d.at ? ` on ${fmtDate(d.at)}` : ""}</div> : null; })()}</td>
                 <td>{line.oneOff ? "One-off" : periodLabel(line.period)}</td>
                 <td>{line.effectiveFrom ? fmtDate(line.effectiveFrom) : <span className="muted">not recorded</span>}</td>
                 <td>{line.nextReview ? <span className={line.nextReview < today ? "chip red" : ""}>{fmtDate(line.nextReview)}</span> : "—"}</td>

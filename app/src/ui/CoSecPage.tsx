@@ -7,7 +7,12 @@ import { Addr, BLANK_ADDR, addrIssues, addrText, formTitle, formDef } from "../l
 import { GatewayError } from "../lib/cosecGateway";
 import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
-import { useCoSec, nameOfClient } from "./cosecKit";
+import { useCoSec, nameOfClient, isCoSecDemo } from "./cosecKit";
+import { useCosecSeals } from "./sealKit";
+import { SEAL_LABEL } from "../lib/amlSeal";
+import { approveCosecOnServer } from "../lib/serverCalls";
+import { getAccessToken } from "../lib/auth";
+import { useData } from "./data";
 import { CoSecCompany } from "./CoSecCompany";
 import { useCompaniesHouse } from "./CompaniesHouse";
 import { Cell, PortfolioRow, isDissolved, portfolioRows } from "../lib/portfolio";
@@ -246,6 +251,8 @@ const DETAIL_FIELDS: [string, string][] = [["Title", "Title"], ["First", "First 
 
 function FilingDetail({ txKey }: { txKey: string }) {
   const k = useCoSec();
+  const seals = useCosecSeals();
+  const { refreshList } = useData();
   const tx = k.data.cosecTx.find((t) => t.Key === txKey);
   const [payload, setPayload] = useState<Record<string, any> | null>(null);
   const [note, setNote] = useState("");
@@ -262,6 +269,14 @@ function FilingDetail({ txKey }: { txKey: string }) {
   const form = String(tx.Form);
   const run = async (what: () => Promise<void>) => { setBusy(true); setMsg(undefined); try { await what(); } catch (e) { setMsg({ ok: false, text: e instanceof Error ? e.message : "That didn't save." }); } finally { setBusy(false); } };
   const doAct = (action: TxAction, input: TxInput = {}, ok = "Done.") => run(async () => {
+    // An approval goes through the server, which re-checks it and seals it (unless there are unsaved edits, or the server part isn't set up).
+    if (action === "approve" && !dirty && !isCoSecDemo()) {
+      const local = act(tx, action, input, k.cfg, k.ctx(), k.snap());
+      if ("error" in local) return setMsg({ ok: false, text: local.error });
+      const r = await approveCosecOnServer(String(tx.Key), String(input.note || ""), getAccessToken);
+      if (r.ok) { await Promise.all((["CoSecTransactions", "Activities"] as const).map((l) => refreshList(l).catch(() => undefined))); setNote(""); return setMsg({ ok: true, text: `${ok} Approved and sealed by the server (approver: ${r.data.by}).` }); }
+      if (!r.unavailable) return setMsg({ ok: false, text: r.message });
+    }
     const live = { ...tx, Payload: JSON.stringify(p) };
     const w = act(dirty && action === "approve" ? live : tx, action, input, k.cfg, k.ctx(), k.snap());
     if ("error" in w) return setMsg({ ok: false, text: w.error });
@@ -297,6 +312,7 @@ function FilingDetail({ txKey }: { txKey: string }) {
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
           <h2 className="sec-h">{form}: {formTitle(form)}</h2>
           <span className={`chip ${chipFor(st)}`}>{STATUS_LABEL[st]}</span>
+          {tx.ApprovedBy && seals[String(tx.Key)] && <span className={`chip ${seals[String(tx.Key)] === "changed" ? "red" : seals[String(tx.Key)] === "sealed" ? "green" : ""}`} title={`Approved by ${String(tx.ApprovedBy)}`}>{SEAL_LABEL[seals[String(tx.Key)]]}</span>}
         </div>
         {(st !== "accepted" && st !== "external" && st !== "completed" && !formDef(form)?.noFiling) && <p role="note" className="chip amber" style={{ alignSelf: "flex-start" }}>{NOT_FILED}</p>}
         <dl className="kv" style={{ display: "grid", gridTemplateColumns: "max-content 1fr", gap: "6px 16px", margin: 0 }}>

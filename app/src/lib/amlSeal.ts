@@ -8,5 +8,11 @@ const str = (v: unknown): string => (v === undefined || v === null ? "" : String
 export function sealPayload(row: Row): string {
   return JSON.stringify(SEALED.map((k) => [k, str(row[k])]));
 }
+/** A Co Sec filing's approval: what was approved (form, company, details) and who approved it. Its status moves on after approval
+ *  (submitted, accepted) without breaking the seal; editing the details clears the approval, so there is nothing left to verify. */
+const TX_SEALED = ["Key", "ClientKey", "Form", "Payload", "After", "ApprovedBy", "ApprovedAt", "EditedBy"];
+export function txSealPayload(row: Row): string {
+  return JSON.stringify(TX_SEALED.map((k) => [k, str(row[k])]));
+}
 export type SealState = "sealed" | "changed" | "unsealed";
 export const SEAL_LABEL: Record<SealState, string> = { sealed: "Approval verified by the server", changed: "Changed after approval: not verified", unsealed: "Approved before server checks (not sealed)" };

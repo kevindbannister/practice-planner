@@ -45,7 +45,7 @@ function createDocuments({ audit, mailer, notices = null, files, scanner = null,
         await ev(store, { type: "document.refused", source: by.source, userId: by.userId, actor: by.actor, clientKey: doc.clientKey, recordId: doc.id, meta: { reason: "scan", fileName: chk.name } });
         throw new DocError(400, "scan-failed", "That file didn't pass our security check, so it wasn't saved.");
       }
-      scan = "scanned";
+      scan = r.result === "unchecked" ? "format-checked (virus check unavailable)" : "scanned";
     }
     const path = `${folder(doc.clientKey, doc.id)}/v${n}-${chk.name}`;
     await files.put(path, bytes, chk.mime);

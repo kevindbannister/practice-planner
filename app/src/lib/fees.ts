@@ -377,3 +377,18 @@ export function planServiceEdit(i: ServiceEditInput, o: Ctx): Written | { error:
   w.activities.push(feeActivity(o, i.client, "Services and fees edited", notes.join("; ") + (i.reason.trim() ? `. ${i.reason.trim()}` : "")));
   return withAnnualTotal(w, i.client, i.schedule);
 }
+
+/** A fee whose current amount or frequency doesn't match the last change the planner recorded for it (FeeHistory) was most likely edited
+ *  directly in SharePoint, outside the planner's rules. Lines with no recorded change (imported fees) aren't checked. */
+export function feeDrift(cs: Row, history: Row[]): { recorded: number; period: string; at: string } | null {
+  const mine = history.filter((h) => str(h.ClientKey) === str(cs.ClientKey) && str(h.ServiceKey) === str(cs.ServiceKey) && /^(agreed|adjusted|added)$/.test(str(h.Action))).sort((a, b) => str(b.At).localeCompare(str(a.At)));
+  for (const h of mine) {
+    let n: { fee?: number; period?: string } | null = null;
+    try { n = JSON.parse(str(h.New)); } catch { n = null; }
+    if (!n || typeof n.fee !== "number") continue;
+    const l = readFeeLine(cs);
+    if (Math.abs(l.fee - n.fee) > 0.005 || (n.period !== undefined && str(n.period) !== l.period)) return { recorded: n.fee, period: str(n.period), at: str(h.At).slice(0, 10) };
+    return null;
+  }
+  return null;
+}
