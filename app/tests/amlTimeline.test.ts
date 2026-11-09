@@ -36,18 +36,7 @@ test("Xama ID stamp: completed is done, keeps first-seen date, rejections need c
   assert.deepEqual(idStampRead(undefined), { state: "", on: "" });
 });
 
-import { suggestRating, basisText, readFactors } from "../src/lib/amlFactors";
 import { cosecOwnership, mergeOwners } from "../src/lib/amlCosec";
-test("risk questions: a severe yes is high, one worry is medium, all clear is low only when all answered", () => {
-  assert.equal(suggestRating({ pep: "yes" }).risk, "high");
-  assert.equal(suggestRating({ cash: "yes" }).risk, "medium");
-  assert.equal(suggestRating({ funds: "no" }).risk, "medium");
-  assert.equal(suggestRating({ cash: "no" }).risk, "");
-  const all = Object.fromEntries(["pep","geo","adverse","structure","cash","remote","unusual"].map((k) => [k, "no"]).concat([["funds","yes"],["sense","yes"]]));
-  assert.equal(suggestRating(all as never).risk, "low");
-  assert.match(basisText({ cash: "yes", funds: "no" }), /cash-intensive.*source of funds/);
-  assert.deepEqual(readFactors("not json"), {});
-});
 test("company secretarial ownership: PSCs and over-25% holders become suggested owners, merged by name", () => {
   const d = { cosecLedger: [], cosecShareClasses: [], cosecOfficers: [{ ClientKey: "C1", Status: "current", Kind: "individual", First: "Ann", Last: "Lee", Role: "director", IdStatus: "verified", IdCheckedOn: "2025-12-01" }], cosecPscs: [{ ClientKey: "C1", Status: "current", Kind: "individual", First: "Ann", Last: "Lee", Natures: JSON.stringify(["ownership-of-shares-50-to-75"]) }] } as never;
   const r = cosecOwnership("C1", d, "2026-11-08");

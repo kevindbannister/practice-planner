@@ -1,14 +1,26 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { approveAssessment, declineAssessment, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../src/lib/amlAssessment.ts";
+import { COMPANY } from "../src/lib/amlTemplates.ts";
+import { evaluate, type Ans } from "../src/lib/amlTemplate.ts";
 import { DEFAULT_ONBOARDING_SETTINGS } from "../src/lib/onboarding.ts";
 
+/** Answers that satisfy the company template: every required question answered, every MUST rule met. */
+const full = (): Ans => {
+  const a: Ans = {};
+  for (let i = 0; i < 12; i++) {
+    const r = evaluate(COMPANY, a);
+    for (const q of r.shown) if (a[q.k] === undefined || a[q.k] === "") a[q.k] = q.t === "risk" ? "Low" : q.t === "one" ? (q.options!.includes("No") ? "No" : q.options![0]) : q.t === "many" ? [q.options![0]] : q.t === "date" ? "2020-01-01" : "x";
+    for (const f of r.findings.filter((x) => x.strict === "MUST")) a[f.question] = f.wants.op === "eq" ? f.wants.value : "Normal";
+  }
+  return a;
+};
 let n = 0;
 const o = (actor = "Kevin") => ({ actor, now: "2026-10-27T10:00:00Z", pid: "P", newKey: (p: string) => `${p}${++n}` });
 const yes = () => true;
 const client = { Key: "C1", Title: "Bck Interior Ltd", Kind: "Ltd" } as any;
 const apply = (rows: any[], w: any) => { for (const c of w.creates || []) rows.push(c.row); for (const p of w.patches) Object.assign(p.row, p.patch); return rows; };
-const good = { risk: "low" as const, riskBasis: "UK company, one director, simple structure", owners: [{ name: "A Smith", percent: 100, note: "" }], checks: [{ id: "", kind: "Identity verified", result: "pass" as const, by: "", at: "", note: "passport seen" }] };
+const good = { answers: full(), risk: "low" as const, riskBasis: "UK company, one director, simple structure", owners: [{ name: "A Smith", percent: 100, note: "" }], checks: [{ id: "", kind: "Identity verified", result: "pass" as const, by: "", at: "", note: "passport seen" }] };
 
 test("a new assessment is started once, saved, and approved with a review date", () => {
   const rows: any[] = [];
@@ -38,7 +50,7 @@ test("a review copies the last answers and supersedes the old approval", () => {
   apply(rows, startAssessment(client, rows, o()) as any);
   assert.equal(rows[1].Risk, "low");
   assert.equal(rows[1].Source, "review");
-  apply(rows, saveAssessment(rows[1], { checks: good.checks }, yes, o("Ann")) as any);
+  apply(rows, saveAssessment(rows[1], { checks: good.checks, answers: good.answers }, yes, o("Ann")) as any);
   apply(rows, approveAssessment(rows[1], client, rows, DEFAULT_ONBOARDING_SETTINGS, true, yes, "2027-10-27", o("Bob")) as any);
   assert.equal(rows[0].Status, "superseded");
   assert.equal(rows[1].Status, "approved");
@@ -66,4 +78,17 @@ test("position: current, due soon, overdue, onboarding approval, and a bare clie
   assert.equal(p.source, "onboarding"); assert.equal(p.state, "current");
   assert.equal(position({ ...client, AMLReview: "2026-01-01" }, [], [], "2026-10-27").state, "overdue");
   assert.equal(position({ Key: "C9" } as any, [], [], "2026-10-27").state, "none");
+});
+
+test("approval is blocked until the risk assessment questions are answered and the MUST rules are met", () => {
+  const rows: any[] = [];
+  apply(rows, startAssessment(client, rows, o()) as any);
+  apply(rows, saveAssessment(rows[0], { ...good, answers: {} }, yes, o("Ann")) as any);
+  assert.match((approveAssessment(rows[0], client, rows, DEFAULT_ONBOARDING_SETTINGS, true, yes, "2026-10-27", o("Bob")) as any).error, /Answer the risk assessment questions/);
+  const ans: any = { ...full() };
+  const pep = Object.keys(ans).find((k) => k && COMPANY.sections[0].questions.find((q) => q.k === k)?.label.startsWith("PEP screening"))!;
+  ans[pep] = "Yes";
+  ans[COMPANY.sections[0].questions.find((q) => q.label.startsWith("Overall client identity"))!.k] = "Low";
+  apply(rows, saveAssessment(rows[0], { ...good, answers: ans }, yes, o("Ann")) as any);
+  assert.match((approveAssessment(rows[0], client, rows, DEFAULT_ONBOARDING_SETTINGS, true, yes, "2026-10-27", o("Bob")) as any).error, /"Overall client identity risk\?" must be/);
 });

@@ -5,7 +5,9 @@ import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
 import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
 import { TRIGGER_KINDS, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
-import { FACTORS, Answers, basisText, suggestRating } from "../lib/amlFactors";
+import { Ans, LEVEL_LABEL, basisFrom, evaluate, templateFor, templateProblems } from "../lib/amlTemplate";
+import { AmlRiskForm } from "./AmlRiskForm";
+import { idStampRead } from "../lib/xamaActions";
 import { cosecOwnership, mergeOwners } from "../lib/amlCosec";
 import { timeline } from "../lib/amlTimeline";
 import { clientFolder } from "../lib/comms";
@@ -133,11 +135,12 @@ function WithdrawRow({ row, s, clientRow, onGo }: { row: Row; s: ReturnType<type
 function Editor({ client, row, all, settings, independent, today, s, clientRow }: { client: Client; row: Row; all: Row[]; settings: ReturnType<typeof readOnboardingSettings>; independent: boolean; today: string; s: ReturnType<typeof useSales>; clientRow: Row }) {
   const { store, user, data } = useData();
   const saved = readAssessment(row);
-  const [factors, setFactors] = useState<Answers>(saved.factors);
+  const [answers, setAnswers] = useState<Ans>(saved.answers);
   const co = useMemo(() => cosecOwnership(String(client.Key), data as never, today), [data, client.Key, today]);
-  const sug = suggestRating(factors);
   const type = clientTypeFor(String(client.Kind));
   const isCo = type === "limited" || type === "llp";
+  const tpl = templateFor(type);
+  const tres = useMemo(() => evaluate(tpl, answers), [tpl, answers]);
   const [risk, setRisk] = useState<Risk>(saved.risk);
   const [basis, setBasis] = useState(saved.riskBasis);
   const [owners, setOwners] = useState<Owner[]>(saved.owners);
@@ -148,17 +151,17 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  useEffect(() => { setRisk(saved.risk); setBasis(saved.riskBasis); setOwners(saved.owners); setNoOwner(saved.noOwnerNote); setChecks(saved.checks); setEvidence(saved.evidence); setFactors(saved.factors); }, [row.Updated]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setRisk(saved.risk); setBasis(saved.riskBasis); setOwners(saved.owners); setNoOwner(saved.noOwnerNote); setChecks(saved.checks); setEvidence(saved.evidence); setAnswers(saved.answers); }, [row.Updated]); // eslint-disable-line react-hooks/exhaustive-deps
   const edit = s.pcan("edit");
   const cleanOwners = owners.filter((x) => x.name.trim());
   const draft = { ...saved, risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks };
-  const problems = amlProblems(draft, type);
+  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers)];
   const setCheck = (i: number, p: Partial<Check>) => setChecks(checks.map((c, j) => (j === i ? { ...c, ...p } : c)));
   const run = async (w: ReturnType<typeof saveAssessment> | (() => Promise<ReturnType<typeof saveAssessment>>), ok: string) => {
     setBusy(true); setMsg(null);
     try { const x = typeof w === "function" ? await w() : w; if ("error" in x) setMsg({ ok: false, text: x.error }); else { await s.apply(x); setMsg({ ok: true, text: ok }); } } catch { setMsg({ ok: false, text: "Couldn't save that. Try again." }); } finally { setBusy(false); }
   };
-  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, factors }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
+  const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, answers }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
   const upload = async (f: File) => {
     setBusy(true); setMsg(null);
     try {
@@ -175,30 +178,17 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
     <section className="card pad stack" aria-label="Assessment in progress">
       <div className="card-title-row"><h2 className="sec-h">{row.Source === "review" ? "Review in progress" : "Assessment in progress"}</h2>{asStatus(row.Status) === "declined" && <span className="chip red">Not approved: {saved.declinedReason}</span>}</div>
       <fieldset disabled={!edit || busy} style={{ border: 0, padding: 0, margin: 0 }} className="stack">
-        <div className="stack" style={{ gap: 8 }}>
-          <strong>Risk questions</strong>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Answer these first. They suggest a rating and the wording for what it is based on, but the rating is your decision.</p>
-          {FACTORS.map((f) => (
-            <div key={f.id} className="stack" style={{ gap: 2 }}>
-              <div className="row-wrap" style={{ justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ flex: 1, minWidth: 260 }}>{f.label}</span>
-                <span className="row-wrap" role="group" aria-label={f.label} style={{ gap: 6 }}>
-                  {(["yes", "no"] as const).map((v) => <button key={v} type="button" className={`btn small${factors[f.id] === v ? " primary" : ""}`} aria-pressed={factors[f.id] === v} onClick={() => setFactors({ ...factors, [f.id]: factors[f.id] === v ? "" : v })}>{v === "yes" ? "Yes" : "No"}</button>)}
-                </span>
-              </div>
-              <span className="muted" style={{ fontSize: 12 }}>{f.help}</span>
-            </div>
-          ))}
-          {sug.answered > 0 && (
-            <div className="row-wrap" style={{ alignItems: "center", gap: 8 }}>
-              <span>Suggested: <strong>{sug.risk ? RISK[sug.risk] : "answer them all to suggest low"}</strong> ({sug.answered} of {FACTORS.length} answered)</span>
-              <button type="button" className="btn small" onClick={() => { if (sug.risk) setRisk(sug.risk); const t = basisText(factors); if (t) setBasis(t); }}>Use this rating and wording</button>
-            </div>
-          )}
-        </div>
+        <AmlRiskForm tpl={tpl} answers={answers} setAnswers={setAnswers} ctx={{
+          companyNumber: String(client.CompanyNumber || "").trim(), owners: cleanOwners.length,
+          passedIdentity: checks.some((c) => c.result === "pass" && /identity/i.test(c.kind)), passedScreening: checks.some((c) => c.result === "pass" && /sanction|pep/i.test(c.kind)),
+          xamaApproved: /^approved/i.test(String(client.XamaStatus || "")), xamaIdDone: idStampRead(client.XamaIdCheck).state === "done",
+          ownershipAgrees: isCo && co.hasData ? co.findings.filter((f) => /ownership|shareholder|PSC|significant control|share ledger/i.test(f)).length === 0 : null,
+          services: (data.clientServices as Row[]).filter((x) => x.ClientKey === client.Key && !x.EndedOn).map((x) => String((data.services as Row[]).find((y) => y.Key === x.ServiceKey)?.Title || x.ServiceKey || "")),
+        }} />
 
         <div className="row-wrap">
           <label className="doc-field"><span>Risk rating</span><select className="input" value={risk} onChange={(e) => setRisk(e.target.value as Risk)}><option value="">Not assessed</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+          {tres.highest && <span className="row-wrap" style={{ alignItems: "center", gap: 6 }}><span className="muted" style={{ fontSize: 13 }}>Highest section rating: <strong>{LEVEL_LABEL[tres.highest]}</strong></span>{(risk !== tres.highest || !basis.trim()) && <button type="button" className="btn small" onClick={() => { setRisk(tres.highest as Risk); if (!basis.trim()) setBasis(basisFrom(tpl, answers)); }}>Use it{!basis.trim() ? " and the wording" : ""}</button>}</span>}
           <label className="doc-field" style={{ flex: 1, minWidth: 260 }}><span>What the rating is based on</span><input className="input" value={basis} onChange={(e) => setBasis(e.target.value)} /></label>
         </div>
 
