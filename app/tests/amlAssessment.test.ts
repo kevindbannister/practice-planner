@@ -324,3 +324,19 @@ test("approval with the screening rules on: blocked until screened, passes once 
   policy.screening.register = [{ values: { client: "Q1", on: "2026-11-02", role: "Client", result: "No match" } }];
   assert.ok(!("error" in (approveAssessment(rows[0], cl, rows, DEFAULT_ONBOARDING_SETTINGS, false, yes, "2026-11-09", o("Bea"), policy) as any)));
 });
+
+test("the server's approveAml runs the same rules as the screen (independent review, screening, template)", async () => {
+  const { approveAml } = await import("../src/server/index.ts");
+  const rows: any[] = [];
+  const cl: any = { Key: "S9", Title: "Srv Ltd", Kind: "Ltd", XamaAmlCheck: "done|2026-11-01|0|0" };
+  apply(rows, startAssessment(cl, rows, o()) as any);
+  apply(rows, saveAssessment(rows[0], good, yes, o("Ann")) as any);
+  const settings: any[] = [{ Key: "checklist-config", Value: JSON.stringify({ staff: [{ name: "Ann", role: "manager" }, { name: "Bea", role: "partner" }], independentReview: true }) }];
+  const base = { key: rows[0].Key, assessments: rows, clients: [cl], settings, records: [] as any[], today: "2026-11-09", now: "2026-11-09T10:00:00Z" };
+  assert.match((approveAml({ ...base, user: "Bea" }) as any).error, /company itself/);
+  const records = [{ Key: "R1", Form: "screening", Data: JSON.stringify({ id: "R1", created: "2026-11-02", status: "Approved", values: { client: "S9", on: "2026-11-02", role: "Client", result: "No match" } }) }];
+  assert.match((approveAml({ ...base, records, user: "Ann" }) as any).error, /someone else|prepared/i);
+  const w = approveAml({ ...base, records, user: "Bea" }) as any;
+  assert.ok(!("error" in w), w.error);
+  assert.equal(w.patches.find((p: any) => p.list === "AmlAssessments").patch.ApprovedBy, "Bea");
+});

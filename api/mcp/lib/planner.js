@@ -93,7 +93,7 @@ function createPlanner({ tenantId, clientId, clientSecret, fetch = globalThis.fe
     return out;
   }
   return {
-    rows, toFields,
+    rows, toFields, token: bearer,
     async create(key, values) {
       const sid = await site(), lid = await listId(key);
       const res = await graph(`/sites/${sid}/lists/${lid}/items`, { method: "POST", body: JSON.stringify({ fields: toFields(defs.get(key), values) }) });

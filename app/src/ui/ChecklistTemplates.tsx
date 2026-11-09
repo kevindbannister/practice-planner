@@ -403,11 +403,12 @@ export function TeamSettings() {
       <section className="card pad stack">
         <h3 style={{ margin: 0 }}>People and roles</h3>
         <p className="muted" style={{ margin: 0 }}>Roles decide who can review, approve, reopen finished work, skip a mandatory item and change templates. Anyone can complete their own items. Until someone is added, everyone can do everything, which suits a one-person practice. You are signed in as <strong>{cl.me || "an unknown user"}</strong>; names are matched to the sign-in name.</p>
-        {cfg.staff.length > 0 && <table className="bank-table"><thead><tr><th>Name</th><th>Role</th><th>May override a mandatory item</th><th /></tr></thead><tbody>
+        {cfg.staff.length > 0 && <table className="bank-table"><thead><tr><th>Name</th><th>Role</th><th>Email (for the morning email)</th><th>May override a mandatory item</th><th /></tr></thead><tbody>
           {cfg.staff.map((s) => (
             <tr key={s.name}>
               <td>{s.name}</td>
               <td><select className="input" aria-label={`Role for ${s.name}`} value={s.role} disabled={!allowed} onChange={(e) => set({ staff: cfg.staff.map((x) => (x.name === s.name ? { ...x, role: e.target.value as C.Role } : x)) })}>{C.ROLES.filter((r) => r.key !== "owner").map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}</select></td>
+              <td><input className="input" type="email" aria-label={`Email for ${s.name}`} placeholder="name@practice.co.uk" value={s.email || ""} disabled={!allowed} onChange={(e) => set({ staff: cfg.staff.map((x) => (x.name === s.name ? { ...x, email: e.target.value } : x)) })} /></td>
               <td><input type="checkbox" aria-label={`${s.name} may override`} disabled={!allowed} checked={cfg.overriders.includes(s.name)} onChange={(e) => set({ overriders: e.target.checked ? [...cfg.overriders, s.name] : cfg.overriders.filter((o) => o !== s.name) })} /></td>
               <td><button type="button" className="linkbtn danger-link" disabled={!allowed} onClick={() => set({ staff: cfg.staff.filter((x) => x.name !== s.name), overriders: cfg.overriders.filter((o) => o !== s.name) })}>Remove</button></td>
             </tr>

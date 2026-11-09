@@ -21,6 +21,11 @@ import { readOnboardingSettings } from "../lib/onboarding";
 import { Row } from "../lib/schema";
 import { readSetting, useData } from "./data";
 import { useRoute } from "./bits";
+import { approveOnServer } from "../lib/serverCalls";
+import { getAccessToken } from "../lib/auth";
+import { isDemo } from "./commsKit";
+import { SEAL_LABEL } from "../lib/amlSeal";
+import { useSeals } from "./sealKit";
 import { matchProblems, screeningProblems } from "../lib/amlScreening";
 import { screeningPolicy } from "../lib/amlPolicy";
 import { storeFrom } from "../lib/amlPack";
@@ -52,6 +57,7 @@ export function AmlTab({ client }: { client: Client }) {
   const [busy, setBusy] = useState(false);
   const route = useRoute();
   const [shortOn, setShortOn] = useState(route.query.get("short") === "1");
+  const seals = useSeals();
   const scr = useScreening();
   const onbApproved = (data.onboardings as Row[]).filter((o) => o.ClientKey === client.Key && readAml(o.Aml).status === "approved").sort((a, b) => readAml(b.Aml).approvedAt.localeCompare(readAml(a.Aml).approvedAt))[0];
   const [rk, setRk] = useState("");
@@ -83,6 +89,7 @@ export function AmlTab({ client }: { client: Client }) {
           <button type="button" className="btn primary" disabled={busy} onClick={() => void go(startAssessment(clientRow(), data.amlAssessments, s.ctx(), reason))}>{pos.current || pos.source === "onboarding" || pos.source === "client record" ? "Start a full review" : "Start an assessment"}</button>
           {pos.current && <button type="button" className="btn" disabled={busy} onClick={() => setShortOn(!shortOn)}>{shortOn ? "Close short review" : "Short review"}</button>}
           {!pos.current && pos.source === "onboarding" && onbApproved && <button type="button" className="btn" disabled={busy} title="Copies the onboarding AML approval into the AML record so it can be reviewed here" onClick={() => void go(adoptOnboarding(clientRow(), onbApproved, data.amlAssessments, s.pcan, s.ctx())).then(() => setShortOn(true))}>Short review</button>}</div>}
+        {pos.current && seals[String(pos.current.Key)] && <div className="kv"><span>Approval</span><span style={seals[String(pos.current.Key)] === "changed" ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : undefined}>{SEAL_LABEL[seals[String(pos.current.Key)]]}</span></div>}
         {(() => { const last = readShortReviews(pos.current).slice(-1)[0]; return last ? <div className="kv"><span>Last short review</span><span>{fmtDate(last.date)} · {last.by}{last.outcome === "escalated" ? " · full assessment opened" : ""}</span></div> : null; })()}
       </section>
       {shortOn && !open && pos.current && <ShortReviewForm client={clientRow()} cur={pos.current} rows={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} changes={seen.length > 0} seen={seen} today={today} s={s} onDone={() => setShortOn(false)} />}
@@ -226,7 +233,7 @@ function WithdrawRow({ row, s, clientRow, onGo }: { row: Row; s: ReturnType<type
 }
 
 function Editor({ client, row, all, settings, independent, today, s, clientRow }: { client: Client; row: Row; all: Row[]; settings: ReturnType<typeof readOnboardingSettings>; independent: boolean; today: string; s: ReturnType<typeof useSales>; clientRow: Row }) {
-  const { store, user, data } = useData();
+  const { store, user, data, refreshList } = useData();
   const saved = readAssessment(row);
   const [answers, setAnswers] = useState<Ans>(saved.answers);
   const [rsn, setRsn] = useState(saved.reason);
@@ -272,6 +279,21 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const run = async (w: ReturnType<typeof saveAssessment> | (() => Promise<ReturnType<typeof saveAssessment>>), ok: string) => {
     setBusy(true); setMsg(null);
     try { const x = typeof w === "function" ? await w() : w; if ("error" in x) setMsg({ ok: false, text: x.error }); else { await s.apply(x); setMsg({ ok: true, text: ok }); } } catch { setMsg({ ok: false, text: "Couldn't save that. Try again." }); } finally { setBusy(false); }
+  };
+  // Approval goes through the server, which re-checks the rules and seals the record. If the server part isn't set up (or in the demo),
+  // the screen approves as before and says so.
+  const approve = async () => {
+    const local = approveAssessment(row, clientRow, all, settings, independent, s.pcan, today, s.ctx(), { sof: policySof, screening: scrE });
+    if ("error" in local) { setMsg({ ok: false, text: local.error }); return; }
+    if (!isDemo()) {
+      setBusy(true); setMsg(null);
+      try {
+        const r = await approveOnServer(String(row.Key), getAccessToken);
+        if (r.ok) { await Promise.all((["AmlAssessments", "Clients", "Activities"] as const).map((l) => refreshList(l).catch(() => undefined))); setMsg({ ok: true, text: `Approved and sealed by the server (approver: ${r.data.by}). The client's AML review date was set.` }); return; }
+        if (!r.unavailable) { setMsg({ ok: false, text: r.message }); return; }
+      } finally { setBusy(false); }
+    }
+    await run(local, isDemo() ? "Approved. The client's AML review date was set." : "Approved in the browser (server approvals aren't set up yet, so this approval isn't sealed). The client's AML review date was set.");
   };
   const save = (ev = evidence) => run(saveAssessment(row, { risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, evidence: ev, answers, reason: rsn, pep, ddLevel: dd }, s.pcan, s.ctx()), "Saved. Saving does not approve it.");
   const upload = async (f: File) => {
@@ -407,7 +429,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
       {problems.length > 0 && <div className="import-list warn"><strong>Before this can be approved:</strong><ul className="plain">{problems.map((x) => <li key={x}>{x}</li>)}</ul></div>}
       {asStatus(row.Status) === "inprogress" && s.pcan("approve") && (
         <div className="row-wrap">
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void run(approveAssessment(row, clientRow, all, settings, independent, s.pcan, today, s.ctx(), { sof: policySof, screening: scrE }), "Approved. The client's AML review date was set.")}>Approve</button>
+          <button type="button" className="btn primary" disabled={busy} onClick={() => void approve()}>Approve</button>
           <input className="input" aria-label="Reason" placeholder="Reason (to decline)" value={why} onChange={(e) => setWhy(e.target.value)} />
           <button type="button" className="btn" disabled={busy} onClick={() => void run(declineAssessment(row, why, s.pcan, s.ctx()), "Marked as not approved.")}>Don't approve</button>
         </div>

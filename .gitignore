@@ -17,3 +17,6 @@ dist/
 !.env.example
 __pycache__/
 .DS_Store
+
+# built in CI from app/src/server (app/tools/build-server-lib.mjs)
+api/shared/plannerlib.js

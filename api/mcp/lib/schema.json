@@ -4783,6 +4783,10 @@
      "type": "text"
     },
     {
+     "name": "Seal",
+     "type": "note"
+    },
+    {
      "name": "OnboardingKey",
      "type": "text"
     },

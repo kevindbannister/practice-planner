@@ -48,6 +48,7 @@ declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
 import { PAGE_TABS, TABS } from "./SettingsTabs";
+import { DigestSettings } from "./DigestSettings";
 export { SettingsTabs } from "./SettingsTabs";
 
 export function SettingsPage() {
@@ -84,7 +85,7 @@ export function SettingsPage() {
       {tab === "hmrc" && <HmrcSettings />}
       {tab === "cosec" && <CoSecSettings />}
       {tab === "xama" && <XamaSettings />}
-      {tab === "firm" && <FirmSettings />}
+      {tab === "firm" && <><FirmSettings /><DigestSettings /></>}
       {tab === "sales" && <SalesSettings />}
       {tab === "services" && <ServicesSettings />}
       {tab === "engagement" && <EngagementLetterSettings />}

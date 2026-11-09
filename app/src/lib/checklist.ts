@@ -13,7 +13,7 @@ export const ROLES: { key: Role; label: string }[] = [
 ];
 export const roleLabel = (r?: string) => ROLES.find((x) => x.key === r)?.label || "";
 
-export type Staff = { name: string; role: Role };
+export type Staff = { name: string; role: Role; email?: string };
 export type Config = {
   staff: Staff[];
   /** Names allowed to skip a mandatory item (with a reason). Empty means partners and managers. */
@@ -31,7 +31,7 @@ export function readConfig(settings: Row[]): Config {
   if (!row?.Value) return DEFAULT_CONFIG;
   try {
     const v = JSON.parse(String(row.Value));
-    const staff = Array.isArray(v.staff) ? v.staff.filter((s: Staff) => s && typeof s.name === "string" && s.name.trim()).map((s: Staff) => ({ name: s.name.trim(), role: ROLES.some((r) => r.key === s.role) ? s.role : "preparer" })) : [];
+    const staff = Array.isArray(v.staff) ? v.staff.filter((s: Staff) => s && typeof s.name === "string" && s.name.trim()).map((s: Staff) => ({ name: s.name.trim(), ...(typeof s.email === "string" && s.email.trim() ? { email: s.email.trim() } : {}), role: ROLES.some((r) => r.key === s.role) ? s.role : "preparer" })) : [];
     return { staff, overriders: Array.isArray(v.overriders) ? v.overriders.map(String) : [], independentReview: !!v.independentReview, auto: v.auto !== false };
   } catch {
     return DEFAULT_CONFIG;

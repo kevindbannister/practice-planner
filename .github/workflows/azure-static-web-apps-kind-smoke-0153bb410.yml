@@ -30,6 +30,7 @@ jobs:
           npm run typecheck
           npm test
           npm run build
+          node tools/build-server-lib.mjs
       # The server functions have one dependency (pdf-lib, for sealing signed PDFs). Install it here and
       # ship node_modules with the functions rather than relying on a second build in Azure.
       - name: Install and test the server functions (Companies House, AI, Xero, client portal)
