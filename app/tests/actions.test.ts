@@ -96,10 +96,10 @@ test("jobs and tasks: overdue, due soon unplanned, holds; fee reviews and Compan
   assert.equal(by(a, "job:J1")?.assignee, "Mo");
 });
 
-test("AML: an approaching or overdue client review date shows; onboarding ready for AML approval shows", () => {
+test("AML: client review dates are not actions (they live in the AML tracker)", () => {
   const cl = [{ Key: "C1", Title: "Acme Ltd", Manager: "Mo", Kind: "Ltd", AMLReview: "2026-10-01", Status: "active" }, { Key: "C2", Title: "Far Ltd", AMLReview: "2028-01-01" }, { Key: "C3", Title: "Left Ltd", AMLReview: "2026-01-01", Status: "inactive" }];
   const a = buildActions(src({ clients: cl }));
-  assert.equal(by(a, "aml:renew:C1")?.priority, "high"); assert.equal(by(a, "aml:renew:C2"), undefined); assert.equal(by(a, "aml:renew:C3"), undefined);
+  assert.equal(by(a, "aml:renew:C1"), undefined); assert.equal(by(a, "aml:renew:C2"), undefined); assert.equal(by(a, "aml:renew:C3"), undefined);
 });
 
 test("reconcile: new actions are stored once, resolved ones close with an audit entry, a returning one reopens, nothing is duplicated", () => {

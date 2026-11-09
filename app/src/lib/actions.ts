@@ -95,10 +95,7 @@ export function buildActions(src: Source): Action[] {
       if (held.length) add({ key: `onb:held:${o.Key}`, category: "onboarding", title: `Services held for an agent authorisation: ${str(v.client.Title)}`, detail: `${held.join(", ")}. ${src.agentDone(o) ? "Authorisation recorded: start them." : "Record the authorisation to start them."}`, clientKey: str(o.ClientKey), assignee: str(o.Owner), priority: "medium", href: `#/sales/onboard/${o.Key}` });
     }
   }
-  for (const c of src.clients) {
-    const r = str(c.AMLReview).slice(0, 10);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(r) && r <= addDays(today, 60) && (!str(c.Status) || /^active$/i.test(str(c.Status)))) add({ key: `aml:renew:${c.Key}`, category: "aml", title: r < today ? `AML review overdue: ${str(c.Title)}` : `AML review due ${fmtDate(r)}: ${str(c.Title)}`, detail: `Review date ${fmtDate(r)}`, clientKey: str(c.Key), assignee: manager(str(c.Key)), due: r, priority: r < today ? "high" : "medium", href: `#/clients/${c.Key}` });
-  }
+  // Client AML review dates are not actions: they live in the AML client tracker (AML > Client tracker).
 
   // ---- engagement letters and signatures
   for (const e of src.engagements) {
