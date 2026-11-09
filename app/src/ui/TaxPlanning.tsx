@@ -97,7 +97,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
     const now = new Date().toISOString();
     const fields = { Inputs: JSON.stringify(plan), Chosen: chosen, Status: status, Updated: now, UpdatedBy: user || "", ...(status === "agreed" ? { AgreedBy: user || "", AgreedOn: now.slice(0, 10) } : { AgreedBy: "", AgreedOn: "" }) };
     try {
-      if (row) await update("TaxPlans", row, fields as Row);
+      if (row) await update("TaxPlans", row as Row, fields as Row);
       else await create("TaxPlans", { Key: newKey("TPL"), PracticeId: sales.ctx().pid, ClientKey: clientKey, TaxYear: year, Notes: "", Created: now, CreatedBy: user || "", ...fields });
       setMsg(status === "agreed" ? "Plan agreed." : "Saved.");
     } catch { setMsg("That didn't save. Try again."); } finally { setBusy(false); }
