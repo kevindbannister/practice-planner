@@ -154,6 +154,10 @@
      "type": "text"
     },
     {
+     "name": "XamaAssessedOn",
+     "type": "text"
+    },
+    {
      "name": "LoEStatus",
      "type": "text"
     },

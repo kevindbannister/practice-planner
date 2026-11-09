@@ -7,9 +7,9 @@ import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } 
 import { Choice } from "./Choice";
 import { completeShortReview, readShortReviews, shortFacts, shortQuestions } from "../lib/amlShortReview";
 import { TRIGGER_KINDS, isTriggerSource, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
-import { Ans, LEVEL_LABEL, basisFrom, evaluate, templateFor, templateProblems } from "../lib/amlTemplate";
+import { Ans, LEVEL_LABEL, basisFrom, evaluate, ratingProblems, templateFor, templateProblems } from "../lib/amlTemplate";
 import { AmlRiskForm } from "./AmlRiskForm";
-import { idStampRead } from "../lib/xamaActions";
+import { amlStampRead, idStampRead } from "../lib/xamaActions";
 import { cosecOwnership, mergeOwners } from "../lib/amlCosec";
 import { timeline } from "../lib/amlTimeline";
 import { clientFolder } from "../lib/comms";
@@ -202,9 +202,11 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const [owners, setOwners] = useState<Owner[]>(saved.owners);
   const [noOwner, setNoOwner] = useState(saved.noOwnerNote);
   const [checks, setChecks] = useState<Check[]>(saved.checks);
-  const xamaStamp = idStampRead(client.XamaIdCheck);
-  const xamaDone = /^approved/i.test(String(client.XamaStatus || "")) || xamaStamp.state === "done";
-  const xamaOn = xamaStamp.on;
+  const xamaStamp = idStampRead(client.XamaIdCheck), xamaAml = amlStampRead(client.XamaAmlCheck);
+  const xamaDone = xamaStamp.state === "done" || xamaAml.state === "done";
+  const xamaOn = xamaAml.state === "done" ? xamaAml.on : xamaStamp.on;
+  const xamaKinds = xamaAml.state === "done" ? ["Identity verified", "Address verified", "Sanctions and PEP screening"] : ["Identity verified"];
+  const xamaNote = xamaAml.state === "done" ? "Xama: AML check + identity & address checks (inc PEP/Sanctions), on the client's main contact" : "Xama: ID verification on the client's main contact";
   const [evidence, setEvidence] = useState<Evidence[]>(saved.evidence);
   const [why, setWhy] = useState("");
   const [busy, setBusy] = useState(false);
@@ -214,7 +216,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const edit = s.pcan("edit");
   const cleanOwners = owners.filter((x) => x.name.trim());
   const draft = { ...saved, risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks };
-  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers)];
+  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk)];
   const setCheck = (i: number, p: Partial<Check>) => setChecks(checks.map((c, j) => (j === i ? { ...c, ...p } : c)));
   const run = async (w: ReturnType<typeof saveAssessment> | (() => Promise<ReturnType<typeof saveAssessment>>), ok: string) => {
     setBusy(true); setMsg(null);
@@ -242,7 +244,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
         <AmlRiskForm tpl={tpl} answers={answers} setAnswers={setAnswers} ctx={{
           companyNumber: String(client.CompanyNumber || "").trim(), owners: cleanOwners.length,
           passedIdentity: checks.some((c) => c.result === "pass" && /identity/i.test(c.kind)), passedScreening: checks.some((c) => c.result === "pass" && /sanction|pep/i.test(c.kind)),
-          xamaApproved: /^approved/i.test(String(client.XamaStatus || "")), xamaIdDone: idStampRead(client.XamaIdCheck).state === "done",
+          xamaIdDone: idStampRead(client.XamaIdCheck).state === "done", xamaAmlDone: amlStampRead(client.XamaAmlCheck).state === "done",
           ownershipAgrees: isCo && co.hasData ? co.findings.filter((f) => /ownership|shareholder|PSC|significant control|share ledger/i.test(f)).length === 0 : null,
           services: (data.clientServices as Row[]).filter((x) => x.ClientKey === client.Key && !x.EndedOn).map((x) => String((data.services as Row[]).find((y) => y.Key === x.ServiceKey)?.Title || x.ServiceKey || "")),
         }} />
@@ -296,7 +298,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
           ))}
           <div className="row-wrap">
             <button type="button" className="btn small" onClick={() => setChecks([...checks, { id: "", kind: CHECK_KINDS[0], result: "pending", by: "", at: "", note: "" }])}>Add a check</button>
-            {xamaDone && !checks.some((c) => /^Xama/.test(c.note)) && <button type="button" className="btn small primary" onClick={() => setChecks([...checks, ...["Identity verified", "Address verified", "Sanctions and PEP screening"].map((kind) => ({ id: "", kind, result: "pass" as const, by: "Xama", at: xamaOn || today, note: "Xama: AML check + identity & address checks (inc PEP/Sanctions)" }))])}>Add the Xama check ({xamaOn ? fmtDate(xamaOn) : "done"})</button>}
+            {xamaDone && !checks.some((c) => /^Xama/.test(c.note)) && <button type="button" className="btn small primary" onClick={() => setChecks([...checks, ...xamaKinds.map((kind) => ({ id: "", kind, result: "pass" as const, by: "Xama", at: xamaOn || today, note: xamaNote }))])}>{xamaAml.state === "done" ? "Add the Xama AML check" : "Add the Xama ID check"} ({xamaOn ? fmtDate(xamaOn) : "done"})</button>}
           </div>
         </div>
 

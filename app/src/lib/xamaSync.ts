@@ -93,7 +93,7 @@ function describe(e: unknown): string {
 
 /** Reads one client: uses the linked Xama account, or finds it by name when exactly one account matches. */
 export async function readClient(api: XamaApi, cfg: XamaConfig, client: Client, today: string, chosen?: string): Promise<Row> {
-  const current = { status: String(client.XamaStatus || ""), review: String(client.AMLReview || "") };
+  const current = { status: String(client.XamaStatus || ""), review: String((client as { XamaAssessedOn?: string }).XamaAssessedOn || "") };
   const row: Row = { client, changed: false };
   try {
     let id = chosen || String(client.XamaId || "").trim();
@@ -135,5 +135,6 @@ export async function readAll(api: XamaApi, cfg: XamaConfig, clients: Client[], 
 /** What to write onto a client row. */
 export function patchFor(r: Row): Record<string, string> | null {
   if (!r.xamaId || !r.summary || !r.changed) return null;
-  return { XamaId: r.xamaId, XamaStatus: r.summary.status, AMLReview: r.summary.review };
+  // Xama's completion date goes in its own column. AMLReview is the planner's next review date and is never written from Xama.
+  return { XamaId: r.xamaId, XamaStatus: r.summary.status, XamaAssessedOn: r.summary.review };
 }

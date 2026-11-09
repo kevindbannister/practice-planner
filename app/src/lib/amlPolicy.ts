@@ -19,10 +19,10 @@ export function policyMonths(settings: Row[]): { high?: number; medium?: number;
   return out;
 }
 
-export type ScreeningPolicy = { high: number; medium: number; low: number; monitor: boolean; fromPolicy: boolean };
+export type ScreeningPolicy = { high: number; medium: number; low: number; monitor: string[]; fromPolicy: boolean };
 /** How often clients are re-screened for sanctions and PEPs, by risk, as the policy's sanctions step sets it. Falls back to the review periods. */
 export function screeningPolicy(settings: Row[], review: { high: number; medium: number; low: number }): ScreeningPolicy {
   const a = policyAnswers(settings);
   const hi = monthsOf(a.sHigh), md = monthsOf(a.sMed), lo = monthsOf(a.sLow);
-  return { high: hi ?? review.high, medium: md ?? review.medium, low: lo ?? review.low, monitor: a.monitor === "yes", fromPolicy: !!(hi && md && lo) };
+  return { high: hi ?? review.high, medium: md ?? review.medium, low: lo ?? review.low, monitor: Array.isArray(a.monitorRisk) ? (a.monitorRisk as unknown[]).map(str).filter((x) => ["high", "medium", "low"].includes(x)) : a.monitor === "yes" ? ["high", "medium", "low"] : [], fromPolicy: !!(hi && md && lo) };
 }

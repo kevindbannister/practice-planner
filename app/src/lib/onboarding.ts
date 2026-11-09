@@ -258,7 +258,7 @@ export function amlProblems(a: Aml, type: ClientType): string[] {
   if (!a.checks.some((c) => c.result === "pass" && /identity/i.test(c.kind))) out.push("Record a passed identity check. An uploaded document is not a check until a person has verified it.");
   if (a.checks.some((c) => c.result === "fail")) out.push("A check has failed. Resolve it before approval.");
   if (a.checks.some((c) => c.result === "pending")) out.push("A check is still pending.");
-  if ((type === "limited" || type === "llp") && !a.owners.length && !a.noOwnerNote.trim()) out.push("Record the beneficial owners, or say why there are none to record.");
+  if ((type === "limited" || type === "llp" || type === "partnership") && !a.owners.length && !a.noOwnerNote.trim()) out.push(type === "partnership" ? "Record the beneficial owners (any partner with more than 25% of the capital, profits or votes, or who controls the partnership), or say why there are none to record." : "Record the beneficial owners, or say why there are none to record.");
   if (a.risk === "high" && a.checks.filter((c) => c.result === "pass").length < 2) out.push("High risk needs more than one passed check (enhanced due diligence).");
   return out;
 }

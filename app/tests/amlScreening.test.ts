@@ -7,8 +7,9 @@ const settings = (answers: Record<string, unknown>) => [{ Key: "aml.builder", Va
 const review = { high: 6, medium: 12, low: 24 };
 
 test("re-screen periods come from the policy's sanctions step, falling back to the review periods", () => {
-  assert.deepEqual(screeningPolicy(settings({}), review), { high: 6, medium: 12, low: 24, monitor: false, fromPolicy: false });
-  assert.deepEqual(screeningPolicy(settings({ sHigh: "12", sMed: "24", sLow: "36", monitor: "yes" }), review), { high: 12, medium: 24, low: 36, monitor: true, fromPolicy: true });
+  assert.deepEqual(screeningPolicy(settings({}), review), { high: 6, medium: 12, low: 24, monitor: [], fromPolicy: false });
+  assert.deepEqual(screeningPolicy(settings({ sHigh: "12", sMed: "24", sLow: "36", monitor: "yes" }), review), { high: 12, medium: 24, low: 36, monitor: ["high", "medium", "low"], fromPolicy: true });
+  assert.deepEqual(screeningPolicy(settings({ monitorRisk: ["high", "none"] }), review).monitor, ["high"]);
 });
 
 test("the last screening is the latest of Xama, an assessment check and the register; due follows the client's risk", () => {

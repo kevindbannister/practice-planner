@@ -75,25 +75,43 @@ export function basisFrom(t: Template, a: Ans): string {
   return `Section ratings: ${named.join(", ")}. The overall rating follows the highest.`;
 }
 
-export type HintCtx = { companyNumber: string; owners: number; passedIdentity: boolean; passedScreening: boolean; xamaApproved: boolean; xamaIdDone: boolean; ownershipAgrees: boolean | null; services: string[] };
+export type HintCtx = { companyNumber: string; owners: number; passedIdentity: boolean; passedScreening: boolean; xamaIdDone: boolean; xamaAmlDone: boolean; ownershipAgrees: boolean | null; services: string[] };
 /** Answers the planner can suggest from what it already holds. The person chooses whether to use each one. */
 export function hints(t: Template, h: HintCtx): Record<string, { value: string | string[]; from: string }> {
   const out: Record<string, { value: string | string[]; from: string }> = {};
-  const xama = h.xamaApproved || h.xamaIdDone;
-  const XAMA = "the Xama AML check on the client (identity and address checks, including PEP and sanctions)";
+  // Xama's ID verification proves identity; Xama's AML check covers identity, address, PEP and sanctions. Both are on the client's main
+  // contact only, so for a company they answer the beneficial-owner questions only when there is at most one owner.
+  const idOk = h.xamaIdDone || h.xamaAmlDone, scrOk = h.xamaAmlDone;
+  const ownerQ = (l: string) => /beneficial owner/.test(l);
+  const fits = (l: string) => !ownerQ(l) || h.owners === 1;
+  const who = (l: string, from: string) => (ownerQ(l) ? `${from}; only if the main contact is the one owner recorded` : from);
+  const ID = h.xamaIdDone ? "the Xama ID verification on the client's main contact" : "the Xama AML check on the client's main contact";
+  const SCR = "the Xama AML check on the client's main contact (PEP and sanctions)";
   for (const q of questions(t)) {
     const l = q.label.toLowerCase();
     if (/registered with companies house/.test(l) && h.companyNumber) out[q.k] = { value: "Yes", from: `company number ${h.companyNumber}` };
     else if (/beneficial owners (been )?identified and added/.test(l) && h.owners) out[q.k] = { value: "Yes", from: "owners recorded in this review" };
-    else if (/identity documents? (has |have )?been collected/.test(l) && (h.passedIdentity || xama)) out[q.k] = { value: "Yes", from: h.passedIdentity ? "a passed identity check in this review" : XAMA };
-    else if (/passed.*aml identity verification/.test(l) && xama) out[q.k] = { value: "Yes", from: XAMA };
-    else if (/(pep screening|identified as a pep)/.test(l) && (h.passedScreening || xama)) out[q.k] = { value: "No", from: h.passedScreening ? "a passed screening check in this review" : XAMA };
-    else if (/(sanctions screening|on the sanctions database)/.test(l) && (h.passedScreening || xama)) out[q.k] = { value: "No", from: h.passedScreening ? "a passed screening check in this review" : XAMA };
+    else if (/identity documents? (has |have )?been collected/.test(l) && (h.passedIdentity || (idOk && fits(l)))) out[q.k] = { value: "Yes", from: h.passedIdentity ? "a passed identity check in this review" : who(l, ID) };
+    else if (/passed.*aml identity verification/.test(l) && idOk && fits(l)) out[q.k] = { value: "Yes", from: who(l, ID) };
+    else if (/(pep screening|identified as a pep)/.test(l) && (h.passedScreening || (scrOk && fits(l)))) out[q.k] = { value: "No", from: h.passedScreening ? "a passed screening check in this review" : who(l, SCR) };
+    else if (/(sanctions screening|on the sanctions database)/.test(l) && (h.passedScreening || (scrOk && fits(l)))) out[q.k] = { value: "No", from: h.passedScreening ? "a passed screening check in this review" : who(l, SCR) };
     else if (/ownership agree with the details held on companies house/.test(l) && h.ownershipAgrees === true) out[q.k] = { value: "Yes", from: "Company Secretarial shows no ownership problems" };
     else if (q.t === "many" && /services does our firm offer/.test(l) && q.options) {
       const pick = q.options.filter((o) => h.services.some((n) => (o === "Accounts" && /account/i.test(n)) || (o === "Self assessment" && /self.?assess|personal tax/i.test(n)) || (o === "Tax advice" && /tax/i.test(n)) || (o === "Company secretarial" && /secretar/i.test(n)) || (o === "Payroll" && /payroll/i.test(n)) || (o === "Client money account" && /client money/i.test(n))));
       if (pick.length) out[q.k] = { value: pick, from: "the client's services in the planner" };
     }
   }
+  return out;
+}
+
+const RISK_RANK: Record<string, number> = { "": 0, low: 1, medium: 2, high: 3 };
+/** The overall rating has to follow the questions: never lower than the highest section rating, and High whenever enhanced due diligence is needed. */
+export function ratingProblems(t: Template, a: Ans, risk: string): string[] {
+  if (!risk) return [];
+  const r = evaluate(t, a);
+  const out: string[] = [];
+  if (r.highest && RISK_RANK[risk] < RISK_RANK[r.highest]) out.push(`The overall rating can't be lower than the highest section rating (${LEVEL_LABEL[r.highest]}). Raise it, or change the section ratings.`);
+  const edd = questions(t).find((q) => /need for enhanced due diligence/i.test(q.label));
+  if (edd && s(a[edd.k]) === "Yes" && risk !== "high") out.push("Enhanced due diligence is needed, so the overall rating has to be High.");
   return out;
 }

@@ -14,12 +14,14 @@ import { useData } from "./data";
 import { useXamaConfig } from "./XamaSettings";
 import { todayIso } from "../lib/domain";
 import { screeningPolicy } from "../lib/amlPolicy";
+import { position } from "../lib/amlAssessment";
 
 type Step = null | "create" | "id" | "aml";
 
 export function XamaClientPanel({ client }: { client: Client }) {
   const { update, data } = useData();
-  const monitor = screeningPolicy(data.settings, { high: 12, medium: 12, low: 12 }).monitor;
+  const risk = position(client as never, data.amlAssessments, data.onboardings, todayIso()).risk;
+  const monitor = !!risk && screeningPolicy(data.settings, { high: 12, medium: 12, low: 12 }).monitor.includes(risk);
   const cfg = useXamaConfig();
   const api: XamaApi = useMemo(() => (isDemo() ? new FakeXama() : new HttpXama(getAccessToken)), []);
   const [status, setStatus] = useState<XamaStatus | null>(null);
@@ -91,7 +93,7 @@ export function XamaClientPanel({ client }: { client: Client }) {
     const idc = prog ? idStamp(prog, todayIso(), String(client.XamaIdCheck || "")) : null;
     const amc = prog ? amlStamp(prog, todayIso(), String(client.XamaAmlCheck || "")) : null;
     const patch: Record<string, string> = {};
-    if (r.summary) Object.assign(patch, { XamaId: r.xamaId || xamaId, XamaStatus: r.summary.status, AMLReview: r.summary.review });
+    if (r.summary) Object.assign(patch, { XamaId: r.xamaId || xamaId, XamaStatus: r.summary.status, XamaAssessedOn: r.summary.review });
     if (idc !== null && idc !== String(client.XamaIdCheck || "")) patch.XamaIdCheck = idc;
     if (amc !== null && amc !== String(client.XamaAmlCheck || "")) patch.XamaAmlCheck = amc;
     if (Object.keys(patch).length) await update("Clients", client, patch);

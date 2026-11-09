@@ -2,7 +2,7 @@
 // checks a person has done, evidence filed, who approved it and when it is next due. It is kept
 // apart from onboarding so existing clients can have one and be re-reviewed; an approved onboarding
 // AML record counts too. Same rules as onboarding (amlProblems, independent approval).
-import { Ans, readAnswers, templateFor, templateProblems } from "./amlTemplate";
+import { Ans, ratingProblems, readAnswers, templateFor, templateProblems } from "./amlTemplate";
 import { Aml, Check, Owner, OnboardingSettings, Risk, amlProblems, readAml } from "./onboarding";
 import { addMonths } from "./planning";
 import { ClientType, ProposalAction, clientTypeFor } from "./proposals";
@@ -66,7 +66,7 @@ export function approveAssessment(row: Row, client: Row, all: Row[], settings: O
   const a = readAssessment(row);
   if (independent && a.preparedBy && a.preparedBy === o.actor) return { error: "Someone else has to approve AML work you prepared." };
   const type: ClientType = clientTypeFor(str(client.Kind));
-  const bad = [...amlProblems(a, type), ...templateProblems(templateFor(type), a.answers)];
+  const bad = [...amlProblems(a, type), ...templateProblems(templateFor(type), a.answers), ...ratingProblems(templateFor(type), a.answers, a.risk)];
   if (bad.length) return { error: bad[0] };
   const review = addMonths(today, settings.amlMonths[a.risk as "low"], false);
   const older = all.filter((r) => r.ClientKey === row.ClientKey && r.Key !== row.Key && asStatus(r.Status) === "approved");

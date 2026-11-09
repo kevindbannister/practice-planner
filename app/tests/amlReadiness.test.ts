@@ -68,7 +68,7 @@ test("highest section rating, basis wording and hints", () => {
   const a = { [qk(INDIVIDUAL, /Overall client identity risk/)]: "Low", [qk(INDIVIDUAL, /Overall geographical risk/)]: "High", [qk(INDIVIDUAL, /Overall transactional risk/)]: "Normal" };
   assert.equal(evaluate(INDIVIDUAL, a).highest, "high");
   assert.match(basisFrom(INDIVIDUAL, a), /identity low.*geography high/);
-  const h = hints(COMPANY, { companyNumber: "123", owners: 2, passedIdentity: true, passedScreening: true, xamaApproved: false, xamaIdDone: false, ownershipAgrees: true, services: ["Annual accounts", "Payroll"] });
+  const h = hints(COMPANY, { companyNumber: "123", owners: 2, passedIdentity: true, passedScreening: true, xamaIdDone: false, xamaAmlDone: false, ownershipAgrees: true, services: ["Annual accounts", "Payroll"] });
   assert.equal(h[qk(COMPANY, /registered with Companies House/)].value, "Yes");
   assert.deepEqual(h[qk(COMPANY, /services does our firm offer/)].value, ["Accounts", "Payroll"]);
   assert.equal(h[qk(COMPANY, /Sanctions screening result/)].value, "No");

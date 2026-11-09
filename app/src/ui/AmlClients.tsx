@@ -94,7 +94,7 @@ export function AmlClients() {
           <button type="button" className="btn small" onClick={csv}>Download as CSV</button>
         </div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          {`Sanctions and PEP re-screening: high every ${sp.high} months, medium every ${sp.medium}, low every ${sp.low}${sp.fromPolicy ? " (from your policy)" : " (your review periods, until the policy's sanctions step sets them)"}${sp.monitor ? ", with ongoing monitoring between" : ""}. `}{policy.fromPolicy ? `Policy: high every ${policy.high} months, medium every ${policy.medium}${policy.low ? `, low every ${policy.low}` : ""}. A triggered review is due within ${policy.triggerDays} days.` : "Your policy hasn't set review periods yet, so the Settings values are shown. Set them in the policy's monitoring step."}
+          {`Sanctions and PEP re-screening: high every ${sp.high} months, medium every ${sp.medium}, low every ${sp.low}${sp.fromPolicy ? " (from your policy)" : " (your review periods, until the policy's sanctions step sets them)"}${sp.monitor.length ? `, with ongoing monitoring for ${sp.monitor.join(" and ")}-risk clients` : ""}. `}{policy.fromPolicy ? `Policy: high every ${policy.high} months, medium every ${policy.medium}${policy.low ? `, low every ${policy.low}` : ""}. A triggered review is due within ${policy.triggerDays} days.` : "Your policy hasn't set review periods yet, so the Settings values are shown. Set them in the policy's monitoring step."}
         </p>
         {err && <div role="alert" className="warn">{err}</div>}
       </section>

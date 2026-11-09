@@ -13,6 +13,10 @@ const full = (): Ans => {
     for (const q of r.shown) if (a[q.k] === undefined || a[q.k] === "") a[q.k] = q.t === "risk" ? "Low" : q.t === "one" ? (q.options!.includes("No") ? "No" : q.options![0]) : q.t === "many" ? [q.options![0]] : q.t === "date" ? "2020-01-01" : "x";
     for (const f of r.findings.filter((x) => x.strict === "MUST")) a[f.question] = f.wants.op === "eq" ? f.wants.value : "Normal";
   }
+  // A plain low-risk client: the reassuring answers are Yes, every section Low, no EDD.
+  for (const k of ["c3", "c4", "c9", "c10", "c13", "c14", "c16", "c17", "c18", "c22"]) a[k] = "Yes";
+  for (const k of ["c21", "c29", "c32", "c35", "c37"]) a[k] = "Low";
+  a.c36 = ["Face to face with owner"]; a.c38 = "No";
   return a;
 };
 let n = 0;
@@ -178,15 +182,18 @@ test("short review facts only report what the planner holds; delivery channels i
   assert.ok(f.info.some((l) => /No Xama identity result/.test(l)));
 });
 
-test("a done Xama AML check suggests identity verified and no PEP or sanctions match, for individuals and companies", async () => {
+test("Xama: the AML check suggests identity, PEP and sanctions; ID verification suggests identity only; Xama 'Approved' alone suggests nothing; owner questions only with one owner", async () => {
   const { hints } = await import("../src/lib/amlTemplate.ts");
   const { COMPANY, INDIVIDUAL } = await import("../src/lib/amlTemplates.ts");
-  const base = { companyNumber: "", owners: 0, passedIdentity: false, passedScreening: false, xamaApproved: false, xamaIdDone: false, ownershipAgrees: null, services: [] };
+  const base = { companyNumber: "", owners: 0, passedIdentity: false, passedScreening: false, xamaIdDone: false, xamaAmlDone: false, ownershipAgrees: null, services: [] };
   assert.deepEqual(Object.keys(hints(INDIVIDUAL as any, base)), []);
-  const h = hints(INDIVIDUAL as any, { ...base, xamaApproved: true });
+  const h = hints(INDIVIDUAL as any, { ...base, xamaAmlDone: true });
   assert.equal(h.i2.value, "Yes"); assert.equal(h.i3.value, "Yes"); assert.equal(h.i4.value, "No"); assert.equal(h.i5.value, "No");
-  const c = hints(COMPANY as any, { ...base, xamaIdDone: true });
-  for (const k of ["c17", "c18", "c19", "c20"]) assert.ok(c[k], k);
+  const idOnly = hints(INDIVIDUAL as any, { ...base, xamaIdDone: true });
+  assert.ok(idOnly.i2 && idOnly.i3); assert.ok(!idOnly.i4 && !idOnly.i5);
+  assert.deepEqual(Object.keys(hints(COMPANY as any, { ...base, xamaAmlDone: true, owners: 2 })).filter((k) => ["c17", "c18", "c19", "c20"].includes(k)), []);
+  const one = hints(COMPANY as any, { ...base, xamaAmlDone: true, owners: 1 });
+  for (const k of ["c17", "c18", "c19", "c20"]) { assert.ok(one[k], k); assert.match(one[k].from, /only if the main contact/); }
 });
 
 test("Xama's AML check is stamped with its date and result for the screening register", async () => {
@@ -201,4 +208,17 @@ test("Xama's AML check is stamped with its date and result for the screening reg
   assert.equal(amlStamp(p({ status: "RUNNING" }), "2026-11-09").split("|")[0], "waiting");
   assert.deepEqual(amlStampRead("check|2026-11-02|1|2"), { state: "check", on: "2026-11-02", pep: 1, sanctions: 2 });
   assert.equal(amlStampRead("").state, "");
+});
+
+test("the overall rating can't be below the highest section rating, EDD needed means High, and partnerships need owners", async () => {
+  const { ratingProblems } = await import("../src/lib/amlTemplate.ts");
+  const { COMPANY } = await import("../src/lib/amlTemplates.ts");
+  const { amlProblems } = await import("../src/lib/onboarding.ts");
+  assert.equal(ratingProblems(COMPANY as any, { c21: "Low", c29: "Normal" }, "medium").length, 0);
+  assert.match(ratingProblems(COMPANY as any, { c21: "Low", c29: "High" }, "medium")[0], /can't be lower than the highest section rating \(High\)/);
+  assert.match(ratingProblems(COMPANY as any, { c38: "Yes" }, "medium")[0], /has to be High/);
+  assert.equal(ratingProblems(COMPANY as any, { c38: "Yes", c21: "High" }, "high").length, 0);
+  const a: any = { risk: "low", riskBasis: "x", owners: [], noOwnerNote: "", checks: [{ kind: "Identity verified", result: "pass" }] };
+  assert.ok(amlProblems(a, "partnership").some((p) => /partner with more than 25%/.test(p)));
+  assert.ok(!amlProblems(a, "individual").some((p) => /beneficial owners/.test(p)));
 });

@@ -67,6 +67,7 @@ test("an unlinked client is found by exact name and linked, with a patch to save
   const p = patchFor(found)!;
   assert.equal(p.XamaId, found.xamaId);
   assert.equal(p.XamaStatus, found.summary.status);
+  assert.equal("AMLReview" in p, false, "Xama never writes the planner's next review date");
 });
 
 test("several or no matches are left for you to choose, and nothing is written", async () => {
@@ -81,7 +82,7 @@ test("several or no matches are left for you to choose, and nothing is written",
 test("an unchanged client produces no patch; a failure is reported on its row", async () => {
   const api = new FakeXama();
   const first = await readClient(api, CFG, client({ XamaId: "fake-x" }), TODAY);
-  const again = await readClient(api, CFG, client({ XamaId: "fake-x", XamaStatus: first.summary!.status, AMLReview: first.summary!.review }), TODAY);
+  const again = await readClient(api, CFG, client({ XamaId: "fake-x", XamaStatus: first.summary!.status, XamaAssessedOn: first.summary!.review }), TODAY);
   assert.equal(again.changed, false);
   assert.equal(patchFor(again), null);
   const bad = { status: async () => ({}) as any, test: async () => ({}) as any, get: async () => { throw new Error("Xama answered HTTP 500."); } };
