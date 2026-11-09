@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
 import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, declineAssessment, discardAssessment, REASONS, reasonLabel, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
+import { completeShortReview, readShortReviews, shortQuestions } from "../lib/amlShortReview";
 import { TRIGGER_KINDS, isTriggerSource, lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
 import { Ans, LEVEL_LABEL, basisFrom, evaluate, templateFor, templateProblems } from "../lib/amlTemplate";
 import { AmlRiskForm } from "./AmlRiskForm";
@@ -31,6 +32,7 @@ export function AmlTab({ client }: { client: Client }) {
   const mine = data.amlAssessments.filter((r) => r.ClientKey === client.Key).sort((a, b) => String(b.Created).localeCompare(String(a.Created)));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [shortOn, setShortOn] = useState(false);
   const [rk, setRk] = useState("");
   const [rwhy, setRwhy] = useState("");
   const canEdit = s.pcan("edit");
@@ -57,8 +59,11 @@ export function AmlTab({ client }: { client: Client }) {
         {!open && canEdit && <div className="row-wrap">
           <label className="stack" style={{ gap: 2 }}><span className="muted" style={{ fontSize: 12 }}>Why is this being done?</span>
             <select className="input" aria-label="Reason for the assessment" value={reason} onChange={(e) => setReason(e.target.value)}>{REASONS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</select></label>
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void go(startAssessment(clientRow(), data.amlAssessments, s.ctx(), reason))}>{pos.current || pos.source === "onboarding" || pos.source === "client record" ? "Start a review" : "Start an assessment"}</button></div>}
+          <button type="button" className="btn primary" disabled={busy} onClick={() => void go(startAssessment(clientRow(), data.amlAssessments, s.ctx(), reason))}>{pos.current || pos.source === "onboarding" || pos.source === "client record" ? "Start a full review" : "Start an assessment"}</button>
+          {pos.current && <button type="button" className="btn" disabled={busy} onClick={() => setShortOn(!shortOn)}>{shortOn ? "Close short review" : "Short review"}</button>}</div>}
+        {(() => { const last = readShortReviews(pos.current).slice(-1)[0]; return last ? <div className="kv"><span>Last short review</span><span>{fmtDate(last.date)} · {last.by}{last.outcome === "escalated" ? " · full assessment opened" : ""}</span></div> : null; })()}
       </section>
+      {shortOn && !open && pos.current && <ShortReviewForm client={clientRow()} cur={pos.current} rows={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} changes={seen.length > 0} today={today} s={s} onDone={() => setShortOn(false)} />}
 
       <section className="card pad stack" aria-label="Review triggers">
         <h2 className="sec-h">Reviews outside the schedule</h2>
@@ -74,7 +79,7 @@ export function AmlTab({ client }: { client: Client }) {
         {seen.map((t, i) => (
           <div key={i} className="row-wrap" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <span><strong>{t.label}</strong> on {fmtDate(t.at)}. {t.detail}</span>
-            {canEdit && <button type="button" className="btn small primary" disabled={busy} onClick={() => void raise(t.kind, t.detail)}>Open a review</button>}
+            {canEdit && <span className="row-wrap">{pos.current && !open && <button type="button" className="btn small" disabled={busy} onClick={() => setShortOn(true)}>Short review</button>}<button type="button" className="btn small primary" disabled={busy} onClick={() => void raise(t.kind, t.detail)}>Open a full review</button></span>}
           </div>
         ))}
         {canEdit && pos.state !== "none" && (
@@ -120,6 +125,47 @@ export function AmlTab({ client }: { client: Client }) {
       )}
       <p className="muted" style={{ fontSize: 12, margin: 0 }}>Review periods and triggers come from your <a href={href("aml", "policies")}>AML policy</a> (monitoring step). {onboardingCan(s.cfg, s.me, "approve") ? "" : "Approving AML work needs a manager or partner."}</p>
     </div>
+  );
+}
+
+/** A short review: four or five Yes/No questions against the current assessment. All Yes records it and moves the next review on; any No opens a full assessment. */
+function ShortReviewForm({ client, cur, rows, settings, independent, changes, today, s, onDone }: { client: Row; cur: Row; rows: Row[]; settings: ReturnType<typeof readOnboardingSettings>; independent: boolean; changes: boolean; today: string; s: ReturnType<typeof useSales>; onDone: () => void }) {
+  const a = readAssessment(cur);
+  const qs = shortQuestions(a.doneOn ? fmtDate(a.doneOn) : "", RISK[a.risk] || "", changes);
+  const [ans, setAns] = useState<Record<string, boolean | undefined>>({});
+  const [date, setDate] = useState(today);
+  const [notes, setNotes] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const anyNo = qs.some((q) => ans[q.k] === false);
+  const submit = async () => {
+    setErr("");
+    const w = completeShortReview(client, cur, rows, { date, answers: ans, notes, changes }, settings, independent, s.pcan, today, s.ctx());
+    if ("error" in w) return setErr(w.error);
+    setBusy(true); try { await s.apply(w); onDone(); } catch { setErr("Couldn't save that. Try again."); } finally { setBusy(false); }
+  };
+  return (
+    <section className="card pad stack" aria-label="Short review">
+      <h2 className="sec-h">Short review</h2>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>A quick look at the current assessment, without redoing it. If everything is still right, record it and the next review moves on. If anything isn't, answer No and a full assessment is opened.{independent ? " Independent review is on, so this needs someone with approval rights." : ""}</p>
+      {qs.map((q) => (
+        <div key={q.k} className="row-wrap" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <span style={{ flex: "1 1 320px" }}>{q.label}{q.help && <span className="muted" style={{ display: "block", fontSize: 12 }}>{q.help}</span>}</span>
+          <span className="row-wrap" role="radiogroup" aria-label={q.label}>
+            {([true, false] as const).map((v) => <label key={String(v)} className="row-wrap" style={{ gap: 4 }}><input type="radio" name={`sr-${q.k}`} checked={ans[q.k] === v} onChange={() => setAns({ ...ans, [q.k]: v })} />{v ? "Yes" : "No"}</label>)}
+          </span>
+        </div>
+      ))}
+      <div className="row-wrap">
+        <label className="stack" style={{ gap: 2 }}><span className="muted" style={{ fontSize: 12 }}>Date of review</span><input type="date" className="input" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label>
+        <label className="stack" style={{ gap: 2, flex: "1 1 260px" }}><span className="muted" style={{ fontSize: 12 }}>Notes (optional). Don't record details of a suspicion</span><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+      </div>
+      {err && <p className="error-text" role="alert">{err}</p>}
+      <div className="row-wrap">
+        <button type="button" className="btn primary" disabled={busy} onClick={() => void submit()}>{anyNo ? "Record and open a full assessment" : "Complete short review"}</button>
+        <button type="button" className="btn" disabled={busy} onClick={onDone}>Cancel</button>
+      </div>
+    </section>
   );
 }
 

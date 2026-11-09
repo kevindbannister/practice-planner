@@ -122,3 +122,37 @@ test("an assessment records why it is being done: defaults to new for a first on
   assert.equal(r2[0].Reason, "change");
   assert.ok(REASONS.length >= 4);
 });
+
+test("a short review: all Yes moves the next review on and records it; any No opens a full assessment; needs an approved assessment", async () => {
+  const { completeShortReview, readShortReviews } = await import("../src/lib/amlShortReview.ts");
+  const settings = { amlMonths: { low: 36, medium: 24, high: 12 } } as any;
+  const rows: any[] = [];
+  const cl: any = { Key: "C1", Title: "X", Kind: "Ltd" };
+  const inp = (a: boolean, extra = {}) => ({ date: "2026-10-27", answers: { behaved: a, valid: true, info: true, rating: true }, notes: "", changes: false, ...extra });
+  assert.ok("error" in (completeShortReview(cl, undefined, rows, inp(true), settings, false, yes, "2026-10-27", o()) as any));
+  apply(rows, startAssessment(client, rows, o()) as any);
+  apply(rows, saveAssessment(rows[0], good, yes, o("Ann")) as any);
+  apply(rows, approveAssessment(rows[0], client, rows, { amlMonths: { low: 36, medium: 24, high: 12 } } as any, false, yes, "2026-10-01", o("Bea")) as any);
+  const cur = rows[0];
+  assert.equal(cur.Status, "approved");
+  assert.ok("error" in (completeShortReview(client, cur, rows, { ...inp(true), answers: { behaved: true } }, settings, false, yes, "2026-10-27", o()) as any));
+  assert.ok("error" in (completeShortReview(client, cur, rows, inp(true), settings, true, () => false, "2026-10-27", o()) as any));
+  const w = completeShortReview(client, cur, rows, inp(true), settings, false, yes, "2026-10-27", o()) as any;
+  assert.ok(!("error" in w));
+  const risk = readAssessment(cur).risk;
+  apply(rows, w);
+  assert.equal(readShortReviews(cur).length, 1);
+  assert.equal(readShortReviews(cur)[0].outcome, "complete");
+  assert.ok(cur.ReviewDate > "2026-10-27");
+  assert.equal(cur.Status, "approved");
+  assert.ok(risk);
+  const before = cur.ReviewDate;
+  const w2 = completeShortReview(client, cur, rows, inp(false), settings, false, yes, "2026-10-28", o()) as any;
+  assert.ok(!("error" in w2));
+  apply(rows, w2);
+  assert.equal(cur.ReviewDate, before);
+  assert.equal(readShortReviews(cur)[1].outcome, "escalated");
+  assert.equal(rows.filter((r) => r.Status === "inprogress").length, 1);
+  assert.match(rows.find((r) => r.Status === "inprogress").Notes, /Short review on 2026-10-27 found: Has the client behaved/);
+  assert.ok("error" in (completeShortReview(client, cur, rows, inp(true), settings, false, yes, "2026-10-28", o()) as any));
+});

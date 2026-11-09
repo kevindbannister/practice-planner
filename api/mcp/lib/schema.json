@@ -4620,6 +4620,10 @@
      "type": "text"
     },
     {
+     "name": "ShortReviews",
+     "type": "note"
+    },
+    {
      "name": "OnboardingKey",
      "type": "text"
     },

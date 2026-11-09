@@ -2,6 +2,7 @@
 // plus the reviews themselves, newest first. Dates on checks are editable in the review, so history from another system can be
 // entered with its real date. Nothing here is stored separately: it is read from the reviews, so the review stays the one record.
 import { asStatus, readAssessment } from "./amlAssessment";
+import { readShortReviews } from "./amlShortReview";
 import { readAml } from "./onboarding";
 import { Row } from "./schema";
 
@@ -16,6 +17,7 @@ export function timeline(clientKey: string, assessments: Row[], onboardings: Row
     const st = asStatus(r.Status);
     const where = st === "inprogress" ? "Review in progress" : "Review";
     for (const c of a.checks) out.push({ date: str(c.at).slice(0, 10), type: "check", title: c.kind, result: c.result, note: c.note, by: c.by, where });
+    for (const sr of readShortReviews(r)) out.push({ date: sr.date, type: "review", title: sr.outcome === "complete" ? "Short review: nothing changed" : "Short review: full assessment opened", result: sr.outcome === "complete" ? "pass" : "pending", note: sr.notes, by: sr.by, where: "Review" });
     if (a.doneOn) out.push({ date: a.doneOn, type: "review", title: `Review approved (${a.risk || "no"} risk)`, result: "pass", note: a.approvedBy ? `Approved by ${a.approvedBy}` : "", by: a.approvedBy, where: "Review" });
     else if (st === "declined") out.push({ date: str(r.Updated).slice(0, 10), type: "review", title: "Review not approved", result: "fail", note: a.declinedReason, by: "", where: "Review" });
   }
