@@ -158,6 +158,10 @@
      "type": "text"
     },
     {
+     "name": "XamaContact",
+     "type": "text"
+    },
+    {
      "name": "LoEStatus",
      "type": "text"
     },

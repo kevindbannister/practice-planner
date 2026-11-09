@@ -69,7 +69,8 @@ export const readStates = (v: unknown): States => { try { const o = JSON.parse(s
 
 export type Risk = "" | "low" | "medium" | "high";
 export type Check = { id: string; kind: string; result: "pass" | "fail" | "pending"; by: string; at: string; note: string };
-export type Owner = { name: string; percent: number | null; note: string };
+/** clientKey: the person's own (individual) client, when you act for them too; their identity check there covers them here. */
+export type Owner = { name: string; percent: number | null; note: string; clientKey?: string };
 export type Aml = { status: "notstarted" | "inprogress" | "approved" | "declined"; risk: Risk; riskBasis: string; owners: Owner[]; noOwnerNote: string; checks: Check[]; preparedBy: string; approvedBy: string; approvedAt: string; reviewDate: string; declinedReason: string };
 export const EMPTY_AML: Aml = { status: "notstarted", risk: "", riskBasis: "", owners: [], noOwnerNote: "", checks: [], preparedBy: "", approvedBy: "", approvedAt: "", reviewDate: "", declinedReason: "" };
 export const CHECK_KINDS = ["Identity verified", "Address verified", "Beneficial owners or PSCs confirmed", "Sanctions and PEP screening", "Companies House / registry check", "Companies House discrepancy reported", "Source of funds or wealth", "Specialist AML provider", "Other"];
@@ -80,7 +81,7 @@ export function readAml(v: unknown): Aml {
     const st = ["notstarted", "inprogress", "approved", "declined"].includes(o.status) ? o.status : "notstarted";
     return {
       status: st, risk: ["low", "medium", "high"].includes(o.risk) ? o.risk : "", riskBasis: str(o.riskBasis), noOwnerNote: str(o.noOwnerNote),
-      owners: (Array.isArray(o.owners) ? o.owners : []).map((x: any) => ({ name: str(x.name), percent: x.percent === null || x.percent === "" || x.percent === undefined ? null : num(x.percent), note: str(x.note) })).filter((x: Owner) => x.name.trim()),
+      owners: (Array.isArray(o.owners) ? o.owners : []).map((x: any) => ({ name: str(x.name), percent: x.percent === null || x.percent === "" || x.percent === undefined ? null : num(x.percent), note: str(x.note), ...(str(x.clientKey) ? { clientKey: str(x.clientKey) } : {}) })).filter((x: Owner) => x.name.trim()),
       checks: (Array.isArray(o.checks) ? o.checks : []).map((c: any) => ({ id: str(c.id), kind: str(c.kind), result: ["pass", "fail", "pending"].includes(c.result) ? c.result : "pending", by: str(c.by), at: str(c.at), note: str(c.note) })),
       preparedBy: str(o.preparedBy), approvedBy: str(o.approvedBy), approvedAt: str(o.approvedAt), reviewDate: str(o.reviewDate), declinedReason: str(o.declinedReason),
     };

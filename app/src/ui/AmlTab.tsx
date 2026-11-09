@@ -11,6 +11,7 @@ import { Ans, LEVEL_LABEL, basisFrom, evaluate, ratingProblems, templateFor, tem
 import { AmlRiskForm } from "./AmlRiskForm";
 import { amlStampRead, idStampRead } from "../lib/xamaActions";
 import { cosecOwnership, mergeOwners } from "../lib/amlCosec";
+import { alsoCovers, contactCover, isIndividual, ownerChecks, ownerCover, ownersCovered } from "../lib/amlPeople";
 import { timeline } from "../lib/amlTimeline";
 import { clientFolder } from "../lib/comms";
 import { clientTypeFor } from "../lib/proposals";
@@ -100,6 +101,18 @@ export function AmlTab({ client }: { client: Client }) {
       <section className="card pad stack" aria-label="Xama">
         <div className="card-title-row"><h2 className="sec-h">Xama</h2><span className={`chip ${xama.warn ? "amber" : "green"}`}>{xama.text}</span></div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Identity verification through Xama is kept separate from the manual assessment above. Either can be the record you rely on.</p>
+        {(() => {
+          const me = clientRow();
+          const also = isIndividual(me) ? alsoCovers(me, data.clients as Row[], data.amlAssessments) : [];
+          const cc = !isIndividual(me) ? contactCover(me, data.clients as Row[]) : null;
+          const cur = pos.row || pos.current;
+          const oc2 = !isIndividual(me) && cur ? ownerCover(readAssessment(cur).owners, data.clients as Row[], String(me.Key)).filter((x) => x.client && x.cover.done) : [];
+          return <>
+            {also.length > 0 && <div className="note" role="status" style={{ fontSize: 13 }}>This person's Xama check here also covers them on: {also.map((a, i) => <span key={String(a.client.Key)}>{i ? ", " : ""}<a href={href("clients", String(a.client.Key), "aml")}>{String(a.client.Title)}</a> ({a.as})</span>)}. Re-check them here, not there.</div>}
+            {oc2.length > 0 && <div className="note" role="status" style={{ fontSize: 13 }}>Already checked on their own client records: {oc2.map((x, i) => <span key={i}>{i ? ", " : ""}{x.owner.name} ({x.cover.on ? fmtDate(x.cover.on) : "done"})</span>)}. You don't need to check them again through this client.</div>}
+            {cc && cc.cover.done && <div className="warn" role="status" style={{ fontSize: 13 }}>Xama's main contact on this client, {String(cc.client.Title)}, is already checked on their own client record ({cc.cover.how}, {cc.cover.on ? fmtDate(cc.cover.on) : "done"}). Running the AML check here would check them twice.</div>}
+          </>;
+        })()}
         <XamaClientPanel client={client} />
       </section>
 
@@ -215,6 +228,12 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   useEffect(() => { setRisk(saved.risk); setBasis(saved.riskBasis); setOwners(saved.owners); setNoOwner(saved.noOwnerNote); setChecks(saved.checks); setEvidence(saved.evidence); setAnswers(saved.answers); }, [row.Updated]); // eslint-disable-line react-hooks/exhaustive-deps
   const edit = s.pcan("edit");
   const cleanOwners = owners.filter((x) => x.name.trim());
+  const people = (data.clients as Row[]);
+  const oc = ownerCover(cleanOwners, people, String(client.Key));
+  const ocAll = ownersCovered(oc);
+  const toAdd = ownerChecks(oc, checks, today);
+  const individuals = people.filter((c) => isIndividual(c) && c.Key !== client.Key).sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
+  const link = (i: number, key: string) => setOwners(owners.map((y, j) => (j === i ? (key ? { ...y, clientKey: key } : (({ clientKey: _k, ...rest }) => rest)(y)) : y)));
   const draft = { ...saved, risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks };
   const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk)];
   const setCheck = (i: number, p: Partial<Check>) => setChecks(checks.map((c, j) => (j === i ? { ...c, ...p } : c)));
@@ -244,7 +263,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
         <AmlRiskForm tpl={tpl} answers={answers} setAnswers={setAnswers} ctx={{
           companyNumber: String(client.CompanyNumber || "").trim(), owners: cleanOwners.length,
           passedIdentity: checks.some((c) => c.result === "pass" && /identity/i.test(c.kind)), passedScreening: checks.some((c) => c.result === "pass" && /sanction|pep/i.test(c.kind)),
-          xamaIdDone: idStampRead(client.XamaIdCheck).state === "done", xamaAmlDone: amlStampRead(client.XamaAmlCheck).state === "done",
+          xamaIdDone: idStampRead(client.XamaIdCheck).state === "done", xamaAmlDone: amlStampRead(client.XamaAmlCheck).state === "done", ownersCovered: ocAll,
           ownershipAgrees: isCo && co.hasData ? co.findings.filter((f) => /ownership|shareholder|PSC|significant control|share ledger/i.test(f)).length === 0 : null,
           services: (data.clientServices as Row[]).filter((x) => x.ClientKey === client.Key && !x.EndedOn).map((x) => String((data.services as Row[]).find((y) => y.Key === x.ServiceKey)?.Title || x.ServiceKey || "")),
         }} />
@@ -277,8 +296,16 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
               <input className="input" style={{ width: 90 }} aria-label="Percentage held" type="number" min={0} max={100} placeholder="%" value={x.percent ?? ""} onChange={(e) => setOwners(owners.map((y, j) => (j === i ? { ...y, percent: e.target.value === "" ? null : Number(e.target.value) } : y)))} />
               <input className="input" aria-label="Owner note" placeholder="Note (control, nationality…)" value={x.note} onChange={(e) => setOwners(owners.map((y, j) => (j === i ? { ...y, note: e.target.value } : y)))} />
               <button type="button" className="linkbtn danger-link" onClick={() => setOwners(owners.filter((_, j) => j !== i))}>Remove</button>
+              {x.name.trim() && (() => { const c = oc.find((y) => y.owner === x) || ownerCover([x], people, String(client.Key))[0]; return (
+                <div className="muted" style={{ flexBasis: "100%", fontSize: 13 }}>
+                  {c.client ? <>Same person as your client <a href={href("clients", String(c.client.Key), "aml")}>{String(c.client.Title)}</a>: {c.cover.done ? <span style={{ color: "var(--green-ink, #1a7f37)" }}>{c.cover.how}, {c.cover.on ? fmtDate(c.cover.on) : "done"}. No need to check them again here.</span> : <span style={{ color: "var(--amber-ink)" }}>{c.cover.how || "no Xama check on their own record yet"}. Check them there once and it covers both.</span>} <button type="button" className="linkbtn" onClick={() => link(i, "")}>Unlink</button></>
+                    : <>{c.suggest.length > 0 && <>Looks like your client <strong>{String(c.suggest[0].Title)}</strong>. <button type="button" className="btn small" onClick={() => link(i, String(c.suggest[0].Key))}>Link</button> </>}
+                      <select className="input" style={{ maxWidth: 260 }} aria-label={`Link ${x.name} to their own client`} value="" onChange={(e) => e.target.value && link(i, e.target.value)}><option value="">{c.suggest.length ? "Or choose another client…" : "Also your client? Link them…"}</option>{individuals.map((p) => <option key={String(p.Key)} value={String(p.Key)}>{String(p.Title)}</option>)}</select></>}
+                </div>
+              ); })()}
             </div>
           ))}
+          {toAdd.length > 0 && <div><button type="button" className="btn small primary" onClick={() => setChecks([...checks, ...toAdd])}>Add the owners' checks from their own client records ({new Set(toAdd.map((c) => c.note)).size})</button></div>}
           <div><button type="button" className="btn small" onClick={() => setOwners([...owners, { name: "", percent: null, note: "" }])}>Add an owner</button></div>
           {!cleanOwners.length && <input className="input" aria-label="Why there are none to record" placeholder="If there are none to record, say why" value={noOwner} onChange={(e) => setNoOwner(e.target.value)} />}
         </div>

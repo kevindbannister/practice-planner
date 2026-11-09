@@ -6,7 +6,7 @@ import { getAccessToken } from "../lib/auth";
 import { Client } from "../lib/domain";
 import { FakeXama } from "../lib/fakeXama";
 import { HttpXama, XamaApi, XamaStatus } from "../lib/xama";
-import { IdOptions, NewAccount, Progress, askForIdCheck, createAccount, draftAccount, idOptions, missingForAml, missingForCreate, progress, progressText, runAmlCheck, idStamp, amlStamp } from "../lib/xamaActions";
+import { IdOptions, NewAccount, Progress, askForIdCheck, createAccount, draftAccount, idOptions, missingForAml, missingForCreate, progress, progressText, runAmlCheck, idStamp, amlStamp, contactName } from "../lib/xamaActions";
 import { readClient, xamaLink } from "../lib/xamaSync";
 import { href } from "./bits";
 import { isDemo } from "./commsKit";
@@ -96,6 +96,8 @@ export function XamaClientPanel({ client }: { client: Client }) {
     if (r.summary) Object.assign(patch, { XamaId: r.xamaId || xamaId, XamaStatus: r.summary.status, XamaAssessedOn: r.summary.review });
     if (idc !== null && idc !== String(client.XamaIdCheck || "")) patch.XamaIdCheck = idc;
     if (amc !== null && amc !== String(client.XamaAmlCheck || "")) patch.XamaAmlCheck = amc;
+    const who = await contactName(api, cfg, r.xamaId || xamaId).catch(() => "");
+    if (who && who !== String(client.XamaContact || "")) patch.XamaContact = who;
     if (Object.keys(patch).length) await update("Clients", client, patch);
     return r.summary ? `Updated: ${r.summary.status}.` : "Nothing found in Xama yet.";
   });

@@ -75,7 +75,7 @@ export function basisFrom(t: Template, a: Ans): string {
   return `Section ratings: ${named.join(", ")}. The overall rating follows the highest.`;
 }
 
-export type HintCtx = { companyNumber: string; owners: number; passedIdentity: boolean; passedScreening: boolean; xamaIdDone: boolean; xamaAmlDone: boolean; ownershipAgrees: boolean | null; services: string[] };
+export type HintCtx = { companyNumber: string; owners: number; passedIdentity: boolean; passedScreening: boolean; xamaIdDone: boolean; xamaAmlDone: boolean; ownersCovered?: "" | "ID" | "AML"; ownershipAgrees: boolean | null; services: string[] };
 /** Answers the planner can suggest from what it already holds. The person chooses whether to use each one. */
 export function hints(t: Template, h: HintCtx): Record<string, { value: string | string[]; from: string }> {
   const out: Record<string, { value: string | string[]; from: string }> = {};
@@ -87,8 +87,13 @@ export function hints(t: Template, h: HintCtx): Record<string, { value: string |
   const who = (l: string, from: string) => (ownerQ(l) ? `${from}; only if the main contact is the one owner recorded` : from);
   const ID = h.xamaIdDone ? "the Xama ID verification on the client's main contact" : "the Xama AML check on the client's main contact";
   const SCR = "the Xama AML check on the client's main contact (PEP and sanctions)";
+  const OWN = "each owner's Xama check on their own client record";
   for (const q of questions(t)) {
     const l = q.label.toLowerCase();
+    if (ownerQ(l) && h.ownersCovered && !/identified and added/.test(l)) {
+      if (/identity documents?|passed.*aml identity verification/.test(l)) { out[q.k] = { value: "Yes", from: OWN }; continue; }
+      if (h.ownersCovered === "AML" && /(pep screening|sanctions screening)/.test(l)) { out[q.k] = { value: "No", from: OWN }; continue; }
+    }
     if (/registered with companies house/.test(l) && h.companyNumber) out[q.k] = { value: "Yes", from: `company number ${h.companyNumber}` };
     else if (/beneficial owners (been )?identified and added/.test(l) && h.owners) out[q.k] = { value: "Yes", from: "owners recorded in this review" };
     else if (/identity documents? (has |have )?been collected/.test(l) && (h.passedIdentity || (idOk && fits(l)))) out[q.k] = { value: "Yes", from: h.passedIdentity ? "a passed identity check in this review" : who(l, ID) };

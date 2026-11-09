@@ -5,7 +5,7 @@ import { Row } from "./schema";
 
 export type Client = Row & {
   Key: string; Title: string; Kind?: string; CompanyNumber?: string; YearEnd?: string; Email?: string;
-  Mobile?: string; LogoUrl?: string; XamaStatus?: string; XamaIdCheck?: string; XamaAmlCheck?: string; XamaAssessedOn?: string; CISStatus?: string; CISRegistered?: string; CISFirstPayment?: string; LoEStatus?: string; AnnualFees?: number;
+  Mobile?: string; LogoUrl?: string; XamaStatus?: string; XamaIdCheck?: string; XamaAmlCheck?: string; XamaAssessedOn?: string; XamaContact?: string; CISStatus?: string; CISRegistered?: string; CISFirstPayment?: string; LoEStatus?: string; AnnualFees?: number;
 };
 export type Job = Row & {
   Key: string; Title: string; ClientKey: string; ServiceKey?: string; PeriodEnd?: string; StageNo?: number;

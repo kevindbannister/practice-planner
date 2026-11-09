@@ -59,7 +59,7 @@ export function mergeOwners(current: Owner[], suggested: Owner[]): Owner[] {
   for (const s of suggested) {
     const i = out.findIndex((o) => norm(o.name) === norm(s.name));
     if (i < 0) out.push(s);
-    else out[i] = { ...out[i], percent: out[i].percent ?? s.percent, note: out[i].note || s.note };
+    else out[i] = { ...out[i], percent: out[i].percent ?? s.percent, note: out[i].note || s.note, ...(out[i].clientKey || s.clientKey ? { clientKey: out[i].clientKey || s.clientKey } : {}) };
   }
   return out;
 }

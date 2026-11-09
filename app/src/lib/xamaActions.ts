@@ -86,6 +86,15 @@ export async function contactOf(api: XamaApi, cfg: XamaConfig, accountId: string
   return id;
 }
 
+/** The name of the person Xama checks on this account (its main contact), when Xama gives one. */
+export async function contactName(api: XamaApi, cfg: XamaConfig, accountId: string): Promise<string> {
+  const r = await api.get(`${base(cfg)}/accounts/${encodeURIComponent(accountId)}/contacts`);
+  const items: any[] = Array.isArray(r) ? r : Array.isArray(r?.items) ? r.items : [];
+  const c = items.find((x) => String(x.type || "").toUpperCase() === "PRIMARY") || items[0];
+  if (!c) return "";
+  return String(c.full_name || c.name || [c.first_name || c.firstName, c.last_name || c.lastName].filter(Boolean).join(" ") || "").trim();
+}
+
 export type IdOptions = { levels: { id: string; name: string; isDefault: boolean }[]; templates: { id: string; name: string; isDefault: boolean }[] };
 
 /** The ID-check levels and email wordings this Xama account offers. */
