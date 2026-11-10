@@ -268,7 +268,7 @@ function FormScreen({ def, sel: first = "", add = false }: { def: p.FormDef; sel
           </label>}
           {!def.single && <button type="button" className="btn small" onClick={() => start()}>New {def.noun}</button>}
           {!def.single && <button type="button" className="btn small" onClick={() => start(rec)}>New from this one</button>}
-          {!def.single && rec.status === "Draft" && <button type="button" className="btn small" onClick={() => { if (window.confirm("Delete this draft? This can't be undone.")) { edit({ records: cur.records.filter((r) => r.id !== rec.id) }, true); setSel(""); } }}>Delete draft</button>}
+          {!def.single && rec.status === "Draft" && <button type="button" className="btn small" onClick={() => { if (window.confirm("Delete this draft? This can't be undone.")) { edit({ records: cur.records.filter((r) => r.id !== rec.id) }, true); setSel(""); void chain.current.then(() => { window.location.hash = "#/aml/records"; }); } }}>Delete draft</button>}
           <ExportButtons def={def} rec={rec} firm={a.firm} clientName={a.clientName} />
         </div>
         <div className="row-wrap" style={{ gap: 8 }}>
