@@ -485,6 +485,14 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
     const id = doc.sections.some((s) => s.id === target) ? target : doc.sections[doc.sections.length - 1]?.id;
     if (id) sec(id, (s) => ({ ...s, blocks: [...s.blocks, ...blocks] }));
   };
+  const copyBlock = (secId: string, id: string) => sec(secId, (x) => { const i = x.blocks.findIndex((y) => y.id === id); return i < 0 ? x : { ...x, blocks: [...x.blocks.slice(0, i + 1), { ...JSON.parse(JSON.stringify(x.blocks[i])), id: uid() }, ...x.blocks.slice(i + 1)] }; });
+  const copySection = (id: string) => {
+    const copy = (s: Section): Section => ({ ...JSON.parse(JSON.stringify(s)), id: uid("s"), title: `${s.title} (copy)`, blocks: s.blocks.map((b) => ({ ...JSON.parse(JSON.stringify(b)), id: uid() })) });
+    const src = docRef.current.sections.find((y) => y.id === id); if (!src) return;
+    const c = copy(src);
+    update((x) => { const i = x.sections.findIndex((y) => y.id === id); return i < 0 ? x : { ...x, sections: [...x.sections.slice(0, i + 1), c, ...x.sections.slice(i + 1)] }; });
+    setTarget(c.id);
+  };
   const patchBlock = (secId: string, id: string, patch: Partial<Block>) => sec(secId, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === id ? ({ ...y, ...patch } as Block) : y)) }));
   /** Move a block next to another (before or after it), or to the end of a section, in this section or another. */
   const moveBlock = (id: string, toSec: string, beside: string | null, after: boolean) => update((x) => {
@@ -550,10 +558,10 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
   );
   const ICO: Record<string, ReactNode> = {
     up: <path d="M3.5 9.5 8 5l4.5 4.5" />, down: <path d="M3.5 6.5 8 11l4.5-4.5" />,
-    del: <path d="M3.5 4.5h9M6.5 4.5V3h3v1.5M5 4.5l.5 8h5l.5-8" />, edit: <path d="M3 13l.6-2.6 7-7 2 2-7 7L3 13Z" />,
+    del: <path d="M3.5 4.5h9M6.5 4.5V3h3v1.5M5 4.5l.5 8h5l.5-8" />, dup: <path d="M5.5 5.5h7v7h-7zM3.5 10.5v-7h7" />, edit: <path d="M3 13l.6-2.6 7-7 2 2-7 7L3 13Z" />,
   };
   const mini = (label: string, onClick: () => void, off = false) => {
-    const k = label.startsWith("Move up") ? "up" : label.startsWith("Move down") ? "down" : "del";
+    const k = label.startsWith("Move up") ? "up" : label.startsWith("Move down") ? "down" : label.startsWith("Duplicate") ? "dup" : "del";
     return <button type="button" className="rb-ico" aria-label={label} title={label} disabled={off} onClick={onClick}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICO[k]}</svg></button>;
   };
   const mg = doc.look === "management";
@@ -597,7 +605,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
               {doc.sections.map((s, i) => (
                 <div key={s.id} className={`rb-out${s.id === target ? " on" : ""}`}>
                   <button type="button" className="rb-out-name" onClick={() => setTarget(s.id)}>{s.title || "Untitled"}<span>{s.orientation ? `${s.orientation === "landscape" ? "Land" : "Port"} · ` : ""}{s.blocks.length}</span></button>
-                  {mini("Move up", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}
+                  {mini("Move up", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}{mini("Duplicate section", () => copySection(s.id))}
                 </div>
               ))}
               <button type="button" className="btn small" style={{ alignSelf: "flex-start", marginTop: 8 }} onClick={addSection}>New section</button>
@@ -639,7 +647,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
                   {mg && words && <span style={{ fontWeight: 400, color: "#6b6f7a", fontSize: 15, marginRight: "auto" }}> · {words}</span>}
                   <span className="rb-tools">
                     <select className="rb-w" aria-label="Page orientation" title="Page orientation (this page only)" value={sectionOrientation(doc, s)} onChange={(e) => sec(s.id, (x) => ({ ...x, orientation: e.target.value === doc.orientation ? undefined : (e.target.value as Orientation) }))}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>
-                    {mini("Move up section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}
+                    {mini("Move up section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}{mini("Duplicate section", () => copySection(s.id))}
                     {doc.sections.length > 1 && mini("Delete section", () => update((x) => ({ ...x, sections: x.sections.filter((y) => y.id !== s.id) })))}
                   </span>
                 </div>
@@ -651,7 +659,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
                       {([[3, "¼"], [4, "⅓"], [6, "½"], [8, "⅔"], [9, "¾"], [12, "Full"]] as [number, string][]).concat(WIDTHS.some(([n]) => n === spanOf(b)) ? [] : [[spanOf(b), `${spanOf(b)}/12`]]).map(([n, l]) => <option key={n} value={n}>{l}</option>)}
                     </select>
                     {EDITABLE.includes(b.type) && <button type="button" className="rb-ico wide" aria-label="Edit component" title="Edit component" onClick={() => setEditId(b.id)}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICO.edit}</svg>Edit</button>}
-                    {mini("Move up", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i - 1) })), i === 0)}{mini("Move down", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i + 1) })), i === s.blocks.length - 1)}{mini("Delete", () => sec(s.id, (x) => ({ ...x, blocks: x.blocks.filter((y) => y.id !== b.id) })))}
+                    {mini("Move up", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i - 1) })), i === 0)}{mini("Move down", () => sec(s.id, (x) => ({ ...x, blocks: moveItem(x.blocks, i, i + 1) })), i === s.blocks.length - 1)}{mini("Duplicate", () => copyBlock(s.id, b.id))}{mini("Delete", () => sec(s.id, (x) => ({ ...x, blocks: x.blocks.filter((y) => y.id !== b.id) })))}
                   </div>
                   <button type="button" className="rb-grip" draggable aria-label="Drag to move" title="Drag to move this component"
                     onDragStart={(e) => { const el = (e.currentTarget as HTMLElement).closest(".rb-block") as HTMLElement; e.dataTransfer.setData("text/plain", b.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setDragImage(el, 16, 16); dragId.current = b.id; setTimeout(() => setDragging(true), 0); }}
