@@ -15,6 +15,8 @@ import { PeriodKind, REPORT_FOLDER, ReportData, bsStatement, monthLabel, monthLo
 import { todayIso } from "../lib/domain";
 import { Icon, IconName, href } from "./bits";
 import { readSetting, useData } from "./data";
+import { pdfName, reportPdf, saveBytes } from "./reportPdf";
+import { usePortal } from "./portalKit";
 import { brandOf, readBranding } from "../lib/docBranding";
 import { AgedView, useAgedData } from "./ReportingAged";
 import { ChartView, ComponentEditor, Ctx, KeyView, LINE, MovementsView, NAVY, ObservationView, Swatch, T, TableView, TopView, observationHidden } from "./ReportingComponents";
@@ -392,6 +394,33 @@ function List({ list, tpls, saveTpls, d, busy, error, clientKey, clientName, sav
       setViewing({ name: x.name, url: URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" })) });
     } catch { setNote("The published copy couldn't be opened from OneDrive."); }
   };
+  // A published report as a PDF file: to download, or to put on the client's portal.
+  const portal = usePortal();
+  const [pdf, setPdf] = useState<{ id: string; text: string } | undefined>();
+  const [sharing, setSharing] = useState("");
+  const makePdf = async (x: ReportDoc) => {
+    const html = new TextDecoder().decode(await store.graph.download(fileOf(clientKey, x.id)));
+    return reportPdf(html, { clientName, name: x.name, step: (m) => setPdf({ id: x.id, text: m }) });
+  };
+  const downloadPdf = async (x: ReportDoc) => {
+    setPdf({ id: x.id, text: "Making the PDF…" }); setNote("");
+    try { saveBytes(await makePdf(x), pdfName(clientName, x.name)); } catch { setNote("The PDF couldn't be made. Open the report with View and use Print or save as PDF instead."); }
+    setPdf(undefined);
+  };
+  const share = async (x: ReportDoc, notify: boolean) => {
+    setSharing(""); setPdf({ id: x.id, text: "Making the PDF…" }); setNote("");
+    try {
+      const bytes = await makePdf(x);
+      if (bytes.length > 9.5 * 1024 * 1024) throw new Error("The PDF is too big for the portal (over 10 MB). Download it and send it another way.");
+      setPdf({ id: x.id, text: "Sending to the portal…" });
+      let t = ""; for (let i = 0; i < bytes.length; i += 0x8000) t += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      const cats = await portal.run((a) => a.documents(clientKey));
+      const category = cats.categories.find((k) => /report|management|accounts/i.test(k)) || cats.categories.find((k) => /other/i.test(k)) || cats.categories[0] || "Other";
+      await portal.run((a) => a.addDocument({ clientKey, title: x.name, category, fileName: pdfName(clientName, x.name), content: btoa(t), publish: true, notify, assignedTo: [], requiresApproval: false }));
+      setNote(`“${x.name}” is on ${clientName}'s portal under ${category}${notify ? ", and they have been emailed" : ""}.`);
+    } catch (e) { setNote(e instanceof Error && e.message ? e.message : "The report couldn't be put on the portal."); }
+    setPdf(undefined);
+  };
   return (
     <section className="stack" style={{ gap: 12, minWidth: 0 }} aria-label="Reports">
       <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
@@ -414,6 +443,10 @@ function List({ list, tpls, saveTpls, d, busy, error, clientKey, clientName, sav
             {x.status === "draft"
               ? <a className="btn small" href={href("reporting", clientKey, "reports", x.id)}>Edit</a>
               : <button type="button" className="btn small" onClick={() => void open(x)}>View</button>}
+            {x.status === "published" && <button type="button" className="btn small" disabled={!!pdf} onClick={() => void downloadPdf(x)}>{pdf?.id === x.id && sharing !== x.id ? pdf.text : "Download PDF"}</button>}
+            {x.status === "published" && portal.status?.configured && (sharing === x.id
+              ? <><button type="button" className="btn small primary" disabled={!!pdf} onClick={() => void share(x, true)}>Share and email the client</button><button type="button" className="btn small" disabled={!!pdf} onClick={() => void share(x, false)}>Share without an email</button><button type="button" className="btn small" onClick={() => setSharing("")}>Cancel</button></>
+              : <button type="button" className="btn small" disabled={!!pdf} title="Put a PDF of this report in the client's portal documents" onClick={() => setSharing(x.id)}>Share on the portal</button>)}
             <button type="button" className="btn small" title="The same layout, one period on, with the commentary cleared" onClick={() => void save([...list, nextCopy(x, new Date().toISOString(), months[months.length - 1] || "")])}>Next period's copy</button>
             <button type="button" className="btn small" onClick={() => void save([...list, copyReport(x, new Date().toISOString())])}>{x.status === "published" ? "Make a draft copy" : "Duplicate"}</button>
             <button type="button" className="btn small" title="Keep this layout, with the commentary cleared, to start other reports from" onClick={() => void saveTpls([...tpls, asTemplate(x, new Date().toISOString())]).then(() => { setTab("templates"); setNote(`Saved “${x.name} template” under Templates.`); })}>Save as template</button>
@@ -536,6 +569,14 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
   }, []);
   const [printing, setPrinting] = useState<string>("");
   const openPrint = () => { if (!c) return; if (printing) URL.revokeObjectURL(printing); setPrinting(URL.createObjectURL(new Blob([hideButton(publishedHtml(shown, c, clientName))], { type: "text/html;charset=utf-8" }))); };
+  const [pdfBusy, setPdfBusy] = useState("");
+  const downloadPdf = async () => {
+    if (!c || pdfBusy) return;
+    setPdfBusy("Making the PDF…"); setProblem("");
+    try { saveBytes(await reportPdf(publishedHtml(shown, c, clientName), { clientName, name: doc.name, step: setPdfBusy }), pdfName(clientName, doc.name)); }
+    catch { setProblem("The PDF couldn't be made. Use Print / PDF and choose Save as PDF instead."); }
+    setPdfBusy("");
+  };
   const closePrint = () => { URL.revokeObjectURL(printing); setPrinting(""); };
   const publish = async () => {
     if (!c) return;
@@ -581,6 +622,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
           <span className="rb-meta">{doc.template ? "Template" : `${clientName}${words ? ` · ${words}` : ""}`} · {doc.orientation}</span>
           {!d && <button type="button" className="btn small" disabled={!!busy} onClick={() => void refresh()}>Read from Xero</button>}
           <button type="button" className="btn small" disabled={!c} title="See the report as it prints, and save it as a PDF, without publishing" onClick={() => c && openPrint()}>Print / PDF</button>
+          <button type="button" className="btn small" disabled={!c || !!pdfBusy} title="Download the report as a PDF file, as it stands now, without publishing" onClick={() => void downloadPdf()}>{pdfBusy || "Download PDF"}</button>
           {!doc.template && <button type="button" className="btn primary small" disabled={!c || !!publishing} onClick={() => void publish()}>{publishing || "Publish"}</button>}
         </div>
       </header>
