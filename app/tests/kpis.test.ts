@@ -156,3 +156,10 @@ test("debtor days compare debtors with revenue plus VAT when the client has a VA
   assert.equal(days(mk(false)), 36);  // 12,000 over 10,000 for 30 days
   assert.equal(days(mk(true)), 30);   // 12,000 over 12,000 (10,000 plus 20% VAT)
 });
+
+test("a snapshot keeps the headline figures for the practice-wide view", async () => {
+  const { snapshotOf } = await import("../src/lib/kpis");
+  const mk = (id: string, value?: number) => ({ def: { id }, value }) as never;
+  const s = snapshotOf([mk("revenue", 1000), mk("gpm", 41.5), mk("roe", 12), mk("cash", undefined), mk("npm", NaN)], "2026-11-10T09:00:00Z", "2026-10");
+  assert.deepEqual(s, { at: "2026-11-10T09:00:00Z", month: "2026-10", k: { revenue: 1000, gpm: 41.5 } });
+});

@@ -1,7 +1,7 @@
 // Shared by the reporting screens: the saved monthly figures for a client (with a way to read them again from Xero) and the small controls.
 import { useCallback, useEffect, useState } from "react";
 import { todayIso } from "../lib/domain";
-import { KpiSettings, SavedAlerts, alertLines, computeKpis, triggeredAlerts } from "../lib/kpis";
+import { KpiSettings, SavedAlerts, alertLines, computeKpis, snapshotOf, triggeredAlerts } from "../lib/kpis";
 import { ReportData, lastCompleteMonth, readReportData, reportItem } from "../lib/reportData";
 import { XeroApi, XeroError } from "../lib/xero";
 import { SharePointStore } from "../lib/sharepoint";
@@ -27,6 +27,7 @@ export function useRecordRead() {
     if (!month) return;
     const kpi = readSetting<KpiSettings>(data.settings, `reporting.kpi.${clientKey}`) || {};
     const lines = alertLines(triggeredAlerts(computeKpis(d, "month", month, 9, kpi), kpi));
+    await saveSetting(`reporting.snap.${clientKey}`, snapshotOf(computeKpis(d, "month", month, 9, { ...kpi, off: [] }), d.at, month));
     const before = readSetting<SavedAlerts>(data.settings, `reporting.alerts.${clientKey}`);
     if (lines.length || before?.lines.length) await saveSetting(`reporting.alerts.${clientKey}`, { at: d.at, month, lines } satisfies SavedAlerts);
   }, [data.settings, saveSetting]);

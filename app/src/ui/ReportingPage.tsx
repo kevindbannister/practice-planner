@@ -14,7 +14,8 @@ import { AgedScreen } from "./ReportingAged";
 import { Profitability } from "./ReportingProfitability";
 import { KpiScreen } from "./ReportingKpis";
 import { ReadNote, readAndSave, useRecordRead, useReportData } from "./reportingKit";
-import { lastCompleteMonth } from "../lib/reportData";
+import { lastCompleteMonth, monthLabel } from "../lib/reportData";
+import type { SavedAlerts, Snapshot } from "../lib/kpis";
 import { todayIso } from "../lib/domain";
 import { readSetting } from "./data";
 import { XeroError } from "../lib/xero";
@@ -55,13 +56,40 @@ function FiguresPanel({ clients }: { clients: { Key: string; Title: string; tena
   const rows = clients.map((c) => ({ c, note: readSetting<ReadNote>(data.settings, `reporting.read.${c.Key}`) }));
   const behind = rows.filter((r) => figuresBehind(r.note, today)).length;
   return (
-    <div className="card pad stack" style={{ gap: 8, maxWidth: 640 }}>
+    <div className="card pad stack" style={{ gap: 8 }}>
       <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
-        <strong>Figures from Xero</strong>
+        <strong>All clients: latest month</strong>
         <button type="button" className="btn small" disabled={!!busy || !clients.length} onClick={() => void run()}>Read all {clients.length} again from Xero</button>
       </div>
       <span className="muted" style={{ fontSize: 12 }} aria-live="polite">{busy || (behind ? `${behind} of ${clients.length} are over a week old or missing the latest month.` : "All are up to date.")}</span>
-      <table className="grid" style={{ fontSize: 13 }}><tbody>{rows.map(({ c, note }) => <tr key={c.Key}><td><a href={href("reporting", c.Key, "financials")}>{c.Title}</a></td><td className="muted">{ago(note?.at)}</td><td>{figuresBehind(note, today) ? <span className="chip amber">behind</span> : ""}</td></tr>)}</tbody></table>
+      <div style={{ overflowX: "auto" }}>
+        <table className="table" style={{ fontSize: 13 }}>
+          <thead><tr><th scope="col">Client</th><th scope="col">Month</th><th scope="col" className="num">Revenue</th><th scope="col" className="num">On last year</th><th scope="col" className="num">Gross margin</th><th scope="col" className="num">Net margin</th><th scope="col" className="num">Cash</th><th scope="col" className="num">Debtor days</th><th scope="col">Alerts</th><th scope="col">Figures read</th></tr></thead>
+          <tbody>{rows.map(({ c, note }) => {
+            const snap = readSetting<Snapshot>(data.settings, `reporting.snap.${c.Key}`), k = snap?.k || {};
+            const al = readSetting<SavedAlerts>(data.settings, `reporting.alerts.${c.Key}`);
+            const alerts = al && al.month === snap?.month ? al.lines : [];
+            const money = (v?: number) => (v === undefined ? "" : v < 0 ? `(£${Math.abs(Math.round(v)).toLocaleString("en-GB")})` : `£${Math.round(v).toLocaleString("en-GB")}`);
+            const per = (v?: number) => (v === undefined ? "" : `${v.toFixed(1)}%`);
+            const tone = (v: number | undefined, bad: boolean): React.CSSProperties | undefined => (v === undefined ? undefined : { color: bad ? "var(--red-ink, #b42318)" : undefined, fontWeight: bad ? 600 : undefined });
+            return (
+              <tr key={c.Key}>
+                <th scope="row" style={{ fontWeight: 600 }}><a href={href("reporting", c.Key, "financials")}>{c.Title}</a></th>
+                <td>{snap ? monthLabel(snap.month) : <span className="muted">Read again to fill</span>}</td>
+                <td className="num">{money(k.revenue)}</td>
+                <td className="num" style={tone(k.revg, (k.revg ?? 0) < 0)}>{k.revg === undefined ? "" : `${k.revg >= 0 ? "+" : "−"}${Math.abs(k.revg).toFixed(0)}%`}</td>
+                <td className="num">{per(k.gpm)}</td>
+                <td className="num" style={tone(k.npm, (k.npm ?? 0) < 0)}>{per(k.npm)}</td>
+                <td className="num" style={tone(k.cash, (k.cash ?? 0) < 0)}>{money(k.cash)}</td>
+                <td className="num">{k.ardays === undefined ? "" : Math.round(k.ardays)}</td>
+                <td>{alerts.length ? <span className="chip red" title={alerts.join("\n")}>{alerts.length} alert{alerts.length === 1 ? "" : "s"}</span> : snap ? <span className="chip green">None</span> : ""}</td>
+                <td className="muted">{ago(note?.at)}{figuresBehind(note, today) && <span className="chip amber" style={{ marginLeft: 6 }}>behind</span>}</td>
+              </tr>
+            );
+          })}</tbody>
+        </table>
+      </div>
+      <span className="muted" style={{ fontSize: 12 }}>Each row is the client's latest complete month when its figures were last read. Alerts are the KPI alerts you have switched on for that client.</span>
       {log.map((l) => <span key={l} className="muted" style={{ fontSize: 12 }}>{l}</span>)}
     </div>
   );

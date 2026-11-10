@@ -38,3 +38,12 @@ test("a training row with a course but no date shows undated, and a blank row sh
   const t = timeline({ training: { records: [rec("t1", "2026-01-01", { people: [{ person: "Kevin" }, { person: "Ann", course: "AML basics" }, {}] })] } } as never, { name, today });
   assert.equal(t.length, 1); assert.equal(t[0].chip, "No date"); assert.equal(t[0].date, "");
 });
+
+test("Xama AML checks sit with the screening entries and open the client's AML page; register rows carry their row", () => {
+  const t = timeline({ actions: { records: [rec("a1", "2026-01-01", { actions: [{ ref: "A1", action: "x", due: "2026-12-01" }, { ref: "A2", action: "y", due: "2026-12-02" }] })] } } as never,
+    { name, today, xama: [{ client: "c1", on: "2026-10-05", state: "done", pep: 0, sanctions: 0 }, { client: "c2", on: "2026-10-06", state: "check", pep: 1, sanctions: 0 }, { client: "c3", on: "", state: "waiting", pep: 0, sanctions: 0 }] });
+  const x = t.filter((e) => e.key.startsWith("xama:"));
+  assert.equal(x.length, 2); assert.equal(x.find((e) => e.client === "c1")!.tone, "green"); assert.equal(x.find((e) => e.client === "c2")!.tone, "red");
+  assert.equal(x[0].type, "screening"); assert.match(x.find((e) => e.client === "c1")!.to!, /clients\/c1\/aml/);
+  assert.equal(t.find((e) => e.key === "action:a1:1")!.row, 1);
+});

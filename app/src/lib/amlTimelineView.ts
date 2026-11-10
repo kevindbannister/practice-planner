@@ -19,6 +19,7 @@ export const FORM_OF = Object.fromEntries(REC_TYPES.map((t) => [t.form, t.type])
 export type Tone = "green" | "amber" | "red" | "";
 export type Entry = {
   key: string; type: RecType; form: string; /** the record's id, for a form with one record each time */ rec?: string; date: string; title: string; detail: string;
+  /** the row in a register, to open it there */ row?: number; /** somewhere else to open it (a client's AML page, for a Xama check) */ to?: string;
   chip: string; tone: Tone; /** a date still to come (or missed) rather than something done */ upcoming: boolean; client?: string;
 };
 
@@ -34,7 +35,8 @@ function dueTone(on: string, today: string): { chip: string; tone: Tone } {
 }
 
 type Stores = Record<string, Store>;
-type Open = { name: (clientKey: string) => string; today: string };
+/** `xama` is each client's AML check as Xama reported it (identity, PEP and sanctions), shown with the screening checks. */
+type Open = { name: (clientKey: string) => string; today: string; xama?: { client: string; on: string; state: string; pep: number; sanctions: number }[] };
 
 export function timeline(stores: Stores, o: Open): Entry[] {
   const out: Entry[] = [];
@@ -60,13 +62,19 @@ export function timeline(stores: Stores, o: Open): Entry[] {
     out.push({ key: `screening:${r.id}`, type: "screening", form: "screening", rec: r.id, date: on, title: `${str(r.values.who) || o.name(client) || "Screening check"}${client && str(r.values.who) ? ` (${o.name(client)})` : ""}`, detail: [str(r.values.role), str(r.values.source)].filter(Boolean).join(", "), chip: result || (r.status === "Approved" ? "Approved" : "Draft"), tone, upcoming: false, client });
   }
 
+  for (const x of o.xama || []) {
+    if (!day(x.on) || x.state === "waiting") continue;
+    const hit = x.state === "check";
+    out.push({ key: `xama:${x.client}`, type: "screening", form: "screening", to: `#/clients/${encodeURIComponent(x.client)}/aml`, date: day(x.on), title: `${o.name(x.client) || "Client"}: Xama AML check`, detail: "Identity, PEP and sanctions, from Xama", chip: hit ? `Possible matches: ${x.pep} PEP, ${x.sanctions} sanctions` : "No match", tone: hit ? "red" : "green", upcoming: false, client: x.client });
+  }
+
   // training: a row for each person's course, and when it is next due
   for (const r of recs("training")) {
     const rows = Array.isArray(r.values.people) ? (r.values.people as Record<string, unknown>[]) : [];
     rows.forEach((p, i) => {
       const on = day(p.on), next = day(p.next), who = str(p.person) || "Someone", course = str(p.course);
-      if (on || course || str(p.result)) out.push({ key: `training:${r.id}:${i}`, type: "training", form: "training", date: on, title: `${who}: ${course || "training"}`, detail: str(p.result), chip: !on ? "No date" : str(p.result) ? "Recorded" : "No result noted", tone: on && str(p.result) ? "green" : "amber", upcoming: false });
-      if (next) out.push({ key: `training-next:${r.id}:${i}`, type: "training", form: "training", date: next, title: `${who}: training due`, detail: course, ...dueTone(next, o.today), upcoming: true });
+      if (on || course || str(p.result)) out.push({ key: `training:${r.id}:${i}`, type: "training", form: "training", row: i, date: on, title: `${who}: ${course || "training"}`, detail: str(p.result), chip: !on ? "No date" : str(p.result) ? "Recorded" : "No result noted", tone: on && str(p.result) ? "green" : "amber", upcoming: false });
+      if (next) out.push({ key: `training-next:${r.id}:${i}`, type: "training", form: "training", row: i, date: next, title: `${who}: training due`, detail: course, ...dueTone(next, o.today), upcoming: true });
     });
   }
 
@@ -76,7 +84,7 @@ export function timeline(stores: Stores, o: Open): Entry[] {
     rows.forEach((a, i) => {
       const status = str(a.status) || "Open", due = day(a.due), done = status === "Done";
       const t = done ? { chip: "Done", tone: "green" as Tone } : due ? { ...dueTone(due, o.today), chip: gap(due, o.today) < 0 ? `${status}, overdue` : status } : { chip: status, tone: "amber" as Tone };
-      out.push({ key: `action:${r.id}:${i}`, type: "action", form: "actions", date: due, title: `${str(a.ref) ? `${str(a.ref)}: ` : ""}${str(a.action) || "Action"}`, detail: [str(a.owner) && `Owner: ${str(a.owner)}`, !due && !done && "no due date"].filter(Boolean).join(", "), chip: t.chip, tone: t.tone, upcoming: !done && !!due && due >= o.today });
+      out.push({ key: `action:${r.id}:${i}`, type: "action", form: "actions", row: i, date: due, title: `${str(a.ref) ? `${str(a.ref)}: ` : ""}${str(a.action) || "Action"}`, detail: [str(a.owner) && `Owner: ${str(a.owner)}`, !due && !done && "no due date"].filter(Boolean).join(", "), chip: t.chip, tone: t.tone, upcoming: !done && !!due && due >= o.today });
     });
   }
 
@@ -85,8 +93,8 @@ export function timeline(stores: Stores, o: Open): Entry[] {
     const rows = Array.isArray(r.values.items) ? (r.values.items as Record<string, unknown>[]) : [];
     rows.forEach((a, i) => {
       const on = day(a.on), next = day(a.next), item = str(a.item) || "Registration";
-      if (on) out.push({ key: `registration:${r.id}:${i}`, type: "registration", form: "registrations", date: on, title: item, detail: [str(a.status), str(a.ref) && `Ref ${str(a.ref)}`].filter(Boolean).join(", "), chip: str(a.status) || "Recorded", tone: "green", upcoming: false });
-      if (next) out.push({ key: `registration-next:${r.id}:${i}`, type: "registration", form: "registrations", date: next, title: `${item}: renewal or review due`, detail: "", ...dueTone(next, o.today), upcoming: true });
+      if (on) out.push({ key: `registration:${r.id}:${i}`, type: "registration", form: "registrations", row: i, date: on, title: item, detail: [str(a.status), str(a.ref) && `Ref ${str(a.ref)}`].filter(Boolean).join(", "), chip: str(a.status) || "Recorded", tone: "green", upcoming: false });
+      if (next) out.push({ key: `registration-next:${r.id}:${i}`, type: "registration", form: "registrations", row: i, date: next, title: `${item}: renewal or review due`, detail: "", ...dueTone(next, o.today), upcoming: true });
     });
   }
 

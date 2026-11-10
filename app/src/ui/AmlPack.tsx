@@ -144,7 +144,7 @@ function FieldView({ f, c }: { f: p.Field; c: Ctx }) {
   return (
     <div className="stack" style={{ gap: 6 }}>
       <div style={{ overflowX: "auto" }}>
-        <table className="grid" style={{ minWidth: 720 }}>
+        <table className="grid" data-table={f.k} style={{ minWidth: 720 }}>
           <thead><tr>{t.cols.map((k) => <th key={k.k} scope="col">{k.label}</th>)}<th scope="col"><span className="sr-only">Remove</span></th></tr></thead>
           <tbody>
             {rows.map((r, i) => (
@@ -172,7 +172,7 @@ function liveFor(a: ReturnType<typeof useAml>): Live {
 
 // ------------------------------------------------------------------ one form
 
-function FormScreen({ def, sel: first = "", add = false }: { def: p.FormDef; sel?: string; add?: boolean }) {
+function FormScreen({ def, sel: first = "", add = false, row }: { def: p.FormDef; sel?: string; add?: boolean; row?: number }) {
   const a = useAml();
   const today = todayIso();
   const stored = a.storeOf(def.id);
@@ -211,6 +211,18 @@ function FormScreen({ def, sel: first = "", add = false }: { def: p.FormDef; sel
   const patchRec = (id: string, fn: (r: p.Rec) => p.Rec, now = false) => edit({ records: cur.records.map((r) => (r.id === id ? fn(r) : r)) }, now);
   const start = (copy?: p.Rec) => { const r = p.newRec(def, today, copy); edit({ records: [...cur.records, r] }, true); setSel(r.id); };
   const status = p.standing(def, cur, today);
+  // Opened from a timeline entry that is one row of a register: bring that row into view and mark it for a moment.
+  useEffect(() => {
+    if (row === undefined) return;
+    const t = window.setTimeout(() => {
+      const tr = document.querySelectorAll<HTMLElement>("table.grid[data-table] tbody tr")[row];
+      if (!tr) return;
+      tr.scrollIntoView({ block: "center" });
+      tr.style.outline = "2px solid var(--accent, #0e7490)"; tr.style.outlineOffset = "-2px";
+      window.setTimeout(() => { tr.style.outline = ""; }, 4000);
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [row]); // eslint-disable-line react-hooks/exhaustive-deps
   // Opened from the timeline's Add button: start a new record, or add a blank row to the register, once.
   const added = useRef(false);
   useEffect(() => {
@@ -483,7 +495,8 @@ function Records() {
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const stores = Object.fromEntries(REC_TYPES.map((t) => [t.form, a.storeOf(t.form)]));
-  const all = useMemo(() => timeline(stores, { name: a.clientName, today }), [a.data, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const xama = (a.data.clients as Row[]).filter((c) => !c.CeasedOn).map((c) => ({ client: s(c.Key), ...amlStampRead(c.XamaAmlCheck) })).filter((x) => x.state);
+  const all = useMemo(() => timeline(stores, { name: a.clientName, today, xama }), [a.data, today]); // eslint-disable-line react-hooks/exhaustive-deps
   const text = (e: Entry) => `${e.title} ${e.detail} ${e.chip} ${REC_TYPES.find((t) => t.type === e.type)?.label}`.toLowerCase();
   const pass = (e: Entry, skipType = false) => (skipType || !types.length || types.includes(e.type))
     && (view === "all" || (view === "upcoming" ? e.upcoming : e.tone === "red" || e.tone === "amber")) && (!q.trim() || text(e).includes(q.trim().toLowerCase()));
@@ -521,7 +534,7 @@ function Records() {
             {shown.map((e) => {
               const m = month(e.date), head = m !== last; last = m;
               const t = REC_TYPES.find((x) => x.type === e.type)!;
-              const to = `#/aml/records/${e.form}${e.rec ? `?rec=${encodeURIComponent(e.rec)}` : ""}`;
+              const to = e.to || `#/aml/records/${e.form}${e.rec ? `?rec=${encodeURIComponent(e.rec)}` : e.row !== undefined ? `?row=${e.row}` : ""}`;
               return (
                 <li key={e.key}>
                   {head && <h3 className="sec-h" style={{ margin: "14px 0 6px", fontSize: 14 }}>{m}</h3>}
@@ -559,7 +572,7 @@ export function AmlPage() {
   else if (tab === "records" && !form) body = <Records />;
   else if (tab === "records" && def) {
     const back = <a className="no-print" href="#/aml/records">‹ Back to the timeline</a>;
-    body = <>{back}{def.id === "screening" && <XamaScreening />}<FormScreen key={`${def.id}${query.get("rec") || ""}`} def={def} sel={query.get("rec") || ""} add={query.get("add") === "1"} /></>;
+    body = <>{back}{def.id === "screening" && <XamaScreening />}<FormScreen key={`${def.id}${query.get("rec") || ""}${query.get("row") || ""}`} def={def} sel={query.get("rec") || ""} add={query.get("add") === "1"} row={query.get("row") !== null && /^\d+$/.test(query.get("row") || "") ? Number(query.get("row")) : undefined} /></>;
   } else body = def ? <FormScreen key={def.id} def={def} /> : null;
   return (
     <div className="page">

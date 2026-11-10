@@ -53,6 +53,16 @@ export function alertLines(fired: ReturnType<typeof triggeredAlerts>): string[] 
 /** Saved after each read from Xero, as the setting reporting.alerts.<client>, so the morning email (which can't open anyone's OneDrive) can include them. */
 export type SavedAlerts = { at: string; month: string; lines: string[] };
 
+/** A client's headline figures for the latest month, saved after each read from Xero as the setting reporting.snap.<client>, so one screen can
+ *  show every client side by side without opening each one's saved figures. */
+export type Snapshot = { at: string; month: string; k: Record<string, number> };
+export const SNAP_IDS = ["revenue", "revg", "gpm", "npm", "cash", "ardays", "apdays", "current"];
+export function snapshotOf(results: KpiResult[], at: string, month: string): Snapshot {
+  const k: Record<string, number> = {};
+  for (const r of results) if (SNAP_IDS.includes(r.def.id) && r.value !== undefined && Number.isFinite(r.value)) k[r.def.id] = r.value;
+  return { at, month, k };
+}
+
 export type KpiResult = { def: KpiDef; value?: number; target: number; /** false when no target has been set (the money KPIs start without one) */ hasTarget: boolean; /** how many months the period covers */ months: number; /** result less target, in the result's own unit */ gap?: number; onTrack?: boolean; note?: string };
 
 const sumRows = (rows: RRow[], months: string[], all: string[]) => r2(rows.reduce((a, r) => a + months.reduce((b, m) => b + (r.amounts[all.indexOf(m)] || 0), 0), 0));
