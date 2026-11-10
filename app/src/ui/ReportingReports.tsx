@@ -147,10 +147,10 @@ const REPORT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Figtre
 .rp-cover.L .rp-band{height:28%}
 .rp-band svg{width:100%;height:100%;display:block}
 .rp-in{padding:0 9%}
-.rp-sec.L .rp-in{padding:0 6.3%}
+.rp-sec.L .rp-in{padding:0 4.04%}
 .rp-sec{position:relative;padding:40px 0 40px;background:#fff;aspect-ratio:210/297;box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 20px rgba(0,0,0,.08);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--ph) - 2px),#b9c9e0 calc(var(--ph) - 2px),#b9c9e0 var(--ph))}
 .rp-sec.L{aspect-ratio:297/210;page:pl}.rp-sec.P{page:pp}
-.rp-mix .rp-sec.P,.rp-mix .rp-cover.P{width:75%;margin-left:auto;margin-right:auto}
+.rp-mix .rp-sec.P,.rp-mix .rp-cover.P{width:70.71%;margin-left:auto;margin-right:auto}
 .rp{counter-reset:pg 1}.rp-sec{counter-increment:pg}
 .rp-sec::after{content:"Page " counter(pg);position:absolute;right:4%;top:calc(var(--ph) - 24px);font-size:10px;color:#9aa4b2}
 .rp-break{display:flex;align-items:center;gap:12px;height:44px;color:#8a95a1;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
@@ -220,7 +220,7 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
         return (
           <Fragment key={s.id}>
             <div className="rp-break" aria-hidden="true"><span>Page break</span></div>
-            <section className={`rp-sec rb-section ${land ? "L" : "P"}`} style={{ "--ph": land ? "70.71cqw" : mixed ? "106.07cqw" : "141.42cqw" } as React.CSSProperties}>
+            <section className={`rp-sec rb-section ${land ? "L" : "P"}`} style={{ "--ph": land ? "70.71cqw" : mixed ? "100cqw" : "141.42cqw" } as React.CSSProperties}>
               <div className="rp-in">
                 {sectionTools ? sectionTools(s, si) : <h2 style={doc.look === "management" ? { ...T.h2, color: NAVY, fontWeight: 600, fontSize: 21, borderBottom: `2px solid ${NAVY}` } : T.h2}>{s.title}{doc.look === "management" && words && <span style={{ fontWeight: 400, color: "#6b6f7a", fontSize: 15 }}> · {words}</span>}</h2>}
                 <div className="rp-grid">{items}</div>
@@ -245,9 +245,26 @@ export function publishedHtml(doc: ReportDoc, c: Ctx, clientName: string): strin
   const foot = `@bottom-right{content:"Page " counter(page);font:9px Figtree,Arial,sans-serif;color:#9aa4b2;padding-right:12mm}@bottom-left{content:"${css(clientName)} · ${css(doc.name)}";font:9px Figtree,Arial,sans-serif;color:#9aa4b2;padding-left:12mm}`;
   const pages = `@page{size:A4 ${doc.orientation};margin:${land ? "12mm 0 14mm" : "19mm 0"};${foot}}@page pl{size:A4 landscape;margin:12mm 0 14mm;${foot}}@page pp{size:A4 portrait;margin:19mm 0;${foot}}@page cover{size:A4 ${doc.orientation};margin:0;@bottom-right{content:none}@bottom-left{content:none}}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(doc.name)} – ${esc(clientName)}</title>
-<style>${pages}body{margin:0;background:#e9ecef}main{max-width:${wide ? 1180 : 840}px;margin:0 auto;padding-bottom:40px}.noprint{max-width:${wide ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}@media print{body{background:#fff}main{max-width:none}.noprint{display:none}html body .rp .rp-cover{aspect-ratio:auto;width:100%!important;margin:0!important;height:${land ? 209 : 296}mm;box-shadow:none}html body .rp .rp-sec{break-before:page;padding:0;border:0;aspect-ratio:auto;width:100%!important;margin:0!important;box-shadow:none;background:none}html body .rp .rp-sec::after,html body .rp .rp-break{display:none}html body .rp .rp-sec.L .rp-in{padding:0 12mm}html body .rp .rp-sec.P .rp-in{padding:0 19mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
+<style>${pages}body{margin:0;background:#e9ecef}main{max-width:${wide ? 1123 : 794}px;margin:0 auto;padding-bottom:40px}.noprint{max-width:${wide ? 1123 : 794}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}@media print{body{background:#fff}main{max-width:none}.noprint{display:none}html body .rp .rp-cover{aspect-ratio:auto;width:100%!important;margin:0!important;height:${land ? 209 : 296}mm;box-shadow:none}html body .rp .rp-sec{break-before:page;padding:0;border:0;aspect-ratio:auto;width:100%!important;margin:0!important;box-shadow:none;background:none}html body .rp .rp-sec::after,html body .rp .rp-break{display:none}html body .rp .rp-sec.L .rp-in{padding:0 12mm}html body .rp .rp-sec.P .rp-in{padding:0 19mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
 <body><div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div><main>${body}</main></body></html>`;
 }
+
+/** A report page shown inside the planner with a Print button of ours: the page's own button can't run here (the site's security
+ *  policy blocks scripts that aren't the planner's own), and a blob window would inherit that. Print offers "Save as PDF". */
+function PrintViewer({ name, url, onClose }: { name: string; url: string; onClose: () => void }) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  return (
+    <div role="dialog" aria-modal="true" aria-label={name} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", flexDirection: "column", zIndex: 50, padding: 16, gap: 8 }}>
+      <div className="row-wrap" style={{ gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
+        <strong style={{ color: "#fff", marginRight: "auto" }}>{name}</strong>
+        <button type="button" className="btn primary" onClick={() => { frame.current?.contentWindow?.focus(); frame.current?.contentWindow?.print(); }}>Print or save as PDF</button>
+        <button type="button" className="btn" onClick={onClose}>Close</button>
+      </div>
+      <iframe ref={frame} title={name} src={url} style={{ flex: 1, width: "100%", border: 0, background: "#fff", borderRadius: 6 }} />
+    </div>
+  );
+}
+const hideButton = (html: string) => html.replace('<div class="noprint">', '<div class="noprint" style="display:none">');
 
 // ------------------------------------------------------------------ the list and the editor
 
@@ -310,12 +327,11 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
   // The published page is shown inside the planner, with a Print button of ours: the page's own button can't run here (the site's security
   // policy blocks scripts that aren't the planner's own), and a blob window would inherit that.
   const [viewing, setViewing] = useState<{ name: string; url: string } | undefined>();
-  const frame = useRef<HTMLIFrameElement>(null);
   const close = () => { if (viewing) URL.revokeObjectURL(viewing.url); setViewing(undefined); };
   const open = async (x: ReportDoc) => {
     try {
       const bytes = await store.graph.download(fileOf(clientKey, x.id));
-      const html = new TextDecoder().decode(bytes).replace('<div class="noprint">', '<div class="noprint" style="display:none">');
+      const html = hideButton(new TextDecoder().decode(bytes));
       setViewing({ name: x.name, url: URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" })) });
     } catch { setNote("The published copy couldn't be opened from OneDrive."); }
   };
@@ -348,16 +364,7 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
           </div>
         </div>
       ))}
-      {viewing && (
-        <div role="dialog" aria-modal="true" aria-label={viewing.name} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", flexDirection: "column", zIndex: 50, padding: 16, gap: 8 }}>
-          <div className="row-wrap" style={{ gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
-            <strong style={{ color: "#fff", marginRight: "auto" }}>{viewing.name}</strong>
-            <button type="button" className="btn primary" onClick={() => { frame.current?.contentWindow?.focus(); frame.current?.contentWindow?.print(); }}>Print or save as PDF</button>
-            <button type="button" className="btn" onClick={close}>Close</button>
-          </div>
-          <iframe ref={frame} title={viewing.name} src={viewing.url} style={{ flex: 1, width: "100%", border: 0, background: "#fff", borderRadius: 6 }} />
-        </div>
-      )}
+      {viewing && <PrintViewer name={viewing.name} url={viewing.url} onClose={close} />}
       {creating && (
         <div role="dialog" aria-modal="true" aria-label="Create report" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "grid", placeItems: "center", zIndex: 50 }}>
           <div className="card pad stack" style={{ gap: 12, width: 420, maxWidth: "92vw", background: "var(--card, #fff)" }}>
@@ -449,6 +456,19 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
   const editing = doc.sections.flatMap((s) => s.blocks.map((b) => ({ s, b }))).find((x) => x.b.id === editId);
   const targetTitle = doc.sections.find((s) => s.id === target)?.title;
 
+  // The page is drawn at its printed width (A4 at 96 dpi) and scaled down to fit the window as a whole, so text sits as it will in the PDF.
+  const canvas = useRef<HTMLElement>(null);
+  const [avail, setAvail] = useState(0);
+  useEffect(() => {
+    const el = canvas.current; if (!el) return;
+    const measure = () => { const cs = getComputedStyle(el); setAvail(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)); };
+    measure();
+    const ro = new ResizeObserver(measure); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const [printing, setPrinting] = useState<string>("");
+  const openPrint = () => { if (!c) return; if (printing) URL.revokeObjectURL(printing); setPrinting(URL.createObjectURL(new Blob([hideButton(publishedHtml(shown, c, clientName))], { type: "text/html;charset=utf-8" }))); };
+  const closePrint = () => { URL.revokeObjectURL(printing); setPrinting(""); };
   const publish = async () => {
     if (!c) return;
     setPublishing("Publishing…"); setProblem("");
@@ -476,7 +496,8 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
     const k = label.startsWith("Move up") ? "up" : label.startsWith("Move down") ? "down" : "del";
     return <button type="button" className="rb-ico" aria-label={label} title={label} disabled={off} onClick={onClick}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICO[k]}</svg></button>;
   };
-  const width = doc.orientation === "landscape" || doc.sections.some((x) => x.orientation === "landscape") ? 1000 : 780;
+  const mg = doc.look === "management";
+  const width = doc.orientation === "landscape" || doc.sections.some((x) => x.orientation === "landscape") ? 1123 : 794;
   const RAIL: [PanelId, string, IconName][] = [["outline", "Outline", "list"], ["text", "Text", "letter"], ["charts", "Charts", "chart"], ["tables", "Tables", "calc"], ["layouts", "Layouts", "layout"], ["settings", "Settings", "cog"]];
   const panelTitle = PANELS.find(([k]) => k === panel)?.[1];
   const words = periodWords(doc.kind, anchor);
@@ -491,6 +512,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
         <div className="rb-actions">
           <span className="rb-meta">{clientName}{words ? ` · ${words}` : ""} · {doc.orientation}</span>
           {!d && <button type="button" className="btn small" disabled={!!busy} onClick={() => void refresh()}>Read from Xero</button>}
+          <button type="button" className="btn small" disabled={!c} title="See the report as it prints, and save it as a PDF, without publishing" onClick={() => c && openPrint()}>Print / PDF</button>
           <button type="button" className="btn primary small" disabled={!c || !!publishing} onClick={() => void publish()}>{publishing || "Publish"}</button>
         </div>
       </header>
@@ -498,6 +520,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
         {problem && <div className="alert red"><span>{problem}</span></div>}
         {!d && <div className="alert amber"><span>{busy || "The figures haven't been read from Xero yet, so charts and tables can't be drawn."}</span></div>}
       </div>}
+      {printing && <PrintViewer name={doc.name} url={printing} onClose={closePrint} />}
       <div className="rb-body">
         <nav className="rb-rail" aria-label="Add to the report">
           {RAIL.map(([k, l, ic]) => (
@@ -544,14 +567,15 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
             </div>
           )}
         </aside>
-        <main className="rb-canvas">
-          <div className={`rb-page${dragging ? " rb-dragging" : ""}`} style={{ width }}>
+        <main className="rb-canvas" ref={canvas}>
+          <div className={`rb-page${dragging ? " rb-dragging" : ""}`} style={{ width, maxWidth: "none", ...(avail > 0 && avail < width ? { zoom: avail / width } : {}) }}>
             <ReportView
               doc={shown} c={c} clientName={clientName} selectedId={editId} onSelect={(b) => { if (EDITABLE.includes(b.type)) setEditId(b.id); }}
               edit={(s, b) => ({ change: (nb) => sec(s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === b.id ? nb : y)) })) })}
               sectionTools={(s, i) => (
-                <div className={`rb-sechead${s.id === target ? " on" : ""}`}>
-                  <input aria-label="Section title" value={s.title} onFocus={() => setTarget(s.id)} onChange={(e) => sec(s.id, (x) => ({ ...x, title: e.target.value }))} />
+                <div className={`rb-sechead${s.id === target ? " on" : ""}`} style={{ marginBottom: 24, paddingBottom: 7, borderBottom: mg ? `2px solid ${NAVY}` : "1px solid #8a8d94" }}>
+                  <input aria-label="Section title" value={s.title} style={{ fontSize: mg ? 21 : 24, fontWeight: mg ? 600 : 500, letterSpacing: -0.25, color: mg ? NAVY : "#111", flex: mg && words ? "0 1 auto" : 1, width: mg && words ? `${Math.max(4, Math.round(s.title.length * 0.6) + 1)}ch` : undefined }} onFocus={() => setTarget(s.id)} onChange={(e) => sec(s.id, (x) => ({ ...x, title: e.target.value }))} />
+                  {mg && words && <span style={{ fontWeight: 400, color: "#6b6f7a", fontSize: 15, marginRight: "auto" }}> · {words}</span>}
                   <span className="rb-tools">
                     <select className="rb-w" aria-label="Page orientation" title="Page orientation (this page only)" value={sectionOrientation(doc, s)} onChange={(e) => sec(s.id, (x) => ({ ...x, orientation: e.target.value === doc.orientation ? undefined : (e.target.value as Orientation) }))}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>
                     {mini("Move up section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}
