@@ -12,6 +12,7 @@ import { DoneView } from "./DoneView";
 import { TodayView } from "./TodayView";
 import { PlanningHistory } from "./PlanningHistory";
 import { Timesheet } from "./Timesheet";
+import { TimeFinance } from "./TimeFinance";
 import { RoutineBar } from "./Routines";
 import { ConflictCard, useMakeClientDay } from "./Conflicts";
 import { useTodayModel } from "./useTodayModel";
@@ -91,6 +92,7 @@ export function PlanPage() {
   if (parts[1] === "chase") return <ChasePage />;
   if (parts[1] === "history") return <PlanningHistory />;
   if (parts[1] === "timesheet") return <Timesheet />;
+  if (parts[1] === "time") return <TimeFinance tab={parts[2] || ""} />;
   return <WeekView />;
 }
 

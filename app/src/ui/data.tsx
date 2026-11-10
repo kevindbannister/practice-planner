@@ -8,6 +8,7 @@ import { changeEvents, createdEvent } from "../lib/timeline";
 import { readConfig, Answer, Template } from "../lib/checklist";
 import { planChecklist, practiceId, templateFromRow } from "../lib/checklistRows";
 import { LISTS, ListKey, Row } from "../lib/schema";
+import { Denied, checkWrite, teamFrom, approvalOn } from "../lib/permissions";
 import { SharePointStore, friendlyError } from "../lib/sharepoint";
 import { mapPool } from "../lib/pool";
 import { Snapshot, Source as CoSecSource, detectClientChange } from "../lib/cosec";
@@ -78,6 +79,7 @@ export type Data = {
   jobTime: Row[];
   planSessions: Row[];
   planEvents: Row[];
+  timeEvents: Row[];
   customValues: Row[];
   billingLinks: Row[];
   billingChases: Row[];
@@ -126,7 +128,7 @@ type Ctx = {
 const EMPTY: Data = {
   clients: [], contacts: [], groups: [], members: [], services: [], stageTemplates: [],
   clientServices: [], clientStages: [], jobs: [], history: [], tasks: [], settings: [], chFlags: [], comms: [], taxPayments: [], meetings: [], papers: [], paperLines: [], projects: [], docTemplates: [], docVersions: [], documents: [], activities: [],
-  planSessions: [], planEvents: [], checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [], feeHistory: [], feeCharges: [], clientCosts: [], actions: [], cosecEvents: [], cosecTx: [], cosecOfficers: [], cosecPscs: [], cosecShares: [], cosecShareClasses: [], clearances: [], amlAssessments: [], amlRecords: [], authorisations: [], hmrcAuths: [], cosecProfiles: [], cosecLedger: [], cosecImports: [], cosecCertificates: [], cosecDividends: [], cosecAccounts: [], hmrcEvents: [], formTemplates: [], formRequests: [], advisoryPlans: [], jobTime: [], customValues: [], billingLinks: [], billingChases: [], complianceLog: [], obligations: [], taxPlans: [], payrollSchemes: [], payrollPeople: [], payYears: [], payRuns: [], rtiSubmissions: [], hmrcFilings: [], hmrcFilingLog: [],
+  planSessions: [], planEvents: [], timeEvents: [], checklistTemplates: [], checklistVersions: [], checklists: [], checklistItems: [], checklistNotes: [], checklistLog: [], leads: [], opportunities: [], salesLog: [], proposals: [], proposalVersions: [], engagements: [], onboardings: [], feeHistory: [], feeCharges: [], clientCosts: [], actions: [], cosecEvents: [], cosecTx: [], cosecOfficers: [], cosecPscs: [], cosecShares: [], cosecShareClasses: [], clearances: [], amlAssessments: [], amlRecords: [], authorisations: [], hmrcAuths: [], cosecProfiles: [], cosecLedger: [], cosecImports: [], cosecCertificates: [], cosecDividends: [], cosecAccounts: [], hmrcEvents: [], formTemplates: [], formRequests: [], advisoryPlans: [], jobTime: [], customValues: [], billingLinks: [], billingChases: [], complianceLog: [], obligations: [], taxPlans: [], payrollSchemes: [], payrollPeople: [], payYears: [], payRuns: [], rtiSubmissions: [], hmrcFilings: [], hmrcFilingLog: [],
 };
 
 export const DataContext = createContext<Ctx | null>(null); // exported so a screen can be rendered with made-up data in a test
@@ -158,7 +160,7 @@ async function tagPractice(store: SharePointStore, lists: [ListKey, Row[]][], se
   await store.create("Settings", { Key: FLAG, Title: FLAG, Value: "true" });
 }
 /** Lists read after the first screen is shown (see reload). */
-const LATER = new Set<string>(["planEvents", "history", "salesLog", "checklistLog", "complianceLog", "hmrcFilingLog"]);
+const LATER = new Set<string>(["planEvents", "timeEvents", "history", "salesLog", "checklistLog", "complianceLog", "hmrcFilingLog"]);
 
 export const SOURCE: [keyof Data, ListKey][] = [
   ["clients", "Clients"], ["contacts", "Contacts"], ["groups", "Groups"], ["members", "GroupMembers"],
@@ -166,7 +168,7 @@ export const SOURCE: [keyof Data, ListKey][] = [
   ["clientStages", "ClientServiceStages"], ["jobs", "Jobs"], ["history", "JobHistory"], ["tasks", "Tasks"],
   ["settings", "Settings"], ["chFlags", "CHFlags"], ["comms", "Communications"], ["taxPayments", "TaxPayments"], ["meetings", "Meetings"], ["papers", "WorkingPapers"], ["paperLines", "PaperLines"], ["projects", "Projects"],
   ["docTemplates", "DocTemplates"], ["docVersions", "DocVersions"], ["documents", "Documents"], ["activities", "Activities"],
-  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"], ["feeHistory", "FeeHistory"], ["feeCharges", "FeeCharges"], ["clientCosts", "ClientCosts"], ["actions", "Actions"], ["cosecEvents", "CoSecEvents"], ["cosecTx", "CoSecTransactions"], ["cosecOfficers", "CoSecOfficers"], ["cosecPscs", "CoSecPscs"], ["cosecShares", "CoSecShares"], ["cosecShareClasses", "CoSecShareClasses"], ["clearances", "Clearances"], ["amlAssessments", "AmlAssessments"], ["amlRecords", "AmlRecords"], ["authorisations", "Authorisations"], ["hmrcAuths", "HmrcAuthorisations"], ["cosecProfiles", "CoSecProfiles"], ["cosecLedger", "CoSecLedger"], ["cosecImports", "CoSecImports"], ["cosecCertificates", "CoSecCertificates"], ["cosecDividends", "CoSecDividends"], ["cosecAccounts", "CoSecAccounts"], ["hmrcEvents", "HmrcAuthEvents"], ["formTemplates", "FormTemplates"], ["formRequests", "FormRequests"], ["advisoryPlans", "AdvisoryPlans"], ["jobTime", "JobTime"], ["planSessions", "PlanSessions"], ["planEvents", "PlanEvents"], ["customValues", "CustomValues"], ["billingLinks", "BillingLinks"], ["billingChases", "BillingChases"], ["complianceLog", "ComplianceLog"], ["obligations", "Obligations"], ["taxPlans", "TaxPlans"], ["payrollSchemes", "PayrollSchemes"], ["payrollPeople", "PayrollPeople"], ["payYears", "PayYears"], ["payRuns", "PayRuns"], ["rtiSubmissions", "RtiSubmissions"], ["hmrcFilings", "HmrcFilings"], ["hmrcFilingLog", "HmrcFilingLog"],
+  ["checklistTemplates", "ChecklistTemplates"], ["checklistVersions", "ChecklistVersions"], ["checklists", "Checklists"], ["checklistItems", "ChecklistItems"], ["checklistNotes", "ChecklistNotes"], ["checklistLog", "ChecklistLog"], ["leads", "Leads"], ["opportunities", "Opportunities"], ["salesLog", "SalesLog"], ["proposals", "Proposals"], ["proposalVersions", "ProposalVersions"], ["engagements", "Engagements"], ["onboardings", "Onboardings"], ["feeHistory", "FeeHistory"], ["feeCharges", "FeeCharges"], ["clientCosts", "ClientCosts"], ["actions", "Actions"], ["cosecEvents", "CoSecEvents"], ["cosecTx", "CoSecTransactions"], ["cosecOfficers", "CoSecOfficers"], ["cosecPscs", "CoSecPscs"], ["cosecShares", "CoSecShares"], ["cosecShareClasses", "CoSecShareClasses"], ["clearances", "Clearances"], ["amlAssessments", "AmlAssessments"], ["amlRecords", "AmlRecords"], ["authorisations", "Authorisations"], ["hmrcAuths", "HmrcAuthorisations"], ["cosecProfiles", "CoSecProfiles"], ["cosecLedger", "CoSecLedger"], ["cosecImports", "CoSecImports"], ["cosecCertificates", "CoSecCertificates"], ["cosecDividends", "CoSecDividends"], ["cosecAccounts", "CoSecAccounts"], ["hmrcEvents", "HmrcAuthEvents"], ["formTemplates", "FormTemplates"], ["formRequests", "FormRequests"], ["advisoryPlans", "AdvisoryPlans"], ["jobTime", "JobTime"], ["planSessions", "PlanSessions"], ["planEvents", "PlanEvents"], ["timeEvents", "TimeEvents"], ["customValues", "CustomValues"], ["billingLinks", "BillingLinks"], ["billingChases", "BillingChases"], ["complianceLog", "ComplianceLog"], ["obligations", "Obligations"], ["taxPlans", "TaxPlans"], ["payrollSchemes", "PayrollSchemes"], ["payrollPeople", "PayrollPeople"], ["payYears", "PayYears"], ["payRuns", "PayRuns"], ["rtiSubmissions", "RtiSubmissions"], ["hmrcFilings", "HmrcFilings"], ["hmrcFilingLog", "HmrcFilingLog"],
 ];
 const keyFor = (list: ListKey) => SOURCE.find(([, l]) => l === list)![0];
 
@@ -301,8 +303,16 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
     [store, user],
   );
 
+  // The one place the rules in lib/permissions.ts are enforced: every save goes through here, so no screen can skip them.
+  const guard = useCallback((op: "create" | "update" | "remove", list: string, row: Row, patch?: Row) => {
+    const d = dataRef.current;
+    const msg = checkWrite(op, list, row, patch, { user: user || "", team: teamFrom(d.settings), approvalOn: approvalOn(d.settings) });
+    if (msg) throw new Denied(msg);
+  }, [user]);
+
   const update = useCallback(
     async (list: ListKey, row: Row, patch: Row, meta?: { source?: CoSecSource }) => {
+      guard("update", list, row, patch);
       tooLong(list, patch);
       const key = keyFor(list);
       const apply = (values: Row) =>
@@ -323,12 +333,13 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       // company secretarial: does this change to a client affect the statutory record? (Quiet: the edit itself has already been saved.)
       if (list === "Clients") coSecHook.current?.(row, patch, meta?.source || "client");
     },
-    [store, track, log, user],
+    [store, track, log, user, guard],
   );
 
   const updateMany = useCallback(
     async (list: ListKey, changes: { row: Row; patch: Row }[]) => {
       if (!changes.length) return;
+      for (const c of changes) guard("update", list, c.row, c.patch);
       const key = keyFor(list);
       const byId = new Map(changes.map((c) => [c.row._id, c]));
       const apply = (pick: (c: { row: Row; patch: Row }) => Row) =>
@@ -341,13 +352,14 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
         throw e;
       }
     },
-    [store, track],
+    [store, track, guard],
   );
 
   settingsRef.current = data.settings;
   const create = useCallback(
     async (list: ListKey, row: Row) => {
       row = stampPractice(list, row, settingsRef.current);
+      guard("create", list, row);
       tooLong(list, row);
       const created = await track(() => store.create(list, row));
       const full = { ...row, ...created };
@@ -358,13 +370,14 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       if (list === "Jobs" && readConfig(dataRef.current.settings).auto) attachChecklist(full).catch((e) => console.warn("Couldn't make the checklist", e));
       return full;
     },
-    [store, track, log, user, attachChecklist],
+    [store, track, log, user, attachChecklist, guard],
   );
 
   const createMany = useCallback(
     async (list: ListKey, rows: Row[]) => {
       if (!rows.length) return;
       rows = rows.map((r) => stampPractice(list, r, settingsRef.current));
+      for (const r of rows) guard("create", list, r);
       const res = await track(async () => {
         const r = await store.createMany(list, rows);
         const all = await store.readAll(list);
@@ -373,26 +386,28 @@ export function DataProvider({ store, user, children }: { store: SharePointStore
       });
       if (res.failed) throw new Error(res.error || `${res.failed} couldn't be saved`);
     },
-    [store, track],
+    [store, track, guard],
   );
 
   const removeMany = useCallback(
     async (list: ListKey, rows: Row[]) => {
       if (!rows.length) return;
+      for (const r of rows) guard("remove", list, r);
       const ids = new Set(rows.map((r) => r._id));
       const res = await track(() => store.removeMany(list, [...ids] as string[]));
       setData((d) => ({ ...d, [keyFor(list)]: (d[keyFor(list)] as Row[]).filter((r) => !ids.has(r._id)) }));
       if (res.failed) throw new Error(`${res.failed} couldn't be removed`);
     },
-    [store, track],
+    [store, track, guard],
   );
 
   const remove = useCallback(
     async (list: ListKey, row: Row) => {
+      guard("remove", list, row);
       await track(() => store.remove(list, row._id!));
       setData((d) => ({ ...d, [keyFor(list)]: (d[keyFor(list)] as Row[]).filter((r) => r._id !== row._id) }));
     },
-    [store, track],
+    [store, track, guard],
   );
 
   // Save what the Co Sec engine decided (new drafts, events, audit and timeline lines). It runs after a client record is saved.

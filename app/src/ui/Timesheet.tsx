@@ -10,6 +10,9 @@ import { Activity, BILLABLE_LABEL, Billable, Entry, activitiesFrom, actualHours,
 import { readSetting, useData } from "./data";
 import { Icon, PlanTabs } from "./bits";
 import { usePlanning } from "./usePlanning";
+import { Denied, approvalOn, can, teamFrom } from "../lib/permissions";
+import { readRec, timeEventRow } from "../lib/timeBilling";
+import { submit, APPROVAL_LABEL } from "../lib/timeApproval";
 import { useTodayModel } from "./useTodayModel";
 
 const mins = (m: number) => (m ? fmtHours(m / 60) : "");
@@ -17,7 +20,7 @@ type Env = { data: ReturnType<typeof useData>["data"]; activities: Activity[]; b
 type Pick = { clientKey: string; jobKey: string; taskKey: string; activityKey: string };
 
 export function Timesheet() {
-  const { data, user, create, update, remove, saveSetting } = useData();
+  const { data, user, create, createMany, update, updateMany, remove, saveSetting } = useData();
   const pl = usePlanning();
   const { capacity } = useTodayModel();
   const today = todayIso();
@@ -39,7 +42,7 @@ export function Timesheet() {
   const actName = (k: string) => activities.find((a) => a.key === k)?.name || "";
   const label = (p: Pick) => [client(p.clientKey) || (p.jobKey || p.taskKey ? "" : "Internal"), item(p), actName(p.activityKey)].filter(Boolean).join(" · ") || "Time";
 
-  const go = async (work: () => Promise<void>) => { setBusy(true); setErr(""); try { await work(); } catch { setErr("That didn't save. Try again."); } finally { setBusy(false); } };
+  const go = async (work: () => Promise<void>) => { setBusy(true); setErr(""); try { await work(); } catch (e) { setErr(e instanceof Denied ? e.message : "That didn't save. Try again."); } finally { setBusy(false); } };
   const rowOf = (k: string) => data.jobTime.find((r) => r.Key === k);
   const save = (k: string, patch: Record<string, string | number>) => go(async () => { const r = rowOf(k); if (r) await update("JobTime", r, patch); });
   const del = (k: string) => go(async () => { const r = rowOf(k); if (r && window.confirm("Delete this entry? The time comes off the job as well.")) await remove("JobTime", r); });
@@ -57,6 +60,32 @@ export function Timesheet() {
     if (m.error) { setErr(m.error); return; }
     await create("JobTime", m.row!);
   });
+
+  const team = useMemo(() => teamFrom(data.settings), [data.settings]);
+  const approval = { on: approvalOn(data.settings) };
+  const recs = useMemo(() => data.jobTime.map((r) => readRec(r, readEntry(r))), [data.jobTime]);
+  const mineWeek = recs.filter((e) => e.by.toLowerCase() === (user || "").toLowerCase() && e.workDate >= week && e.workDate <= addDay(week, 6) && e.ended);
+  function ApprovalStrip() {
+    const count = (s: string) => mineWeek.filter((e) => e.approval === s).length;
+    const draft = mineWeek.filter((e) => e.approval === "" || e.approval === "returned");
+    const returned = mineWeek.filter((e) => e.approval === "returned");
+    const send = () => go(async () => {
+      const ch = submit(draft, { user: user || "", now: new Date(), newKey });
+      const rows = ch.patches.map((p) => ({ row: data.jobTime.find((r) => r.Key === p.key)!, patch: p.patch }));
+      await updateMany("JobTime", rows);
+      await createMany("TimeEvents", ch.events.map((e) => timeEventRow(e)));
+    });
+    return (
+      <section className="card pad stack" aria-label="Approval" style={{ gap: 6 }}>
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+          <span><strong>This week's approval:</strong> {mineWeek.length === 0 ? "no time recorded" : ["", "submitted", "approved", "returned"].filter((s) => count(s)).map((s) => `${count(s)} ${APPROVAL_LABEL[s].toLowerCase()}`).join(", ")}</span>
+          {draft.length > 0 && <button type="button" className="btn small primary" disabled={busy} onClick={() => void send()}>Submit week for approval</button>}
+        </div>
+        {returned.map((e) => <p key={e.key} className="muted" style={{ margin: 0, fontSize: 13 }}>Returned: {e.reviewNote || "no note"} ({fmtDate(e.workDate, { year: false })})</p>)}
+        {!can(team, user || "", "time.approve") && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Approved time is locked. Ask a reviewer to reopen it if it needs changing.</p>}
+      </section>
+    );
+  }
 
   const env: Env = { data, activities, busy, setErr, save, del, addEntry, startTimer };
   const cap = (d: string) => capacity(d);
@@ -83,6 +112,8 @@ export function Timesheet() {
           </span>
         </section>
       )}
+
+      {approval.on && <ApprovalStrip />}
 
       <section className="card pad stack" aria-labelledby="ts-h">
         <div className="card-title-row">
@@ -113,7 +144,7 @@ export function Timesheet() {
       {legacy.rows.length > 0 && (
         <div className="alert row-wrap" role="status" style={{ justifyContent: "space-between" }}>
           <span>{legacy.rows.length} finished {legacy.rows.length === 1 ? "job or task has" : "jobs or tasks have"} hours typed in with no time entries behind them. Bring them in so a job's hours come from one place; its total stays the same.</span>
-          <button type="button" className="btn small" disabled={busy} onClick={() => void go(async () => { await Promise.all(legacy.rows.map((r) => create("JobTime", r))); })}>Bring them in</button>
+          <button type="button" className="btn small" disabled={busy} onClick={() => void go(async () => { await createMany("JobTime", legacy.rows); })}>Bring them in</button>
         </div>
       )}
       <ActivityCodes activities={activities} onSave={(a) => void saveSetting("timesheet.activities", a)} />

@@ -5069,6 +5069,42 @@
     {
      "name": "Version",
      "type": "number"
+    },
+    {
+     "name": "BillingStatus",
+     "type": "text"
+    },
+    {
+     "name": "ChargePence",
+     "type": "number"
+    },
+    {
+     "name": "WriteDownPence",
+     "type": "number"
+    },
+    {
+     "name": "InvoiceRef",
+     "type": "text"
+    },
+    {
+     "name": "BilledAt",
+     "type": "text"
+    },
+    {
+     "name": "ApprovalStatus",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedBy",
+     "type": "text"
+    },
+    {
+     "name": "ReviewedAt",
+     "type": "text"
+    },
+    {
+     "name": "ReviewNote",
+     "type": "note"
     }
    ]
   },
@@ -5219,6 +5255,53 @@
     {
      "name": "RelatedKey",
      "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "TimeEvents",
+   "displayName": "PP Time Log",
+   "description": "the permanent log of billing and approval changes to recorded time (never edited)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "BatchKey",
+     "type": "text"
+    },
+    {
+     "name": "EntryKey",
+     "type": "text"
+    },
+    {
+     "name": "EventType",
+     "type": "text"
+    },
+    {
+     "name": "PreviousState",
+     "type": "note"
+    },
+    {
+     "name": "NewState",
+     "type": "note"
+    },
+    {
+     "name": "Reason",
+     "type": "note"
     },
     {
      "name": "Created",
