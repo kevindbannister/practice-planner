@@ -180,3 +180,37 @@ Test plan once unblocked (record each result and the Companies House response as
 - A simulated timeout: attempt must stay "unknown" and be resolved only by a status enquiry.
 - Confirm no secret, authentication value or raw authenticated request appears in the evidence.
 Exit criteria for Phase 7: a recorded accepted test submission and a recorded rejection, both matched to the app's states.
+
+## Phase 7: production readiness
+
+**Status: NOT ready for production. Electronic accounts filing must stay disabled. This section is the gate and the runbook, not a sign-off.**
+
+### What already enforces "off"
+- Live needs three separate Azure settings together (`CH_GATEWAY_LIVE=1`, the type in `CH_LIVE_ACCOUNTS`, and `CH_ACCOUNTS_TEST_EVIDENCE`); a non-test gateway URL without them is refused (tested).
+- Independently of those, submission refuses while the accounts message spec, the taxonomy mapping or the server store is unverified or unconfigured (tested). A simulated or demo success cannot change this.
+- The browser sends only a filing key. The server loads the approved snapshot, checks its hash and regenerates the iXBRL. No client XML, no company authentication code from the browser.
+- Kill switch: unset `CH_GATEWAY_LIVE` or remove the type from `CH_LIVE_ACCOUNTS`. Takes effect on the next request, no deployment needed.
+
+### Gate: all must be true before anyone sets the live settings
+1. A recorded accepted test submission and a recorded rejection from the real test gateway (Phase 6), matched to the app's states, with the evidence reference put in `CH_ACCOUNTS_TEST_EVIDENCE`.
+2. `ACCOUNTS_SPEC` and the taxonomy mapping filled in from the TIS and the FRC taxonomy, each item cited, none invented, then marked verified by a second person.
+3. A trusted server-side store (Azure Table/Blob) with Key Vault for presenter secrets, access limited, backups on. Approvals and attempts must survive restarts and be append-only in practice.
+4. A live presenter ID obtained from Companies House after testing.
+5. A security review: secrets never in the browser bundle, logs or error messages (grep the build output and a sample of logs); only signed-in users can call the actions; authorisation for who may approve and who may send; dependency audit.
+6. Pull request reviewed and merged by a person, after a dry run on a staging deployment. No real client accounts are submitted during development.
+7. First live filing is a real dormant company of the practice itself, watched end to end, then the type is enabled for clients.
+
+### Runbook
+- **Outcome unknown (timeout, gateway error):** do not resend. Run a status enquiry. If Companies House has no record, record that on the attempt and only then allow a new one. If unsure, check the company's filing history on the register.
+- **Acknowledged only:** not filed. Wait for accepted; the job does not complete on acknowledgement.
+- **Rejected:** read the stored reason, correct, withdraw approval, re-approve, send again as a new attempt (the old one is kept).
+- **Duplicate suspected:** stop, check the register, record the finding; never "fix" by sending again.
+- **Late accounts:** penalties run from the deadline; if electronic filing is down, file via WebFiling and record it by hand.
+- **Rotating presenter secrets:** change in Key Vault, restart, run one test submission.
+- **Taxonomy or TIS update (Companies House publishes new versions):** mapping goes back to unverified until rechecked.
+
+### Monitoring
+Alert on: any attempt "unknown" for more than a day, "acknowledged" with no status after 2 days, any rejection, authentication failures, and the live flag being set. These surface in the Action Centre (unknown and rejected need the server attempt records) and should also be sent to the practice's alert channel.
+
+### Remaining work (all blocked on the user-side items above)
+Submit button behind `canSubmit`, server attempt records and status in the UI, the real accounts message and mapping, Phase 6 evidence, and later accounts types or a REST provider behind the same interface when Companies House publishes one.
