@@ -13,7 +13,7 @@ export type Operand = { measure: string; when: When } | { value: number };
 export type Icon = "up" | "down" | "none";
 export type Fmt = { rounded?: boolean; decimals?: boolean; /** default true */ symbol?: boolean; /** tables: amounts in £000 */ thousands?: boolean };
 export type TopGroup = "income" | "cos" | "expense" | "other" | "bank" | "curAsset" | "fixed" | "curLiab" | "ltLiab" | "equity";
-export type ChartOpts = { highlight?: boolean; trim?: boolean; stack?: boolean; zero?: boolean; legend?: boolean; labels?: boolean; /** one colour per series; blank = the report palette */ colors?: string[] };
+export type ChartOpts = { highlight?: boolean; trim?: boolean; stack?: boolean; /** a running total across the periods: from the first one shown ("all"), or restarting each financial year ("year") */ cumulate?: "all" | "year"; zero?: boolean; legend?: boolean; labels?: boolean; /** one colour per series; blank = the report palette */ colors?: string[] };
 /** Colour sets for a whole report: the series colours in order. */
 export const PALETTES: { name: string; colors: string[] }[] = [
   { name: "Navy, red, amber", colors: ["#131b30", "#d4300f", "#f5a30a", "#5b7bb3", "#6f9a3a", "#8a8f9a"] },

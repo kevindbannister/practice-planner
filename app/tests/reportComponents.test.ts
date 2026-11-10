@@ -60,3 +60,12 @@ test("key number with comparison and sparkline; table columns", () => {
   assert.deepEqual(tableCols({ compare: "prior" }), ["this", "prior", "var", "varPct"]);
   assert.deepEqual(tableCols({ compare: "none", cols: ["this", "pctRev"] }), ["this", "pctRev"]);
 });
+
+test("cumulate: a running total, from the first period or restarting each financial year", async () => {
+  const { cumulate } = await import("../src/lib/reportComponents");
+  const p = ["2026-03", "2026-04", "2026-05", "2026-06"].map((m) => ({ months: [m] }));
+  assert.deepEqual(cumulate([10, 20, 30, 40], p, "all", 4), [10, 30, 60, 100]);
+  assert.deepEqual(cumulate([10, 20, 30, 40], p, "year", 4), [10, 30, 30, 70], "a year ending in April starts again in May");
+  assert.deepEqual(cumulate([10, undefined, 5, 1], p, "all", 4), [10, undefined, 15, 16], "a missing period stays empty");
+  assert.deepEqual(cumulate([0.1, 0.2], p.slice(0, 2), "all", 4), [0.1, 0.3]);
+});

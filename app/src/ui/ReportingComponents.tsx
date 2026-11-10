@@ -5,7 +5,7 @@ import { MEASURES, measureById } from "../lib/analysis";
 import { AgedData } from "../lib/aged";
 import { figuresFor, KpiSettings } from "../lib/kpis";
 import { Block, ChartOpts, chartH, spanOf, Fmt, Icon, Op, Operand, TopGroup, When } from "../lib/reportBuilder";
-import { OP_LABEL, TOP_GROUPS, WHEN_LABEL, buckets, evalRule, fmtValue, keyData, measureValue, movements, periodMonthsFor, splitSeries, tableCols, topAccounts } from "../lib/reportComponents";
+import { OP_LABEL, TOP_GROUPS, cumulate, WHEN_LABEL, buckets, evalRule, fmtValue, keyData, measureValue, movements, periodMonthsFor, splitSeries, tableCols, topAccounts } from "../lib/reportComponents";
 import { PeriodKind, ReportData, StRow, addMonths, bsStatement, monthLabel, periodCols, periodMonths, plStatement, yearEndCol } from "../lib/reportData";
 import { Seg } from "./reportingKit";
 
@@ -58,6 +58,9 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
     while (z >= a && !has(z)) z--;
     bk = bk.slice(a, z + 1); series = series.map((s) => s.slice(a, z + 1));
   }
+  // a running total applies to money that flows (not to balances at a date, nor to percentages and days)
+  const canCumulate = b.split ? true : unit === "money" && ids.some((id) => !measureById(id)?.balance);
+  if (o.cumulate && canCumulate) series = series.map((s, k) => (b.split || !measureById(ids[k % ids.length])?.balance ? cumulate(s, bk, o.cumulate!, c.endMonth) : s));
   const all = series.flat().filter((v): v is number => v !== undefined);
   const n = series.length;
   if (!all.length || !bk.length) return none(`There are no figures for this chart${ids.length < b.measures.length || !c.d.bs.length ? " yet (balance sheet measures need the balance sheet read from Xero)" : ""}.`);
@@ -503,6 +506,9 @@ export function ComponentEditor({ block, c, onSave, onCancel, preview, onDraft }
             <Check label="Highlight the current period" on={!!o.highlight} set={(v) => setO({ highlight: v })} />
             <Check label="Trim periods without results" on={!!o.trim} set={(v) => setO({ trim: v })} />
             <Check label="Stack results" on={!!o.stack} set={(v) => setO({ stack: v })} />
+            <Check label="Cumulate the results (a running total)" on={!!o.cumulate} disabled={!b.split && !(unit === "money" && b.measures.some((id) => !measureById(id)?.balance))} set={(v) => setO({ cumulate: v ? "year" : undefined })} />
+            {o.cumulate && <div style={{ marginLeft: 22 }}><Seg value={o.cumulate} set={(v) => setO({ cumulate: v })} opts={[["year", "Restart each financial year"], ["all", "From the first period shown"]]} label="Cumulate from" /></div>}
+            {!b.split && unit === "money" && b.measures.some((id) => measureById(id)?.balance) && <span className="muted" style={{ fontSize: 12 }}>Balances, like cash at bank, are shown as they stand and aren't cumulated.</span>}
             <Check label="Always show zero on the vertical axis" on={!!o.zero} set={(v) => setO({ zero: v })} />
             <Check label="Show legend" on={o.legend !== false} set={(v) => setO({ legend: v })} />
             <Check label="Show data labels" on={labelsOn(o, b.freq ? b.previous ?? 13 : b.months)} set={(v) => setO({ labels: v })} />

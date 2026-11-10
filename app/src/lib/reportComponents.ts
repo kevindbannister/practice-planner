@@ -3,7 +3,7 @@
 import { figuresFor } from "./kpis";
 import { Measure, measureById } from "./analysis";
 import { Fmt, Freq, Op, Operand, TopGroup, When } from "./reportBuilder";
-import { FINANCE_COST, PeriodKind, ReportData, addMonths, monthLabel, periodCols, periodMonths } from "./reportData";
+import { FINANCE_COST, PeriodKind, ReportData, addMonths, monthLabel, periodCols, periodMonths, yearOf } from "./reportData";
 import { r2 } from "./xero";
 
 type Src = Pick<ReportData, "months" | "pl" | "bsMonths" | "bs">;
@@ -31,6 +31,18 @@ export function evalRule(d: Src, kind: PeriodKind, anchor: string, endMonth: num
   const l = measureValue(d, left.measure, periodMonthsFor(kind, anchor, endMonth, left.when));
   const rv = "value" in right ? right.value : measureValue(d, right.measure, periodMonthsFor(kind, anchor, endMonth, right.when));
   return { ok: l === undefined || rv === undefined ? undefined : OPS[op](l, rv), left: l, right: rv };
+}
+
+/** Running totals along a series: from its first period ("all"), or starting again in the first period of each financial year ("year").
+ *  Periods with no figure stay empty and add nothing. */
+export function cumulate(values: (number | undefined)[], periods: { months: string[] }[], mode: "all" | "year", endMonth: number): (number | undefined)[] {
+  let run = 0, yr = "";
+  return values.map((v, i) => {
+    if (mode === "year") { const m = periods[i]?.months[0], y = m ? yearOf(m, endMonth).first : ""; if (y !== yr) { yr = y; run = 0; } }
+    if (v === undefined) return undefined;
+    run += v;
+    return Math.round(run * 100) / 100;
+  });
 }
 
 /** The periods of a series chart, oldest first, each the months it adds up: the latest first, then back by month, financial quarter or year. */
