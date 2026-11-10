@@ -125,3 +125,14 @@ test("the API actions refuse today and never take XML or an auth code from the b
   assert.equal((await call("accounts-submit", "POST", { filingKey: "../x" })).status, 400);
   assert.equal(outbound.filter((u) => u.includes("companieshouse")).length, 0, "nothing reaches Companies House");
 });
+
+test("the Phase 6 test runner refuses live use and refuses while the spec is unverified", async () => {
+  const fs = require("node:fs"), os = require("node:os"), path = require("node:path");
+  const { main } = require("../tools/accounts-test-run.js");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ev-")), file = path.join(dir, "s.json"); fs.writeFileSync(file, JSON.stringify(snap()));
+  const env = { ...ENV, CH_TEST_EVIDENCE_DIR: path.join(dir, "ev") };
+  assert.equal((await main([file], { ...env, CH_GATEWAY_LIVE: "1" })).code, 2);
+  assert.equal((await main([], env)).code, 2);
+  const r = await main([file], env); assert.equal(r.code, 1); assert.match(r.message, /ixbrl-unavailable|spec-not-verified/);
+  assert.ok(!r.message.includes("s3cret-code"));
+});

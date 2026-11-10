@@ -20,3 +20,4 @@ __pycache__/
 
 # built in CI from app/src/server (app/tools/build-server-lib.mjs)
 api/shared/plannerlib.js
+test-evidence/

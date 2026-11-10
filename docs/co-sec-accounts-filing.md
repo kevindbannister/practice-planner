@@ -160,3 +160,23 @@ Tests: `api/test/accountsFiling.test.js` (12). The spec and mapping used there a
 
 Still not done: the submit button (waits for `canSubmit`, which needs Phase 4's three blocks cleared), reading real attempt records and status from the server, and test-gateway evidence (Phase 6).
 Tests: `app/tests/filingFlow.test.ts` (7). Version 24.3.
+
+## Phase 6: test-gateway testing (prepared, NOT run)
+
+**Status: no test submission has been made. It is blocked on the items below. Nothing in this phase proves compatibility with Companies House.**
+
+Built: `api/tools/accounts-test-run.js`, a manual runner that sends one approved snapshot to the TEST gateway only. It refuses if `CH_GATEWAY_LIVE` is set, refuses while the accounts message or taxonomy is unverified, keeps its attempt records and redacted evidence in `./test-evidence/` (git-ignored), and reminds you to email xml@companieshouse.gov.uk afterwards, because test submissions sit pending until Companies House reviews them by hand.
+
+Blocked on:
+1. Test account (form 266379) and its presenter ID and authentication code, set as `CH_PRESENTER_ID` / `CH_PRESENTER_AUTH` in the shell or Azure, never in the repo.
+2. The accounts message format and attachment method from the TIS, then `ACCOUNTS_SPEC` filled in from it.
+3. The taxonomy entry point, namespaces and concepts, then the mapping marked verified.
+4. A fictional dormant company's snapshot. Do not use a real client's accounts.
+
+Test plan once unblocked (record each result and the Companies House response as evidence):
+- A valid dormant submission: expect acknowledged, then pending, then accepted or rejected after review.
+- A deliberately wrong submission (for example a missing mandatory fact) to see a real rejection and its reason, then check the rejection is stored and refile works.
+- A repeat of the same attempt: must be refused locally, and a unique envelope number must be used each time (duplicates give "Failure - multiple tests").
+- A simulated timeout: attempt must stay "unknown" and be resolved only by a status enquiry.
+- Confirm no secret, authentication value or raw authenticated request appears in the evidence.
+Exit criteria for Phase 7: a recorded accepted test submission and a recorded rejection, both matched to the app's states.
