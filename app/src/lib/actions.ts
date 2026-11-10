@@ -6,6 +6,7 @@
 // trail: when it was first seen, when it resolved, and who dismissed it. Dismissing is only allowed for informational
 // notices and never completes the underlying work.
 import { coSecItems } from "./cosec";
+import { accountsItems } from "./accounts/filingFlow";
 import { Config } from "./checklist";
 import { fmtDate, holdAlert, isHoldText, isOnHold, jobState } from "./domain";
 import { coverageGaps, asEng, isInForce, EngagementSettings } from "./engagements";
@@ -40,6 +41,8 @@ export type Source = {
   agentDone: (o: Row) => boolean;
   /** Company secretarial filings and Companies House differences (see lib/cosec.ts). */
   cosecTx?: Row[]; chFlags?: Row[];
+  /** Dormant accounts jobs (see lib/accounts/filingFlow.ts). */
+  cosecAccounts?: Row[];
 };
 
 const hash = (s: string) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
@@ -151,6 +154,7 @@ export function buildActions(src: Source): Action[] {
   for (const i of coSecItems(src.cosecTx || [], src.clients, src.chFlags || [], today)) {
     add({ key: i.key, category: "cosec", title: i.title, detail: i.detail, clientKey: i.clientKey, assignee: i.assignee, due: i.due, priority: i.priority, href: i.txKey ? `#/cosec/filing/${i.txKey}` : `#/cosec/company/${i.clientKey}` });
   }
+  for (const i of accountsItems(src.cosecAccounts || [], [], (ck) => nameOf(ck), today)) add({ key: i.key, category: "cosec", title: i.title, detail: i.detail, clientKey: i.clientKey, assignee: manager(i.clientKey), due: i.due, priority: i.priority, href: `#/cosec/company/${i.clientKey}` });
   for (const a of src.ch) add({ key: `ch:${a.key}`, category: "other", title: a.title, detail: a.detail, priority: a.level === "red" ? "high" : "medium", href: "#/settings/companies-house" });
   if (src.backup) add({ key: "backup", category: "other", title: src.backup.title, detail: src.backup.detail, priority: src.backup.level === "red" ? "high" : "medium", href: "#/settings/backups" });
   for (const l of feeReviewsDue(src.clientServices, today, 30)) {

@@ -412,7 +412,7 @@ export const LISTS: ListDef[] = [
   {
     // Dormant (never traded) accounts jobs: the checks, confirmations, figures at preparation, and what happened at each step. See lib/cosecDormant.ts.
     key: "CoSecAccounts", displayName: "PP CoSec Accounts", description: "Practice Planner: dormant company accounts jobs and their progress to acceptance",
-    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("PeriodStart"), t("PeriodEnd", true), t("Kind"), t("Status", true), note("Confirmations"), note("Figures"), t("Deadline"), t("PreparedOn"), t("ApprovedBy"), t("ApprovedOn"), t("SignedRef"), t("FiledOn"), t("FiledVia"), t("FiledRef"), t("AcceptedOn"), note("Evidence"), note("Notes"), t("LateLastYear"), t("Created"), t("CreatedBy"), t("Updated")],
+    columns: [t("Key", true), t("PracticeId", true), t("ClientKey", true), t("PeriodStart"), t("PeriodEnd", true), t("Kind"), t("Status", true), note("Confirmations"), note("Figures"), t("Deadline"), t("PreparedOn"), t("ApprovedBy"), t("ApprovedOn"), t("SignedRef"), t("ApprovedHash"), note("ApprovedModel"), t("FiledOn"), t("FiledVia"), t("FiledRef"), t("AcceptedOn"), note("Evidence"), note("Notes"), t("LateLastYear"), t("Created"), t("CreatedBy"), t("Updated")],
   },
   {
     // A request to a client's previous accountant for professional clearance and records. See lib/clearance.ts.

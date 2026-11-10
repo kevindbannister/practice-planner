@@ -9,6 +9,8 @@
 import { Entry, replay } from "./shareLedger";
 import { Row } from "./schema";
 import { Block, textPdf } from "./cosecDocs";
+import { AccountsModel, buildDormantModel } from "./accounts/model";
+import { errorsOf, validateModel } from "./accounts/validate";
 
 const str = (v: unknown): string => (v == null ? "" : String(v).trim());
 const json = <T,>(v: unknown, f: T): T => { try { const x = JSON.parse(str(v)); return x == null ? f : x; } catch { return f; } };
@@ -50,9 +52,9 @@ export const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b
 export type Status = "draft" | "confirmed" | "prepared" | "approved" | "filed" | "rejected" | "complete" | "cancelled";
 export const STATUS_LABEL: Record<Status, string> = { draft: "Checking eligibility", confirmed: "Ready to prepare", prepared: "Waiting for director's approval", approved: "Approved, ready to file", filed: "Filed, waiting for Companies House", rejected: "Rejected, needs refiling", complete: "Accepted by Companies House", cancelled: "Cancelled" };
 export type Confirmations = { neverTraded: boolean; noTransactions: boolean; qualifies: boolean; by: string; at: string; director: string };
-export type Dormant = { key: string; clientKey: string; start: string; end: string; status: Status; conf: Confirmations; figures: Figures | null; preparedOn: string; approvedBy: string; approvedOn: string; signedRef: string; filedOn: string; filedVia: string; filedRef: string; acceptedOn: string; evidence: string; notes: string; lateLastYear: boolean };
+export type Dormant = { key: string; clientKey: string; start: string; end: string; status: Status; conf: Confirmations; figures: Figures | null; preparedOn: string; approvedBy: string; approvedOn: string; signedRef: string; approvedHash: string; filedOn: string; filedVia: string; filedRef: string; acceptedOn: string; evidence: string; notes: string; lateLastYear: boolean };
 const noConf: Confirmations = { neverTraded: false, noTransactions: false, qualifies: false, by: "", at: "", director: "" };
-export const readDormant = (r: Row): Dormant => ({ key: str(r.Key), clientKey: str(r.ClientKey), start: str(r.PeriodStart).slice(0, 10), end: str(r.PeriodEnd).slice(0, 10), status: (str(r.Status) || "draft") as Status, conf: { ...noConf, ...json<Partial<Confirmations>>(r.Confirmations, {}) }, figures: json<Figures | null>(r.Figures, null), preparedOn: str(r.PreparedOn), approvedBy: str(r.ApprovedBy), approvedOn: str(r.ApprovedOn).slice(0, 10), signedRef: str(r.SignedRef), filedOn: str(r.FiledOn).slice(0, 10), filedVia: str(r.FiledVia), filedRef: str(r.FiledRef), acceptedOn: str(r.AcceptedOn).slice(0, 10), evidence: str(r.Evidence), notes: str(r.Notes), lateLastYear: str(r.LateLastYear) === "yes" });
+export const readDormant = (r: Row): Dormant => ({ key: str(r.Key), clientKey: str(r.ClientKey), start: str(r.PeriodStart).slice(0, 10), end: str(r.PeriodEnd).slice(0, 10), status: (str(r.Status) || "draft") as Status, conf: { ...noConf, ...json<Partial<Confirmations>>(r.Confirmations, {}) }, figures: json<Figures | null>(r.Figures, null), preparedOn: str(r.PreparedOn), approvedBy: str(r.ApprovedBy), approvedOn: str(r.ApprovedOn).slice(0, 10), signedRef: str(r.SignedRef), approvedHash: str(r.ApprovedHash), filedOn: str(r.FiledOn).slice(0, 10), filedVia: str(r.FiledVia), filedRef: str(r.FiledRef), acceptedOn: str(r.AcceptedOn).slice(0, 10), evidence: str(r.Evidence), notes: str(r.Notes), lateLastYear: str(r.LateLastYear) === "yes" });
 export const isOpen = (d: Dormant) => d.status !== "complete" && d.status !== "cancelled";
 
 // ------------------------------------------------------------------ figures
@@ -105,6 +107,8 @@ export function assess(i: AssessIn): Assessment {
     else if (periodOk && i.verified.accTo !== p.end) add("expects", "Period matches what Companies House expects", "attention", `Companies House expects accounts for the period ending ${dmy(i.verified.accTo)}, not ${dmy(p.end)}.`);
     else add("expects", "Period matches what Companies House expects", "ok", `Due ${dmy(i.verified.accDue || deadline(p))}.`);
   } else add("expects", "Period matches what Companies House expects", "attention", "Companies House's expected period isn't recorded: refresh from Companies House.");
+  const num = str(i.client.CompanyNumber).toUpperCase().replace(/\s/g, "");
+  if (/^(OC|SO|NC)/.test(num)) add("llp", "Type of company", "blocked", "Company numbers starting OC, SO or NC are limited liability partnerships. Dormant company accounts here are for limited companies only.");
   const dup = i.others.find((o) => o.start === p.start && o.end === p.end && isOpen(o));
   if (dup) add("dup", "Already in progress", "blocked", "There is already a dormant accounts job for this period.");
 
@@ -133,6 +137,11 @@ export function assess(i: AssessIn): Assessment {
   const c = i.conf;
   const done = c.neverTraded && c.noTransactions && c.qualifies && !!c.by && !!c.director;
   add("confirm", "Confirmed by a person", done ? "ok" : "blocked", done ? `Confirmed by ${c.by}${c.at ? ` on ${dmy(c.at.slice(0, 10))}` : ""}; signing director ${c.director}.` : "A person must confirm the three statements below and choose the signing director. The system can't tell whether the company has traded.");
+  // the structured accounts, checked as a whole (balance sheet, comparatives, shares, statements). The director chosen is checked at approval.
+  if (periodOk && figures.classes.length) {
+    const model = buildDormantModel({ company: { name: str(i.client.Title), number: num }, period: p, fig: figures, prior, director: c.director || "", approvedOn: "", confirmedBy: c.by, confirmedAll: done });
+    for (const x of errorsOf(validateModel(model)).filter((x) => !["director", "statements"].includes(x.id))) add(`acct:${x.id}`, "Accounts check", "blocked", x.message);
+  }
   const due = periodOk ? deadline(p) : "";
   if (due && due < i.today) add("late", "Deadline", "attention", `Due ${dmy(due)}: already past. A late filing penalty applies until the accounts are accepted.`);
   else if (due) add("late", "Deadline", "ok", `Due ${dmy(due)}.`);
@@ -170,7 +179,7 @@ export function prepare(row: Row, a: Assessment, now: string): Written {
   return { creates: [], patches: [{ row, patch: { Status: "prepared", Figures: JSON.stringify(a.figures), PreparedOn: now, Deadline: a.due, Updated: now } }] };
 }
 export function drifted(row: Row, a: Assessment): boolean { const d = readDormant(row); return !!d.figures && JSON.stringify(d.figures) !== JSON.stringify(a.figures); }
-export function approve(row: Row, a: Assessment, director: string, date: string, signedRef: string, today: string, now: string): Written {
+export function approve(row: Row, a: Assessment, director: string, date: string, signedRef: string, today: string, now: string, hash = "", modelJson = ""): Written {
   const d = readDormant(row);
   if (d.status !== "prepared") return fail("Prepare the accounts first.");
   if (drifted(row, a)) return fail("The share ledger has changed since the accounts were prepared. Prepare them again so the director signs the right figures.");
@@ -179,7 +188,16 @@ export function approve(row: Row, a: Assessment, director: string, date: string,
   if (!isoOk(date) || date > today) return fail("Give the date the director signed (not in the future).");
   if (date < d.preparedOn.slice(0, 10)) return fail("The accounts can't have been signed before they were prepared.");
   if (!signedRef.trim()) return fail("Save the signed copy to the client's documents and note its name here. Approval can't be recorded without it.");
-  return { creates: [], patches: [{ row, patch: { Status: "approved", ApprovedBy: director.trim(), ApprovedOn: date, SignedRef: signedRef.trim(), Updated: now } }] };
+  return { creates: [], patches: [{ row, patch: { Status: "approved", ApprovedBy: director.trim(), ApprovedOn: date, SignedRef: signedRef.trim(), ApprovedHash: hash, ApprovedModel: modelJson, Updated: now } }] };
+}
+/** An approval stands only for the exact accounts the director saw. If the accounts now hash differently, it no longer does. */
+export const approvalStale = (row: Row, currentHash: string): boolean => { const d = readDormant(row); return d.status === "approved" && !!d.approvedHash && !!currentHash && d.approvedHash !== currentHash; };
+/** Withdraws an approval (needs a reason): the job goes back to "prepared" so the director signs the current figures. The approved version stays in ApprovedModel until re-approved, and the reason is added to the notes. */
+export function withdrawApproval(row: Row, reason: string, now: string): Written {
+  const d = readDormant(row);
+  if (d.status !== "approved") return fail("Only approved accounts that haven't been filed can have their approval withdrawn.");
+  if (!reason.trim()) return fail("Say why the approval is being withdrawn.");
+  return { creates: [], patches: [{ row, patch: { Status: "prepared", ApprovedBy: "", ApprovedOn: "", SignedRef: "", Notes: `${d.notes ? d.notes + "\n" : ""}Approval by ${d.approvedBy} on ${d.approvedOn} withdrawn: ${reason.trim()}`, Updated: now } }] };
 }
 export const FILED_VIA = [["webfiling", "Companies House online dormant accounts (WebFiling)"], ["software", "Commercial accounts software"], ["paper", "Paper (only while still allowed)"]] as const;
 export function filed(row: Row, date: string, via: string, ref: string, today: string, now: string): Written {
@@ -222,31 +240,37 @@ export function cancel(row: Row, reason: string, now: string): Written {
 
 export type DocIn = { company: { name: string; number: string }; d: Dormant; fig: Figures; prior: Figures | null; period: Period; director: string; approvedOn: string };
 const money = (p: string | undefined) => (p === undefined ? "" : gbp(p));
-export async function accountsPdf(i: DocIn): Promise<Uint8Array> {
-  const approved = !!i.approvedOn; const cur = i.fig, pr = i.prior;
-  const periodText = `${dmy(i.period.start)} to ${dmy(i.period.end)}`;
+/** The structured accounts for a job: the same object the PDF is made from now and the iXBRL will be made from. */
+export const modelFor = (i: DocIn): AccountsModel => buildDormantModel({ company: i.company, period: i.period, fig: i.fig, prior: i.prior, director: i.director, approvedOn: i.approvedOn, confirmedBy: i.d.conf.by, confirmedAll: i.d.conf.neverTraded && i.d.conf.noTransactions && i.d.conf.qualifies && !!i.d.conf.by });
+export const accountsPdf = (i: DocIn): Promise<Uint8Array> => accountsPdfFromModel(modelFor(i));
+const pm = (n: number) => gbp(String(n));
+/** The human-readable accounts, written only from the model: no figure is calculated here. */
+export async function accountsPdfFromModel(m: AccountsModel): Promise<Uint8Array> {
+  const approved = !!m.signing.date; const cur = m.current, pr = m.comparative;
+  const periodText = `${dmy(m.period.start)} to ${dmy(m.period.end)}`;
   const row = (label: string, a: string, b: string): Block => ({ t: "row", cells: [label, a, b] });
-  const head = (title: string): Block[] => [{ t: "h1", text: i.company.name }, { t: "small", text: `Company number ${i.company.number}` }, { t: "gap" }, { t: "h2", text: title }, ...(approved ? [] : [{ t: "p", text: "DRAFT: not yet approved or signed by a director." } as Block]), { t: "gap" }];
+  const c2 = (f: (c: typeof cur) => number) => (pr ? `£${pm(f(pr))}` : "n/a");
+  const head = (title: string): Block[] => [{ t: "h1", text: m.company.name }, { t: "small", text: `Company number ${m.company.number}` }, { t: "gap" }, { t: "h2", text: title }, ...(approved ? [] : [{ t: "p", text: "DRAFT: not yet approved or signed by a director." } as Block]), { t: "gap" }];
   const bs: Block[] = [
-    ...head(`Balance sheet as at ${dmy(i.period.end)}`),
-    row("", `${dmy(i.period.end)}`, pr ? dmy(pr.asAt) : "Comparative"), { t: "gap" },
-    ...(BigInt(cur.unpaid) > 0n || (pr && BigInt(pr.unpaid) > 0n) ? [row("Called up share capital not paid", `£${money(cur.unpaid)}`, pr ? `£${money(pr.unpaid)}` : "n/a")] : []),
-    ...(BigInt(cur.paid) > 0n || (pr && BigInt(pr.paid) > 0n) ? [row("Cash at bank and in hand", `£${money(cur.paid)}`, pr ? `£${money(pr.paid)}` : "n/a")] : []),
-    row("Net assets", `£${money(cur.calledUp)}`, pr ? `£${money(pr.calledUp)}` : "n/a"), { t: "gap" },
+    ...head(`Balance sheet as at ${dmy(m.period.end)}`),
+    row("", `${dmy(m.period.end)}`, pr ? dmy(pr.asAt) : "Comparative"), { t: "gap" },
+    ...(cur.calledUpNotPaid > 0 || (pr && pr.calledUpNotPaid > 0) ? [row("Called up share capital not paid", `£${pm(cur.calledUpNotPaid)}`, c2((c) => c.calledUpNotPaid))] : []),
+    ...(cur.cash > 0 || (pr && pr.cash > 0) ? [row("Cash at bank and in hand", `£${pm(cur.cash)}`, c2((c) => c.cash))] : []),
+    row("Net assets", `£${pm(cur.netAssets)}`, c2((c) => c.netAssets)), { t: "gap" },
     { t: "h2", text: "Capital and reserves" },
-    row("Called up share capital (note 2)", `£${money(cur.calledUp)}`, pr ? `£${money(pr.calledUp)}` : "n/a"),
-    row("Profit and loss account", "£0.00", pr ? "£0.00" : "n/a"),
-    row("Shareholders' funds", `£${money(cur.calledUp)}`, pr ? `£${money(pr.calledUp)}` : "n/a"), { t: "gap" },
+    row("Called up share capital (note 2)", `£${pm(cur.shareCapital)}`, c2((c) => c.shareCapital)),
+    row("Profit and loss account", `£${pm(cur.profitAndLoss)}`, c2((c) => c.profitAndLoss)),
+    row("Shareholders' funds", `£${pm(cur.shareholdersFunds)}`, c2((c) => c.shareholdersFunds)), { t: "gap" },
     ...(pr ? [] : [{ t: "small", text: `This is the company's first accounting period, so there are no comparative figures.` } as Block]),
     { t: "p", text: "The company was dormant throughout the accounting period." },
-    { t: "p", text: `For the period ended ${dmy(i.period.end)} the company was entitled to exemption from audit under section 480 of the Companies Act 2006 relating to dormant companies.` },
+    { t: "p", text: `For the period ended ${dmy(m.period.end)} the company was entitled to exemption from audit under section 480 of the Companies Act 2006 relating to dormant companies.` },
     { t: "p", text: "The members have not required the company to obtain an audit of its accounts for the period in question in accordance with section 476." },
     { t: "p", text: "The directors acknowledge their responsibilities for complying with the requirements of the Act with respect to accounting records and the preparation of accounts." },
     { t: "p", text: "These accounts have been prepared in accordance with the provisions applicable to companies subject to the small companies regime." },
     { t: "gap" },
-    { t: "p", text: approved ? `Approved by the board of directors on ${dmy(i.approvedOn)} and signed on its behalf by:` : "Approved by the board of directors on ______________ and signed on its behalf by:" }, { t: "gap" }, { t: "gap" },
-    { t: "p", text: "______________________" }, { t: "p", text: i.director }, { t: "p", text: "Director" }, { t: "gap" },
-    { t: "small", text: `Company registration number ${i.company.number}. The notes form part of these accounts.` },
+    { t: "p", text: approved ? `Approved by the board of directors on ${dmy(m.signing.date)} and signed on its behalf by:` : "Approved by the board of directors on ______________ and signed on its behalf by:" }, { t: "gap" }, { t: "gap" },
+    { t: "p", text: "______________________" }, { t: "p", text: m.signing.director }, { t: "p", text: "Director" }, { t: "gap" },
+    { t: "small", text: `Company registration number ${m.company.number}. The notes form part of these accounts.` },
   ];
   const notes: Block[] = [
     ...head(`Notes to the accounts for the period ${periodText}`),
@@ -254,11 +278,11 @@ export async function accountsPdf(i: DocIn): Promise<Uint8Array> {
     { t: "p", text: "The company was dormant throughout the period: it had no significant accounting transactions. These accounts are prepared under the historical cost convention and in accordance with the Companies Act 2006 provisions for small companies and Section 1A of FRS 102." }, { t: "gap" },
     { t: "h2", text: "2. Called up share capital" },
     { t: "row", cells: ["Class", "Number", "Nominal value", "Called up"] },
-    ...cur.classes.map((c): Block => ({ t: "row", cells: [c.cls, c.shares.toLocaleString("en-GB"), `£${c.nominal}`, `£${gbp(toPence(BigInt(c.calledUpMicro)))}`] })),
-    { t: "gap" }, { t: "p", text: `Called up share capital not paid at the period end: £${money(cur.unpaid)}.` },
-    { t: "gap" }, { t: "h2", text: "3. Employees" }, { t: "p", text: "The company had no employees during the period." },
+    ...m.classes.map((c): Block => ({ t: "row", cells: [c.cls, c.shares.toLocaleString("en-GB"), `£${c.nominalMicro / 1e6}`, `£${pm(c.calledUpPence)}`] })),
+    { t: "gap" }, { t: "p", text: `Called up share capital not paid at the period end: £${pm(cur.calledUpNotPaid)}.` },
+    { t: "gap" }, { t: "h2", text: "3. Employees" }, { t: "p", text: m.employees.average === 0 ? "The company had no employees during the period." : `The average number of employees was ${m.employees.average}.` },
   ];
-  return textPdf([bs, notes], `${i.company.name} - dormant accounts ${dmy(i.period.end)}${approved ? "" : " - DRAFT"}`);
+  return textPdf([bs, notes], `${m.company.name} - dormant accounts ${dmy(m.period.end)}${approved ? "" : " - DRAFT"}`);
 }
 /** A cover note for the director: what is being signed, what the system could and couldn't check, and what happens next. */
 export async function coverPdf(i: DocIn, a: Assessment): Promise<Uint8Array> {
