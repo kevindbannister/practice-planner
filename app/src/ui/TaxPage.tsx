@@ -17,7 +17,6 @@ import { BulkImportDialog } from "./TaxBulkImport";
 import { HmrcAccountDialog } from "./HmrcAccountImport";
 import { YEARS, ratesFor, yearEnd, yearLabel, yearOf } from "../lib/taxRates";
 import { Icon, href, useRoute } from "./bits";
-import { TaxPlanView, TaxPlanningList } from "./TaxPlanning";
 import { HmrcFilingPanel } from "./HmrcFiling";
 import { BannerMenu } from "./BannerMenu";
 import { useEditor } from "./Editors";
@@ -31,9 +30,14 @@ const isCompany = (c: Client) => c.Kind === "Ltd" || c.Kind === "LLP" || !!c.Com
 const gbp = (v: number | undefined, dp = 2) => (v === undefined ? "" : `${v < 0 ? "-" : ""}£${Math.abs(v).toLocaleString("en-GB", { minimumFractionDigits: dp, maximumFractionDigits: dp })}`);
 const latestYear = (today: string) => { const y = yearOf(today); return Math.max(...YEARS.map((r) => r.year).filter((r) => r < y), YEARS[0].year); };
 
+function Moved({ to }: { to: string }) {
+  useEffect(() => { window.location.replace(to); }, [to]);
+  return null;
+}
+
 export function TaxPage() {
   const { parts } = useRoute();
-  if (parts[1] === "planning") return parts[2] ? <TaxPlanView clientKey={parts[2]} year={Number(parts[3]) || undefined} /> : <TaxPlanningList />;
+  if (parts[1] === "planning") return <Moved to={href("taxplan", ...parts.slice(2))} />; // tax planning moved to Advise; old links still land there
   return parts[1] ? <TaxView clientKey={parts[1]} year={Number(parts[2]) || undefined} start={parts[3] as Start | undefined} /> : <TaxList />;
 }
 
@@ -69,7 +73,6 @@ function TaxList() {
           <h1>Personal tax</h1>
           <p className="muted" style={{ margin: "4px 0 0" }}>Self Assessment returns and tax computations for each client and tax year.</p>
         </div>
-        <a className="btn" href="#/tax/planning">Tax planning</a>
         <button type="button" className="btn" title="Bring in a client's past returns from IRIS Elements, one PDF for each year" onClick={() => setBulk(true)}><Icon name="download" size={15} /> Import past returns</button>
         <button type="button" className="btn primary" onClick={() => setStarting(true)}><Icon name="plus" size={15} /> New tax return</button>
         <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Tax year

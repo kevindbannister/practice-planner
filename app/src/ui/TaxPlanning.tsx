@@ -11,7 +11,7 @@ import { readReturn } from "../lib/tax";
 import { yearEnd, yearLabel, yearOf } from "../lib/taxRates";
 import * as tp from "../lib/taxPlanning";
 import { newKey } from "../lib/planning";
-import { href } from "./bits";
+import { href, useRoute } from "./bits";
 import { useData, useIndex } from "./data";
 import { useSales } from "./salesKit";
 import { TAX_ITEM } from "./TaxPage";
@@ -27,6 +27,12 @@ const isLtd = (c: Client) => c.Kind === "Ltd" || (!!c.CompanyNumber && c.Kind !=
 const defaultYear = (today: string) => Math.min(yearOf(today), Math.max(...tp.PLAN_YEARS));
 const planFor = (rows: Record<string, unknown>[], ck: string, year: number) => rows.find((r) => r.ClientKey === ck && Number(r.TaxYear) === year);
 
+/** Tax planning, under Advise: the list of companies, or one company's plan for a tax year. */
+export function TaxPlanningPage() {
+  const { parts } = useRoute();
+  return parts[1] ? <TaxPlanView clientKey={parts[1]} year={Number(parts[2]) || undefined} /> : <TaxPlanningList />;
+}
+
 export function TaxPlanningList() {
   const { data } = useData();
   const [year, setYear] = useState(defaultYear(todayIso()));
@@ -36,8 +42,8 @@ export function TaxPlanningList() {
   return (
     <div className="page">
       <div className="page-head">
-        <div><a className="crumb" href="#/tax">Personal tax</a><h1>Tax planning</h1><p className="muted" style={{ margin: "4px 0 0" }}>Salary and dividends for each limited company's directors and shareholders.</p></div>
-        <a className="btn" href={href("tax", "planning", "example", String(year))}>Worked example</a>
+        <div><h1>Tax planning</h1><p className="muted" style={{ margin: "4px 0 0" }}>Salary and dividends for each limited company's directors and shareholders.</p></div>
+        <a className="btn" href={href("taxplan", "example", String(year))}>Worked example</a>
         <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Tax year
           <select className="input" style={{ width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>{[...tp.PLAN_YEARS].reverse().map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}</select>
         </label>
@@ -46,7 +52,7 @@ export function TaxPlanningList() {
       <div className="card table-wrap"><table className="grid">
         <thead><tr><th>Company</th><th>Plan for {yearLabel(year)}</th><th>Updated</th></tr></thead>
         <tbody>{rows.map((c) => { const p = planFor(data.taxPlans, c.Key, year); return (
-          <tr key={c.Key}><td><a href={href("tax", "planning", c.Key, String(year))}>{c.Title}</a></td>
+          <tr key={c.Key}><td><a href={href("taxplan", c.Key, String(year))}>{c.Title}</a></td>
             <td>{p ? <span className={`chip ${p.Status === "agreed" ? "green" : "amber"}`}>{p.Status === "agreed" ? "Agreed" : "Draft"}</span> : <span className="muted">Not started</span>}</td>
             <td className="muted">{p ? String(p.Updated || p.Created || "").slice(0, 10) : ""}</td></tr>); })}</tbody>
       </table></div>
@@ -86,7 +92,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
   const dirty = !row || JSON.stringify(tp.readPlan(row.Inputs, year)) !== JSON.stringify(plan) || row.Chosen !== chosen;
   const agreed = row?.Status === "agreed" && !dirty;
 
-  if (!c) return <div className="page"><a className="crumb" href="#/tax/planning">Tax planning</a><div className="card empty">That company couldn't be found.</div></div>;
+  if (!c) return <div className="page"><a className="crumb" href="#/taxplan">Tax planning</a><div className="card empty">That company couldn't be found.</div></div>;
   const set = (p: Partial<tp.PlanInput>) => setPlan({ ...plan, ...p });
   const setPerson = (id: string, p: Partial<tp.Person>) => setPlan({ ...plan, people: plan.people.map((x) => (x.id === id ? { ...x, ...p } : x)) });
   const setOther = (id: string, p: Partial<tp.OtherIncome>) => setPlan({ ...plan, people: plan.people.map((x) => (x.id === id ? { ...x, other: { ...x.other, ...p } } : x)) });
@@ -123,9 +129,9 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
   return (
     <div className="page">
       <div className="page-head">
-        <div><a className="crumb" href="#/tax/planning">Tax planning</a><h1>{c.Title}</h1><p className="muted" style={{ margin: "4px 0 0" }}>Salary and dividends for {yearLabel(year)} (6 April {year - 1} to 5 April {year}). Planning figures for the practice to review, not advice.</p></div>
+        <div><a className="crumb" href="#/taxplan">Tax planning</a><h1>{c.Title}</h1><p className="muted" style={{ margin: "4px 0 0" }}>Salary and dividends for {yearLabel(year)} (6 April {year - 1} to 5 April {year}). Planning figures for the practice to review, not advice.</p></div>
         <div className="row-wrap" style={{ gap: 8 }}>
-          <select className="input" style={{ width: "auto" }} aria-label="Tax year" value={year} onChange={(e) => { window.location.hash = href("tax", "planning", clientKey, e.target.value); }}>{[...tp.PLAN_YEARS].reverse().map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}</select>
+          <select className="input" style={{ width: "auto" }} aria-label="Tax year" value={year} onChange={(e) => { window.location.hash = href("taxplan", clientKey, e.target.value); }}>{[...tp.PLAN_YEARS].reverse().map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}</select>
           {agreed ? <span className="chip green">Agreed by {String(row?.AgreedBy)} on {String(row?.AgreedOn)}</span> : row ? <span className="chip amber">Draft</span> : null}
           {isExample ? <span className="chip">Worked example: nothing is saved</span> : <>
           <button className="btn" type="button" disabled={busy || !dirty} onClick={() => save("draft")}>Save</button>

@@ -4,7 +4,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { Icon, IconName } from "./bits";
 import { AREAS, MODULE_LABELS, navKeyOf } from "../lib/navAreas";
 
-const ICONS: Record<string, IconName> = { home: "home", plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", settings: "settings" };
+const ICONS: Record<string, IconName> = { home: "home", plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", settings: "settings", taxplan: "calc" };
 
 export function BannerMenu({ current = "papers" }: { current?: string }) {
   const cur = navKeyOf(current);

@@ -63,6 +63,7 @@ const HomePage = page(() => import("./HomePage").then((m) => m.HomePage));
 const CommsPage = page(() => import("./Comms").then((m) => m.CommsPage));
 const PapersPage = page(() => import("./PapersPage").then((m) => m.PapersPage));
 const TaxPage = page(() => import("./TaxPage").then((m) => m.TaxPage));
+const TaxPlanningPage = page(() => import("./TaxPlanning").then((m) => m.TaxPlanningPage));
 const ReportingPage = page(() => import("./ReportingPage").then((m) => m.ReportingPage));
 const PracticePage = page(() => import("./PracticePage").then((m) => m.PracticePage));
 const CompliancePage = page(() => import("./CompliancePage").then((m) => m.CompliancePage));
@@ -145,6 +146,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <PapersPage />;
   } else if (section === "tax") {
     body = <TaxPage />;
+  } else if (section === "taxplan") {
+    body = <TaxPlanningPage />;
   } else if (section === "reporting") {
     body = <ReportingPage />;
   } else if (section === "devhub") {
@@ -173,7 +176,7 @@ export function App({ demo }: { demo: boolean }) {
             <AssistantProvider>
               <PortalProvider>
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
-                {!(section === "devhub" || (section === "advisory" || section === "papers" || section === "tax" || section === "reporting") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
+                {!(section === "devhub" || (section === "advisory" || section === "papers" || section === "tax" || section === "taxplan" || section === "reporting") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
                 <span className="version-badge" title={`Prototype, version ${VERSION}`}>P V{VERSION}</span>
                 {status === "ready" && <ActionSync />}
                 {status === "ready" && <CoSecSync />}
@@ -211,7 +214,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const area = AREAS.find((a) => a.id === (shown || here || picked)) || AREAS[0];
   const current = navKeyOf(section);
   const pickArea = (id: AreaId) => { setShown(id); setPicked(id); try { localStorage.setItem("pp.nav.area", id); } catch { /* fine */ } };
-  const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag" };
+  const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
   const AREA_ICONS: Record<AreaId, IconName> = { run: "layout", deliver: "check", grow: "chart" };
   return (
     <header className={`topbar${two ? " two" : ""}`}>

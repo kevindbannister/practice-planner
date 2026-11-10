@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { Icon, IconName } from "./bits";
 import { AREAS, MODULE_LABELS, areaOf, navKeyOf, type AreaId, type NavArea } from "../lib/navAreas";
 
-const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag" };
+const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
 
 export function AreaMenu({ section, chase = 0, children }: { section: string; chase?: number; children?: ReactNode }) {
   const [open, setOpen] = useState<AreaId | null>(null);

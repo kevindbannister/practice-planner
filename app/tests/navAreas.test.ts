@@ -31,3 +31,9 @@ test("area ids are checked", () => {
   assert.ok(!isAreaId("tax"));
   assert.ok(!isAreaId(null));
 });
+
+test("tax planning sits under Advise, next to Advisory", () => {
+  assert.equal(areaOf("taxplan"), "grow");
+  assert.equal(MODULE_LABELS.taxplan, "Tax planning");
+  assert.equal(areaOf("tax"), "deliver");
+});

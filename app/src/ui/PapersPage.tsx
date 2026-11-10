@@ -44,8 +44,7 @@ function PapersTabs({ current }: { current: "companies" | "production" }) {
   return (
     <nav className="tabs" aria-label="Working papers">
       <a href={href("papers")} aria-current={current === "companies" ? "page" : undefined}>Companies</a>
-      <a href={href("papers", "production")} aria-current={current === "production" ? "page" : undefined}>Accounts production</a>
-      <a href={href("tax")}>Personal tax</a>
+      <a href={href("papers", "production")} aria-current={current === "production" ? "page" : undefined}>Production status</a>
     </nav>
   );
 }
