@@ -2,6 +2,7 @@
 // presenter details: it asks the planner's server (api/cosec), which signs in to the Companies House XML Gateway with the practice's
 // presenter ID and authentication code kept in Azure settings. See docs/co-sec-filing.md for the one-off set-up.
 import { Row } from "./schema";
+import type { ServerInfo } from "./accounts/filingFlow";
 
 export type GatewayStatus = "pending" | "accepted" | "rejected";
 export type SubmitResult = { gatewayRef: string; test: boolean };
@@ -17,6 +18,8 @@ export interface CoSecGateway {
   status(gatewayRef: string): Promise<StatusResult>;
   /** Whether the server has the presenter details (and whether it is still in test mode). */
   info(): Promise<{ configured: boolean; test: boolean; missing: string[] }>;
+  /** Whether electronic accounts filing is available. Null when the server can't say. It is never available until the accounts message has been verified. */
+  accountsInfo(): Promise<ServerInfo>;
 }
 
 export class HttpGateway implements CoSecGateway {
@@ -39,6 +42,7 @@ export class HttpGateway implements CoSecGateway {
   }
   status(gatewayRef: string) { return this.call<StatusResult>("status", { gatewayRef }); }
   info() { return this.call<{ configured: boolean; test: boolean; missing: string[] }>("info"); }
+  async accountsInfo(): Promise<ServerInfo> { try { return await this.call<NonNullable<ServerInfo>>("accounts-info"); } catch { return null; } }
 }
 
 /** A stand-in for the demo build and for tests: accepts everything after it is checked. */
@@ -47,4 +51,6 @@ export class FakeGateway implements CoSecGateway {
   async submit(tx: Row) { const ref = `DEMO${String(this.sent.size + 1).padStart(6, "0")}`; this.sent.set(ref, 0); return { gatewayRef: ref, test: true }; }
   async status(ref: string): Promise<StatusResult> { const n = (this.sent.get(ref) ?? 0) + 1; this.sent.set(ref, n); return n < 2 ? { status: "pending" } : { status: "accepted", chRef: `DEMO-${ref}` }; }
   async info() { return { configured: true, test: true, missing: [] }; }
+  /** The demo must never look as though accounts can be filed electronically. */
+  async accountsInfo(): Promise<ServerInfo> { return { available: false, reason: "spec-not-verified", test: true }; }
 }

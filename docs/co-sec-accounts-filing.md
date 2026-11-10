@@ -147,3 +147,16 @@ Why nothing can be sent yet (three independent blocks, each refuses with its own
 `accounts-status` returns not-available until the status message is taken from the TIS.
 
 Tests: `api/test/accountsFiling.test.js` (12). The spec and mapping used there are invented for the tests and prove nothing about the real gateway.
+
+## Phase 5: workflow, screens, history, Action Centre
+
+**Status: built. There is deliberately no submit button.**
+
+- `lib/accounts/filingFlow.ts` holds the rules. `flowOf` works out the electronic-filing state (manual, blocked, ready, submitting, acknowledged, pending, accepted, rejected, unknown) and a single `canSubmit` gate. `canSubmit` needs: job approved (or rejected, for a refile), approval not stale, no accounts errors, taxonomy mapping verified, and the server reporting filing available. Any earlier attempt other than a failed one blocks another send. An unreachable server never allows sending. The latest attempt decides the state.
+- The job screen's old "readiness" note is now an Electronic filing panel: state, plain-English blockers, the open taxonomy points, and a filing history. It reads `accounts-info` from the server; the demo build always reports "not available", so a demo can never look as though accounts can be filed.
+- "Filed" still does not mean done: a job completes only on acceptance. Manual filing (WebFiling, software, paper) stays and is the working route today.
+- Action Centre (Company Secretarial): accounts due soon or overdue and not approved, approved and due or late, approval no longer covering the figures, rejected (refile), filed more than a week without acceptance, and an electronic attempt with unknown outcome or a rejection reason (these two need the server's attempt records, which arrive with the store).
+- The attempt history list is empty until the server store exists. Nothing is invented for it.
+
+Still not done: the submit button (waits for `canSubmit`, which needs Phase 4's three blocks cleared), reading real attempt records and status from the server, and test-gateway evidence (Phase 6).
+Tests: `app/tests/filingFlow.test.ts` (7). Version 24.3.

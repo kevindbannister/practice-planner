@@ -7,6 +7,7 @@ import * as D from "../lib/cosecDormant";
 import { approvableCopy, modelHash } from "../lib/accounts/model";
 import { validateModel } from "../lib/accounts/validate";
 import { DORMANT_2025, mappingProblems } from "../lib/accounts/taxonomy";
+import { Attempt, ServerInfo, flowOf } from "../lib/accounts/filingFlow";
 import { readEntry } from "../lib/shareLedger";
 import { Row } from "../lib/schema";
 import { downloadFile } from "./commsKit";
@@ -128,11 +129,7 @@ function Job({ row, client }: { row: Row; client: Row }) {
         <div className="alert red" role="alert"><strong>The accounts have changed since the director approved them.</strong> The approval no longer covers these figures and can't be used to file.{" "}
           <button type="button" className="btn small" disabled={busy} onClick={() => void run(D.withdrawApproval(row, "Accounts changed after approval", now()), "Approval withdrawn. Prepare and approve again.")}>Withdraw the approval</button></div>)}
       {D.isOpen(d) && issues.length > 0 && <ul className="plain" aria-label="Accounts checks">{issues.map((x) => <li key={x.id}><span aria-hidden style={{ color: "var(--red)", fontWeight: 700 }}>✕</span> <strong>Accounts check.</strong> {x.message}</li>)}</ul>}
-      {D.isOpen(d) && (
-        <details><summary>Electronic filing readiness: not available yet</summary>
-          <p className="muted" style={{ margin: "6px 0" }}>Accounts can't be filed with Companies House from here. The electronic (iXBRL) accounts can't be made until the taxonomy details below are obtained and checked. Until then, file them yourself and record it here.</p>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>{mappingProblems(DORMANT_2025).slice(0, 12).map((x) => <li key={x}>{x}</li>)}</ul>
-        </details>)}
+      {D.isOpen(d) && <ElectronicPanel jobStatus={d.status} stale={stale} errors={issues.filter((x) => x.severity === "error").map((x) => x.message)} problems={mappingProblems(DORMANT_2025)} attempts={[]} />}
       {d.approvedBy && <p className="muted" style={{ margin: 0 }}>Approved by {d.approvedBy} on {fmtDate(d.approvedOn)}. Signed copy: {d.signedRef}.</p>}
 
       {["approved", "rejected"].includes(d.status) && edit && (
@@ -160,5 +157,28 @@ function Job({ row, client }: { row: Row; client: Row }) {
       {D.isOpen(d) && d.status !== "filed" && edit && <div className="row-wrap"><input className="input" aria-label="Reason to cancel" placeholder="Reason to cancel this job" value={why} onChange={(e) => setWhy(e.target.value)} style={{ minWidth: 280 }} /><button type="button" className="btn" disabled={busy} onClick={() => void run(D.cancel(row, why, now()), "Cancelled.")}>Cancel the job</button></div>}
       <Note m={msg} />
     </section>
+  );
+}
+
+const STATE_LABEL: Record<string, string> = { manual: "Not available: file it yourself", blocked: "Blocked", ready: "Ready", submitting: "Sending", acknowledged: "Received, not accepted", pending: "Pending at Companies House", accepted: "Accepted", rejected: "Rejected", unknown: "Outcome unknown" };
+
+/** Electronic filing status and history. It deliberately has no send button: the server must report filing as available first. */
+function ElectronicPanel({ jobStatus, stale, errors, problems, attempts }: { jobStatus: string; stale: boolean; errors: string[]; problems: string[]; attempts: Attempt[] }) {
+  const k = useCoSec();
+  const [server, setServer] = useState<ServerInfo>(null);
+  useEffect(() => { let on = true; k.gateway.accountsInfo().then((x) => { if (on) setServer(x); }, () => { if (on) setServer(null); }); return () => { on = false; }; }, [k.gateway]);
+  const f = flowOf({ jobStatus, approvalStale: stale, modelErrors: errors, mappingProblems: problems, server, attempts });
+  return (
+    <details open={f.state !== "manual" && f.state !== "blocked"}>
+      <summary>Electronic filing: {STATE_LABEL[f.state]}</summary>
+      <p style={{ margin: "6px 0" }}>{f.headline}</p>
+      {f.blockers.length > 0 && <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>{f.blockers.map((x) => <li key={x}>{x}</li>)}</ul>}
+      {problems.length > 0 && <details style={{ marginTop: 6 }}><summary>Taxonomy points still open ({problems.length})</summary><ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>{problems.slice(0, 12).map((x) => <li key={x}>{x}</li>)}</ul></details>}
+      <div style={{ marginTop: 8 }}>
+        <strong style={{ fontSize: 13 }}>Filing history</strong>
+        {attempts.length === 0 ? <p className="muted" style={{ margin: "4px 0 0" }}>No electronic attempts. Filing you record by hand appears in the job's history above.</p>
+          : <ul className="plain">{attempts.map((a) => <li key={a.key}>Attempt {a.attempt} ({a.test ? "test" : "live"}): {a.status}{a.detail ? `, ${a.detail}` : ""}</li>)}</ul>}
+      </div>
+    </details>
   );
 }
