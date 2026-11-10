@@ -12,6 +12,7 @@ import { DOCX_TYPE } from "../lib/docx";
 import { fmtDate, todayIso } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
+import { Entry, REC_TYPES, RecType, Tone, timeline } from "../lib/amlTimelineView";
 import { amlStampRead } from "../lib/xamaActions";
 import { screening as screeningOf } from "../lib/amlScreening";
 import { screeningPolicy } from "../lib/amlPolicy";
@@ -23,8 +24,7 @@ import { Cfg, FWRA_CFG, PolicyBuilder, POLICY_CFG } from "./AmlBuilder";
 import { useFirm } from "./FirmSettings";
 
 const TABS: [string, string][] = [
-  ["overview", "Overview"], ["checklist", "ACCA checklist"], ["clients", "Client tracker"], ["fwra", "Risk assessment"], ["policies", "Policies"], ["registrations", "Registrations"], ["annualreturn", "ACCA return"], ["reviews", "Client reviews"], ["screening", "Screening"], ["training", "Training"],
-  ["actions", "Actions"], ["mlro", "MLRO report"], ["independent", "Independent review"], ["forms", "SAR and blank forms"],
+  ["overview", "Overview"], ["checklist", "ACCA checklist"], ["clients", "Client tracker"], ["fwra", "Risk assessment"], ["policies", "Policies"], ["annualreturn", "ACCA return"], ["records", "Records"], ["forms", "SAR and blank forms"],
 ];
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const fmt = (d: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
@@ -172,13 +172,13 @@ function liveFor(a: ReturnType<typeof useAml>): Live {
 
 // ------------------------------------------------------------------ one form
 
-function FormScreen({ def }: { def: p.FormDef }) {
+function FormScreen({ def, sel: first = "", add = false }: { def: p.FormDef; sel?: string; add?: boolean }) {
   const a = useAml();
   const today = todayIso();
   const stored = a.storeOf(def.id);
   const [local, setLocal] = useState<p.Store | null>(null);
   const [state, setState] = useState<"" | "saving" | "saved" | "failed">("");
-  const [sel, setSel] = useState("");
+  const [sel, setSel] = useState(first);
   const timer = useRef<number | undefined>(undefined);
   const latest = useRef<p.Store | null>(null);
   const counter = useRef(0);
@@ -211,6 +211,21 @@ function FormScreen({ def }: { def: p.FormDef }) {
   const patchRec = (id: string, fn: (r: p.Rec) => p.Rec, now = false) => edit({ records: cur.records.map((r) => (r.id === id ? fn(r) : r)) }, now);
   const start = (copy?: p.Rec) => { const r = p.newRec(def, today, copy); edit({ records: [...cur.records, r] }, true); setSel(r.id); };
   const status = p.standing(def, cur, today);
+  // Opened from the timeline's Add button: start a new record, or add a blank row to the register, once.
+  const added = useRef(false);
+  useEffect(() => {
+    if (!add || added.current) return;
+    added.current = true;
+    if (def.single) {
+      const table = def.sections.flatMap((x) => x.fields).find((f) => f.type === "table");
+      const base = stored.records[0] ?? p.newRec(def, today);
+      const rows = table && Array.isArray(base.values[table.k]) ? (base.values[table.k] as unknown[]) : [];
+      const next = table ? { ...base, values: { ...base.values, [table.k]: [...rows, {}] } } : base;
+      edit({ records: stored.records[0] ? stored.records.map((r) => (r.id === base.id ? next : r)) : [next] }, true);
+      setSel(next.id);
+    } else start();
+    window.history.replaceState(null, "", `${window.location.pathname}#/aml/records/${def.id}`);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const header = (
     <div className="page-head">
@@ -457,10 +472,83 @@ function XamaScreening() {
   );
 }
 
+const TONE_INK: Record<Tone, string> = { green: "green", amber: "amber", red: "red", "": "" };
+
+/** Every AML record on one timeline: filter by type, search, and add a new one. An entry opens in the form it is kept in. */
+function Records() {
+  const a = useAml();
+  const today = todayIso();
+  const [types, setTypes] = useState<RecType[]>([]);
+  const [view, setView] = useState<"all" | "upcoming" | "attention">("all");
+  const [q, setQ] = useState("");
+  const [adding, setAdding] = useState(false);
+  const stores = Object.fromEntries(REC_TYPES.map((t) => [t.form, a.storeOf(t.form)]));
+  const all = useMemo(() => timeline(stores, { name: a.clientName, today }), [a.data, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const text = (e: Entry) => `${e.title} ${e.detail} ${e.chip} ${REC_TYPES.find((t) => t.type === e.type)?.label}`.toLowerCase();
+  const pass = (e: Entry, skipType = false) => (skipType || !types.length || types.includes(e.type))
+    && (view === "all" || (view === "upcoming" ? e.upcoming : e.tone === "red" || e.tone === "amber")) && (!q.trim() || text(e).includes(q.trim().toLowerCase()));
+  const shown = all.filter((e) => pass(e));
+  const month = (d: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }) : "No date");
+  let last = "";
+  return (
+    <>
+      <div className="page-head"><div><h1>AML records</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 780 }}>Client reviews, screening checks, training, actions, registrations, the MLRO report and the independent review on one timeline, newest first, with what is coming up next. Choose a type to filter, or add a new record: it opens in the same form as before.</p></div></div>
+      <section className="card pad stack" aria-label="Filters">
+        <div className="row-wrap" style={{ gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+          <div className="row-wrap" role="group" aria-label="Type" style={{ gap: 8 }}>
+            <button type="button" className={`btn small${!types.length ? " primary" : ""}`} aria-pressed={!types.length} onClick={() => setTypes([])}>All ({all.filter((e) => pass(e, true)).length})</button>
+            {REC_TYPES.map((t) => <button key={t.type} type="button" className={`btn small${types.includes(t.type) ? " primary" : ""}`} aria-pressed={types.includes(t.type)} onClick={() => setTypes(types.includes(t.type) ? types.filter((x) => x !== t.type) : [...types, t.type])}>{t.label} ({all.filter((e) => e.type === t.type && pass(e, true)).length})</button>)}
+          </div>
+          <div style={{ position: "relative" }}>
+            <button type="button" className="btn primary" aria-expanded={adding} onClick={() => setAdding(!adding)}>+ Add</button>
+            {adding && (
+              <div role="menu" aria-label="Add a record" className="card pad stack" style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 5, minWidth: 240, gap: 4, boxShadow: "0 8px 24px rgba(0,0,0,.18)" }}>
+                {REC_TYPES.map((t) => <a key={t.type} role="menuitem" className="btn small" style={{ textAlign: "left" }} href={`#/aml/records/${t.form}?add=1`}>{t.add}</a>)}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="row-wrap" style={{ gap: 10, alignItems: "end" }}>
+          <div className="row-wrap" role="group" aria-label="Show" style={{ gap: 8 }}>
+            {([["all", "Everything"], ["upcoming", "Coming up"], ["attention", "Needs attention"]] as const).map(([k, l]) => <button key={k} type="button" className={`btn small${view === k ? " primary" : ""}`} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}
+          </div>
+          <label className="field"><span>Search</span><input className="input" value={q} onChange={(e) => setQ(e.target.value)} /></label>
+        </div>
+      </section>
+      <section className="card pad" aria-label="Timeline">
+        {shown.length === 0 ? <p style={{ margin: 0 }}>{all.length ? "Nothing matches." : "Nothing recorded yet. Use Add to start."}</p> : (
+          <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {shown.map((e) => {
+              const m = month(e.date), head = m !== last; last = m;
+              const t = REC_TYPES.find((x) => x.type === e.type)!;
+              const to = `#/aml/records/${e.form}${e.rec ? `?rec=${encodeURIComponent(e.rec)}` : ""}`;
+              return (
+                <li key={e.key}>
+                  {head && <h3 className="sec-h" style={{ margin: "14px 0 6px", fontSize: 14 }}>{m}</h3>}
+                  <div className="row-wrap" style={{ gap: 12, alignItems: "center", padding: "8px 0", borderTop: "1px solid var(--line, #e6e8ee)" }}>
+                    <span style={{ width: 92, flex: "none", fontVariantNumeric: "tabular-nums" }} className={e.upcoming ? "" : "muted"}>{e.date ? fmt(e.date) : "—"}</span>
+                    <span className="chip" style={{ flex: "none" }}>{t.label}</span>
+                    <span style={{ flex: "1 1 260px", minWidth: 0 }}><a href={to}><strong>{e.title}</strong></a>{e.detail && <div className="muted" style={{ fontSize: 12 }}>{e.detail}</div>}</span>
+                    <span className={`chip ${TONE_INK[e.tone]}`} style={{ flex: "none" }}>{e.chip}</span>
+                    <a className="btn small" href={to}>Open</a>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
+    </>
+  );
+}
+
 export function AmlPage() {
-  const { parts } = useRoute();
-  const tab = TABS.find(([k]) => k === parts[1])?.[0] || "overview";
-  const def = p.formById(tab);
+  const { parts, query } = useRoute();
+  // the old tabs (training, actions and so on) now live under Records; their links still work
+  const valid = (f?: string) => (REC_TYPES.some((t) => t.form === f) ? (f as string) : "");
+  const form = parts[1] === "records" ? valid(parts[2]) : valid(parts[1]);
+  const tab = form || parts[1] === "records" ? "records" : TABS.find(([k]) => k === parts[1])?.[0] || "overview";
+  const def = form ? p.formById(form) : p.formById(tab);
   let body: ReactNode;
   if (tab === "overview") body = <Overview />;
   else if (tab === "policies") body = <PolicyBuilder key="policies" cfg={POLICY_CFG} />;
@@ -468,8 +556,11 @@ export function AmlPage() {
   else if (tab === "clients") body = <AmlClients />;
   else if (tab === "checklist") body = <Checklist />;
   else if (tab === "forms") body = <BlankForms />;
-  else if (tab === "screening" && def) body = <><XamaScreening /><FormScreen key={def.id} def={def} /></>;
-  else body = def ? <FormScreen key={def.id} def={def} /> : null;
+  else if (tab === "records" && !form) body = <Records />;
+  else if (tab === "records" && def) {
+    const back = <a className="no-print" href="#/aml/records">‹ Back to the timeline</a>;
+    body = <>{back}{def.id === "screening" && <XamaScreening />}<FormScreen key={`${def.id}${query.get("rec") || ""}`} def={def} sel={query.get("rec") || ""} add={query.get("add") === "1"} /></>;
+  } else body = def ? <FormScreen key={def.id} def={def} /> : null;
   return (
     <div className="page">
       <div className="row-wrap no-print" role="tablist" aria-label="AML" style={{ gap: 8 }}>
