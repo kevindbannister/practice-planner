@@ -4558,6 +4558,14 @@
      "type": "text"
     },
     {
+     "name": "ApprovedHash",
+     "type": "text"
+    },
+    {
+     "name": "ApprovedModel",
+     "type": "note"
+    },
+    {
      "name": "FiledOn",
      "type": "text"
     },

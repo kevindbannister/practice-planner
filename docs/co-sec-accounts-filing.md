@@ -84,3 +84,21 @@ New lists (rows hold references and hashes, not documents): `PP Accounts Filings
 - [ ] Live presenter account obtained; production credentials set; live explicitly enabled
 
 Accounts filing status today: **not available. Test mode only, once built.**
+
+---
+
+# Phase 2: dormant accounts preparation (V24.1)
+
+**Implemented**
+- `lib/accounts/model.ts`: the structured accounts (`AccountsModel`), whole-pence integers, current and comparative balance sheet columns, share classes, statements, employees, signing. Canonical JSON and SHA-256 hash. Only `type: "dormant"` exists; the filing buttons for other types do not exist.
+- `lib/accounts/validate.ts` (level 1): balance sheet balances (never adjusted), net assets = assets less liabilities, funds = capital + reserves, dormant has no liabilities/reserves, comparatives present (not in a first period), comparative date before the period, capital unchanged between years, shares x nominal = called up, unpaid <= called up, note totals agree with the balance sheet, statements only if a person confirmed them, employees = 0, director chosen, approval date after the balance sheet date and a valid date. Each issue names its field.
+- Eligibility (`assess`) now also blocks LLP numbers (OC, SO, NC) and carries every accounts check as a blocker, so a set of accounts that fails validation cannot be prepared or approved. Existing checks kept: active company, period dates and length, period matches Companies House, duplicates, share issues/redemptions after incorporation, premium, dividends, transfers, paid/unpaid, comparatives, directors, human confirmation of "never traded / no significant transactions / small company regime". A company that has traded is not treated as dormant here: comparative disclosures for previously-trading dormant companies are not implemented, so it is blocked with the confirmation requirement, as the brief requires.
+- The PDF is now written only from the model (`accountsPdfFromModel`); no figure is calculated in the document code. Phase 3's iXBRL will use the same model, so they cannot disagree.
+- Approval is tied to the exact accounts: the approval stores a SHA-256 of the approvable accounts (signer and date excluded) and a copy of the approved model (`ApprovedHash`, `ApprovedModel` on PP CoSec Accounts, two new columns). If the accounts later hash differently, the screen shows "The accounts have changed since the director approved them", the approval can't be used, and "Withdraw the approval" (reason required, logged in the notes) sends the job back to Prepared.
+- New screen list "Accounts checks" under eligibility.
+
+**Tests**: `tests/accountsModel.test.ts` (10 tests), plus the existing dormant tests; app suite 1,329 pass. MCP schema copy regenerated.
+
+**Not done in Phase 2 (stated plainly)**: previously-trading dormant companies; storing the approval hash on the server (needs the server-side store decided in Phase 1); migration of existing `CoSecAccounts` rows into the new Phase 4/5 filing lists (those lists do not exist yet; existing rows are untouched and have no hash, so they are never flagged stale); a manual-entry form for opening balances without a share ledger (the model accepts figures, the screen still derives them from the ledger); an average-employees input (fixed at 0, which is the only valid value for dormant).
+
+**SharePoint**: two new columns on PP CoSec Accounts, added by Settings › Set up the lists. Non-destructive.
