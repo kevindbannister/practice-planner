@@ -2,7 +2,7 @@
 // review date) and, separately, what Xama holds. The Overview card summarises it. See lib/amlAssessment.ts.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Client, amlLabel, fmtDate, todayIso } from "../lib/domain";
-import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, assessmentExtras, declineAssessment, DD_LEVELS, DdLevel, STOP_REASONS, adoptOnboarding, stopAssessment, suggestedDd, discardAssessment, REASONS, reasonLabel, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
+import { Evidence, POSITION_CHIP, POSITION_LABEL, asStatus, approveAssessment, assessmentExtras, trustProblems, isTrust, TRUST_ROLES, declineAssessment, DD_LEVELS, DdLevel, STOP_REASONS, adoptOnboarding, stopAssessment, suggestedDd, discardAssessment, REASONS, reasonLabel, position, readAssessment, saveAssessment, startAssessment, withdrawAssessment } from "../lib/amlAssessment";
 import { CHECK_KINDS, Check, Owner, Risk, amlProblems, onboardingCan, readAml } from "../lib/onboarding";
 import { Choice } from "./Choice";
 import { completeShortReview, readShortReviews, shortFacts, shortQuestions } from "../lib/amlShortReview";
@@ -305,7 +305,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
   const individuals = people.filter((c) => isIndividual(c) && c.Key !== client.Key).sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
   const link = (i: number, key: string) => setOwners(owners.map((y, j) => (j === i ? (key ? { ...y, clientKey: key } : (({ clientKey: _k, ...rest }) => rest)(y)) : y)));
   const draft = { ...saved, risk, riskBasis: basis, owners: cleanOwners, noOwnerNote: noOwner, checks, pep };
-  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk), ...assessmentExtras({ risk, answers, checks, pep, ddLevel: dd }, tpl, policySof), ...screeningProblems(clientRow, risk, scrE.sp, all.filter((r) => r.Key !== row.Key), scrE.register, today, { company: isCo, draftChecks: checks }), ...matchProblems(clientRow, scrE.register)];
+  const problems = [...amlProblems(draft, type), ...templateProblems(tpl, answers), ...ratingProblems(tpl, answers, risk), ...trustProblems(client.Kind, { owners: owners.filter((x) => x.name.trim()), noOwnerNote: noOwner, checks }), ...assessmentExtras({ risk, answers, checks, pep, ddLevel: dd }, tpl, policySof), ...screeningProblems(clientRow, risk, scrE.sp, all.filter((r) => r.Key !== row.Key), scrE.register, today, { company: isCo, draftChecks: checks }), ...matchProblems(clientRow, scrE.register)];
   const setCheck = (i: number, p: Partial<Check>) => setChecks(checks.map((c, j) => (j === i ? { ...c, ...p } : c)));
   const run = async (w: ReturnType<typeof saveAssessment> | (() => Promise<ReturnType<typeof saveAssessment>>), ok: string) => {
     setBusy(true); setMsg(null);
@@ -374,11 +374,13 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
         )}
 
         <div className="stack" style={{ gap: 6 }}>
-          <strong>Beneficial owners{type === "limited" || type === "llp" ? "" : " (if any)"}</strong>
+          <strong>{isTrust(client.Kind) ? "Beneficial owners: the settlor, trustees, beneficiaries and anyone else with control" : `Beneficial owners${type === "limited" || type === "llp" ? "" : " (if any)"}`}</strong>
+          {isTrust(client.Kind) && <span className="muted" style={{ fontSize: 13 }}>For a trust, everyone in these roles is a beneficial owner whatever their share. Where the beneficiaries aren't named individuals, record the class (for example "the settlor's grandchildren"). A registrable trust must also show proof that it is on the Trust Registration Service: add that as a check below.</span>}
           {owners.map((x, i) => (
             <div className="inline-form" key={i}>
               <input className="input" aria-label="Owner name" placeholder="Name" value={x.name} onChange={(e) => setOwners(owners.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))} />
               <input className="input" style={{ width: 90 }} aria-label="Percentage held" type="number" min={0} max={100} placeholder="%" value={x.percent ?? ""} onChange={(e) => setOwners(owners.map((y, j) => (j === i ? { ...y, percent: e.target.value === "" ? null : Number(e.target.value) } : y)))} />
+              {isTrust(client.Kind) && <select className="input" style={{ maxWidth: 210 }} aria-label="Role in the trust" value={TRUST_ROLES.find((r) => x.note.toLowerCase().startsWith(r.toLowerCase())) || ""} onChange={(e) => { const old = TRUST_ROLES.find((r) => x.note.toLowerCase().startsWith(r.toLowerCase())); const rest = (old ? x.note.slice(old.length) : x.note).replace(/^[\s:,;-]+/, ""); setOwners(owners.map((y, j) => (j === i ? { ...y, note: e.target.value ? `${e.target.value}${rest ? `: ${rest}` : ""}` : rest } : y))); }}><option value="">Role in the trust…</option>{TRUST_ROLES.map((r) => <option key={r}>{r}</option>)}</select>}
               <input className="input" aria-label="Owner note" placeholder="Note (control, nationality…)" value={x.note} onChange={(e) => setOwners(owners.map((y, j) => (j === i ? { ...y, note: e.target.value } : y)))} />
               <button type="button" className="linkbtn danger-link" onClick={() => setOwners(owners.filter((_, j) => j !== i))}>Remove</button>
               {x.name.trim() && (() => { const c = oc.find((y) => y.owner === x) || ownerCover([x], people, String(client.Key))[0]; return (

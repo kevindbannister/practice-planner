@@ -71,7 +71,7 @@ export function approveAssessment(row: Row, client: Row, all: Row[], settings: O
   const a = readAssessment(row);
   if (independent && a.preparedBy && a.preparedBy === o.actor) return { error: "Someone else has to approve AML work you prepared." };
   const type: ClientType = clientTypeFor(str(client.Kind));
-  const bad = [...amlProblems(a, type), ...templateProblems(templateFor(type), a.answers), ...ratingProblems(templateFor(type), a.answers, a.risk), ...assessmentExtras(a, templateFor(type), policy.sof), ...(policy.screening ? [...screeningProblems(client, a.risk, policy.screening.sp, all, policy.screening.register, today, { company: type === "limited" || type === "llp" }), ...matchProblems(client, policy.screening.register)] : [])];
+  const bad = [...amlProblems(a, type), ...templateProblems(templateFor(type), a.answers), ...ratingProblems(templateFor(type), a.answers, a.risk), ...assessmentExtras(a, templateFor(type), policy.sof), ...trustProblems(client.Kind, a), ...(policy.screening ? [...screeningProblems(client, a.risk, policy.screening.sp, all, policy.screening.register, today, { company: type === "limited" || type === "llp" }), ...matchProblems(client, policy.screening.register)] : [])];
   if (bad.length) return { error: bad[0] };
   const review = addMonths(today, settings.amlMonths[a.risk as "low"], false);
   const older = all.filter((r) => r.ClientKey === row.ClientKey && r.Key !== row.Key && asStatus(r.Status) === "approved");
@@ -152,6 +152,28 @@ export const POSITION_CHIP: Record<Position["state"], string> = { none: "red", i
 export function assessmentExtras(a: { risk: string; answers: Ans; checks: Check[]; pep: Pep; ddLevel: DdLevel }, t: ReturnType<typeof templateFor>, sof: boolean): string[] {
   const edd = eddNeeded(t, a.answers);
   return [...pepProblems(a.pep, a.risk), ...eddProblems(edd || a.risk === "high" || a.pep.status === "yes", a.checks, sof), ...ddProblems(a.ddLevel, a.risk, edd, a.pep)];
+}
+
+// ------------------------------------------------------------------ trusts (MLR 2017 reg 6(1), reg 28(9) and reg 30A)
+
+/** The people who are a trust's beneficial owners. The one chosen is kept in the owner's note. */
+export const TRUST_ROLES = ["Settlor", "Trustee", "Beneficiary", "Class of beneficiaries", "Protector", "Other person with control"];
+export const isTrust = (kind: unknown): boolean => str(kind) === "Trust";
+/** A trust's beneficial owners are its settlor, trustees, beneficiaries (or the class of them) and anyone else with control, whatever share
+ *  each has. A registrable trust must also give proof that it is on the Trust Registration Service before the relationship starts. */
+export function trustProblems(kind: unknown, a: { owners: { name: string; note: string }[]; noOwnerNote: string; checks: Check[] }): string[] {
+  if (!isTrust(kind)) return [];
+  const out: string[] = [];
+  const named = a.owners.filter((o) => o.name.trim());
+  if (!named.length) out.push("Record the trust's beneficial owners: the settlor, every trustee, the beneficiaries (or the class of beneficiaries) and anyone else who controls it.");
+  else {
+    if (named.some((o) => !TRUST_ROLES.some((r) => o.note.toLowerCase().includes(r.toLowerCase())))) out.push("Say what each person is to the trust (settlor, trustee, beneficiary, protector or other person with control).");
+    if (!named.some((o) => /trustee/i.test(o.note))) out.push("Record at least one trustee.");
+  }
+  const trs = a.checks.find((c) => /trust registration/i.test(c.kind) && c.result === "pass");
+  if (!trs) out.push("Add a passed \"Trust Registration Service proof\" check: the trust's proof of registration, or in the note why it doesn't have to register.");
+  else if (!str(trs.note).trim()) out.push("On the Trust Registration Service check, note the proof seen (and its date), or why the trust doesn't have to register.");
+  return out;
 }
 
 // ------------------------------------------------------------------ due diligence can't be completed (MLR 2017 reg 31)

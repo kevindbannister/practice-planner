@@ -340,3 +340,16 @@ test("the server's approveAml runs the same rules as the screen (independent rev
   assert.ok(!("error" in w), w.error);
   assert.equal(w.patches.find((p: any) => p.list === "AmlAssessments").patch.ApprovedBy, "Bea");
 });
+
+test("a trust needs its settlor, trustees and beneficiaries recorded with their roles, and Trust Registration Service proof", async () => {
+  const { trustProblems } = await import("../src/lib/amlAssessment");
+  const chk = (note: string, result = "pass") => ({ id: "1", kind: "Trust Registration Service proof", result, at: "2026-11-01", by: "K", note }) as never;
+  assert.deepEqual(trustProblems("Ltd", { owners: [], noOwnerNote: "", checks: [] }), []);
+  const none = trustProblems("Trust", { owners: [], noOwnerNote: "", checks: [] });
+  assert.equal(none.length, 2); assert.match(none[0], /settlor/); assert.match(none[1], /Trust Registration Service/);
+  const noRole = trustProblems("Trust", { owners: [{ name: "Ann", note: "" }], noOwnerNote: "", checks: [chk("Proof of registration dated 1 Nov 2026")] });
+  assert.match(noRole[0], /what each person is/); assert.match(noRole[1], /at least one trustee/);
+  assert.match(trustProblems("Trust", { owners: [{ name: "Ann", note: "Trustee" }], noOwnerNote: "", checks: [chk("")] })[0], /note the proof/);
+  assert.match(trustProblems("Trust", { owners: [{ name: "Ann", note: "Trustee" }], noOwnerNote: "", checks: [chk("x", "pending")] })[0], /Add a passed/);
+  assert.deepEqual(trustProblems("Trust", { owners: [{ name: "Ann", note: "Trustee: UK resident" }, { name: "Bob", note: "Settlor" }, { name: "The grandchildren", note: "Class of beneficiaries" }], noOwnerNote: "", checks: [chk("Not registrable: bare trust excluded, see file note")] }), []);
+});
