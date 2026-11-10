@@ -126,13 +126,18 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
 
 // ------------------------------------------------------------------ financial tables
 
-const COLS: [string, string][] = [["this", "This period"], ["prior", "Last period"], ["lastYear", "Same period last year"], ["var", "Variance £"], ["varPct", "Variance %"], ["pctRev", "% of revenue"], ["yearEnd", "Last financial year end (balance sheet)"], ["months", "Every month of the year (instead of the others)"]];
+const COLS: [string, string][] = [["this", "This period"], ["prior", "Last period"], ["lastYear", "Same period last year"], ["ytd", "Financial year to date (profit and loss)"], ["ytdLast", "Year to date last year (profit and loss)"], ["var", "Variance £"], ["varPct", "Variance %"], ["pctRev", "% of revenue"], ["yearEnd", "Last financial year end (balance sheet)"], ["months", "Every month of the year (instead of the others)"]];
 
 function one(b: B<"table">, c: Ctx, which: "pl" | "bs") {
   const keys = new Set(tableCols(b));
   const base = (compare: "none" | "prior" | "lastYear" | "months", i: number) => periodCols(c.kind, c.anchor, c.endMonth, compare)[i];
   const monthly = keys.has("months");
   let cols = monthly ? periodCols(c.kind, c.anchor, c.endMonth, "months") : [keys.has("this") && base("none", 0), keys.has("prior") && base("prior", 1), keys.has("lastYear") && base("lastYear", 1)].filter(Boolean) as ReturnType<typeof periodCols>;
+  if (!cols.length && !(which === "pl" && (keys.has("ytd") || keys.has("ytdLast")))) cols = [base("none", 0)];
+  // the year to date so far (this financial year up to the month), and the same months a year earlier: profit and loss only
+  const ytdOn = !monthly && which === "pl";
+  if (ytdOn && keys.has("ytd")) cols = [...cols, { ...periodCols("year", c.anchor, c.endMonth, "none")[0], key: "ytd" }];
+  if (ytdOn && keys.has("ytdLast")) cols = [...cols, { ...periodCols("year", c.anchor, c.endMonth, "lastYear")[1], key: "ytdLast" }];
   if (!cols.length) cols = [base("none", 0)];
   if (!monthly && which === "bs" && keys.has("yearEnd")) cols = [...cols, yearEndCol(c.anchor, c.endMonth)];
   const hidden = new Set(b.hidden || []);
@@ -140,9 +145,18 @@ function one(b: B<"table">, c: Ctx, which: "pl" | "bs") {
   const rows = (which === "pl" ? plStatement(c.d, cols, b.detail, layout) : bsStatement(c.d, cols, b.detail, layout))
     .filter((r) => (r.kind !== "line" || r.code === undefined || r.vals.some((v) => v)) && !hidden.has(r.label))
     .filter((r) => !noZero || r.kind !== "line" || r.pct || r.vals.some((v) => v));
-  const showVar = !monthly && cols.length >= 2;
+  // variances are worked between a period and the one it is compared with: the month and its comparison, and the year to date and its comparison
+  const at = (k: string) => cols.findIndex((x) => x.key === k);
+  const groups: { a: number; b: number }[] = [];
+  if (!monthly) {
+    if (cols.some((x) => x.key === "ytd" || x.key === "ytdLast")) {
+      if (cols[0]?.key === "cur" && (cols[1]?.key === "prior" || cols[1]?.key === "lastYear")) groups.push({ a: 0, b: 1 });
+      if (at("ytd") >= 0 && at("ytdLast") >= 0) groups.push({ a: at("ytd"), b: at("ytdLast") });
+    } else if (cols.length >= 2) groups.push({ a: 0, b: 1 });
+  }
+  const showVar = groups.length > 0;
   const revenue = figuresFor(c.d, cols[0].months).revenue;
-  return { cols, rows, showVar, varCols: showVar && keys.has("var"), pctCols: showVar && keys.has("varPct"), pctRev: !monthly && which === "pl" && keys.has("pctRev"), revenue };
+  return { cols, rows, showVar, groups, varCols: showVar && keys.has("var"), pctCols: showVar && keys.has("varPct"), pctRev: !monthly && which === "pl" && keys.has("pctRev"), revenue };
 }
 
 // the management accounts table: negatives in brackets, £ or £000, percentages from the column totals, variances beside the comparison,
@@ -154,13 +168,13 @@ function MgmtTable({ b, c, which }: { b: B<"table">; c: Ctx; which: "pl" | "bs" 
   const amt = (v?: number) => { if (v === undefined) return ""; const n = Math.round(k ? v / 1000 : v); return n === 0 ? "–" : n < 0 ? `(${Math.abs(n).toLocaleString("en-GB")})` : n.toLocaleString("en-GB"); };
   const per = (v?: number) => (v === undefined ? "" : v < 0 ? `(${Math.abs(v).toFixed(1)}%)` : `${v.toFixed(1)}%`);
   const monthly = t.cols.length > 6;
-  const vAt = t.showVar ? 2 : -1; // the variance columns sit straight after the comparison they are worked from
-  const [vHead, pHead] = t.cols[1]?.key === "lastYear" ? ["Change", "YoY %"] : t.cols[1]?.key === "prior" ? ["Movement", "Movement %"] : ["Variance", "Variance %"];
+  // the variance columns sit straight after the comparison they are worked from
+  const heads = (g: { b: number }) => (t.cols[g.b]?.key === "lastYear" || t.cols[g.b]?.key === "ytdLast" ? ["Change", "YoY %"] : t.cols[g.b]?.key === "prior" ? ["Movement", "Movement %"] : ["Variance", "Variance %"]);
+  const groupAfter = (j: number) => t.groups.find((g) => g.b === j);
   const size = monthly ? (c.land ? 8.6 : 7.2) : c.land ? 11 : 9.6;
   const th: React.CSSProperties = { ...T.th, fontSize: size, padding: monthly ? "4px 3px" : "5px 6px", color: NAVY, borderBottom: `1.5px solid ${NAVY}`, whiteSpace: "normal", verticalAlign: "bottom" };
-  const varCells = (row: StRow) => {
-    if (!t.showVar) return null;
-    const v0 = row.vals[0], v1 = row.vals[1], head = row.kind === "head";
+  const varCells = (row: StRow, g: { a: number; b: number }) => {
+    const v0 = row.vals[g.a], v1 = row.vals[g.b], head = row.kind === "head";
     if (head || v0 === undefined || v1 === undefined) return <>{t.varCols && <td style={T.td} />}{t.pctCols && <td style={T.td} />}</>;
     const ch = (v0 as number) - (v1 as number);
     const pc = row.pct ? undefined : v1 ? (ch / Math.abs(v1 as number)) * 100 : undefined;
@@ -178,10 +192,9 @@ function MgmtTable({ b, c, which }: { b: B<"table">; c: Ctx; which: "pl" | "bs" 
       <thead><tr>
         <th style={{ ...th, textAlign: "left", width: monthly ? "19%" : "34%" }}>{k ? "£000" : "£"}</th>
         {t.cols.map((col, j) => <Fragment key={col.key}>
-          {j === vAt && <>{t.varCols && <th style={th}>{vHead}</th>}{t.pctCols && <th style={th}>{pHead}</th>}</>}
           <th style={{ ...th, ...(col.total ? { borderLeft: `1px solid ${RULE}` } : {}) }}>{col.label}</th>
+          {(() => { const g = groupAfter(j); return g && <>{t.varCols && <th style={th}>{heads(g)[0]}</th>}{t.pctCols && <th style={th}>{heads(g)[1]}</th>}</>; })()}
         </Fragment>)}
-        {vAt >= t.cols.length && <>{t.varCols && <th style={th}>{vHead}</th>}{t.pctCols && <th style={th}>{pHead}</th>}</>}
       </tr></thead>
       <tbody>
         {t.rows.map((row, i) => {
@@ -194,10 +207,9 @@ function MgmtTable({ b, c, which }: { b: B<"table">; c: Ctx; which: "pl" | "bs" 
             <tr key={i} style={rs}>
               <td style={{ ...T.td, textAlign: "left", padding: pad, paddingLeft: row.kind === "line" && row.code !== undefined ? 14 : 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: head ? NAVY : undefined }}>{row.label}</td>
               {t.cols.map((col, j) => <Fragment key={col.key}>
-                {j === vAt && varCells(row)}
                 <td style={{ ...T.td, padding: pad, whiteSpace: "nowrap", ...(col.total ? { borderLeft: `1px solid ${RULE}`, fontWeight: 700 } : {}) }}>{head ? "" : row.pct ? per(row.vals[j]) : amt(row.vals[j])}</td>
+                {(() => { const g = groupAfter(j); return g ? varCells(row, g) : null; })()}
               </Fragment>)}
-              {vAt >= t.cols.length && varCells(row)}
             </tr>
           );
         })}
@@ -234,7 +246,8 @@ export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
             <tbody>
               {t.rows.map((row, i) => {
                 const strong = row.kind !== "line", head = row.kind === "head";
-                const v0 = row.vals[0], v1 = row.vals[1];
+                const ga = t.groups[0]?.a ?? 0, gb = t.groups[0]?.b ?? 1;
+                const v0 = row.vals[ga], v1 = row.vals[gb];
                 const v = t.showVar && v0 !== undefined && v1 !== undefined ? Math.round((v0 as number) - (v1 as number)) : undefined;
                 const pc = v1 ? `${Math.round((((v0 as number) - (v1 as number)) / Math.abs(v1 as number)) * 100)}%` : "";
                 const rule = strong ? "1px solid #111" : "1px solid #e6e6ea";
