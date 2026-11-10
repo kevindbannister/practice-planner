@@ -35,6 +35,8 @@ export function TodayView() {
   const [error, setError] = useState<string>();
   const [note, setNote] = useState<string>();
   const [allChase, setAllChase] = useState(false);
+  const [reviewRoll, setReviewRoll] = useState(false);
+  const [rollSelection, setRollSelection] = useState<string[]>([]);
 
   const { today, work, dh, capacity, input } = useTodayModel();
   const t = buildToday(input);
@@ -43,6 +45,16 @@ export function TodayView() {
   const hhmm = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   const unfinished = [...t.lines].filter((l) => l.planned === today || (l.planned && l.planned < today));
   const nextDay = nextClientDay(today, (d) => capacity(d));
+  const rollKey = (l: Line) => `${l.kind}:${l.key}`;
+  const selectedRoll = unfinished.filter((l) => rollSelection.includes(rollKey(l)));
+  const blockedRoll = unfinished.filter((l) => l.blocked).length;
+  const selectedHours = selectedRoll.reduce((sum, l) => sum + l.hours, 0);
+  const nextDayPlanned = work.filter((w) => !w.held && !w.blocked && w.planned === nextDay && !rollSelection.includes(rollKey(w))).reduce((sum, w) => sum + w.hours, 0);
+  const nextDayCapacity = nextDay ? capacity(nextDay) : 0;
+  const openRollReview = () => {
+    setRollSelection(unfinished.filter((l) => !l.blocked).map(rollKey));
+    setReviewRoll(true);
+  };
 
   const run = async (work: () => Promise<void>, message?: string) => {
     setBusy(true); setError(undefined); setNote(undefined); setMoved(undefined);
@@ -57,15 +69,16 @@ export function TodayView() {
     if (!nextDay) return;
     const done: { kind: "job" | "task"; key: string; before: Row }[] = [];
     try {
-      for (const l of unfinished) {
+      for (const l of selectedRoll) {
         const row = rowOf(l);
         await update(list(l), row, { PlannedDate: nextDay, DayOrder: "", StartTime: "" });
         done.push({ kind: l.kind, key: l.key, before: { PlannedDate: row.PlannedDate || "", DayOrder: row.DayOrder ?? "", StartTime: row.StartTime || "" } });
       }
     } finally {
       setMoved(done.length ? done : undefined);
+      setReviewRoll(false);
     }
-  }, nextDay ? `${unfinished.length} moved to ${fmtDate(nextDay, { weekday: true, year: false })}.` : undefined);
+  }, nextDay ? `${selectedRoll.length} moved to ${fmtDate(nextDay, { weekday: true, year: false })}.` : undefined);
   const undoMove = () => run(async () => {
     for (const m of moved || []) {
       const row = (m.kind === "job" ? data.jobs : data.tasks).find((r) => r.Key === m.key);
@@ -138,11 +151,29 @@ export function TodayView() {
         <div className="card-head">
           <h2 id="td-plan">{cap > 0 || t.lines.length ? "Your day" : "Nothing for clients today"}</h2>
           {unfinished.length > 0 && nextDay && (
-            <button type="button" className="btn small" disabled={busy} onClick={rollForward} title="End of day: moves what you didn't finish to the next client day">
+            <button type="button" className="btn small" disabled={busy} onClick={openRollReview} title="Review unfinished work before deciding what to move">
               Roll unfinished to {fmtDate(nextDay, { weekday: true, year: false }).split(" ")[0]}
             </button>
           )}
         </div>
+        {reviewRoll && nextDay && (
+          <div className="stack" style={{ padding: 16, gap: 10 }}>
+            <strong>Review unfinished work before moving to {fmtDate(nextDay, { weekday: true, year: false })}</strong>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>Choose what you can actually work on. Waiting or blocked items are not selected by default. {blockedRoll ? `${blockedRoll} blocked item(s) need review.` : ""}</p>
+            {unfinished.map((l) => (
+              <label key={rollKey(l)} className="row-wrap" style={{ gap: 8, fontSize: 13 }}>
+                <input type="checkbox" checked={rollSelection.includes(rollKey(l))} onChange={(e) => setRollSelection((old) => e.target.checked ? [...old, rollKey(l)] : old.filter((key) => key !== rollKey(l)))} />
+                <span>{l.client || l.title}{l.client ? ` · ${l.title}` : ""} · {fmtHours(l.hours)}{l.blocked ? ` · ${l.blockedWhy || "Blocked"}` : ""}</span>
+              </label>
+            ))}
+            <span className="muted" style={{ fontSize: 13 }}>{selectedRoll.length} selected · {fmtHours(selectedHours)} to move. Next day: {fmtHours(nextDayPlanned + selectedHours) || "0h"} planned against {fmtHours(nextDayCapacity) || "0h"} capacity.</span>
+            {nextDayPlanned + selectedHours > nextDayCapacity && <p className="error-text" role="alert" style={{ margin: 0 }}>This would overload the next day. Deselect some work or reschedule it individually.</p>}
+            <div className="row-wrap" style={{ gap: 8 }}>
+              <button type="button" className="btn primary small" disabled={busy || selectedRoll.length === 0 || nextDayPlanned + selectedHours > nextDayCapacity} onClick={() => void rollForward()}>Move selected</button>
+              <button type="button" className="btn small" disabled={busy} onClick={() => setReviewRoll(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
         {t.lines.length ? <ul className="today-list">{t.lines.map((l) => row(l))}</ul> : <p className="muted" style={{ margin: 0, padding: "0 16px 16px" }}>Nothing is planned for today.</p>}
         {t.suggested.length > 0 && (
           <>
