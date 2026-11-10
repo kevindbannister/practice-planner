@@ -5025,6 +5025,164 @@
    ]
   },
   {
+   "key": "PlanSessions",
+   "displayName": "PP Planning Sessions",
+   "description": "planned sessions of work on jobs and tasks (kept permanently)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Kind",
+     "type": "text"
+    },
+    {
+     "name": "ItemKey",
+     "type": "text"
+    },
+    {
+     "name": "ClientKey",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "UserKey",
+     "type": "text"
+    },
+    {
+     "name": "PlannedDate",
+     "type": "text"
+    },
+    {
+     "name": "PlannedStart",
+     "type": "text"
+    },
+    {
+     "name": "PlannedMinutes",
+     "type": "number"
+    },
+    {
+     "name": "ActualMinutes",
+     "type": "number"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "Outcome",
+     "type": "note"
+    },
+    {
+     "name": "OriginalKey",
+     "type": "text"
+    },
+    {
+     "name": "ReplacedByKey",
+     "type": "text"
+    },
+    {
+     "name": "Reason",
+     "type": "note"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "UpdatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    }
+   ]
+  },
+  {
+   "key": "PlanEvents",
+   "displayName": "PP Planning History",
+   "description": "the permanent history of changes to planned sessions (never edited)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "BatchKey",
+     "type": "text"
+    },
+    {
+     "name": "Group",
+     "type": "text"
+    },
+    {
+     "name": "SessionKey",
+     "type": "text"
+    },
+    {
+     "name": "ItemKey",
+     "type": "text"
+    },
+    {
+     "name": "EventType",
+     "type": "text"
+    },
+    {
+     "name": "PreviousState",
+     "type": "note"
+    },
+    {
+     "name": "NewState",
+     "type": "note"
+    },
+    {
+     "name": "Reason",
+     "type": "note"
+    },
+    {
+     "name": "Result",
+     "type": "text"
+    },
+    {
+     "name": "RelatedKey",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
    "key": "CustomValues",
    "displayName": "PP Custom Values",
    "description": "values of the practice's own fields on clients and jobs",

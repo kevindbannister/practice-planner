@@ -52,6 +52,7 @@ f("run.plan.months", "run.plan", "Months ahead", "Hours due against hours availa
 f("run.plan.deadlines", "run.plan", "Deadlines list", "A printable list of deadlines.", ["ui:DeadlinesView", "ui:DoneView"], { s: "ID" });
 f("run.plan.hours", "run.plan", "Hours view", "Hours planned against capacity.", ["ui:HoursView"]);
 f("run.plan.time", "run.plan", "Time spent and job time", "How long finished work took, stage by stage against budget.", ["ui:TimeSpent", "ui:JobTime", "lib:timeSpent", "lib:jobTime", "test:timeSpent", "test:jobTime"]);
+f("run.plan.sessions", "run.plan", "Planning sessions and history", "Sessions of work on a job, moving work without losing the original, end of day review, permanent history and undo.", ["ui:EndOfDay", "ui:PlanningHistory", "ui:usePlanning", "lib:planSessions", "lib:planApply"]),
 f("run.plan.calendar", "run.plan", "Outlook calendar", "Meetings reduce each day's hours; planned work is kept in the calendar.", ["ui:Calendar", "lib:calendar", "test:calendar"]);
 f("run.plan.routines", "run.plan", "Routine work", "Weekly and monthly routines that repeat.", ["ui:Routines", "lib:routines", "test:routines"]);
 f("run.plan.projects", "run.plan", "Business projects", "Work on the practice itself (marketing, systems, recruiting).", ["ui:ProjectsView", "lib:projects", "test:projects"]);

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, holdLabel, isOnHold, todayIso } from "../lib/domain";
 import { addDays, weekday } from "../lib/planning";
 import { dayHours, typeOn, usualTypeKey } from "../lib/dayTypes";
-import { Line, Work, buildToday, nextClientDay } from "../lib/today";
+import { Line, Work, buildToday } from "../lib/today";
 import { isBusinessTask } from "../lib/projects";
 import { waitingForRecords } from "../lib/chase";
 import { inFinalise, planHours, waitingForClient } from "../lib/waiting";
@@ -20,6 +20,7 @@ import { useTodayModel } from "./useTodayModel";
 import { ConflictCard, useMakeClientDay } from "./Conflicts";
 import { TimeToLog } from "./TimeSpent";
 import { ProjectsToLookAt } from "./ProjectsView";
+import { EndOfDay } from "./EndOfDay";
 
 const CHASE_SHOWN = 5;
 
@@ -41,38 +42,15 @@ export function TodayView() {
   const cap = weekday(today) <= 5 ? capacity(today) : 0;
   const meetings = cal.eventsOn(today).filter((e) => !e.allDay).sort((a, b) => a.start.getTime() - b.start.getTime());
   const hhmm = (d: Date) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  const unfinished = [...t.lines].filter((l) => l.planned === today || (l.planned && l.planned < today));
-  const nextDay = nextClientDay(today, (d) => capacity(d));
 
   const run = async (work: () => Promise<void>, message?: string) => {
-    setBusy(true); setError(undefined); setNote(undefined); setMoved(undefined);
+    setBusy(true); setError(undefined); setNote(undefined);
     try { await work(); if (message) setNote(message); } catch { setError("Couldn't save all of that. Check the list and try again."); } finally { setBusy(false); }
   };
   const openLine = (l: Line) => open(l.kind === "job" ? { kind: "job", key: l.key } : { kind: "task", key: l.key });
   const rowOf = (l: Line) => (l.kind === "job" ? data.jobs : data.tasks).find((r) => r.Key === l.key)!;
   const list = (l: Line) => (l.kind === "job" ? "Jobs" : "Tasks");
   const addToToday = (l: Line) => run(() => update(list(l), rowOf(l), { PlannedDate: today }), `${l.client || l.title} added to today.`);
-  const [moved, setMoved] = useState<{ kind: "job" | "task"; key: string; before: Row }[]>();
-  const rollForward = () => run(async () => {
-    if (!nextDay) return;
-    const done: { kind: "job" | "task"; key: string; before: Row }[] = [];
-    try {
-      for (const l of unfinished) {
-        const row = rowOf(l);
-        await update(list(l), row, { PlannedDate: nextDay, DayOrder: "", StartTime: "" });
-        done.push({ kind: l.kind, key: l.key, before: { PlannedDate: row.PlannedDate || "", DayOrder: row.DayOrder ?? "", StartTime: row.StartTime || "" } });
-      }
-    } finally {
-      setMoved(done.length ? done : undefined);
-    }
-  }, nextDay ? `${unfinished.length} moved to ${fmtDate(nextDay, { weekday: true, year: false })}.` : undefined);
-  const undoMove = () => run(async () => {
-    for (const m of moved || []) {
-      const row = (m.kind === "job" ? data.jobs : data.tasks).find((r) => r.Key === m.key);
-      if (row) await update(m.kind === "job" ? "Jobs" : "Tasks", row, m.before);
-    }
-    setMoved(undefined);
-  }, "Put back where they were.");
   const mk = useMakeClientDay();
 
   const row = (l: Line, action?: { label: string; on: () => void }) => (
@@ -112,7 +90,6 @@ export function TodayView() {
         {note && (
           <div className="alert row-wrap" role="status" style={{ borderColor: "var(--green)", justifyContent: "space-between" }}>
             <strong>{note}</strong>
-            {moved && <button type="button" className="btn small" disabled={busy} onClick={() => void undoMove()}>Undo</button>}
           </div>
         )}
         {error && <div className="alert red" role="alert"><strong>{error}</strong></div>}
@@ -137,11 +114,6 @@ export function TodayView() {
       <section className="card" aria-labelledby="td-plan">
         <div className="card-head">
           <h2 id="td-plan">{cap > 0 || t.lines.length ? "Your day" : "Nothing for clients today"}</h2>
-          {unfinished.length > 0 && nextDay && (
-            <button type="button" className="btn small" disabled={busy} onClick={rollForward} title="End of day: moves what you didn't finish to the next client day">
-              Roll unfinished to {fmtDate(nextDay, { weekday: true, year: false }).split(" ")[0]}
-            </button>
-          )}
         </div>
         {t.lines.length ? <ul className="today-list">{t.lines.map((l) => row(l))}</ul> : <p className="muted" style={{ margin: 0, padding: "0 16px 16px" }}>Nothing is planned for today.</p>}
         {t.suggested.length > 0 && (
@@ -151,6 +123,8 @@ export function TodayView() {
           </>
         )}
       </section>
+
+      <EndOfDay />
 
       {t.business.length > 0 && (
         <section className="card" aria-labelledby="td-biz">

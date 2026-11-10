@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "AmlRecords" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions" | "HmrcFilings" | "HmrcFilingLog"
+  | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "AmlRecords" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "PlanSessions" | "PlanEvents" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions" | "HmrcFilings" | "HmrcFilingLog"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -454,6 +454,16 @@ export const LISTS: ListDef[] = [
     // Time worked on a job, by stage: from the timer or typed in. One running timer at a time (a row with no Ended).
     key: "JobTime", displayName: "PP Job Time", description: "Practice Planner: time worked on each job by stage (timer and manual entries)",
     columns: [t("Key", true), t("PracticeId", true), t("JobKey", true), t("ClientKey", true), n("StageNo"), t("StageName"), t("Started"), t("Ended"), n("Hours"), t("Kind"), note("Note"), t("CreatedBy"), t("Created")],
+  },
+  {
+    // A plan to spend time on a job or task on a day. One job has many; one that doesn't happen stays on record and a new linked one (OriginalKey) takes the rest. Version is checked before every change. See lib/planSessions.ts.
+    key: "PlanSessions", displayName: "PP Planning Sessions", description: "Practice Planner: planned sessions of work on jobs and tasks (kept permanently)",
+    columns: [t("Key", true), t("PracticeId", true), t("Kind"), t("ItemKey", true), t("ClientKey", true), t("Title"), t("UserKey", true), t("PlannedDate", true), t("PlannedStart"), n("PlannedMinutes"), n("ActualMinutes"), t("Status", true), note("Outcome"), t("OriginalKey", true), t("ReplacedByKey"), note("Reason"), note("Notes"), t("Created"), t("CreatedBy"), t("Updated"), t("UpdatedBy"), n("Version")],
+  },
+  {
+    // Append-only: every change to a session, with what it was before and after. Rows are never edited or deleted; an undo adds new rows. See lib/planSessions.ts.
+    key: "PlanEvents", displayName: "PP Planning History", description: "Practice Planner: the permanent history of changes to planned sessions (never edited)",
+    columns: [t("Key", true), t("PracticeId", true), t("BatchKey", true), t("Group", true), t("SessionKey", true), t("ItemKey", true), t("EventType"), note("PreviousState"), note("NewState"), note("Reason"), t("Result"), t("RelatedKey", true), t("Created"), t("CreatedBy")],
   },
   {
     // Values of the practice's own custom fields, one row per client or job. Json maps field key to value. The fields themselves are the Settings key custom-fields.
