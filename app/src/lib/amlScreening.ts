@@ -34,6 +34,19 @@ export function screening(client: Row, risk: string, sp: ScreeningPolicy, assess
   return { ...last, due, months, days: Math.round((Date.parse(`${due}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000) };
 }
 
+/** How a client's sanctions and PEP screening stands, for showing: green when it's within the policy period, amber in the last 30 days before it
+ *  is due, red when it's overdue, has never been done, or found a possible match. `line` says when it was done and when the next is due. */
+export type ScreenStatus = { tone: "green" | "amber" | "red"; label: string; line: string };
+export function screeningStatus(s: Screened, fmt: (iso: string) => string): ScreenStatus {
+  const plural = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
+  if (s.match) return { tone: "red", label: "Possible match", line: s.on ? `Screened ${fmt(s.on)}: look at it and record the outcome in the Screening register.` : "Look at it and record the outcome in the Screening register." };
+  if (!s.on || s.days === null) return { tone: "red", label: "Not screened", line: "No sanctions and PEP screening on record yet." };
+  const done = `Screened ${fmt(s.on)}`;
+  if (s.days < 0) return { tone: "red", label: `Overdue ${plural(-s.days)}`, line: `${done}. Re-screen was due ${fmt(s.due)}.` };
+  if (s.days <= 30) return { tone: "amber", label: `Due in ${plural(s.days)}`, line: `${done}. Next due ${fmt(s.due)}.` };
+  return { tone: "green", label: "Up to date", line: `${done}. Next due ${fmt(s.due)} (in ${plural(s.days)}).` };
+}
+
 type Reg = { values: Record<string, unknown> }[];
 const regFor = (client: Row, register: Reg) => register.filter((r) => str(r.values.client) === client.Key);
 

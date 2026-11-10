@@ -54,3 +54,18 @@ test("a possible Xama match blocks until the register clears it; a confirmed mat
   assert.match(matchProblems({ Key: "M3" } as any, [{ values: { client: "M3", on: "2026-11-02", result: "Possible match" } }])[0], /under review/);
   assert.deepEqual(matchProblems({ Key: "M4", XamaAmlCheck: "done|2026-11-01|0|0" } as any, []), []);
 });
+
+test("screening status: green when current, amber in the last 30 days, red when overdue, never done or a possible match", async () => {
+  const { screeningStatus } = await import("../src/lib/amlScreening");
+  const f = (iso: string) => iso;
+  const base = { on: "2026-01-10", via: "Xama", due: "2027-01-10", days: 61, months: 12, match: false };
+  assert.deepEqual([screeningStatus(base, f).tone, screeningStatus(base, f).label], ["green", "Up to date"]);
+  assert.match(screeningStatus(base, f).line, /Next due 2027-01-10 \(in 61 days\)/);
+  assert.deepEqual([screeningStatus({ ...base, days: 30 }, f).tone, screeningStatus({ ...base, days: 30 }, f).label], ["amber", "Due in 30 days"]);
+  assert.equal(screeningStatus({ ...base, days: 0 }, f).tone, "amber");
+  assert.equal(screeningStatus({ ...base, days: 1 }, f).label, "Due in 1 day");
+  const late = screeningStatus({ ...base, days: -3 }, f);
+  assert.deepEqual([late.tone, late.label], ["red", "Overdue 3 days"]);
+  assert.equal(screeningStatus({ ...base, on: "", due: "", days: null }, f).tone, "red");
+  assert.equal(screeningStatus({ ...base, match: true }, f).label, "Possible match");
+});

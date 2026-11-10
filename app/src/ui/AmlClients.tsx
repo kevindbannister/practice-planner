@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { POSITION_LABEL, position, readAssessment, startAssessment } from "../lib/amlAssessment";
 import { lastApprovedAt, raiseReview, readReviewPolicy, seenTriggers, triggerOf } from "../lib/amlReview";
 import { idStampRead } from "../lib/xamaActions";
-import { Screened, screening } from "../lib/amlScreening";
+import { Screened, screening, screeningStatus } from "../lib/amlScreening";
 import { idRecheckDue, idRefreshPolicy, screeningPolicy } from "../lib/amlPolicy";
 import { storeFrom } from "../lib/amlPack";
 import { useSeals } from "./sealKit";
@@ -87,7 +87,7 @@ export function AmlClients() {
 
   return (
     <>
-      <div className="page-head"><div><h1>Client AML tracker</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 780 }}>Every active client's AML position in one place: risk rating, when it was last done, when the next review is due and whether a review has been triggered. Review periods and triggers come from your policy's monitoring step.</p></div></div>
+      <div className="page-head"><div><h1>Client AML tracker</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 780 }}>Every active client's AML position in one place: risk rating, when it was last done, when the next review is due and whether a review has been triggered. Sanctions and PEP shows green when the client's screening is within your policy period, amber in the last 30 days before the re-screen is due, and red when it is overdue, has never been done or found a possible match. Review periods and triggers come from your policy's monitoring step.</p></div></div>
       <section className="card pad stack" aria-label="Filters">
         <div className="row-wrap no-print" role="group" aria-label="Show" style={{ gap: 8 }}>
           {FILTERS.map(([k, l]) => <button key={k} type="button" className={`btn small${filter === k ? " primary" : ""}`} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l} ({count(k)})</button>)}
@@ -115,10 +115,9 @@ export function AmlClients() {
                   <td>{i.doneOn ? fmtDate(i.doneOn) : "—"}</td>
                   <td>{i.idDue && <div style={{ fontSize: 12, ...(i.idDue < today ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : { color: "var(--muted)" }) }}>{i.idDue < today ? `ID re-check overdue (${fmtDate(i.idDue)})` : `Re-check by ${fmtDate(i.idDue)}`}</div>}{i.idOn ? fmtDate(i.idOn) : i.xid.state === "done" && i.xid.on ? <>{fmtDate(i.xid.on)}<div className="muted" style={{ fontSize: 12 }}>via Xama</div></> : i.xid.state === "waiting" ? <span style={{ color: "var(--amber-ink)" }}>Asked in Xama, waiting</span> : i.xid.state === "check" ? <span style={{ color: "var(--amber-ink)" }}>Xama: check the result</span> : "—"}</td>
                   <td style={i.xamaWarn ? { color: "var(--amber-ink)" } : undefined}>{i.xama}</td>
-                  <td>{i.scr.on ? <>{fmtDate(i.scr.on)}<div className="muted" style={{ fontSize: 12 }}>via {i.scr.via}</div>
-                    {i.scr.match && <div style={{ fontSize: 12, color: "var(--red-ink, #b42318)", fontWeight: 600 }}>Possible match: review it</div>}
-                    <div style={{ fontSize: 12, ...(i.scr.days !== null && i.scr.days < 0 ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : i.scr.days !== null && i.scr.days <= 30 ? { color: "var(--amber-ink)" } : { color: "var(--muted)" }) }}>{i.scr.days !== null && i.scr.days < 0 ? `Re-screen overdue (${fmtDate(i.scr.due)})` : `Next by ${fmtDate(i.scr.due)}`}</div></> : <span style={{ color: "var(--amber-ink)" }}>Not screened</span>}</td>
-                  <td style={i.state === "overdue" ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : undefined}>{i.next ? fmtDate(i.next) : "—"}{i.days !== null && i.days < 0 ? <div style={{ fontSize: 12 }}>{-i.days} days overdue</div> : i.days !== null && i.days <= 60 ? <div className="muted" style={{ fontSize: 12 }}>in {i.days} days</div> : null}{i.suspect && <FixDate client={i.row} />}</td>
+                  <td>{(() => { const st = screeningStatus(i.scr, fmtDate); return <><span className={`chip ${st.tone}`}>{st.label}</span>{i.scr.on && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Screened {fmtDate(i.scr.on)} via {i.scr.via}</div>}{i.scr.due && <div style={{ fontSize: 12, color: st.tone === "red" ? "var(--red-ink, #b42318)" : st.tone === "amber" ? "var(--amber-ink)" : "var(--green)", fontWeight: 600 }}>{i.scr.days !== null && i.scr.days < 0 ? "Was due" : "Next due"} {fmtDate(i.scr.due)}</div>}</>; })()}
+                  </td>
+                  <td style={i.state === "overdue" ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : i.state === "current" && i.next ? { color: "var(--green)", fontWeight: 600 } : undefined}>{i.next ? fmtDate(i.next) : "—"}{i.days !== null && i.days < 0 ? <div style={{ fontSize: 12 }}>{-i.days} days overdue</div> : i.days !== null && i.days <= 60 ? <div className="muted" style={{ fontSize: 12 }}>in {i.days} days</div> : null}{i.suspect && <FixDate client={i.row} />}</td>
                   <td>{i.trigger ? <><strong>{i.trigger}</strong><div className={i.late ? "" : "muted"} style={{ fontSize: 12, ...(i.late ? { color: "var(--red-ink, #b42318)", fontWeight: 600 } : {}) }}>due {i.due ? fmtDate(i.due) : "—"}{i.late ? ", overdue" : ""}</div></> : i.seen ? <span style={{ color: "var(--amber-ink)" }}>{i.seen}. No review opened</span> : "—"}</td>
                   <td>{s.pcan("edit") && !i.trigger && i.hasCurrent && (i.seen || i.state === "overdue" || i.state === "soon") && <a className="btn small" href={`#/clients/${encodeURIComponent(i.key)}/aml?short=1`} style={{ marginRight: 6 }}>Short review</a>}{s.pcan("edit") && !i.trigger && (i.seen || i.state === "overdue" || i.state === "soon") && <button type="button" className="btn small" disabled={busy === i.key} onClick={() => void open(i)}>Full review</button>}</td>
                 </tr>

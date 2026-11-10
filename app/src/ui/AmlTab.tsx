@@ -27,7 +27,7 @@ import { getAccessToken } from "../lib/auth";
 import { isDemo } from "./commsKit";
 import { SEAL_LABEL } from "../lib/amlSeal";
 import { useSeals } from "./sealKit";
-import { matchProblems, screeningProblems } from "../lib/amlScreening";
+import { matchProblems, screening, screeningProblems, screeningStatus } from "../lib/amlScreening";
 import { idRecheckDue, idRefreshPolicy, screeningPolicy } from "../lib/amlPolicy";
 import { storeFrom } from "../lib/amlPack";
 import { clientTypeFor as typeOfClient } from "../lib/proposals";
@@ -123,6 +123,20 @@ export function AmlTab({ client }: { client: Client }) {
           </div>
         )}
       </section>
+
+      {(() => {
+        const row = clientRow(), sc = screening(row, pos.risk, scr.sp, data.amlAssessments, scr.register, today), st = screeningStatus(sc, fmtDate);
+        const months = sc.months;
+        return (
+          <section className="card pad stack" aria-label="Sanctions and PEP screening">
+            <div className="card-title-row"><h2 className="sec-h">Sanctions and PEP screening</h2><span className={`chip ${st.tone}`}>{st.label}</span></div>
+            <p style={{ margin: 0 }}>{st.line}</p>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              {sc.on ? `Last screened via ${sc.via}. ` : ""}{pos.risk ? `${RISK[pos.risk]}-risk clients are re-screened every ${months} months under your policy.` : `Not rated yet, so the medium-risk period (every ${months} months) is used.`} The date comes from the latest of Xama's AML check, a passed sanctions and PEP check on an assessment, and the Screening register. {pos.doneOn ? `The AML check itself was done on ${fmtDate(pos.doneOn)}${pos.reviewDate ? ` and is next reviewed by ${fmtDate(pos.reviewDate)}` : ""}.` : "There is no completed AML check yet."}
+            </p>
+          </section>
+        );
+      })()}
 
       {open && <Editor client={client} row={open} all={data.amlAssessments} settings={settings} independent={s.cfg.independentReview} today={today} s={s} clientRow={clientRow()} />}
 
