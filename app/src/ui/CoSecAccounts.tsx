@@ -6,6 +6,7 @@ import { verifiedOf } from "../lib/cosec";
 import * as D from "../lib/cosecDormant";
 import { approvableCopy, modelHash } from "../lib/accounts/model";
 import { validateModel } from "../lib/accounts/validate";
+import { DORMANT_2025, mappingProblems } from "../lib/accounts/taxonomy";
 import { readEntry } from "../lib/shareLedger";
 import { Row } from "../lib/schema";
 import { downloadFile } from "./commsKit";
@@ -127,6 +128,11 @@ function Job({ row, client }: { row: Row; client: Row }) {
         <div className="alert red" role="alert"><strong>The accounts have changed since the director approved them.</strong> The approval no longer covers these figures and can't be used to file.{" "}
           <button type="button" className="btn small" disabled={busy} onClick={() => void run(D.withdrawApproval(row, "Accounts changed after approval", now()), "Approval withdrawn. Prepare and approve again.")}>Withdraw the approval</button></div>)}
       {D.isOpen(d) && issues.length > 0 && <ul className="plain" aria-label="Accounts checks">{issues.map((x) => <li key={x.id}><span aria-hidden style={{ color: "var(--red)", fontWeight: 700 }}>✕</span> <strong>Accounts check.</strong> {x.message}</li>)}</ul>}
+      {D.isOpen(d) && (
+        <details><summary>Electronic filing readiness: not available yet</summary>
+          <p className="muted" style={{ margin: "6px 0" }}>Accounts can't be filed with Companies House from here. The electronic (iXBRL) accounts can't be made until the taxonomy details below are obtained and checked. Until then, file them yourself and record it here.</p>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>{mappingProblems(DORMANT_2025).slice(0, 12).map((x) => <li key={x}>{x}</li>)}</ul>
+        </details>)}
       {d.approvedBy && <p className="muted" style={{ margin: 0 }}>Approved by {d.approvedBy} on {fmtDate(d.approvedOn)}. Signed copy: {d.signedRef}.</p>}
 
       {["approved", "rejected"].includes(d.status) && edit && (

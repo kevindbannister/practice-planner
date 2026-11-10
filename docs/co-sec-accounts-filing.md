@@ -102,3 +102,24 @@ Accounts filing status today: **not available. Test mode only, once built.**
 **Not done in Phase 2 (stated plainly)**: previously-trading dormant companies; storing the approval hash on the server (needs the server-side store decided in Phase 1); migration of existing `CoSecAccounts` rows into the new Phase 4/5 filing lists (those lists do not exist yet; existing rows are untouched and have no hash, so they are never flagged stale); a manual-entry form for opening balances without a share ledger (the model accepts figures, the screen still derives them from the ledger); an average-employees input (fixed at 0, which is the only valid value for dormant).
 
 **SharePoint**: two new columns on PP CoSec Accounts, added by Settings › Set up the lists. Non-destructive.
+
+---
+
+# Phase 3: iXBRL engine (V24.2). Built; blocked from producing a filing document until the taxonomy is verified
+
+**Implemented**
+- `lib/accounts/xml.ts`: strict small XML reader (rejects DOCTYPE, entity declarations, CDATA, processing instructions, duplicate attributes, undeclared prefixes, unclosed or mismatched tags). Used for level 2 (well-formed) and to read facts back. Not a validating parser.
+- `lib/accounts/taxonomy.ts`: the single mapping registry (field, concept, type, context, unit, required, status `missing | named | verified`, source). Only namespaces defined by the XBRL and Inline XBRL standards themselves are hard-coded. `mappingProblems()` lists exactly what stops a mapping being used.
+- `lib/accounts/ixbrl.ts`: Inline XBRL writer (ix:header, link:schemaRef, xbrli:context/unit, ix:nonFraction/ix:nonNumeric, instant and duration contexts, current and comparative periods, GBP and pure units, decimals, sign), `readDocument`, internal checks (levels 2 and 3: our own consistency, not taxonomy validation), and `reconcile()`: every tagged fact must equal the model, every fact the model supplies must be tagged, no amount may appear untagged.
+- `generate()` refuses unless the model passes validation **and** the mapping is verified. Nothing can come out of the draft mapping.
+- Screen: "Electronic filing readiness: not available yet" lists what's missing. There is no filing or iXBRL button.
+
+**What the official sources gave me, and what they did not**
+Read: FRC UKSEF 2025 Tagging Guide v2.1 (frc.org.uk/docs/8115) names `bus:BalanceSheetDate`, `bus:UKCompaniesHouseRegisteredNumber`, `core:DateAuthorisationFinancialStatementsForIssue`, `core:DirectorSigningFinancialStatements`, `core:AverageNumberEmployeesDuringPeriod`, `core:ProfitLoss`, the Companies House identifier scheme `http://www.companieshouse.gov.uk/`, and an FRS 102 UKSEF entry-point pattern. These are recorded as **named, not verified**: that guide is for listed-company (UKSEF) filers, and none has been checked against the entry-point schema. The FRC page confirms the 2025 suite v1.0.0 (18 Oct 2024) zip and that Companies House enabled it on 2 April 2025.
+Not obtained: the dormant / small-company entry-point URL; the namespace URIs for `core` and `bus`; concepts for called-up share capital not paid, cash, net assets, share capital, shareholders' funds, dormant status, period start/end, entity name and the four statutory statements; Companies House's mandatory-fact rules; whether dates and amounts need an Inline XBRL transformation format. The TIS and taxonomy are binary files (ODT, ZIP) that the fetch tool can't read as text.
+
+**To unblock:** extract the 2025 suite zip (or the `changelog.pdf`/presentation sheets in it) and the October 2026 TIS to text/PDF and attach them, or paste the entry-point list and the balance-sheet, dormant-status and statements concept names. I will fill `taxonomy.ts`, mark entries verified only when checked against the schema, and then run the engine against a real XBRL validator.
+
+**Tests**: `tests/ixbrl.test.ts` (9): production mapping refuses and lists gaps; invalid model produces nothing; generated document is well-formed, passes checks and reconciles; context set; first period has no comparative; exact pence text; reconciliation catches a changed figure, missing fact, untagged amount, extra fact; checks catch broken context/unit/prefix/unused resources/missing schemaRef/bad dates/wrong scheme/missing decimals; XML reader rejects DOCTYPE and malformed input. The engine tests use an invented mapping that is only in the test file. App suite 1,338 pass.
+
+**Not done**: level 3 validation with a real XBRL engine (Arelle) and Companies House's validator (needs the taxonomy and a deployment decision); transformation formats for dates/amounts; a document preview; saving the document to documents.
