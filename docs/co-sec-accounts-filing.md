@@ -1,0 +1,86 @@
+# Companies House accounts filing: Phase 1 (specification, audit, architecture, blockers)
+
+Status: **design only. No filing code has been written or enabled. Nothing in the app can send accounts to Companies House.**
+Date: 10 November 2026. Branch: `feature/ch-accounts-filing`.
+
+## 1. What the official sources say (and how sure I am)
+
+Read directly (gov.uk page "Technical interface specifications for Companies House software" and its "Important information for software developers, read first", edited 21 Oct 2026):
+
+| Fact | Source | Confidence |
+|---|---|---|
+| Latest accounts TIS is the file `TIS_October_2026.odt` (updated 21 Oct 2026). The update log names v5.9 (1 Apr 2026), v5.7 (17 Mar 2025), v5.6 (16 Jan 2025); other unnumbered updates 25 Sep 2026 and 18 Dec 2025. Separate general TIS is v5.3 (6 Jun 2024). | gov.uk publication page | High for dates; **the exact version inside the Oct 2026 file is not stated** |
+| Test gateway: `https://xmlgw.companieshouse.gov.uk/v1-0/xmlgw/Gateway`. Schemas and examples: `http://xmlgw.companieshouse.gov.uk/SchemaStatus`. | read-first page | High |
+| Test accounts: apply on the gov.uk form (form 266379) giving contact, software provider, and the filing types to test. Test submissions must have the test flag set to 1. | read-first page | High |
+| Gateway parses each test submission and rejects any with errors; parsed ones are stored **pending** and **manually reviewed**; email xml@companieshouse.gov.uk after making them. Each submission needs a unique envelope number (duplicates give "Failure - multiple tests"). | read-first page | High |
+| Authentication: presenter ID and authentication value **MD5 encoded**; 502s usually mean wrong ID/value, test flag not 1, value not marked "clear", or package reference not 0012. | read-first page | High |
+| Status is polled with Get submission status / status ack / get document. | read-first page | High (message details not read) |
+| Testing finishes when Companies House is satisfied for each form type; then you apply for an online filing presenter account to get the live presenter ID. | read-first page | High |
+| Companies House plans to replace the XML platform with a REST/JSON API, no timetable. | read-first page | High |
+| Package accounts, and the 2025 taxonomy suite (enabled April 2025), arrived with TIS v5.7. | Companies House XML forum announcement | Medium (forum post) |
+| For accounts "there are no schemas, you have to create the iXBRL and then submit within an XML envelope". A reply to an accounts submission uses `<Class>Accounts</Class>`, `<Qualifier>response</Qualifier>`, and carries `TransactionID`, `GatewayTest`, `GatewayTimestamp`; status then polled with `GetSubmissionStatus` / `SubmissionNumber`; in test, attachment-based submissions are changed from PENDING by hand by Companies House. | Companies House staff on the XML forum | Medium (forum, not the TIS) |
+
+**Not obtained.** The TIS file itself could not be opened: the fetch tool needed your approval for the `assets.publishing.service.gov.uk` link and the prompt timed out; the Bash sandbox has no outside network. So the following are **unverified and must come from the TIS before any code is written**:
+the exact request message class and body element for an accounts submission; how the iXBRL document is attached (element, encoding, content type, any size limit); the accepted taxonomies, versions and entry points for periods ending in 2026; Companies House's extra business rules and error codes; the precise status-request and acknowledgement bodies; dormant-accounts specifics; whether a ZIP (package accounts) route applies.
+
+**To unblock:** open the link at the top of the gov.uk page and either attach `TIS_October_2026.odt` to this chat, or approve the fetch when prompted. Also needed: the schemas listed at SchemaStatus (status request, status ack, get document, GovTalk envelope).
+
+## 2. Audit of what is already in the repo
+
+| Area | Finding |
+|---|---|
+| `lib/cosecDormant.ts` | Sound base. Deadline and penalty rules, dormant eligibility checks with user confirmations, integer (BigInt micro-unit) share-capital figures, statements wording, PDF of accounts, approval and "filed elsewhere" recording. Explicitly **does not file**. Prior-year comparatives are computed from the share ledger but only for companies with nothing else. No structured accounts data model other than `Figures`; the PDF is the only rendering. |
+| `lib/cosecGateway.ts`, `api/cosec/lib/gateway.js`, `forms.js` | Envelope builder with CHMD5 authentication, test by default, live only if `CH_GATEWAY_LIVE=1` **and** the form is in `CH_LIVE_FORMS`. Only AD01, whose body is **unverified** (its own header says so). Status parsing is by regex on XML (no XML parser, no XXE protection needed only because nothing is parsed with a DTD-aware parser, but regex parsing is fragile). **Not suitable for accounts and must not be reused as is.** The mock gateway always "accepts" after two polls; its tests prove nothing about the real gateway. |
+| Secrets and codes | Presenter ID and secret are server-side (Azure settings): good. **The company authentication code is stored in the client row in SharePoint (`CHAuthCode`) and sent from the browser to the server with each submission.** That breaks the brief's requirement to protect the code and to have the server enforce preconditions. |
+| Server trust | `api/cosec/submit` accepts the form payload and company details from the browser. For accounts the server must instead load the approved accounts version itself and rebuild everything from it. |
+| Duplicate prevention | `submissionNumber()` is time-based plus a random digit; no persisted idempotency record, so a timed-out submit followed by a retry could submit twice. |
+| Approval | `cosecApproval.ts` and the dormant `approve()` record the director, date and signed reference; `drifted()` detects changed figures. Approval is not bound to a hash of the exact document. |
+| Documents | `Documents` / `DocVersions` lists exist (documents module). Large files should not go in list fields. |
+| Tests | `app/tests/cosecDormant.test.ts`, `api/test/cosec.test.js` cover current behaviour with a mocked fetch only. |
+| PRs / branches | No open pull requests found (`gh pr list` is blocked in this environment; branches: `main`, `typecheck`). |
+
+## 3. Architecture (decisions)
+
+Layers, each independent and pure where possible:
+
+1. **Accounts data model** (`lib/accounts/model.ts`): one structured, versioned object per filing (company, period, regime, comparatives, balance sheet lines, statements, notes, signatory). Money in integer pence. Built from the existing dormant `Figures` plus confirmed manual inputs. The PDF and the iXBRL both render from this object only, so there is one set of numbers.
+2. **Preparation and statutory validation** (`lib/accounts/validate.ts`, level 1): balance sheet balances, comparatives reconcile, shares x nominal agree, paid/unpaid correct, required statements present, dates valid, exemption claims allowed. Never plugs a difference.
+3. **Taxonomy mapping** (`lib/accounts/taxonomy/<version>.ts`): internal field to concept, data type, context, unit, dimensions, rules; versioned and tested. No concept names anywhere else. **Concept names and entry points are not written until read from the FRC taxonomy / Companies House instructions.**
+4. **iXBRL generator** (`lib/accounts/ixbrl.ts`): model plus mapping to an XHTML document with inline facts, contexts, units. Shared by browser (preview) and server (the one that is filed).
+5. **Validation levels 2 to 5**: XML/XHTML well-formedness; XBRL validation with an established engine (candidate: Arelle, run server-side; its licence (Apache 2.0), Python runtime and Azure Functions fit have to be evaluated, and it cannot run inside the current Node functions without a container or separate Function app); Companies House business rules (from the TIS); the official test gateway.
+6. **Filing package builder and provider**: `AccountsFilingProvider { validate, submit, checkStatus }`. `XmlAccountsFilingProvider` is the only implementation; a future REST provider slots in without touching 1 to 4 or the UI. The internal filing object is never raw XML; XML is generated from it.
+7. **Submission service (server)**: loads the approved snapshot, verifies its hash against the director's approval, re-runs all validations, checks environment and enablement flags, writes a durable "submitting" record with the envelope number **before** sending (idempotency), then sends. A timeout leaves the attempt "outcome unknown"; the only allowed action is a status enquiry on the saved number, never a resend.
+8. **Status service and audit**: polling, normalised status (acknowledged, pending, accepted, rejected, failed), raw response stored, every attempt a separate record, history never overwritten. Only a confirmed acceptance completes the job.
+
+### Decision needed from you (server-side storage)
+To meet "the server independently enforces preconditions" the Azure Functions need a **trusted store the browser cannot write**: the approved snapshot, its hash, the attempt records and the company authentication codes. SharePoint is written directly by the browser with the user's own token, so it cannot be that store. Recommended: **Azure Table + Blob storage (or Cosmos) owned by the Functions app, and Key Vault for presenter secrets and company auth codes.** This needs an Azure storage account and connection string from you. Alternative (weaker): sign the approved snapshot with an HMAC key held in Azure settings when the director's approval is recorded, and have the server accept only snapshots whose signature verifies. That proves integrity but not "has not already been submitted", so duplicate prevention would still need server storage.
+
+### Safety defaults (unchanged from the brief)
+Production off by default; enabling live needs `CH_GATEWAY_LIVE`, an explicit accounts-type allowlist, and a recorded test-evidence flag; a successful mock or test result never enables live. Test and production shown with unmistakable banners. No "File accounts" button appears until the route is implemented, tested against the real test gateway and enabled.
+
+## 4. SharePoint changes (planned, non-destructive)
+New lists (rows hold references and hashes, not documents): `PP Accounts Filings` (AccountsFiling), `PP Accounts Filing Attempts`, `PP Accounts Documents` (storage reference + SHA-256, document type, version), `PP Accounts Validations`. Existing `PP CoSec Dormant` rows are migrated by a dry-run script that creates an `AccountsFiling` for each, marks any "filed elsewhere" ones as external (no invented references), and leaves originals untouched. The `CHAuthCode` column on clients is to be retired once the codes live in Key Vault (a separate, reversible migration).
+
+## 5. Phase plan and what can proceed without credentials
+
+| Phase | Can be done now | Blocked on |
+|---|---|---|
+| 2 Preparation | Yes: structured model, eligibility, comparatives, statutory validation, PDF from the model | none |
+| 3 iXBRL | Engine, XHTML structure, context/unit handling, tests | FRC taxonomy concept names and CH entry points (TIS / taxonomy download); XBRL validator choice |
+| 4 Gateway | Server skeleton, idempotency, storage, redaction, XML parsing safety | TIS message class/body/attachment definition; schemas; test presenter credentials |
+| 5 Workflow/UI | Screens, states, history, job and Action Centre integration, with the submit button **absent** until Phase 4 is verified | Phase 4 |
+| 6 Testing | none | test account (form 266379), then Companies House manual review of pending test filings |
+| 7 Production | none | live presenter ID, Companies House sign-off, your explicit authorisation |
+
+## 6. External checklist (your actions in bold)
+- [ ] **Apply for a test account: gov.uk form 266379** (contact, software provider, filing types: dormant accounts)
+- [ ] **Provide the TIS file (or approve its download) and the schemas from SchemaStatus**
+- [ ] **Decide the server-side storage (Azure storage account + Key Vault)**
+- [ ] Test presenter ID and authentication received
+- [ ] Taxonomy files obtained and entry points confirmed
+- [ ] Local validation passing; XBRL validator chosen
+- [ ] Test submissions made and reported to xml@companieshouse.gov.uk
+- [ ] Companies House feedback addressed
+- [ ] Live presenter account obtained; production credentials set; live explicitly enabled
+
+Accounts filing status today: **not available. Test mode only, once built.**
