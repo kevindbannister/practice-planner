@@ -44,7 +44,7 @@ export function ClientPapers({ client: c, jobs }: { client: Client; jobs: Job[] 
       </div>
 
       {!all.length ? (
-        <div className="alert amber"><strong>No year end on this company</strong><span>Add it in the client settings (or Companies House will fill it in) and the years will appear here.</span></div>
+        <div className="alert amber"><strong>No year end on this client</strong><span>Add it in the client settings (or Companies House will fill it in) and the years will appear here.</span></div>
       ) : (
         <div className="table-wrap">
           <table className="grid">

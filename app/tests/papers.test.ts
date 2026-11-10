@@ -110,3 +110,12 @@ test("pasted rows from Excel", () => {
   assert.deepEqual(parsePasted("Just a name"), [{ Code: "", Detail: "Just a name", Amount: undefined }]);
   assert.deepEqual(parseGrid("a\tb\n\t\n c \t1"), [["a", "b"], ["c", "1"]]);
 });
+
+test("papers for a sole trader or partnership start with the company-only sections off", async () => {
+  const { startingOff, SECTIONS } = await import("../src/lib/papers");
+  const co = startingOff(false), un = startingOff(true);
+  for (const k of ["statutory", "taxation", "final-accounts", "draft-tax"]) assert.ok(un.includes(k), k);
+  assert.ok(!co.includes("statutory")); assert.ok(!un.includes("bank")); assert.ok(!un.includes("income"));
+  for (const k of un) assert.ok(SECTIONS.some((s) => s.key === k), `${k} is a real section`);
+  assert.equal(new Set(un).size, un.length);
+});

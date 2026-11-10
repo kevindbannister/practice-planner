@@ -14,7 +14,8 @@ import { WorkbookImport } from "./PaperImport";
 import { XeroImport } from "./XeroImport";
 import { AddSchedule, AssetsView, AutoDepreciationJournal, LeadTable, PaperWriter, Schedule, SectionRecon, useSectionsInUse, useWriterState } from "./PaperSchedules";
 import { Client, Job, fmtDate, todayIso } from "../lib/domain";
-import { GROUPS, LEAD_KINDS, PaperStatus, SECTIONS, STATUS_LABEL, Section, progress, sectionsOff, stateOf, subsFor, yearEnds } from "../lib/papers";
+import { GROUPS, LEAD_KINDS, PaperStatus, SECTIONS, STATUS_LABEL, Section, progress, sectionsOff, startingOff, stateOf, subsFor, yearEnds } from "../lib/papers";
+import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { Icon, href, useRoute } from "./bits";
 import { useEditor } from "./Editors";
@@ -37,13 +38,15 @@ export function periodsFor(c: Client, jobs: Job[], today: string): { all: string
 export function PapersPage() {
   const { parts } = useRoute();
   if (parts[1] === "production") return <ProductionView />;
+  if (parts[1] === "others") return <PapersList others />;
   return parts[1] ? <PaperView clientKey={parts[1]} period={parts[2]} /> : <PapersList />;
 }
 
-function PapersTabs({ current }: { current: "companies" | "production" }) {
+function PapersTabs({ current }: { current: "companies" | "others" | "production" }) {
   return (
     <nav className="tabs" aria-label="Working papers">
       <a href={href("papers")} aria-current={current === "companies" ? "page" : undefined}>Companies</a>
+      <a href={href("papers", "others")} aria-current={current === "others" ? "page" : undefined}>Sole traders and partnerships</a>
       <a href={href("papers", "production")} aria-current={current === "production" ? "page" : undefined}>Production status</a>
     </nav>
   );
@@ -64,15 +67,36 @@ function ProductionView() {
   );
 }
 
-function PapersList() {
-  const { data } = useData();
+function PapersList({ others = false }: { others?: boolean }) {
+  const { data, create, update } = useData();
+  const [adding, setAdding] = useState(false);
+  const [pick, setPick] = useState("");
+  const [ye, setYe] = useState("04-05");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  // sole traders and partnerships appear once their papers have been started
+  const started = useMemo(() => new Set(data.papers.map((r) => String(r.ClientKey))), [data.papers]);
+  const candidates = others ? data.clients.filter((c) => !isCompany(c) && (c.Status === "active" || !c.Status) && !started.has(c.Key)).sort((a, b) => a.Title.localeCompare(b.Title)) : [];
+  const picked = candidates.find((c) => c.Key === pick);
+  const start = async () => {
+    if (!picked) return;
+    const yearEnd = String(picked.YearEnd || "") || ye;
+    if (!/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(yearEnd)) return setErr("Give the year end as month and day, like 04-05 for 5 April.");
+    setBusy(true); setErr("");
+    try {
+      if (!picked.YearEnd) await update("Clients", picked as unknown as Row, { YearEnd: yearEnd });
+      const period = yearEnds(yearEnd, todayIso(), 3).find((d) => d <= todayIso()) || yearEnds(yearEnd, todayIso(), 3)[0];
+      await create("WorkingPapers", { Key: newKey("WP"), ClientKey: picked.Key, PeriodEnd: period, ItemKey: "_sections", Status: "todo", Setup: JSON.stringify({ off: startingOff(true) }), Updated: new Date().toISOString() });
+      window.location.hash = href("papers", picked.Key, period);
+    } catch { setErr("Couldn't start the papers. Try again."); setBusy(false); }
+  };
   const idx = useIndex();
   const today = todayIso();
   const [search, setSearch] = useState("");
   const rows = useMemo(
     () =>
       data.clients
-        .filter((c) => isCompany(c) && (c.Status === "active" || !c.Status))
+        .filter((c) => (others ? !isCompany(c) && started.has(c.Key) : isCompany(c)) && (c.Status === "active" || !c.Status))
         .map((c) => {
           const related = new Set<string>();
           for (const g of idx.groupsByMember.get(c.Key) || []) {
@@ -87,7 +111,7 @@ function PapersList() {
         })
         .filter((r) => !search || `${r.c.Title} ${r.c.CompanyNumber || ""} ${r.related.join(" ")} ${r.contact}`.toLowerCase().includes(search.toLowerCase()))
         .sort((a, b) => a.c.Title.localeCompare(b.c.Title)),
-    [data.clients, idx, search, today],
+    [data.clients, idx, search, today, others, started],
   );
 
   return (
@@ -95,10 +119,25 @@ function PapersList() {
       <div className="page-head">
         <div>
           <h1>Working papers</h1>
-          <p className="muted" style={{ margin: "4px 0 0" }}>{rows.length} compan{rows.length === 1 ? "y" : "ies"}. Open one to work through its papers.</p>
+          <p className="muted" style={{ margin: "4px 0 0" }}>{others ? `${rows.length} sole trader${rows.length === 1 ? "" : "s"} and partnership${rows.length === 1 ? "" : "s"} with papers. The company-only sections (statutory accounts, corporation tax, Companies House) start turned off.` : `${rows.length} compan${rows.length === 1 ? "y" : "ies"}. Open one to work through its papers.`}</p>
         </div>
+        {others && <button type="button" className="btn primary" onClick={() => setAdding(!adding)}><Icon name="plus" size={15} /> Start papers for a client</button>}
       </div>
-      <PapersTabs current="companies" />
+      <PapersTabs current={others ? "others" : "companies"} />
+      {others && adding && (
+        <section className="card pad stack" aria-label="Start papers">
+          <div className="row-wrap" style={{ gap: 10, alignItems: "end" }}>
+            <label className="field" style={{ minWidth: 260 }}><span>Client</span>
+              <select className="input" value={pick} onChange={(e) => setPick(e.target.value)}><option value="">Choose a sole trader or partnership…</option>{candidates.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}</select>
+            </label>
+            {picked && !picked.YearEnd && <label className="field"><span>Accounting year end (month-day)</span><input className="input" value={ye} onChange={(e) => setYe(e.target.value)} placeholder="04-05" style={{ width: 110 }} /></label>}
+            <button type="button" className="btn primary" disabled={!picked || busy} onClick={() => void start()}>{busy ? "Starting…" : "Start papers"}</button>
+          </div>
+          {picked && !picked.YearEnd && <span className="muted" style={{ fontSize: 13 }}>This client has no year end yet. It is saved on the client: 04-05 is 5 April, 03-31 is 31 March.</span>}
+          {!candidates.length && <span className="muted" style={{ fontSize: 13 }}>Every individual and partnership client already has papers, or there are none.</span>}
+          {err && <div role="alert" className="warn">{err}</div>}
+        </section>
+      )}
       <div className="row-wrap">
         <label className="search" style={{ flex: "1 1 280px", maxWidth: 420 }}>
           <Icon name="search" />
@@ -111,7 +150,7 @@ function PapersList() {
           <table className="grid papers-list">
             <thead>
               <tr>
-                <th scope="col">Company</th><th scope="col">Client</th><th scope="col">Year end</th><th scope="col">Papers for</th><th scope="col">Progress</th>
+                <th scope="col">{others ? "Business" : "Company"}</th><th scope="col">Client</th><th scope="col">Year end</th><th scope="col">Papers for</th><th scope="col">Progress</th>
               </tr>
             </thead>
             <tbody>
@@ -147,7 +186,7 @@ function PapersList() {
             </tbody>
           </table>
         </div>
-        {!rows.length && <div className="empty">No companies match.</div>}
+        {!rows.length && <div className="empty">{others ? "No sole trader or partnership has papers yet. Use Start papers for a client." : "No companies match."}</div>}
       </section>
     </div>
   );
@@ -202,7 +241,7 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
       {!period ? (
         <>
           {top(null)}
-          <div className="alert amber"><strong>No year end on this company</strong><span>Add it on the <a href={href("clients", c.Key)}>client page</a> (or Companies House will fill it in) and the papers will appear.</span></div>
+          <div className="alert amber"><strong>No year end on this client</strong><span>Add it on the <a href={href("clients", c.Key)}>client page</a> (or Companies House will fill it in) and the papers will appear.</span></div>
         </>
       ) : (
         <PaperWriter key={period} client={c} period={period}>

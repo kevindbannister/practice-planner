@@ -146,6 +146,14 @@ export function sectionsOff(rows: Row[], clientKey: string, period: string): Set
   return new Set(SECTIONS.filter((x) => x.offByDefault).map((x) => x.key));
 }
 
+/** Sections that only suit a company (statutory accounts, corporation tax, Companies House): turned off when papers are started for a sole
+ *  trader or partnership, on top of the usual ones. They can be turned back on for a client. */
+export const UNINCORPORATED_OFF = ["statutory", "taxation", "disclosure", "draft-accounts", "review-accounts", "final-accounts", "draft-tax", "review-tax", "final-tax"];
+export function startingOff(unincorporated: boolean): string[] {
+  const usual = SECTIONS.filter((x) => x.offByDefault).map((x) => x.key);
+  return unincorporated ? [...new Set([...usual, ...UNINCORPORATED_OFF])] : usual;
+}
+
 /** Schedules added for this company (e.g. more expense headings), carried from year to year. */
 export function subsFor(section: Section, rows: Row[], clientKey: string, period: string): Sub[] {
   let extra: Sub[] = [];
