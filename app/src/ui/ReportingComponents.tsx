@@ -126,7 +126,7 @@ export function ChartView({ b, c }: { b: B<"chart">; c: Ctx }) {
 
 // ------------------------------------------------------------------ financial tables
 
-const COLS: [string, string][] = [["this", "This period"], ["prior", "Last period"], ["lastYear", "Same period last year"], ["ytd", "Financial year to date (profit and loss)"], ["ytdLast", "Year to date last year (profit and loss)"], ["var", "Variance £"], ["varPct", "Variance %"], ["pctRev", "% of revenue"], ["yearEnd", "Last financial year end (balance sheet)"], ["months", "Every month of the year (instead of the others)"]];
+const COLS: [string, string][] = [["this", "This period"], ["prior", "Last period"], ["lastYear", "Same period last year"], ["ytd", "Financial year to date (profit and loss)"], ["ytdLast", "Year to date last year (profit and loss)"], ["budget", "Budget for the period (profit and loss, from Xero)"], ["ytdBudget", "Budget for the year to date (profit and loss)"], ["var", "Variance £"], ["varPct", "Variance %"], ["pctRev", "% of revenue"], ["yearEnd", "Last financial year end (balance sheet)"], ["months", "Every month of the year (instead of the others)"]];
 
 function one(b: B<"table">, c: Ctx, which: "pl" | "bs") {
   const keys = new Set(tableCols(b));
@@ -139,6 +139,13 @@ function one(b: B<"table">, c: Ctx, which: "pl" | "bs") {
   if (ytdOn && keys.has("ytd")) cols = [...cols, { ...periodCols("year", c.anchor, c.endMonth, "none")[0], key: "ytd" }];
   if (ytdOn && keys.has("ytdLast")) cols = [...cols, { ...periodCols("year", c.anchor, c.endMonth, "lastYear")[1], key: "ytdLast" }];
   if (!cols.length) cols = [base("none", 0)];
+  // the budget, from Xero: the same months as the period, and as the year to date
+  const hasBudget = c.d.pl.some((r) => r.budget);
+  const budgetWanted = !monthly && which === "pl" && (keys.has("budget") || keys.has("ytdBudget"));
+  if (budgetWanted && hasBudget) {
+    if (keys.has("budget")) cols = [...cols, { ...periodCols(c.kind, c.anchor, c.endMonth, "none")[0], key: "budget", src: "budget" as const, label: "Budget" }];
+    if (keys.has("ytdBudget")) cols = [...cols, { ...periodCols("year", c.anchor, c.endMonth, "none")[0], key: "ytdBudget", src: "budget" as const, label: "Budget YTD" }];
+  }
   if (!monthly && which === "bs" && keys.has("yearEnd")) cols = [...cols, yearEndCol(c.anchor, c.endMonth)];
   const hidden = new Set(b.hidden || []);
   const layout = b.layout || "standard", noZero = b.hideZero ?? layout === "management";
@@ -148,15 +155,19 @@ function one(b: B<"table">, c: Ctx, which: "pl" | "bs") {
   // variances are worked between a period and the one it is compared with: the month and its comparison, and the year to date and its comparison
   const at = (k: string) => cols.findIndex((x) => x.key === k);
   const groups: { a: number; b: number }[] = [];
+  const actual = cols.filter((x) => !x.src).length;
   if (!monthly) {
     if (cols.some((x) => x.key === "ytd" || x.key === "ytdLast")) {
       if (cols[0]?.key === "cur" && (cols[1]?.key === "prior" || cols[1]?.key === "lastYear")) groups.push({ a: 0, b: 1 });
       if (at("ytd") >= 0 && at("ytdLast") >= 0) groups.push({ a: at("ytd"), b: at("ytdLast") });
-    } else if (cols.length >= 2) groups.push({ a: 0, b: 1 });
+    } else if (actual >= 2) groups.push({ a: 0, b: 1 });
+    // the actual against the budget: the period against its budget, and the year to date against its own
+    if (at("budget") >= 0) groups.push({ a: 0, b: at("budget") });
+    if (at("ytdBudget") >= 0) groups.push({ a: at("ytd") >= 0 ? at("ytd") : 0, b: at("ytdBudget") });
   }
   const showVar = groups.length > 0;
   const revenue = figuresFor(c.d, cols[0].months).revenue;
-  return { cols, rows, showVar, groups, varCols: showVar && keys.has("var"), pctCols: showVar && keys.has("varPct"), pctRev: !monthly && which === "pl" && keys.has("pctRev"), revenue };
+  return { cols, rows, showVar, groups, budgetMissing: budgetWanted && !hasBudget, varCols: showVar && keys.has("var"), pctCols: showVar && keys.has("varPct"), pctRev: !monthly && which === "pl" && keys.has("pctRev"), revenue };
 }
 
 // the management accounts table: negatives in brackets, £ or £000, percentages from the column totals, variances beside the comparison,
@@ -169,7 +180,7 @@ function MgmtTable({ b, c, which }: { b: B<"table">; c: Ctx; which: "pl" | "bs" 
   const per = (v?: number) => (v === undefined ? "" : v < 0 ? `(${Math.abs(v).toFixed(1)}%)` : `${v.toFixed(1)}%`);
   const monthly = t.cols.length > 6;
   // the variance columns sit straight after the comparison they are worked from
-  const heads = (g: { b: number }) => (t.cols[g.b]?.key === "lastYear" || t.cols[g.b]?.key === "ytdLast" ? ["Change", "YoY %"] : t.cols[g.b]?.key === "prior" ? ["Movement", "Movement %"] : ["Variance", "Variance %"]);
+  const heads = (g: { b: number }) => (t.cols[g.b]?.src === "budget" ? ["Over / (under) budget", "% of budget"] : t.cols[g.b]?.key === "lastYear" || t.cols[g.b]?.key === "ytdLast" ? ["Change", "YoY %"] : t.cols[g.b]?.key === "prior" ? ["Movement", "Movement %"] : ["Variance", "Variance %"]);
   const groupAfter = (j: number) => t.groups.find((g) => g.b === j);
   const size = monthly ? (c.land ? 8.6 : 7.2) : c.land ? 11 : 9.6;
   const th: React.CSSProperties = { ...T.th, fontSize: size, padding: monthly ? "4px 3px" : "5px 6px", color: NAVY, borderBottom: `1.5px solid ${NAVY}`, whiteSpace: "normal", verticalAlign: "bottom" };
@@ -218,8 +229,10 @@ function MgmtTable({ b, c, which }: { b: B<"table">; c: Ctx; which: "pl" | "bs" 
   );
 }
 
+const NO_BUDGET = "There is no budget for this client yet: add the Budgets permission in Settings › Xero, connect again and read the figures again. (A budget has to exist in Xero too.)";
 export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
   const cc = withPeriod(c, b.period);
+  const noBudget = (b.statement !== "bs") && one(b, cc, "pl").budgetMissing ? <p style={{ ...T.p, fontSize: 8.4, color: MUTED }}>{NO_BUDGET}</p> : null;
   if (b.layout === "management") {
     const parts: ("pl" | "bs")[] = b.statement === "both" ? ["pl", "bs"] : [b.statement];
     return <div>{parts.map((w) => <MgmtTable key={w} b={b} c={cc} which={w} />)}{b.material && tableCols(b).some((k) => k === "var" || k === "varPct") && !tableCols(b).includes("months") && <p style={{ ...T.p, fontSize: 8.4, color: MUTED }}>Variances of more than £{b.material.amount.toLocaleString("en-GB")} and {b.material.pct}% are marked: green favourable, red unfavourable.{b.fmt?.thousands ? " Amounts in £000." : ""}</p>}</div>;
@@ -265,6 +278,7 @@ export function TableView({ b, c }: { b: B<"table">; c: Ctx }) {
           </table>
         );
       })}
+      {noBudget}
     </div>
   );
 }

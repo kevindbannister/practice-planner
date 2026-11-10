@@ -400,6 +400,25 @@ export class FakeXero implements XeroApi {
       this.need("core");
       return { Accounts: ACCOUNTS.map((a) => ({ AccountID: a.id, Code: a.code, Name: a.name, Type: a.type, Class: a.cls, SystemAccount: a.sys || undefined, Status: "ACTIVE" })) } as T;
     }
+    if (api === "accounting" && path === "Budgets") {
+      this.need("budgets");
+      return { Budgets: [{ BudgetID: "b0000000-0000-4000-8000-000000000001", Type: "OVERALL", Description: "Overall budget", UpdatedDateUTC: "2026-01-05T09:00:00" }] } as T;
+    }
+    if (api === "accounting" && path.startsWith("Budgets/")) {
+      this.need("budgets");
+      // a budget a little above last year's trading: each month's actual, with income 6% up and costs 4% down
+      const from = String(query.DateFrom || "2000-01-01"), to = String(query.DateTo || "2100-01-01");
+      const months = [...new Set(this.books.map((e) => e.date.slice(0, 7)))].filter((m) => `${m}-01` >= from && `${m}-01` <= to).sort();
+      const lines = ACCOUNTS.filter((a) => PL.has(a.type)).map((a) => ({
+        AccountID: a.id, AccountCode: a.code,
+        BudgetBalances: months.map((m) => {
+          const sum = this.books.filter((e) => e.date.slice(0, 7) === m).reduce((x, e) => x + e.lines.filter((l) => l.code === a.code).reduce((y, l) => y + l.amt, 0), 0);
+          const inc = a.type === "REVENUE" || a.type === "SALES" || a.type === "OTHERINCOME";
+          return { Period: m, Amount: r2((inc ? -sum : sum) * (inc ? 1.06 : 0.96)) };
+        }).filter((b) => b.Amount !== 0),
+      })).filter((l) => l.BudgetBalances.length);
+      return { Budgets: [{ BudgetID: path.slice(8), Type: "OVERALL", Description: "Overall budget", BudgetLines: lines }] } as T;
+    }
     if (api === "accounting" && path === "Reports/TrialBalance") {
       this.need("reports");
       return this.trialBalance(String(query.date)) as T;

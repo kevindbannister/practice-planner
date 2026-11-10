@@ -210,3 +210,53 @@ test("a December year end is labelled as the calendar year, others as the two ye
   assert.equal(periodCols("year", "2026-12", 12, "none")[0].label, "FY 2026");
   assert.equal(periodCols("year", "2026-10", 3, "none")[0].label, "FY 26/27 YTD");
 });
+
+test("the budget is read from Xero, matched to the accounts, and shows beside the actual with the over or under", async () => {
+  const { FakeXero } = await import("../src/lib/fakeXero");
+  const { SCOPE_GROUPS } = await import("../src/lib/xero");
+  const scopes = SCOPE_GROUPS.flatMap((g) => g.scopes);
+  const api = new FakeXero({ read: () => "demo:" + Buffer.from(JSON.stringify(scopes)).toString("base64"), write: async () => undefined } as any);
+  const t = (await api.connections()).tenants[0];
+  const d = await readReportData(api as any, t, "2026-04", 24);
+  assert.equal(d.budgetName, "Overall budget");
+  const withBudget = d.pl.filter((r) => r.budget);
+  assert.ok(withBudget.length > 3);
+  const cols = [...periodCols("month", "2026-04", 4, "none"), { ...periodCols("month", "2026-04", 4, "none")[0], key: "budget", src: "budget" as const }];
+  const st = plStatement(d, cols, "summary");
+  const rev = st.find((r) => r.label === "Revenue")!;
+  const actual = rev.vals[0] as number, budget = rev.vals[1] as number;
+  assert.ok(actual > 0);
+  assert.ok(Math.abs(budget - actual * 1.06) < 1, `budget ${budget} is 6% over actual ${actual}`); // the demo budget is 6% above on income
+  const cos = st.find((r) => r.label === "Cost of Sales")!;
+  assert.ok((cos.vals[1] as number) < (cos.vals[0] as number)); // and 4% under on costs
+});
+
+test("without the Budgets permission the figures are still read, and no note is made of it", async () => {
+  const { FakeXero } = await import("../src/lib/fakeXero");
+  const { SCOPE_GROUPS } = await import("../src/lib/xero");
+  const scopes = SCOPE_GROUPS.filter((g) => g.key !== "budgets").flatMap((g) => g.scopes);
+  const api = new FakeXero({ read: () => "demo:" + Buffer.from(JSON.stringify(scopes)).toString("base64"), write: async () => undefined } as any);
+  const t = (await api.connections()).tenants[0];
+  const d = await readReportData(api as any, t, "2026-04", 12);
+  assert.equal(d.budgetName, undefined);
+  assert.ok(!d.pl.some((r) => r.budget));
+  assert.deepEqual(d.notes, []);
+});
+
+test("a budget with balance sheet accounts and months outside the report is cut down to profit and loss in the months read", async () => {
+  const { parseBudget } = await import("../src/lib/reportData");
+  const accounts: any[] = [
+    { id: "a1", code: "200", name: "Sales", type: "REVENUE", cls: "REVENUE" },
+    { id: "a2", code: "310", name: "Cost of goods", type: "DIRECTCOSTS", cls: "EXPENSE" },
+    { id: "a3", code: "090", name: "Bank", type: "BANK", cls: "ASSET" },
+  ];
+  const json = { Budgets: [{ Description: "FY27", BudgetLines: [
+    { AccountID: "a1", BudgetBalances: [{ Period: "2026-04", Amount: 1000 }, { Period: "2030-01", Amount: 5 }] },
+    { AccountCode: "310", BudgetBalances: [{ Period: "2026-05", Amount: "400.5" }] },
+    { AccountID: "a3", BudgetBalances: [{ Period: "2026-04", Amount: 99 }] },
+  ] }] };
+  const b = parseBudget(json, accounts, ["2026-04", "2026-05"])!;
+  assert.equal(b.name, "FY27");
+  assert.deepEqual(b.rows.map((r) => [r.name, r.group, r.amounts]), [["Sales", "income", [1000, 0]], ["Cost of goods", "cos", [0, 400.5]]]);
+  assert.equal(parseBudget({ Budgets: [] }, accounts, []), undefined);
+});

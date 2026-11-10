@@ -3,9 +3,9 @@
 // from these months: a quarter or a year is the months added together, and a balance is the month end.
 import { XAccount, XeroApi, XeroError, parseAccounts, parseProfitAndLoss, r2 } from "./xero";
 
-export type RRow = { code: string; name: string; group: string; amounts: number[] };
+export type RRow = { code: string; name: string; group: string; amounts: number[]; /** the budget for each month (profit and loss rows only), where Xero has one */ budget?: number[] };
 /** Months are "YYYY-MM". `pl` amounts line up with `months`, `bs` amounts with `bsMonths` (the balance at each month end). */
-export type ReportData = { v: 3; at: string; tenantId: string; tenantName: string; months: string[]; pl: RRow[]; bsMonths: string[]; bs: RRow[]; notes: string[] };
+export type ReportData = { v: 3; at: string; tenantId: string; tenantName: string; months: string[]; pl: RRow[]; bsMonths: string[]; bs: RRow[]; notes: string[]; /** the name of the Xero budget the figures came from */ budgetName?: string };
 
 export const REPORT_FOLDER = "Practice Planner Xero";
 export const reportItem = (clientKey: string) => `/me/drive/root:/${encodeURIComponent(REPORT_FOLDER)}/${encodeURIComponent(clientKey)}/${encodeURIComponent("reporting.json")}`;
@@ -82,6 +82,25 @@ const fit = (a: number[], n: number): number[] => (a.length === n ? a : a.length
 
 const keyOf = (r: { code: string; name: string }) => `${r.code}|${r.name}`;
 
+/** Xero's budget (one budget read with its lines): the amount for each account and month, lined up with `months`. Accounts are matched by id or code. */
+export function parseBudget(json: any, accounts: XAccount[], months: string[]): { name: string; rows: { code: string; name: string; group: RRow["group"]; amounts: number[] }[] } | undefined {
+  const b = json?.Budgets?.[0];
+  if (!b || !Array.isArray(b.BudgetLines)) return undefined;
+  const byId = new Map(accounts.map((a) => [a.id, a])), byCode = new Map(accounts.map((a) => [String(a.code).toLowerCase(), a]));
+  const rows: { code: string; name: string; group: RRow["group"]; amounts: number[] }[] = [];
+  for (const l of b.BudgetLines) {
+    const a = byId.get(String(l.AccountID || "")) || byCode.get(String(l.AccountCode || "").toLowerCase());
+    if (!a || !(a.cls === "REVENUE" || a.cls === "EXPENSE")) continue; // the budget can also hold balance sheet accounts: only profit and loss is used
+    const amounts = Array(months.length).fill(0);
+    for (const x of l.BudgetBalances || []) {
+      const i = months.indexOf(String(x.Period || "").slice(0, 7));
+      if (i >= 0) amounts[i] = r2(Number(x.Amount) || 0);
+    }
+    if (amounts.some((v) => v)) rows.push({ code: a.code, name: a.name, group: a.type === "OTHERINCOME" ? "other" : a.type === "DIRECTCOSTS" ? "cos" : a.cls === "REVENUE" ? "income" : "expense", amounts });
+  }
+  return { name: String(b.Description || "Budget"), rows };
+}
+
 /** Read the last `back` months (ending at `endMonth`) for one Xero organisation. */
 export async function readReportData(api: XeroApi, t: { tenantId: string; tenantName: string }, endMonth: string, back = 36, say: (m: string) => void = () => undefined): Promise<ReportData> {
   const id = t.tenantId;
@@ -107,6 +126,31 @@ export async function readReportData(api: XeroApi, t: { tenantId: string; tenant
       fit(cols, chunk.length).forEach((v, j) => (have.amounts[i + j] = r2(v)));
       plMap.set(k, have);
     }
+  }
+
+  // the budget, if the connection was given the permission and the organisation has one: each month's amount goes on its account's row
+  let budgetName: string | undefined;
+  try {
+    const list: any = await api.get(id, "accounting", "Budgets");
+    const all: any[] = (list?.Budgets || []).filter((b: any) => b?.BudgetID);
+    const pick = [...all].sort((a, b) => (a.Type === "OVERALL" ? 0 : 1) - (b.Type === "OVERALL" ? 0 : 1) || String(b.UpdatedDateUTC || "").localeCompare(String(a.UpdatedDateUTC || "")))[0];
+    if (pick) {
+      say("Reading the budget…");
+      const full: any = await api.get(id, "accounting", `Budgets/${pick.BudgetID}`, { DateFrom: firstDay(months[0]), DateTo: lastDayOf(months[months.length - 1]) });
+      const bud = parseBudget(full, accounts, months);
+      if (bud && bud.rows.length) {
+        budgetName = bud.name;
+        for (const r of bud.rows) {
+          const k = keyOf(r);
+          const have: RRow = plMap.get(k) || { code: r.code, name: r.name, group: r.group, amounts: Array(months.length).fill(0) };
+          have.budget = r.amounts;
+          plMap.set(k, have);
+        }
+      } else notes.push("Xero has a budget, but it has no profit and loss figures for these months.");
+    }
+  } catch (e) {
+    // no permission yet, or no budgets module: the reports just have no budget column
+    if (!["scope", "forbidden", "not-found"].includes(String((e as { code?: string })?.code))) notes.push("The budget couldn't be read from Xero.");
   }
 
   // balance sheet: the month end balances, newest first from each date asked for
@@ -139,7 +183,7 @@ export async function readReportData(api: XeroApi, t: { tenantId: string; tenant
   if (!bsOk && bsMonths.length) notes.push(`The balance sheet was only read back to ${monthLong(bsMonths[0])}; the earlier months couldn't be read.`);
   const off = balanceProblem(bsMonths, bsRows);
   if (off) notes.push(off);
-  return { v: 3, at: new Date().toISOString(), tenantId: id, tenantName: t.tenantName, months, pl: [...plMap.values()], bsMonths, bs: bsRows, notes };
+  return { v: 3, at: new Date().toISOString(), tenantId: id, tenantName: t.tenantName, months, pl: [...plMap.values()], bsMonths, bs: bsRows, notes, ...(budgetName ? { budgetName } : {}) };
 }
 
 /** A note when the balance sheet doesn't balance in the latest month (assets less liabilities should equal equity): usually an account that has landed in the wrong group. */
@@ -156,7 +200,7 @@ export function balanceProblem(bsMonths: string[], bs: RRow[]): string | undefin
 
 export type PeriodKind = "month" | "quarter" | "year";
 export type Compare = "none" | "prior" | "lastYear" | "months";
-export type Col = { key: string; label: string; months: string[]; total?: boolean };
+export type Col = { key: string; label: string; months: string[]; total?: boolean; /** worked from the budget instead of the actual figures */ src?: "budget" };
 
 /** The financial year a month falls in, as its first and last month; `endMonth` is the month the year ends (1 to 12). */
 export function yearOf(ym: string, endMonth: number): { first: string; last: string } {
@@ -219,8 +263,8 @@ export type StRow = {
 /** "standard" is Revenue, Cost of Sales, Expenses, Other Income; "management" is the management accounts layout, with margins and finance costs shown on their own. */
 export type Layout = "standard" | "management";
 
-const sum = (row: RRow, months: string[], all: string[]): number => r2(months.reduce((a, m) => a + (row.amounts[all.indexOf(m)] || 0), 0));
-const colVal = (rows: RRow[], c: Col, all: string[]): number | undefined => (c.months.length ? r2(rows.reduce((a, r) => a + sum(r, c.months, all), 0)) : undefined);
+const sum = (row: RRow, months: string[], all: string[], src?: "budget"): number => { const a = src === "budget" ? row.budget || [] : row.amounts; return r2(months.reduce((t, m) => t + (a[all.indexOf(m)] || 0), 0)); };
+const colVal = (rows: RRow[], c: Col, all: string[]): number | undefined => (c.months.length ? r2(rows.reduce((a, r) => a + sum(r, c.months, all, c.src), 0)) : undefined);
 const lastIn = (row: RRow, c: Col, all: string[]): number | undefined => {
   if (!c.months.length) return undefined;
   const at = all.indexOf(c.months[c.months.length - 1]);
@@ -240,7 +284,7 @@ export function plStatement(d: Pick<ReportData, "months" | "pl">, cols: Col[], d
     const totals = cols.map((c) => colVal(rows, c, d.months));
     out.push({ label: title, kind: detail === "detailed" ? "head" : "line", vals: detail === "detailed" ? [] : totals });
     if (detail === "detailed") {
-      for (const r of rows) out.push({ label: r.name, code: r.code, kind: "line", vals: cols.map((c) => (c.months.length ? sum(r, c.months, d.months) : undefined)) });
+      for (const r of rows) out.push({ label: r.name, code: r.code, kind: "line", vals: cols.map((c) => (c.months.length ? sum(r, c.months, d.months, c.src) : undefined)) });
       out.push({ label: `Total ${title.toLowerCase()}`, kind: "sub", vals: totals });
     }
     return totals;
@@ -272,7 +316,7 @@ function plManagement(d: Pick<ReportData, "months" | "pl">, cols: Col[], detail:
     if (!always && !totals.some((v) => v)) return totals.map((v) => (v === undefined ? undefined : 0));
     if (detail === "detailed" && rows.length) {
       out.push({ label: title, kind: "head", vals: [], dir });
-      for (const r of rows) out.push({ label: r.name, code: r.code, kind: "line", dir, vals: cols.map((c) => (c.months.length ? sum(r, c.months, d.months) : undefined)) });
+      for (const r of rows) out.push({ label: r.name, code: r.code, kind: "line", dir, vals: cols.map((c) => (c.months.length ? sum(r, c.months, d.months, c.src) : undefined)) });
       out.push({ label: `Total ${title.toLowerCase()}`, kind: "sub", vals: totals, dir });
     } else out.push({ label: title, kind: "line", vals: totals, dir });
     return totals;
