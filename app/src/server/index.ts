@@ -15,6 +15,11 @@ import { Row } from "../lib/schema";
 
 export { sealPayload, txSealPayload, asStatus };
 export { digestFor, digestText } from "./digest";
+export { parseXml, XmlError } from "../lib/accounts/xml";
+export { validateModel, errorsOf } from "../lib/accounts/validate";
+export { canonical, approvableCopy } from "../lib/accounts/model";
+export { generate, reconcile, checkDocument } from "../lib/accounts/ixbrl";
+export { DORMANT_2025, MAPPINGS, mappingProblems } from "../lib/accounts/taxonomy";
 
 export type ApproveInput = { key: string; user: string; assessments: Row[]; clients: Row[]; settings: Row[]; records: Row[]; today: string; now: string };
 /** Approve one AML assessment with the same rules as the screen. Returns what to write, or why not. */

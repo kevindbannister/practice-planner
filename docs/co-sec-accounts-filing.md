@@ -123,3 +123,27 @@ Not obtained: the dormant / small-company entry-point URL; the namespace URIs fo
 **Tests**: `tests/ixbrl.test.ts` (9): production mapping refuses and lists gaps; invalid model produces nothing; generated document is well-formed, passes checks and reconciles; context set; first period has no comparative; exact pence text; reconciliation catches a changed figure, missing fact, untagged amount, extra fact; checks catch broken context/unit/prefix/unused resources/missing schemaRef/bad dates/wrong scheme/missing decimals; XML reader rejects DOCTYPE and malformed input. The engine tests use an invented mapping that is only in the test file. App suite 1,338 pass.
 
 **Not done**: level 3 validation with a real XBRL engine (Arelle) and Companies House's validator (needs the taxonomy and a deployment decision); transformation formats for dates/amounts; a document preview; saving the document to documents.
+
+## Phase 4: server-side filing (safe parts only)
+
+**Status: built and tested against a fake gateway. Nothing can be sent. Do not treat this as production-ready.**
+
+What exists (`api/cosec/lib/accountsFiling.js`, wired in `api/cosec/index.js`):
+
+- `accounts-info`, `accounts-submit` and `accounts-status` actions. The browser sends only a filing key. It never supplies XML, the approved version or the company authentication code.
+- Approval is recorded server-side with its hash. Submission re-checks the hash (`tampered` if it differs), re-validates the model, and regenerates the iXBRL from the approved snapshot. It does not accept client XML.
+- An attempt record is written before anything is sent (idempotency). A second click, a concurrent call, or a retry after a timeout is refused. A timeout or HTTP error leaves the attempt `unknown`; the only way forward is a status enquiry, never a resend.
+- An acknowledgement is not acceptance. Only a status reply of ACCEPT is "accepted"; unknown words change nothing, and an accepted attempt cannot be silently reversed. Earlier attempts are kept.
+- Test by default. Live needs `CH_GATEWAY_LIVE=1`, the accounts type in `CH_LIVE_ACCOUNTS`, and `CH_ACCOUNTS_TEST_EVIDENCE`. A non-test gateway URL without those is refused.
+- Presenter secrets and MD5 authentication values are redacted from anything stored or shown. Replies are read with the strict XML parser (no DOCTYPE or entities).
+- Fix: the existing envelope never sent the `GatewayTest` flag even in test mode. It now does (this also affects AD01).
+
+Why nothing can be sent yet (three independent blocks, each refuses with its own code):
+
+1. `ixbrl-unavailable`: the taxonomy mapping is a draft (no entry point, no namespaces, most concepts unnamed).
+2. `spec-not-verified`: the accounts message class and body, and how the iXBRL is attached, have not been taken from the Companies House TIS (`ACCOUNTS_SPEC.verified` is false).
+3. `storage-not-configured`: no trusted server-side store (Azure Table/Blob plus Key Vault) is configured. The in-memory store is for tests only.
+
+`accounts-status` returns not-available until the status message is taken from the TIS.
+
+Tests: `api/test/accountsFiling.test.js` (12). The spec and mapping used there are invented for the tests and prove nothing about the real gateway.

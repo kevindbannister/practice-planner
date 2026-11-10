@@ -35,7 +35,7 @@ function envelope({ cls, number, presenter, test, body }) {
   return `<?xml version="1.0" encoding="UTF-8"?>`
     + `<GovTalkMessage xmlns="${ENVELOPE_NS}">`
     + `<EnvelopeVersion>1.0</EnvelopeVersion>`
-    + `<Header><MessageDetails><Class>${esc(cls)}</Class><Qualifier>request</Qualifier><TransactionID>${esc(number)}</TransactionID></MessageDetails>`
+    + `<Header><MessageDetails><Class>${esc(cls)}</Class><Qualifier>request</Qualifier><TransactionID>${esc(number)}</TransactionID>${test ? "<GatewayTest>1</GatewayTest>" : ""}</MessageDetails>`
     + `<SenderDetails><IDAuthentication><SenderID>${esc(presenter.id)}</SenderID><Authentication><Method>CHMD5</Method><Value>${md5(presenter.auth)}</Value></Authentication></IDAuthentication>${presenter.email ? `<EmailAddress>${esc(presenter.email)}</EmailAddress>` : ""}</SenderDetails></Header>`
     + `<GovTalkDetails><Keys/><TargetDetails><Organisation>Companies House</Organisation></TargetDetails><ChannelRouting><Channel><URI>${esc(presenter.id)}</URI><Product>xproflow</Product><Version>1</Version></Channel>${test ? "<Test>1</Test>" : ""}</ChannelRouting></GovTalkDetails>`
     + `<Body>${body}</Body></GovTalkMessage>`;

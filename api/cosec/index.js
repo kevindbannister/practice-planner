@@ -13,8 +13,10 @@
 const { createSignIn, reply } = require("../shared/signin.js");
 const { FORMS } = require("./lib/forms.js");
 const { settings, submitForm, submissionStatus } = require("./lib/gateway.js");
+const A = require("./lib/accountsFiling.js");
 
-function createHandler({ fetch = globalThis.fetch, env = process.env, now = () => Date.now() } = {}) {
+// `store` is the trusted server-side record of approvals and attempts. None is configured yet, so every accounts action refuses.
+function createHandler({ fetch = globalThis.fetch, env = process.env, now = () => Date.now(), store = null, spec } = {}) {
   const signedIn = createSignIn({ fetch, now });
   const body = (req) => { const b = req.body; if (b && typeof b === "object") return b; try { return JSON.parse(String(b || "{}")); } catch { return {}; } };
 
@@ -25,6 +27,25 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (!ok) { context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." }); return; }
 
     const s = settings(env);
+    if (action === "accounts-info" && req.method === "GET") {
+      const r = A.route(env, "dormant");
+      context.res = reply(200, { available: false, reason: !store ? "storage-not-configured" : !(spec || A.ACCOUNTS_SPEC).verified ? "spec-not-verified" : null, test: r.ok ? r.test : true });
+      return;
+    }
+    if (action === "accounts-submit" || action === "accounts-status") {
+      if (req.method !== "POST") { context.res = reply(400, { error: "bad-request", message: "That isn't something filing does." }); return; }
+      const b = body(req);
+      try {
+        // The browser sends only a filing key. It never supplies XML, the approved version or the company authentication code.
+        if (!/^[A-Za-z0-9._-]{1,80}$/.test(String(b.filingKey || ""))) { context.res = reply(400, { error: "bad-request", message: "That isn't a filing reference." }); return; }
+        if (action === "accounts-submit") { context.res = reply(200, await A.submitAccounts({ store, fetch, env, filingKey: String(b.filingKey), user: "signed-in", now: now(), spec })); return; }
+        context.res = reply(409, { error: "not-available", message: "Status checks need the Companies House status message, which hasn't been taken from the TIS yet." });
+      } catch (e) {
+        const code = e && e.code ? e.code : "upstream";
+        context.res = reply(code === "storage-not-configured" || code === "spec-not-verified" || code === "ixbrl-unavailable" || code === "not-configured" ? 503 : code === "outcome-unknown" ? 502 : 409, { error: code, message: e && e.message ? e.message : "Accounts filing failed." });
+      }
+      return;
+    }
     if (action === "info" && req.method === "GET") {
       context.res = reply(200, { configured: !s.missing.length, test: !(s.live), missing: s.missing, forms: Object.keys(FORMS), live: s.liveForms });
       return;
