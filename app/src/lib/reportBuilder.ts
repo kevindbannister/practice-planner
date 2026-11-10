@@ -41,7 +41,10 @@ export type Block =
 export const spanOf = (b: Block): number => (b.type === "line" || b.type === "page" ? 12 : Math.max(2, Math.min(12, Math.round(b.w || (b.type === "key" ? 4 : 12)))));
 export const CHART_H = 340;
 export const chartH = (b: Block): number => Math.max(160, Math.min(700, Math.round(b.h || CHART_H)));
-export type Section = { id: string; title: string; blocks: Block[] };
+/** `orientation` is only set when this page differs from the report's own; blank follows the report. */
+export type Section = { id: string; title: string; blocks: Block[]; orientation?: Orientation };
+/** Which way a page runs: its own setting, else the report's. */
+export const sectionOrientation = (doc: { orientation: Orientation }, s: { orientation?: Orientation }): Orientation => s.orientation ?? doc.orientation;
 export type ReportDoc = {
   id: string; name: string; kind: PeriodKind; /** the month the period ends in; empty = the latest month read */ anchor: string;
   orientation: Orientation; /** series colours for the whole report; blank = the default set */ palette?: string[]; sections: Section[]; disclaimer: boolean; disclaimerText: string;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LAYOUTS, CHART_BLOCKS, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, moveItem, newReport, periodWords } from "../src/lib/reportBuilder";
+import { LAYOUTS, CHART_BLOCKS, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, moveItem, newReport, periodWords, sectionOrientation } from "../src/lib/reportBuilder";
 
 test("a new report starts as a draft with an Introduction section", () => {
   const r = newReport("  Board pack ", "month", "2026-10", "portrait", "2026-11-05");
@@ -47,4 +47,11 @@ test("next period's copy moves the period on, keeps the layout and clears the co
   assert.equal(r.sections[0].blocks[1].type === "text" && r.sections[0].blocks[1].text, "Sales were up."); // the original is untouched
   assert.equal(nextCopy({ ...r, anchor: "2026-11" }, "2026-12-01T00:00:00Z", "2026-11").anchor, ""); // no December figures yet: the latest month
   assert.equal(nextCopy({ ...r, name: "Board pack" }, "2026-12-01T00:00:00Z", "2026-11").name, "Board pack (next)");
+});
+
+test("a page follows the report's orientation unless it has its own", () => {
+  const r = newReport("Pack", "month", "2026-10", "portrait", "2026-11-05");
+  assert.equal(sectionOrientation(r, { }), "portrait");
+  assert.equal(sectionOrientation(r, { orientation: "landscape" }), "landscape");
+  assert.equal(sectionOrientation({ ...r, orientation: "landscape" }, { }), "landscape");
 });

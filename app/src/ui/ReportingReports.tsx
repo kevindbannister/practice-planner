@@ -9,7 +9,7 @@ import { AgedData } from "../lib/aged";
 import { KpiSettings, computeKpis, formatKpi } from "../lib/kpis";
 import { keyData } from "../lib/reportComponents";
 import {
-  Block, CHART_BLOCKS, LAYOUTS, TEMPLATES, fromTemplate, chartH, spanOf, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, nextCopy, moveItem, newReport, periodWords, uid,
+  Block, CHART_BLOCKS, LAYOUTS, TEMPLATES, fromTemplate, chartH, spanOf, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, nextCopy, moveItem, newReport, periodWords, uid, sectionOrientation,
 } from "../lib/reportBuilder";
 import { PeriodKind, REPORT_FOLDER, ReportData, bsStatement, monthLabel, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { todayIso } from "../lib/domain";
@@ -133,24 +133,24 @@ const REPORT_CSS = `@import url('https://fonts.googleapis.com/css2?family=Figtre
 .rp{font-family:Figtree,"Avenir Next","Segoe UI",system-ui,-apple-system,Arial,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rp *{box-sizing:border-box}
 .rp{container-type:inline-size;--ph:141.42cqw}
-.rp-land{--ph:70.71cqw}
 .rp-cover{position:relative;container-type:inline-size;aspect-ratio:210/297;background:#fff;overflow:hidden;page:cover;box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 20px rgba(0,0,0,.08)}
-.rp-land .rp-cover{aspect-ratio:297/210}
+.rp-cover.L{aspect-ratio:297/210}
 .rp-cover-body{position:absolute;left:17%;right:17%;top:24%}
-.rp-land .rp-cover-body{top:14%}
+.rp-cover.L .rp-cover-body{top:14%}
 .rp-logo{font-size:5.2cqw;font-weight:800;letter-spacing:-.045em;line-height:1;color:#111;margin-bottom:9cqw}
-.rp-land .rp-logo{font-size:3.8cqw;margin-bottom:4cqw}
+.rp-cover.L .rp-logo{font-size:3.8cqw;margin-bottom:4cqw}
 .rp-rule{border:0;border-top:1px solid #333;margin:0}
 .rp-prep{display:flex;align-items:center;gap:2cqw;margin-top:4cqw;font-size:1.6cqw;color:#59606d}.rp-prep img{max-height:5cqw;max-width:18cqw;object-fit:contain}
 .rp-title{font-size:3cqw;font-weight:500;margin:0;padding:2.6cqw 0;letter-spacing:-.01em}
 .rp-sub{font-size:2.35cqw;font-weight:300;line-height:1.5;margin-top:2.6cqw}
 .rp-band{position:absolute;left:0;right:0;bottom:0;height:33%;background:#141b2f}
-.rp-land .rp-band{height:28%}
+.rp-cover.L .rp-band{height:28%}
 .rp-band svg{width:100%;height:100%;display:block}
 .rp-in{padding:0 9%}
-.rp-land .rp-in{padding:0 6.3%}
+.rp-sec.L .rp-in{padding:0 6.3%}
 .rp-sec{position:relative;padding:40px 0 40px;background:#fff;aspect-ratio:210/297;box-shadow:0 1px 3px rgba(0,0,0,.12),0 6px 20px rgba(0,0,0,.08);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--ph) - 2px),#b9c9e0 calc(var(--ph) - 2px),#b9c9e0 var(--ph))}
-.rp-land .rp-sec{aspect-ratio:297/210}
+.rp-sec.L{aspect-ratio:297/210;page:pl}.rp-sec.P{page:pp}
+.rp-mix .rp-sec.P,.rp-mix .rp-cover.P{width:75%;margin-left:auto;margin-right:auto}
 .rp{counter-reset:pg 1}.rp-sec{counter-increment:pg}
 .rp-sec::after{content:"Page " counter(pg);position:absolute;right:4%;top:calc(var(--ph) - 24px);font-size:10px;color:#9aa4b2}
 .rp-break{display:flex;align-items:center;gap:12px;height:44px;color:#8a95a1;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
@@ -184,11 +184,15 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
   sectionTools?: (s: Section, i: number) => ReactNode; blockTools?: (s: Section, b: Block, i: number) => ReactNode; addButtons?: (s: Section) => ReactNode;
 }) {
   const words = periodWords(doc.kind, c?.anchor || doc.anchor);
-  if (c) c = { ...c, land: doc.orientation === "landscape", palette: doc.palette ?? c.palette };
+  const baseC = c && { ...c, palette: doc.palette ?? c.palette };
+  // a report with both kinds of page is drawn as wide as its landscape pages, the portrait ones narrower and centred
+  const lands = doc.sections.map((s) => sectionOrientation(doc, s) === "landscape");
+  const mixed = lands.some(Boolean) && (lands.some((x) => !x) || doc.orientation === "portrait");
+  const coverL = doc.orientation === "landscape";
   return (
-    <div className={`rp${doc.orientation === "landscape" ? " rp-land" : ""}`}>
+    <div className={`rp${mixed ? " rp-mix" : ""}`}>
       <style>{REPORT_CSS}</style>
-      <div className="rp-cover">
+      <div className={`rp-cover ${coverL ? "L" : "P"}`}>
         <div className="rp-cover-body">
           <div className="rp-logo">{clientName}</div>
           <hr className="rp-rule" />
@@ -201,6 +205,7 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
       </div>
       {doc.sections.map((s, si) => {
         let ki = 0;
+        const land = lands[si], c = baseC && { ...baseC, land };
         const items = s.blocks.map((b, bi) => {
           const bp = blockProps?.(s, b, bi), tone = b.type === "key" ? ki++ : undefined;
           return (
@@ -215,7 +220,7 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
         return (
           <Fragment key={s.id}>
             <div className="rp-break" aria-hidden="true"><span>Page break</span></div>
-            <section className="rp-sec rb-section">
+            <section className={`rp-sec rb-section ${land ? "L" : "P"}`} style={{ "--ph": land ? "70.71cqw" : mixed ? "106.07cqw" : "141.42cqw" } as React.CSSProperties}>
               <div className="rp-in">
                 {sectionTools ? sectionTools(s, si) : <h2 style={doc.look === "management" ? { ...T.h2, color: NAVY, fontWeight: 600, fontSize: 21, borderBottom: `2px solid ${NAVY}` } : T.h2}>{s.title}{doc.look === "management" && words && <span style={{ fontWeight: 400, color: "#6b6f7a", fontSize: 15 }}> · {words}</span>}</h2>}
                 <div className="rp-grid">{items}</div>
@@ -235,9 +240,12 @@ export function publishedHtml(doc: ReportDoc, c: Ctx, clientName: string): strin
   const body = renderToStaticMarkup(<ReportView doc={doc} c={c} clientName={clientName} />);
   const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch] as string));
   const land = doc.orientation === "landscape";
+  const wide = land || doc.sections.some((s) => s.orientation === "landscape");
   const css = (t: string) => t.replace(/[\\"]/g, "\\$&").replace(/[<>\n\r]/g, " ");
+  const foot = `@bottom-right{content:"Page " counter(page);font:9px Figtree,Arial,sans-serif;color:#9aa4b2;padding-right:12mm}@bottom-left{content:"${css(clientName)} · ${css(doc.name)}";font:9px Figtree,Arial,sans-serif;color:#9aa4b2;padding-left:12mm}`;
+  const pages = `@page{size:A4 ${doc.orientation};margin:${land ? "12mm 0 14mm" : "19mm 0"};${foot}}@page pl{size:A4 landscape;margin:12mm 0 14mm;${foot}}@page pp{size:A4 portrait;margin:19mm 0;${foot}}@page cover{size:A4 ${doc.orientation};margin:0;@bottom-right{content:none}@bottom-left{content:none}}`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(doc.name)} – ${esc(clientName)}</title>
-<style>@page{size:A4 ${doc.orientation};margin:${land ? "12mm 0 14mm" : "19mm 0"};@bottom-right{content:"Page " counter(page);font:9px Figtree,Arial,sans-serif;color:#9aa4b2;padding-right:12mm}@bottom-left{content:"${css(clientName)} · ${css(doc.name)}";font:9px Figtree,Arial,sans-serif;color:#9aa4b2;padding-left:12mm}}@page cover{size:A4 ${doc.orientation};margin:0;@bottom-right{content:none}@bottom-left{content:none}}body{margin:0;background:#e9ecef}main{max-width:${land ? 1180 : 840}px;margin:0 auto;padding-bottom:40px}.noprint{max-width:${land ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}@media print{body{background:#fff}main{max-width:none}.noprint{display:none}html body .rp .rp-cover{aspect-ratio:auto;width:100%;height:${land ? 209 : 296}mm;box-shadow:none}html body .rp .rp-sec{break-before:page;padding:0;border:0;aspect-ratio:auto;box-shadow:none;background:none}html body .rp .rp-sec::after,html body .rp .rp-break{display:none}html body .rp .rp-in{padding:0 ${land ? 12 : 19}mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
+<style>${pages}body{margin:0;background:#e9ecef}main{max-width:${wide ? 1180 : 840}px;margin:0 auto;padding-bottom:40px}.noprint{max-width:${wide ? 1180 : 840}px;margin:12px auto;text-align:right;font-family:system-ui,sans-serif}button{font:inherit;padding:6px 14px}@media print{body{background:#fff}main{max-width:none}.noprint{display:none}html body .rp .rp-cover{aspect-ratio:auto;width:100%!important;margin:0!important;height:${land ? 209 : 296}mm;box-shadow:none}html body .rp .rp-sec{break-before:page;padding:0;border:0;aspect-ratio:auto;width:100%!important;margin:0!important;box-shadow:none;background:none}html body .rp .rp-sec::after,html body .rp .rp-break{display:none}html body .rp .rp-sec.L .rp-in{padding:0 12mm}html body .rp .rp-sec.P .rp-in{padding:0 19mm}.rb-block,.rp-keys{break-inside:avoid}}</style></head>
 <body><div class="noprint"><button onclick="window.print()">Print or save as PDF</button></div><main>${body}</main></body></html>`;
 }
 
@@ -468,7 +476,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
     const k = label.startsWith("Move up") ? "up" : label.startsWith("Move down") ? "down" : "del";
     return <button type="button" className="rb-ico" aria-label={label} title={label} disabled={off} onClick={onClick}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICO[k]}</svg></button>;
   };
-  const width = doc.orientation === "landscape" ? 1000 : 780;
+  const width = doc.orientation === "landscape" || doc.sections.some((x) => x.orientation === "landscape") ? 1000 : 780;
   const RAIL: [PanelId, string, IconName][] = [["outline", "Outline", "list"], ["text", "Text", "letter"], ["charts", "Charts", "chart"], ["tables", "Tables", "calc"], ["layouts", "Layouts", "layout"], ["settings", "Settings", "cog"]];
   const panelTitle = PANELS.find(([k]) => k === panel)?.[1];
   const words = periodWords(doc.kind, anchor);
@@ -499,13 +507,13 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
           ))}
         </nav>
         <aside className="rb-panel">
-          {editing && <ComponentEditor key={editing.b.id} block={editing.b} c={c} preview={(nb) => (c ? <BlockView b={nb} c={{ ...c, land: doc.orientation === "landscape" }} /> : null)} onDraft={setDraft} onCancel={() => setEditId("")} onSave={(nb) => { sec(editing.s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === nb.id ? nb : y)) })); setEditId(""); }} />}
+          {editing && <ComponentEditor key={editing.b.id} block={editing.b} c={c} preview={(nb) => (c ? <BlockView b={nb} c={{ ...c, land: sectionOrientation(doc, editing.s) === "landscape" }} /> : null)} onDraft={setDraft} onCancel={() => setEditId("")} onSave={(nb) => { sec(editing.s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === nb.id ? nb : y)) })); setEditId(""); }} />}
           {!editing && <h3 className="rb-panel-title">{panelTitle}</h3>}
           {!editing && panel === "outline" && (
             <div className="rb-list">
               {doc.sections.map((s, i) => (
                 <div key={s.id} className={`rb-out${s.id === target ? " on" : ""}`}>
-                  <button type="button" className="rb-out-name" onClick={() => setTarget(s.id)}>{s.title || "Untitled"}<span>{s.blocks.length}</span></button>
+                  <button type="button" className="rb-out-name" onClick={() => setTarget(s.id)}>{s.title || "Untitled"}<span>{s.orientation ? `${s.orientation === "landscape" ? "Land" : "Port"} · ` : ""}{s.blocks.length}</span></button>
                   {mini("Move up", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}
                 </div>
               ))}
@@ -545,6 +553,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
                 <div className={`rb-sechead${s.id === target ? " on" : ""}`}>
                   <input aria-label="Section title" value={s.title} onFocus={() => setTarget(s.id)} onChange={(e) => sec(s.id, (x) => ({ ...x, title: e.target.value }))} />
                   <span className="rb-tools">
+                    <select className="rb-w" aria-label="Page orientation" title="Page orientation (this page only)" value={sectionOrientation(doc, s)} onChange={(e) => sec(s.id, (x) => ({ ...x, orientation: e.target.value === doc.orientation ? undefined : (e.target.value as Orientation) }))}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>
                     {mini("Move up section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i - 1) })), i === 0)}{mini("Move down section", () => update((x) => ({ ...x, sections: moveItem(x.sections, i, i + 1) })), i === doc.sections.length - 1)}
                     {doc.sections.length > 1 && mini("Delete section", () => update((x) => ({ ...x, sections: x.sections.filter((y) => y.id !== s.id) })))}
                   </span>
