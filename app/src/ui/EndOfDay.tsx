@@ -5,6 +5,7 @@ import { fmtDate, fmtHours, todayIso } from "../lib/domain";
 import { addDays, weekday } from "../lib/planning";
 import { Session, conclude, reschedule, toReview } from "../lib/planSessions";
 import { parseDuration } from "../lib/timeSpent";
+import { readEntry, sessionMinutes } from "../lib/timesheet";
 import { nextClientDay } from "../lib/today";
 import { useData } from "./data";
 import { usePlanning } from "./usePlanning";
@@ -29,9 +30,10 @@ export function EndOfDay() {
   const [note, setNote] = useState<{ text: string; batch?: string; bad?: boolean }>();
   if (!pl.ready) return null;
   const list = toReview(pl.sessions, today);
+  const recorded = (x: Session) => sessionMinutes(data.jobTime.map(readEntry), x.key, new Date());
   const clientName = (x: Session) => data.clients.find((c) => c.Key === x.clientKey)?.Title || "";
 
-  const start = (x: Session) => { setOpen(x.key); setWay(x.date < today ? "move" : "done"); setHours(x.actualMinutes ? String(x.actualMinutes / 60) : ""); setLeft(""); setTo(next); setWhy(""); };
+  const start = (x: Session) => { setOpen(x.key); setWay(x.date < today ? "move" : "done"); { const r = recorded(x) || x.actualMinutes; setHours(r ? String(Math.round((r / 60) * 100) / 100) : ""); } setLeft(""); setTo(next); setWhy(""); };
   const go = async (x: Session) => {
     const mins = hours.trim() ? Math.round((parseDuration(hours) || 0) * 60) : undefined;
     if (hours.trim() && mins === undefined) return setNote({ text: "Hours worked: try 1.5, 1h30 or 90m.", bad: true });
@@ -79,7 +81,7 @@ export function EndOfDay() {
             <div className="row-wrap" style={{ justifyContent: "space-between", gap: 8 }}>
               <span className="stack" style={{ gap: 2, minWidth: 0 }}>
                 <strong className="ellipsis">{clientName(x) || x.title}{clientName(x) ? <span className="muted" style={{ fontWeight: 400 }}> · {x.title}</span> : null}</strong>
-                <span className="muted" style={{ fontSize: 12 }}>{fmtHours(x.minutes / 60)} planned{x.date < today ? ` for ${fmtDate(x.date, { weekday: true, year: false })}, still open` : ""}{x.originalKey ? " · moved from an earlier day" : ""}</span>
+                <span className="muted" style={{ fontSize: 12 }}>{fmtHours(x.minutes / 60)} planned{recorded(x) ? ` · ${fmtHours(recorded(x) / 60)} recorded on the timesheet` : ""}{x.date < today ? ` for ${fmtDate(x.date, { weekday: true, year: false })}, still open` : ""}{x.originalKey ? " · moved from an earlier day" : ""}</span>
               </span>
               <button type="button" className="btn small" onClick={() => (open === x.key ? setOpen(undefined) : start(x))}>{open === x.key ? "Close" : "How did it go?"}</button>
             </div>

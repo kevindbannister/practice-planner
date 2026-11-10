@@ -11,6 +11,7 @@ import { elementsUrl } from "../lib/elements";
 import { DoneView } from "./DoneView";
 import { TodayView } from "./TodayView";
 import { PlanningHistory } from "./PlanningHistory";
+import { Timesheet } from "./Timesheet";
 import { RoutineBar } from "./Routines";
 import { ConflictCard, useMakeClientDay } from "./Conflicts";
 import { useTodayModel } from "./useTodayModel";
@@ -89,6 +90,7 @@ export function PlanPage() {
   if (parts[1] === "projects") return <ProjectsView />;
   if (parts[1] === "chase") return <ChasePage />;
   if (parts[1] === "history") return <PlanningHistory />;
+  if (parts[1] === "timesheet") return <Timesheet />;
   return <WeekView />;
 }
 

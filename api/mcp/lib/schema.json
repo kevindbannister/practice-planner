@@ -5021,6 +5021,30 @@
     {
      "name": "Created",
      "type": "text"
+    },
+    {
+     "name": "TaskKey",
+     "type": "text"
+    },
+    {
+     "name": "SessionKey",
+     "type": "text"
+    },
+    {
+     "name": "ActivityKey",
+     "type": "text"
+    },
+    {
+     "name": "WorkDate",
+     "type": "text"
+    },
+    {
+     "name": "BillableType",
+     "type": "text"
+    },
+    {
+     "name": "Version",
+     "type": "number"
     }
    ]
   },

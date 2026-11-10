@@ -453,7 +453,7 @@ export const LISTS: ListDef[] = [
   {
     // Time worked on a job, by stage: from the timer or typed in. One running timer at a time (a row with no Ended).
     key: "JobTime", displayName: "PP Job Time", description: "Practice Planner: time worked on each job by stage (timer and manual entries)",
-    columns: [t("Key", true), t("PracticeId", true), t("JobKey", true), t("ClientKey", true), n("StageNo"), t("StageName"), t("Started"), t("Ended"), n("Hours"), t("Kind"), note("Note"), t("CreatedBy"), t("Created")],
+    columns: [t("Key", true), t("PracticeId", true), t("JobKey", true), t("ClientKey", true), n("StageNo"), t("StageName"), t("Started"), t("Ended"), n("Hours"), t("Kind"), note("Note"), t("CreatedBy"), t("Created"), t("TaskKey", true), t("SessionKey", true), t("ActivityKey"), t("WorkDate", true), t("BillableType"), n("Version")],
   },
   {
     // A plan to spend time on a job or task on a day. One job has many; one that doesn't happen stays on record and a new linked one (OriginalKey) takes the rest. Version is checked before every change. See lib/planSessions.ts.
