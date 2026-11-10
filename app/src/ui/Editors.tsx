@@ -2,6 +2,7 @@
 // and jobs. Open them from anywhere with useEditor().open(...). Every field saves as
 // soon as it's changed.
 import { JobTime, TrackedHint } from "./JobTime";
+import { ProgressSection } from "./ProgressSection";
 import { CustomValuesEditor } from "./CustomFields";
 import { StageMailOffer, StageMailSettings, useStageRules } from "./StageMail";
 import { StageRule, ruleOnMove } from "../lib/stageMail";
@@ -291,6 +292,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         {!isOpen(job) && <span className="chip green">Complete</span>}
       </div>
       {isOpen(job) && <HoldSection item={job} deadline={job.Deadline} save={save} what="job" />}
+      <ProgressSection item={job} kind="job" estimate={jobHours(job as never, data.services)} save={save} />
 
       <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <div style={{ gridColumn: "1 / -1" }}>
@@ -747,6 +749,7 @@ function TaskPanel({ taskKey, clientKey, plannedDate, startTime, projectKey, onC
     return (
       <Drawer title={existing.Title} eyebrow={existing.Type || "Task"} onClose={onClose}>
         {isOpen(existing) && <HoldSection item={existing} deadline={existing.DueDate} save={save} what="task" />}
+        <ProgressSection item={existing} kind="task" estimate={Number(existing.EstimateHours) || 1} save={save} />
         <TaskFields value={existing} clients={clients} projects={data.projects} onChange={(patch) => save(patch)} live />
         <SubtaskList value={existing.Subtasks as string} onChange={(v) => save({ Subtasks: v })}
           onAllDone={isOpen(existing) ? () => setFinishing(true) : undefined} />

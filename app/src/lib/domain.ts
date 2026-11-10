@@ -39,7 +39,7 @@ export const isOnHold = (j: { Status?: string }) => j.Status === ON_HOLD;
 
 // "Waiting on" is a kind of hold: the ball is with someone else (the client, HMRC, Companies
 // House...) and the look-again date is the day to chase them. Parked work has no HoldKind.
-export const WAIT_KINDS = ["Client", "HMRC", "Companies House", "Someone else"];
+export const WAIT_KINDS = ["Client", "HMRC", "Companies House", "Team member", "Someone else"];
 
 /** Who the job or task is waiting on, or "" when it is simply parked (or not on hold). */
 export const waitingOn = (j: { Status?: string; HoldKind?: unknown }): string => (isOnHold(j) ? String(j.HoldKind || "") : "");

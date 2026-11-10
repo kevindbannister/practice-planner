@@ -754,6 +754,18 @@
      "type": "number"
     },
     {
+     "name": "RemainingHours",
+     "type": "number"
+    },
+    {
+     "name": "ReadyHours",
+     "type": "number"
+    },
+    {
+     "name": "ReadyNote",
+     "type": "text"
+    },
+    {
      "name": "Fee",
      "type": "number"
     },
@@ -978,6 +990,18 @@
     {
      "name": "ActualHours",
      "type": "number"
+    },
+    {
+     "name": "RemainingHours",
+     "type": "number"
+    },
+    {
+     "name": "ReadyHours",
+     "type": "number"
+    },
+    {
+     "name": "ReadyNote",
+     "type": "text"
     },
     {
      "name": "TimeSkipped",

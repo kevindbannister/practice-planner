@@ -52,11 +52,18 @@ export function finaliseDefault(serviceKey: string | undefined, services: Row[])
 
 /** Hours still to plan for a job: the finalising time once it's been prepared, else the whole job. */
 export function planHours(job: Job | Row, services: Row[]): number {
-  if (inFinalise(job)) {
-    const own = Number(job.FinaliseHours);
-    return own > 0 ? own : finaliseDefault(job.ServiceKey as string, services);
-  }
-  return jobHours(job as Job, services);
+  const base = (() => {
+    if (inFinalise(job)) {
+      const own = Number(job.FinaliseHours);
+      return own > 0 ? own : finaliseDefault(job.ServiceKey as string, services);
+    }
+    return jobHours(job as Job, services);
+  })();
+  // what the user says is left replaces the estimate, and only the part that can be done now takes planning time (lib/jobProgress.ts)
+  const left = job.RemainingHours === "" || job.RemainingHours == null ? NaN : Number(job.RemainingHours);
+  const whole = Number.isFinite(left) && left >= 0 ? left : base;
+  const ready = job.ReadyHours === "" || job.ReadyHours == null ? NaN : Number(job.ReadyHours);
+  return Number.isFinite(ready) && ready >= 0 && ready < whole ? ready : whole;
 }
 
 /**

@@ -2,6 +2,7 @@
 // log" card on Home for work that was finished with no time recorded.
 import { useState } from "react";
 import { fmtDate, todayIso } from "../lib/domain";
+import { actualHours, readEntry } from "../lib/timesheet";
 import { Finished, CATCH_UP_DAYS, finishedWithoutTime, parseDuration, timeGapText, timePatch, timeSkipPatch } from "../lib/timeSpent";
 import { TimePicker } from "./TimePicker";
 import { addDays } from "../lib/planning";
@@ -55,7 +56,8 @@ export function TimeToLog() {
   const today = todayIso();
   const [all, setAll] = useState(false);
   const [openKey, setOpenKey] = useState<string>();
-  const list = finishedWithoutTime(data.jobs as never, data.tasks as never, data.services, { since: addDays(today, -CATCH_UP_DAYS) });
+  const entries = data.jobTime.map(readEntry);
+  const list = finishedWithoutTime(data.jobs as never, data.tasks as never, data.services, { since: addDays(today, -CATCH_UP_DAYS), tracked: (k, key) => actualHours(entries, k, key) });
   if (!list.length) return null;
   const shown = all ? list : list.slice(0, LIST_LIMIT);
   const name = (f: Finished) => (f.clientKey && idx.clientByKey.get(f.clientKey)?.Title) || String((f.row as { ClientName?: string }).ClientName || "");

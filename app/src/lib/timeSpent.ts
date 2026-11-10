@@ -44,21 +44,21 @@ export type Finished = {
   estimate: number;
 };
 
-const hasTime = (r: Row) => Number(r.ActualHours) > 0;
+const hasTime = (r: Row, tracked = 0) => Number(r.ActualHours) > 0 || tracked > 0;
 const skipped = (r: Row) => !!r.TimeSkipped;
 
 /** Finished jobs and tasks with no time logged (and not marked "don't know"), newest first. */
-export function finishedWithoutTime(jobs: Job[], tasks: Task[], services: Row[], opts: { since?: string; until?: string } = {}): Finished[] {
+export function finishedWithoutTime(jobs: Job[], tasks: Task[], services: Row[], opts: { since?: string; until?: string; /** hours already held as time entries for a job or task, which count as time logged */ tracked?: (kind: "job" | "task", key: string) => number } = {}): Finished[] {
   const inRange = (d: string) => (!opts.since || d >= opts.since) && (!opts.until || d <= opts.until);
   const out: Finished[] = [];
   for (const j of jobs) {
     const done = String(j.CompletedDate || "");
-    if (j.Status !== "Complete" || !done || hasTime(j) || skipped(j) || !inRange(done)) continue;
+    if (j.Status !== "Complete" || !done || hasTime(j, opts.tracked?.("job", j.Key)) || skipped(j) || !inRange(done)) continue;
     out.push({ kind: "job", key: j.Key, row: j, title: j.Title, clientKey: j.ClientKey, done, estimate: jobHours(j, services) });
   }
   for (const t of tasks) {
     const done = String(t.CompletedDate || "");
-    if (t.Status !== "Done" || !done || hasTime(t) || skipped(t) || !inRange(done)) continue;
+    if (t.Status !== "Done" || !done || hasTime(t, opts.tracked?.("task", t.Key)) || skipped(t) || !inRange(done)) continue;
     out.push({ kind: "task", key: t.Key, row: t, title: t.Title, clientKey: t.ClientKey, done, estimate: Number(t.EstimateHours) || 0 });
   }
   return out.sort((a, b) => b.done.localeCompare(a.done) || a.title.localeCompare(b.title));
