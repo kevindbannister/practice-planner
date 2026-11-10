@@ -9,7 +9,7 @@ import { AgedData } from "../lib/aged";
 import { KpiSettings, computeKpis, formatKpi } from "../lib/kpis";
 import { keyData } from "../lib/reportComponents";
 import {
-  Block, CHART_BLOCKS, LAYOUTS, TEMPLATES, fromTemplate, chartH, spanOf, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, nextCopy, moveItem, newReport, periodWords, uid, sectionOrientation,
+  Block, CHART_BLOCKS, LAYOUTS, TEMPLATES, fromTemplate, chartH, spanOf, Orientation, PALETTES, Pick, ReportDoc, Section, TABLE_BLOCKS, TEXT_BLOCKS, anchorFor, copyReport, nextCopy, asTemplate, copyTemplate, customise, fromSaved, moveItem, newReport, periodWords, uid, sectionOrientation,
 } from "../lib/reportBuilder";
 import { PeriodKind, REPORT_FOLDER, ReportData, bsStatement, monthLabel, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { todayIso } from "../lib/domain";
@@ -296,31 +296,88 @@ export function ReportsScreen({ clientKey, clientName, yearEnd, tenant, id }: Pr
     }
     if (readSetting<ReportDoc[]>(app.settings, legacyKey)?.length) await saveSetting(legacyKey, []);
   };
+  // Templates are kept for the whole practice, one setting each.
+  const tprefix = "report.template.";
+  const tpls = app.settings.filter((s) => String(s.Key).startsWith(tprefix)).map((s) => readSetting<ReportDoc>(app.settings, String(s.Key))).filter((x): x is ReportDoc => !!x && !!x.id);
+  const tplsRef = useRef(tpls); tplsRef.current = tpls;
+  const saveTpls = async (next: ReportDoc[]) => {
+    for (const t of next) {
+      const have = tplsRef.current.find((o) => o.id === t.id);
+      if (!have || JSON.stringify(have) !== JSON.stringify(t)) await saveSetting(tprefix + t.id, t);
+    }
+    for (const gone of tplsRef.current.filter((x) => !next.some((n) => n.id === x.id))) {
+      const row = app.settings.find((s) => s.Key === tprefix + gone.id);
+      if (row) await remove("Settings", row);
+    }
+  };
   const kpi = readSetting<KpiSettings>(app.settings, `reporting.kpi.${clientKey}`) || {};
   const endMonth = endMonthOf(yearEnd);
   const d = r.data;
-  const doc = id ? list.find((x) => x.id === id) : undefined;
+  const doc = id ? list.find((x) => x.id === id) || tpls.find((x) => x.id === id) : undefined;
 
   if (id && !doc) return <div className="alert amber"><strong>That report isn't there</strong><span><a href={href("reporting", clientKey, "reports")}>Back to the reports</a></span></div>;
-  if (doc) return <Editor key={doc.id} doc={doc} d={d} busy={r.busy} clientKey={clientKey} clientName={clientName} endMonth={endMonth} kpi={kpi} aged={ag.data} listRef={listRef} save={save} store={store} refresh={r.refresh} />;
-  return <List list={list} d={d} busy={r.busy} error={r.error} clientKey={clientKey} clientName={clientName} endMonth={endMonth} kpi={kpi} save={save} store={store} refresh={r.refresh} />;
+  if (doc) return <Editor key={doc.id} doc={doc} d={d} busy={r.busy} clientKey={clientKey} clientName={clientName} endMonth={endMonth} kpi={kpi} aged={ag.data} listRef={doc.template ? tplsRef : listRef} save={doc.template ? saveTpls : save} store={store} refresh={r.refresh} />;
+  return <List list={list} tpls={tpls} saveTpls={saveTpls} d={d} busy={r.busy} error={r.error} clientKey={clientKey} clientName={clientName} endMonth={endMonth} kpi={kpi} save={save} store={store} refresh={r.refresh} />;
 }
 
 type Common = { d?: ReportData; busy: string; clientKey: string; clientName: string; endMonth: number; kpi: KpiSettings; save: (l: ReportDoc[]) => Promise<void>; store: ReturnType<typeof useData>["store"]; refresh: () => Promise<void> };
 
-function List({ list, d, busy, error, clientKey, clientName, save, store }: Common & { list: ReportDoc[]; error?: string }) {
-  const [tab, setTab] = useState<"draft" | "published">("draft");
+function TemplateRows({ tpls, saveTpls, use, go }: { tpls: ReportDoc[]; saveTpls: (l: ReportDoc[]) => Promise<void>; use: (v: string) => void; go: (id: string) => void }) {
+  const [confirm, setConfirm] = useState("");
+  const now = () => new Date().toISOString();
+  const change = (t: ReportDoc, o: Orientation) => saveTpls(tpls.map((x) => (x.id === t.id ? { ...x, orientation: o, updatedAt: now() } : x)));
+  return (
+    <>
+      <p className="muted" style={{ margin: 0, fontSize: 12 }}>A template is a layout to start reports from. Your own can be edited, duplicated and changed between portrait and landscape; a built-in one is customised into a copy of your own first.</p>
+      {TEMPLATES.map((t) => (
+        <div key={t.name} className="card pad row-wrap" style={{ gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ flex: "1 1 260px", minWidth: 0 }}><strong>{t.name}</strong> <span className="muted" style={{ fontSize: 12 }}>· built in · {t.orientation}</span><div className="muted" style={{ fontSize: 12 }}>{t.note}</div></div>
+          <div className="row-wrap" style={{ gap: 8 }}>
+            <button type="button" className="btn small primary" onClick={() => use(`b:${t.name}`)}>Use</button>
+            <button type="button" className="btn small" onClick={() => { const c = customise(t, now()); void saveTpls([...tpls, c]).then(() => go(c.id)); }}>Customise</button>
+          </div>
+        </div>
+      ))}
+      {tpls.map((t) => (
+        <div key={t.id} className="card pad row-wrap" style={{ gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ flex: "1 1 260px", minWidth: 0 }}><strong>{t.name}</strong> <span className="muted" style={{ fontSize: 12 }}>· {t.sections.length} {t.sections.length === 1 ? "page" : "pages"}</span>{t.note && <div className="muted" style={{ fontSize: 12 }}>{t.note}</div>}</div>
+          <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
+            <Seg value={t.orientation} set={(o) => void change(t, o)} opts={[["portrait", "Portrait"], ["landscape", "Landscape"]]} label={`Orientation of ${t.name}`} />
+            <button type="button" className="btn small primary" onClick={() => use(`c:${t.id}`)}>Use</button>
+            <button type="button" className="btn small" onClick={() => go(t.id)}>Edit</button>
+            <button type="button" className="btn small" onClick={() => void saveTpls([...tpls, copyTemplate(t, now())])}>Duplicate</button>
+            {confirm === t.id
+              ? <><button type="button" className="btn small danger" onClick={() => { setConfirm(""); void saveTpls(tpls.filter((x) => x.id !== t.id)); }}>Delete it</button><button type="button" className="btn small" onClick={() => setConfirm("")}>Keep</button></>
+              : <button type="button" className="btn small" onClick={() => setConfirm(t.id)}>Delete</button>}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function List({ list, tpls, saveTpls, d, busy, error, clientKey, clientName, save, store }: Common & { list: ReportDoc[]; tpls: ReportDoc[]; saveTpls: (l: ReportDoc[]) => Promise<void>; error?: string }) {
+  const [tab, setTab] = useState<"draft" | "published" | "templates">("draft");
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState(""), [kind, setKind] = useState<PeriodKind>("month"), [anchor, setAnchor] = useState(""), [orient, setOrient] = useState<Orientation>("portrait");
   const [confirm, setConfirm] = useState(""), [note, setNote] = useState("");
   const [tpl, setTpl] = useState("");
-  const template = TEMPLATES.find((t) => t.name === tpl);
-  const pickTpl = (n: string) => { setTpl(n); const t = TEMPLATES.find((x) => x.name === n); if (t) { setKind(t.kind); setOrient(t.orientation); } };
+  // `tpl` is "b:<name>" for a built-in template and "c:<id>" for one the practice has saved
+  const builtIn = tpl.startsWith("b:") ? TEMPLATES.find((t) => t.name === tpl.slice(2)) : undefined;
+  const saved = tpl.startsWith("c:") ? tpls.find((t) => t.id === tpl.slice(2)) : undefined;
+  const template = builtIn || saved;
+  const tplName = builtIn?.name || saved?.name || "", tplNote = builtIn?.note || saved?.note || "";
+  const pickTpl = (v: string) => {
+    setTpl(v);
+    const t = v.startsWith("b:") ? TEMPLATES.find((x) => x.name === v.slice(2)) : tpls.find((x) => x.id === v.slice(2));
+    if (t) { setKind(t.kind); setOrient(t.orientation); }
+  };
   const months = d?.months || [];
   const at = anchor && months.includes(anchor) ? anchor : months[months.length - 1] || "";
   const shown = list.filter((x) => x.status === tab).sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   const create = async () => {
-    const doc = template ? fromTemplate(template, name.trim(), at, new Date().toISOString()) : newReport(name, kind, at, orient, new Date().toISOString());
+    const now = new Date().toISOString();
+    const doc = builtIn ? { ...fromTemplate(builtIn, name.trim(), at, now), orientation: orient } : saved ? fromSaved(saved, name.trim(), at, orient, now) : newReport(name, kind, at, orient, now);
     await save([...list, doc]);
     window.location.hash = href("reporting", clientKey, "reports", doc.id);
   };
@@ -344,9 +401,10 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
       {error && <div className="alert red"><strong>Couldn't read the figures</strong><span>{error}</span></div>}
       {busy && <p className="muted" style={{ margin: 0, fontSize: 12 }} aria-live="polite">{busy}</p>}
       {note && <div className="alert amber"><span>{note}</span></div>}
-      <Seg value={tab} set={setTab} opts={[["draft", `Drafts (${list.filter((x) => x.status === "draft").length})`], ["published", `Published (${list.filter((x) => x.status === "published").length})`]]} label="Reports" />
-      {!shown.length && <div className="card pad"><p style={{ margin: 0 }}>{tab === "draft" ? "No draft reports. Create one and build it from sections of text, charts and tables." : "Nothing published yet. Publish a draft to keep a finished copy you can open, print or save as a PDF."}</p></div>}
-      {shown.map((x) => (
+      <Seg value={tab} set={setTab} opts={[["draft", `Drafts (${list.filter((x) => x.status === "draft").length})`], ["published", `Published (${list.filter((x) => x.status === "published").length})`], ["templates", `Templates (${TEMPLATES.length + tpls.length})`]]} label="Reports" />
+      {tab === "templates" && <TemplateRows tpls={tpls} saveTpls={saveTpls} use={(v) => { pickTpl(v); setCreating(true); }} go={(id) => { window.location.hash = href("reporting", clientKey, "reports", id); }} />}
+      {tab !== "templates" && !shown.length && <div className="card pad"><p style={{ margin: 0 }}>{tab === "draft" ? "No draft reports. Create one and build it from sections of text, charts and tables." : "Nothing published yet. Publish a draft to keep a finished copy you can open, print or save as a PDF."}</p></div>}
+      {tab !== "templates" && shown.map((x) => (
         <div key={x.id} className="card pad row-wrap" style={{ gap: 12, alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <strong>{x.name}</strong>
@@ -358,6 +416,7 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
               : <button type="button" className="btn small" onClick={() => void open(x)}>View</button>}
             <button type="button" className="btn small" title="The same layout, one period on, with the commentary cleared" onClick={() => void save([...list, nextCopy(x, new Date().toISOString(), months[months.length - 1] || "")])}>Next period's copy</button>
             <button type="button" className="btn small" onClick={() => void save([...list, copyReport(x, new Date().toISOString())])}>{x.status === "published" ? "Make a draft copy" : "Duplicate"}</button>
+            <button type="button" className="btn small" title="Keep this layout, with the commentary cleared, to start other reports from" onClick={() => void saveTpls([...tpls, asTemplate(x, new Date().toISOString())]).then(() => { setTab("templates"); setNote(`Saved “${x.name} template” under Templates.`); })}>Save as template</button>
             {confirm === x.id
               ? <><button type="button" className="btn small danger" onClick={() => { setConfirm(""); void save(list.filter((y) => y.id !== x.id)); }}>Delete it</button><button type="button" className="btn small" onClick={() => setConfirm("")}>Keep</button></>
               : <button type="button" className="btn small" onClick={() => setConfirm(x.id)}>Delete</button>}
@@ -372,14 +431,15 @@ function List({ list, d, busy, error, clientKey, clientName, save, store }: Comm
             <label className="stack" style={{ gap: 4, fontSize: 13 }}>Start from
               <select aria-label="Start from" value={tpl} onChange={(e) => pickTpl(e.target.value)}>
                 <option value="">A blank report</option>
-                {TEMPLATES.map((t) => <option key={t.name} value={t.name}>Template: {t.name}</option>)}
+                {TEMPLATES.map((t) => <option key={t.name} value={`b:${t.name}`}>Template: {t.name}</option>)}
+                {tpls.map((t) => <option key={t.id} value={`c:${t.id}`}>Template: {t.name}</option>)}
               </select>
-              {template && <span className="muted" style={{ fontSize: 12 }}>{template.note}.</span>}
+              {template && tplNote && <span className="muted" style={{ fontSize: 12 }}>{tplNote.replace(/\.$/, "")}.</span>}
             </label>
-            <input aria-label="Report name" autoFocus placeholder={template ? template.name : "Report name"} value={name} onChange={(e) => setName(e.target.value)} />
+            <input aria-label="Report name" autoFocus placeholder={template ? tplName : "Report name"} value={name} onChange={(e) => setName(e.target.value)} />
             <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
               <span className="muted" style={{ fontSize: 13 }}>Reporting period: for the</span>
-              {template ? <strong style={{ fontSize: 13 }}>month</strong> : <Seg value={kind} set={setKind} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" />}
+              {template ? <strong style={{ fontSize: 13 }}>{kind}</strong> : <Seg value={kind} set={setKind} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" />}
               <span className="muted" style={{ fontSize: 13 }}>of</span>
               <select aria-label="Month" value={at} onChange={(e) => setAnchor(e.target.value)}>{[...months].reverse().map((m) => <option key={m} value={m}>{monthLong(m)}</option>)}</select>
             </div>
@@ -510,10 +570,10 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
         <input className="rb-title" aria-label="Report name" value={doc.name} onChange={(e) => update((x) => ({ ...x, name: e.target.value }))} />
         <span className="rb-state" aria-live="polite">{state === "saving" ? "Saving…" : state === "saved" ? "Saved" : dirty.current ? "Unsaved changes" : "Draft"}</span>
         <div className="rb-actions">
-          <span className="rb-meta">{clientName}{words ? ` · ${words}` : ""} · {doc.orientation}</span>
+          <span className="rb-meta">{doc.template ? "Template" : `${clientName}${words ? ` · ${words}` : ""}`} · {doc.orientation}</span>
           {!d && <button type="button" className="btn small" disabled={!!busy} onClick={() => void refresh()}>Read from Xero</button>}
           <button type="button" className="btn small" disabled={!c} title="See the report as it prints, and save it as a PDF, without publishing" onClick={() => c && openPrint()}>Print / PDF</button>
-          <button type="button" className="btn primary small" disabled={!c || !!publishing} onClick={() => void publish()}>{publishing || "Publish"}</button>
+          {!doc.template && <button type="button" className="btn primary small" disabled={!c || !!publishing} onClick={() => void publish()}>{publishing || "Publish"}</button>}
         </div>
       </header>
       {(problem || !d) && <div className="rb-notes">
@@ -554,6 +614,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
           )}
           {!editing && panel === "settings" && (
             <div className="rb-form">
+              {doc.template && <label>What it is for<textarea aria-label="What this template is for" rows={3} value={doc.note || ""} onChange={(e) => update((x) => ({ ...x, note: e.target.value }))} /></label>}
               <label>Period<Seg value={doc.kind} set={(k) => update((x) => ({ ...x, kind: k }))} opts={[["month", "Month"], ["quarter", "Quarter"], ["year", "Year"]]} label="Period" /></label>
               <label>Ending in<select aria-label="Month" value={anchor} onChange={(e) => update((x) => ({ ...x, anchor: e.target.value }))}>{[...months].reverse().map((m) => <option key={m} value={m}>{monthLong(m)}</option>)}</select></label>
               <label>Orientation<Seg value={doc.orientation} set={(o) => update((x) => ({ ...x, orientation: o }))} opts={[["portrait", "Portrait"], ["landscape", "Landscape"]]} label="Orientation" /></label>
@@ -574,7 +635,7 @@ export function Editor({ doc: initial, d, busy, clientKey, clientName, endMonth,
               edit={(s, b) => ({ change: (nb) => sec(s.id, (x) => ({ ...x, blocks: x.blocks.map((y) => (y.id === b.id ? nb : y)) })) })}
               sectionTools={(s, i) => (
                 <div className={`rb-sechead${s.id === target ? " on" : ""}`} style={{ marginBottom: 24, paddingBottom: 7, borderBottom: mg ? `2px solid ${NAVY}` : "1px solid #8a8d94" }}>
-                  <input aria-label="Section title" value={s.title} style={{ fontSize: mg ? 21 : 24, fontWeight: mg ? 600 : 500, letterSpacing: -0.25, color: mg ? NAVY : "#111", flex: mg && words ? "0 1 auto" : 1, width: mg && words ? `${Math.max(4, Math.round(s.title.length * 0.6) + 1)}ch` : undefined }} onFocus={() => setTarget(s.id)} onChange={(e) => sec(s.id, (x) => ({ ...x, title: e.target.value }))} />
+                  <input aria-label="Section title" value={s.title} style={{ fontSize: mg ? 21 : 24, fontWeight: mg ? 600 : 500, letterSpacing: -0.25, color: mg ? NAVY : "#111", flex: mg && words ? "0 1 auto" : 1, width: mg && words ? `${Math.max(4, Math.round(s.title.length * 0.75) + 1)}ch` : undefined }} onFocus={() => setTarget(s.id)} onChange={(e) => sec(s.id, (x) => ({ ...x, title: e.target.value }))} />
                   {mg && words && <span style={{ fontWeight: 400, color: "#6b6f7a", fontSize: 15, marginRight: "auto" }}> · {words}</span>}
                   <span className="rb-tools">
                     <select className="rb-w" aria-label="Page orientation" title="Page orientation (this page only)" value={sectionOrientation(doc, s)} onChange={(e) => sec(s.id, (x) => ({ ...x, orientation: e.target.value === doc.orientation ? undefined : (e.target.value as Orientation) }))}><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select>

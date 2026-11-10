@@ -55,3 +55,21 @@ test("a page follows the report's orientation unless it has its own", () => {
   assert.equal(sectionOrientation(r, { orientation: "landscape" }), "landscape");
   assert.equal(sectionOrientation({ ...r, orientation: "landscape" }, { }), "landscape");
 });
+
+test("saved templates: made from a report, customised from a built-in, copied, and used for a new report", async () => {
+  const { TEMPLATES, asTemplate, copyTemplate, customise, fromSaved, fromTemplate } = await import("../src/lib/reportBuilder");
+  const r = fromTemplate(TEMPLATES[0], "Board pack", "2026-01", "2026-02-01");
+  const text = r.sections[0].blocks.find((b) => b.type === "text");
+  if (text && text.type === "text") text.text = "Written for January";
+  const t = asTemplate(r, "2026-02-02");
+  assert.equal(t.template, true); assert.notEqual(t.id, r.id); assert.equal(t.anchor, "");
+  assert.ok(!JSON.stringify(t).includes("Written for January"), "the commentary is cleared");
+  assert.equal(t.sections.length, r.sections.length);
+  const c = copyTemplate(t, "2026-02-03");
+  assert.equal(c.name, `${t.name} (copy)`); assert.notEqual(c.id, t.id); assert.equal(c.template, true);
+  const k = customise(TEMPLATES[0], "2026-02-03");
+  assert.equal(k.template, true); assert.equal(k.orientation, "landscape");
+  const n = fromSaved({ ...t, orientation: "landscape" }, "", "2026-03", "portrait", "2026-04-01");
+  assert.equal(n.orientation, "portrait"); assert.equal(n.template, undefined); assert.equal(n.anchor, "2026-03"); assert.equal(n.status, "draft"); assert.equal(n.name, t.name);
+  assert.equal(t.template, true, "the template itself is untouched");
+});

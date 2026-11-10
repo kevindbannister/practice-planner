@@ -50,6 +50,7 @@ export type ReportDoc = {
   orientation: Orientation; /** series colours for the whole report; blank = the default set */ palette?: string[]; sections: Section[]; disclaimer: boolean; disclaimerText: string;
   /** "management": navy section headings with the period beside them */ look?: "standard" | "management";
   status: "draft" | "published"; createdAt: string; updatedAt: string; publishedAt?: string; /** where the published copy is kept on OneDrive */ file?: string;
+  /** a saved layout to start reports from (kept for the whole practice, not for one client); `note` says what it is for */ template?: boolean; note?: string;
 };
 
 let seq = 0;
@@ -207,6 +208,33 @@ export function copyReport(r: ReportDoc, now: string): ReportDoc {
   return { ...JSON.parse(JSON.stringify(r)), id: uid("r"), name: `${r.name} (copy)`, status: "draft", createdAt: now, updatedAt: now, publishedAt: undefined, file: undefined };
 }
 
+/** Clears the written commentary (paragraphs and summaries), for new words. */
+function clearWords(c: ReportDoc): ReportDoc {
+  for (const s of c.sections) for (const b of s.blocks) {
+    if (b.type === "text" && (b.style === "paragraph" || b.style === "summary" || b.style === "observation")) b.text = "";
+    if (b.type === "movements") delete b.notes;
+  }
+  return c;
+}
+const fresh = (c: ReportDoc, now: string): ReportDoc => ({ ...c, id: uid("r"), status: "draft", createdAt: now, updatedAt: now, publishedAt: undefined, file: undefined });
+
+/** A built-in template as a saved one, to change: the person's own copy, which they can edit and duplicate. */
+export function customise(t: Template, now: string): ReportDoc {
+  return { ...fromTemplate(t, `${t.name} (custom)`, "", now), template: true, note: t.note };
+}
+/** A saved template from a report: the same layout, with its commentary cleared. */
+export function asTemplate(r: ReportDoc, now: string): ReportDoc {
+  return { ...fresh(clearWords(JSON.parse(JSON.stringify(r)) as ReportDoc), now), name: `${r.name} template`, anchor: "", template: true, note: r.note || "" };
+}
+/** A copy of a saved template. */
+export function copyTemplate(t: ReportDoc, now: string): ReportDoc {
+  return { ...fresh(JSON.parse(JSON.stringify(t)) as ReportDoc, now), name: `${t.name} (copy)`, template: true };
+}
+/** A new draft report from a saved template, for a month and orientation. */
+export function fromSaved(t: ReportDoc, name: string, anchor: string, orientation: Orientation, now: string): ReportDoc {
+  return { ...fresh(JSON.parse(JSON.stringify(t)) as ReportDoc, now), name: name || t.name, anchor, orientation, template: undefined, note: undefined };
+}
+
 /** Next period's report from this one: the same layout, one period on, with the written commentary (paragraphs and summaries) cleared for new words. */
 export function nextCopy(r: ReportDoc, now: string, latest: string): ReportDoc {
   const base = r.anchor || latest;
@@ -214,11 +242,7 @@ export function nextCopy(r: ReportDoc, now: string, latest: string): ReportDoc {
   const moved = base ? addMonths(base, step) : "";
   const anchor = moved && latest && moved <= latest ? moved : "";
   const was = periodWords(r.kind, base), will = periodWords(r.kind, anchor || latest);
-  const c = JSON.parse(JSON.stringify(r)) as ReportDoc;
-  for (const s of c.sections) for (const b of s.blocks) {
-    if (b.type === "text" && (b.style === "paragraph" || b.style === "summary" || b.style === "observation")) b.text = "";
-    if (b.type === "movements") delete b.notes;
-  }
+  const c = clearWords(JSON.parse(JSON.stringify(r)) as ReportDoc);
   return { ...c, id: uid("r"), name: was && r.name.includes(was) ? r.name.replace(was, will) : `${r.name} (next)`, anchor, status: "draft", createdAt: now, updatedAt: now, publishedAt: undefined, file: undefined };
 }
 
