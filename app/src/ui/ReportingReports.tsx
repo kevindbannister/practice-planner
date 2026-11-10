@@ -187,8 +187,8 @@ export function ReportView({ doc, c, clientName, edit, sectionTools, blockTools,
   const baseC = c && { ...c, palette: doc.palette ?? c.palette };
   // a report with both kinds of page is drawn as wide as its landscape pages, the portrait ones narrower and centred
   const lands = doc.sections.map((s) => sectionOrientation(doc, s) === "landscape");
-  const mixed = lands.some(Boolean) && (lands.some((x) => !x) || doc.orientation === "portrait");
   const coverL = doc.orientation === "landscape";
+  const mixed = [coverL, ...lands].some(Boolean) && [coverL, ...lands].some((x) => !x); // the cover counts: a landscape cover with portrait pages is mixed too
   return (
     <div className={`rp${mixed ? " rp-mix" : ""}`}>
       <style>{REPORT_CSS}</style>

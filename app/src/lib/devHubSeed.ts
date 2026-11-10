@@ -35,7 +35,7 @@ const mod = (id: string, parent: string, name: string, desc: string, p: Priority
 const f = (id: string, parent: string, name: string, desc: string, files: string[], o?: Opt) => node(id, parent, name, desc, files, o);
 
 // =================================================================== RUN PRACTICE
-area("run", "Run Practice", "Planning, clients, communication, sales, billing and the running of the practice itself.");
+area("run", "Practise", "Planning, clients, communication, sales, billing and the running of the practice itself.");
 
 mod("run.dash", "run", "Dashboard", "What needs doing today and how the practice is doing.", "P3");
 f("run.dash.home", "run.dash", "Home dashboard", "The first screen: today's work, deadlines, alerts and shortcuts.", ["ui:HomePage", "ui:OverviewGrid", "lib:overviewLayout", "test:overviewLayout"]);
@@ -140,7 +140,7 @@ f("run.ops.search", "run.ops", "Global search", "Searching clients and work from
 f("run.ops.devhub", "run.ops", "Development Hub", "This section: inventory, mind map, board, roadmap, approvals and decisions.", ["ui:DevHub", "ui:DevHubMap", "ui:DevHubBoard", "ui:DevHubRegisters", "ui:devHubKit", "doc:development-hub", "lib:devHub", "lib:devHubSeed", "api:devhub", "test:devHub", "apitest:devhub"], { s: "TE", notes: "Built 6 November 2026. GitHub write access is untested against the real repository until a token is added to Azure.", p: "None" });
 
 // =================================================================== DELIVER WORK
-area("deliver", "Deliver Work", "Bookkeeping, working papers, accounts, tax, payroll, company secretarial, documents and filing.");
+area("deliver", "Work", "Bookkeeping, working papers, accounts, tax, payroll, company secretarial, documents and filing.");
 
 mod("deliver.book", "deliver", "Bookkeeping", "Bringing in and keeping clients' books.", "P2");
 f("deliver.book.xero", "deliver.book", "Xero integration", "Read a client's books from Xero through the server bridge.", ["ui:XeroSettings", "ui:XeroImport", "lib:xero", "api:xero", "test:xero", "apitest:xero"], { d: ["acc.xero"], n: ["Confirm scopes, connection limits and tier"], notes: "Read-only by design. Needs the real Xero app credentials." });
@@ -226,7 +226,7 @@ f("deliver.filing.ch", "deliver.filing", "Companies House AD01 gateway", "The pl
 f("deliver.filing.cs01", "deliver.filing", "Companies House CS01 submission", "Submitting a confirmation statement.", [], { s: "BL", b: ["Companies House technical specification not available when audited"], d: ["acc.ch.test"], notes: "See docs/cosec-phases-2-7-report.md (limitations)." });
 
 // =================================================================== GROW & ADVISE
-area("grow", "Grow & Advise", "Reporting, analysis, forecasting, tax planning and advice for clients.");
+area("grow", "Advise", "Reporting, analysis, forecasting, tax planning and advice for clients.");
 
 mod("grow.report", "grow", "Financial reporting", "The reporting centre, reports and the report builder.", "P4");
 f("grow.report.centre", "grow.report", "Reporting centre", "Per-client reporting from Xero with Refresh; analysis tools and settings.", ["ui:ReportingPage", "ui:ReportingSettings", "lib:reportData", "test:reportData"], { d: ["deliver.book.xero"], notes: "Not yet checked on a real Xero client." });

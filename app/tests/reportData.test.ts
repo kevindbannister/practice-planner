@@ -204,3 +204,9 @@ test("if an older year of the balance sheet is refused, the newer months are kep
   assert.ok(d.bs[0].amounts.length === 12 && d.bs[0].amounts.every((v) => v === 100));
   assert.ok(d.notes.some((n) => /only read back to/.test(n)));
 });
+
+test("a December year end is labelled as the calendar year, others as the two years they span", () => {
+  assert.equal(periodCols("year", "2026-10", 12, "lastYear").map((c) => c.label).join(" | "), "FY 2026 YTD | FY 2025 YTD");
+  assert.equal(periodCols("year", "2026-12", 12, "none")[0].label, "FY 2026");
+  assert.equal(periodCols("year", "2026-10", 3, "none")[0].label, "FY 26/27 YTD");
+});

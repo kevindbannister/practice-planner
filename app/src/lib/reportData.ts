@@ -165,7 +165,8 @@ export function yearOf(ym: string, endMonth: number): { first: string; last: str
   const last = `${lastYear}-${pad(endMonth)}`;
   return { first: addMonths(last, -11), last };
 }
-const fyLabel = (last: string) => `FY ${String(Number(last.slice(0, 4)) - 1).slice(2)}/${last.slice(2, 4)}`;
+// a year that ends in December is the calendar year ("FY 2026"); any other spans two ("FY 25/26")
+const fyLabel = (last: string) => (last.slice(5, 7) === "12" ? `FY ${last.slice(0, 4)}` : `FY ${String(Number(last.slice(0, 4)) - 1).slice(2)}/${last.slice(2, 4)}`);
 
 /** The months the period covers: the month, its financial quarter (up to the month picked), or the financial year (up to the month picked). */
 export function periodMonths(kind: PeriodKind, anchor: string, endMonth: number): string[] {

@@ -31,7 +31,7 @@ test("feature ids are unique and every parent, dependency and roadmap reference 
 
 test("the hierarchy is Area > Module > Feature, with the three agreed areas", () => {
   const roots = buildTree(SEED_FEATURES);
-  assert.deepEqual(roots.map((r) => r.f.name), ["Run Practice", "Deliver Work", "Grow & Advise"]);
+  assert.deepEqual(roots.map((r) => r.f.name), ["Practise", "Work", "Advise"]);
   for (const r of roots) for (const m of r.children) { assert.equal(m.kind, "module"); assert.ok(m.children.length > 0, `${m.f.id} has no features`); }
 });
 
