@@ -139,3 +139,19 @@ No screens, no readiness or risk calculation, no store wiring for personal tasks
 **Schema.** New lists `DependencyTemplates` and `TemplateDecisions` (auto-provisioned). No migration.
 **Tests.** `tests/workTemplates.test.ts` (10).
 **Limits.** Jobs created by Companies House roll-forward are picked up on the screen, not automatically. Review items are on the Dependencies screen only; the Action Centre alert comes with Phase 7. Template matching for a new job covers that job as the waiting side only. Tax periods and accounts periods are matched by period end because jobs don't record a start date. Not tried end to end in the browser (the demo data has no services); the matching and creation rules are covered by tests.
+
+## Phase 7: deadline and blocker intelligence (V24.7, on main)
+
+**Features** (`lib/work/risk.ts`, `ui/Unblock.tsx`, `ui/riskKit.tsx`).
+- **Statutory deadlines are protected.** Nothing in the dependency, readiness or risk code writes a deadline column (`Deadline`, `CHDeadline`, `DeadlineSource`; a test guards the list). Blocked jobs stay visible. A job's panel shows five dates apart: statutory deadline, internal target, agreed with the client (not recorded on jobs, so shown as such), planned date, and when the last prerequisite is expected.
+- **Risk categories:** On track, Attention required, At risk, Critical, Overdue, from working days to the deadline (the practice's usual week and days marked off), hours remaining, hours actionable now (the progress figures, reduced by stage-held hours from dependencies), outstanding prerequisites and their expected dates, and the internal target.
+- **Unknown dates are never invented.** If any prerequisite has no expected date the result is flagged "uncertain" with no projected finish, and escalates as the deadline nears (defaults: attention at 20 working days, at risk at 10, critical at 5; never worse than the optimistic case). A blocked job is not treated as low priority. With known dates it reports spare days, and "critical" if a prerequisite is expected after the deadline.
+- **Configurable:** spare days, hours one job can take in a day and the uncertainty thresholds, on the Unblock tab (saved as the `work.risk` setting).
+- **Blocker impact:** per outstanding prerequisite: directly and indirectly held-up work, hours held, deadlines touched, who has it, follow-up date, earliest actionable step, whether it can be acted on now.
+- **What can I unblock?** (Plan > Unblock): prerequisites ranked by worst deadline risk, then how much they hold up, hours, and whether anyone can act, plus the deadline risk of every open job.
+- **Action Centre:** held-up jobs that are short of time raise an alert naming the prerequisite, who has it and whether a date is known, linking to it. Overdue jobs keep their existing alert; healthy jobs raise nothing. Client-owned overdue tasks no longer duplicate.
+
+**Files.** `lib/work/risk.ts`, `ui/Unblock.tsx`, `ui/riskKit.tsx`; edited `ui/DependencyPanel.tsx`, `ui/ActionCentre.tsx`, `ui/PlanPage.tsx`, `ui/bits.tsx`, `lib/actions.ts`, `lib/devHubSeed.ts`, `version.ts`.
+**Schema / migration.** None.
+**Tests.** `tests/workRisk.test.ts` (9). App suite 1,398 pass; API 339.
+**Limits.** Bank holidays count as working days unless marked off. Capacity is the practice's day hours, not per person, and other planned commitments are not yet subtracted (Phase 9). The date agreed with the client exists on tasks but not jobs. Planned hours ahead are not yet fed into the risk figure.

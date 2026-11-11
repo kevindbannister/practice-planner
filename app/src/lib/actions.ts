@@ -41,6 +41,8 @@ export type Source = {
   agentDone: (o: Row) => boolean;
   /** Company secretarial filings and Companies House differences (see lib/cosec.ts). */
   cosecTx?: Row[]; chFlags?: Row[];
+  /** Held-up jobs that are short of time (see lib/work/risk.ts). */
+  risks?: { key: string; clientKey: string; title: string; detail: string; priority: Priority; due: string; href: string }[];
 };
 
 const hash = (s: string) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
@@ -149,6 +151,8 @@ export function buildActions(src: Source): Action[] {
   }
 
   for (const i of clientActionItems(src.tasks, nameOf, today)) add({ key: i.key, category: "info", title: i.title, detail: i.detail, clientKey: i.clientKey, assignee: manager(i.clientKey), due: i.due, priority: i.priority, href: `editor:task:${i.taskKey}` });
+
+  for (const r of src.risks || []) add({ key: r.key, category: "jobs", title: r.title, detail: r.detail, clientKey: r.clientKey, assignee: manager(r.clientKey), due: r.due, priority: r.priority, href: r.href });
 
   // ---- other
   // ---- company secretarial: changes to review, filings to approve, submit or fix, and Companies House differences

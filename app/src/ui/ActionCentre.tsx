@@ -1,5 +1,6 @@
 // The Action Centre screen (Phase 5): everything that needs doing, grouped, with views, filters, dismissal and preferences.
 // What counts as an action, and when it goes away, is in lib/actions.ts.
+import { useRisk } from "./riskKit";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { todayIso, fmtDate } from "../lib/domain";
 import {
@@ -29,11 +30,12 @@ export function useActions() {
   const portal = usePortal();
   const onboarding = useOnboarding();
   const today = todayIso();
+  const risk = useRisk();
   const derived = useMemo(() => buildActions({
     today, clients: data.clients as Row[], jobs: idx.openJobs as Row[], tasks: idx.openTasks as Row[], leads: s.leads, opps: s.opps, firstStageKey: s.stages[0].key, proposals: data.proposals, versions: data.proposalVersions,
     engagements: data.engagements, onboardings: data.onboardings, viewFor: onboarding.viewFor, clientServices: data.clientServices, portal: portal.overview?.attention || [], eng: readEngagementSettings(data.settings), catalogue: s.catalogue,
-    cosecTx: data.cosecTx, chFlags: data.chFlags, ch, backup: backup || undefined, agentDone: (o) => !onboarding.settings.stages.find((x) => x.key === "agent")?.enabled || readStates(o.Stages).agent?.status === "done",
-  }), [data, idx, ch, backup, portal.overview, s.catalogue, onboarding.settings, today]); // eslint-disable-line react-hooks/exhaustive-deps
+    cosecTx: data.cosecTx, chFlags: data.chFlags, risks: risk.items, ch, backup: backup || undefined, agentDone: (o) => !onboarding.settings.stages.find((x) => x.key === "agent")?.enabled || readStates(o.Stages).agent?.status === "done",
+  }), [data, idx, ch, backup, portal.overview, s.catalogue, onboarding.settings, today, risk.items]); // eslint-disable-line react-hooks/exhaustive-deps
   const prefs = useMemo(() => readPrefs(data.settings, user || ""), [data.settings, user]);
   const items = useMemo(() => itemsOf(derived, data.actions), [derived, data.actions]);
   return { derived, items, prefs, user: user || "", cfg: s.cfg, seeAll: canSeeAll(s.cfg, user || ""), today };

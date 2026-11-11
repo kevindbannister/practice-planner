@@ -10,6 +10,8 @@ import { readTaskEvent } from "../lib/work/clientActions";
 import { isOnHold } from "../lib/domain";
 import { useData, useIndex } from "./data";
 import { useEditor } from "./Editors";
+import { RISK_LABEL } from "../lib/work/risk";
+import { useRisk } from "./riskKit";
 
 const CHIP: Record<string, string> = { ready: "green", partly_ready: "amber", blocked: "red", waiting: "blue", on_hold: "", complete: "green" };
 
@@ -55,6 +57,7 @@ export function DependencyPanel({ kind, id }: { kind: "task" | "job"; id: string
         <h3 style={{ margin: 0, fontSize: 15 }}>Dependencies {a.readiness !== "ready" && <span className={`chip ${CHIP[a.readiness]}`}>{READINESS_LABEL[a.readiness]}</span>}</h3>
         <button type="button" className="btn small" onClick={() => setAdding(!adding)}>{adding ? "Close" : "Add dependency"}</button>
       </div>
+      {kind === "job" && <JobDates id={id} />}
       {a.reasons.map((r, i) => <p key={i} style={{ margin: 0 }}>{r}</p>)}
       {a.unknownDates.length > 0 && <p className="muted" style={{ margin: 0 }}>No expected date is known for {a.unknownDates.length === 1 ? "this prerequisite" : "these prerequisites"}. The deadline does not move.</p>}
       {!mine.length && !adding && <p className="muted" style={{ margin: 0 }}>Nothing is holding this back.</p>}
@@ -112,6 +115,27 @@ function AddDependency({ kind, id, onDone, onError }: { kind: "task" | "job"; id
       <label className="row-wrap"><input type="checkbox" checked={verify || type === "information"} disabled={type === "information"} onChange={(e) => setVerify(e.target.checked)} /> We must check it before it counts</label>
       <label className="doc-field"><span>Expected by (leave blank if not known)</span><input className="input" type="date" value={expected} onChange={(e) => setExpected(e.target.value)} /></label>
       <div><button type="button" className="btn small primary" disabled={!pre} onClick={() => void save()}>Add</button></div>
+    </div>
+  );
+}
+
+/** The five dates, kept apart, and the deadline risk. Read-only: nothing here, or anywhere in the dependency code, changes a statutory deadline. */
+function JobDates({ id }: { id: string }) {
+  const { data } = useData(); const r = useRisk();
+  const j = (data.jobs as Row[]).find((x) => x.Key === id); const x = r.risks.get(id), f = r.facts.get(id);
+  if (!j || !x || !f) return null;
+  const d = (v: string) => v || "not set";
+  return (
+    <div className="stack" style={{ gap: 2 }} aria-label="Dates and risk">
+      <span><span className={`chip ${x.category === "on_track" ? "green" : x.category === "attention" ? "amber" : "red"}`}>{RISK_LABEL[x.category]}</span>{x.workingDaysLeft !== null ? ` ${x.workingDaysLeft} working days to the deadline.` : ""}</span>
+      <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "max-content 1fr", gap: "2px 12px" }}>
+        <dt className="muted">Statutory deadline</dt><dd style={{ margin: 0 }}>{d(f.deadline)} (never changed by waiting or rescheduling)</dd>
+        <dt className="muted">Internal target</dt><dd style={{ margin: 0 }}>{d(f.internalTarget)}</dd>
+        <dt className="muted">Agreed with the client</dt><dd style={{ margin: 0 }}>not recorded on jobs</dd>
+        <dt className="muted">Planned to work on</dt><dd style={{ margin: 0 }}>{d(f.planned)}</dd>
+        <dt className="muted">Prerequisite expected</dt><dd style={{ margin: 0 }}>{x.blockers.length ? (x.lastExpected || "unknown") : "nothing outstanding"}</dd>
+      </dl>
+      {x.held > 0 && <span className="muted">{f.actionable}h can be worked now; {x.held}h waits behind a prerequisite.</span>}
     </div>
   );
 }
