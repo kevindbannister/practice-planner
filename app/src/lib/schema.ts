@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "TimeEvents" | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "AmlRecords" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "PlanSessions" | "PlanEvents" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions" | "HmrcFilings" | "HmrcFilingLog"
+  | "TimeEvents" | "Dependencies" | "DependencyEvents" | "TaskEvents" | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "AmlRecords" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "PlanSessions" | "PlanEvents" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions" | "HmrcFilings" | "HmrcFilingLog"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -110,6 +110,8 @@ export const LISTS: ListDef[] = [
       t("Key", true), t("ClientKey", true), t("GroupKey"), t("Type"), t("PlannedDate", true), n("EstimateHours"),
       t("DueDate"), t("Status"), t("CompletedDate"), note("Notes"), t("HoldReason"), t("HoldUntil"), t("HeldOn"), t("HoldKind"), note("CardNote"),
       n("DayOrder"), note("Subtasks"), t("StartTime"), n("ActualHours"), n("RemainingHours"), n("ReadyHours"), t("ReadyNote"), t("TimeSkipped"), t("ProjectKey"), t("RoutineKey"), t("RoutineDate"), t("PracticeId", true),
+      // Unified task model (lib/work/model.ts). All optional: old rows work without them.
+      note("Description"), t("Area", true), t("ParentTaskKey", true), t("JobKey", true), t("MeetingKey", true), t("OwnerType"), t("AssignedUser", true), t("AssignedContact"), t("ExternalParty"), t("InternalOwner"), t("CreatedBy"), t("Created"), t("Updated"), t("Priority"), t("InternalTargetDate"), t("ClientAgreedDate"), n("EstimateMinutes"), n("RemainingMinutes"), t("CompletedBy"), note("BlockedReason"), t("WaitingSince"), t("FollowUpDate"), t("RecurrenceRule"), t("PrivacyLevel"), t("Tags"), n("Version"), t("CaptureKey", true),
     ],
   },
   {
@@ -469,6 +471,21 @@ export const LISTS: ListDef[] = [
     // Append-only: every billing, write-off and approval step on a piece of recorded time, with what it was and what it became. Never edited or deleted. See lib/timeBilling.ts.
     key: "TimeEvents", displayName: "PP Time Log", description: "Practice Planner: the permanent log of billing and approval changes to recorded time (never edited)",
     columns: [t("Key", true), t("PracticeId", true), t("BatchKey", true), t("EntryKey", true), t("EventType"), note("PreviousState"), note("NewState"), note("Reason"), t("Created"), t("CreatedBy")],
+  },
+  {
+    // A dependency between two pieces of work: this cannot start/finish until that reaches an outcome. Stable keys only. See lib/work/dependencies.ts.
+    key: "Dependencies", displayName: "PP Dependencies", description: "Practice Planner: what work waits on what",
+    columns: [t("Key", true), t("PracticeId", true), t("PrerequisiteType"), t("PrerequisiteKey", true), n("PrerequisiteStage"), t("DependentType"), t("DependentKey", true), n("DependentStage"), t("DependencyType"), t("RequiredOutcome"), t("VerificationRequired"), t("Status", true), t("ExpectedCompletion"), t("ResolvedAt"), t("ResolvedBy"), note("OverrideReason"), t("TemplateKey", true), t("Created"), t("CreatedBy"), n("Version")],
+  },
+  {
+    // Append-only: every creation, satisfaction, reopening, override and cancellation of a dependency. Never edited or deleted.
+    key: "DependencyEvents", displayName: "PP Dependency History", description: "Practice Planner: the permanent history of dependency changes (never edited)",
+    columns: [t("Key", true), t("PracticeId", true), t("DependencyKey", true), t("EventType"), t("Created"), t("CreatedBy"), t("Before"), t("After"), note("Reason")],
+  },
+  {
+    // Append-only: status changes, submissions, verifications, chases and reassignments on tasks (client actions especially). Never edited or deleted.
+    key: "TaskEvents", displayName: "PP Task History", description: "Practice Planner: the permanent history of changes to tasks (never edited)",
+    columns: [t("Key", true), t("PracticeId", true), t("TaskKey", true), t("EventType"), t("Created"), t("CreatedBy"), t("Before"), t("After"), note("Reason")],
   },
   {
     // Values of the practice's own custom fields, one row per client or job. Json maps field key to value. The fields themselves are the Settings key custom-fields.

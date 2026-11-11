@@ -1022,6 +1022,114 @@
     {
      "name": "PracticeId",
      "type": "text"
+    },
+    {
+     "name": "Description",
+     "type": "note"
+    },
+    {
+     "name": "Area",
+     "type": "text"
+    },
+    {
+     "name": "ParentTaskKey",
+     "type": "text"
+    },
+    {
+     "name": "JobKey",
+     "type": "text"
+    },
+    {
+     "name": "MeetingKey",
+     "type": "text"
+    },
+    {
+     "name": "OwnerType",
+     "type": "text"
+    },
+    {
+     "name": "AssignedUser",
+     "type": "text"
+    },
+    {
+     "name": "AssignedContact",
+     "type": "text"
+    },
+    {
+     "name": "ExternalParty",
+     "type": "text"
+    },
+    {
+     "name": "InternalOwner",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "Updated",
+     "type": "text"
+    },
+    {
+     "name": "Priority",
+     "type": "text"
+    },
+    {
+     "name": "InternalTargetDate",
+     "type": "text"
+    },
+    {
+     "name": "ClientAgreedDate",
+     "type": "text"
+    },
+    {
+     "name": "EstimateMinutes",
+     "type": "number"
+    },
+    {
+     "name": "RemainingMinutes",
+     "type": "number"
+    },
+    {
+     "name": "CompletedBy",
+     "type": "text"
+    },
+    {
+     "name": "BlockedReason",
+     "type": "note"
+    },
+    {
+     "name": "WaitingSince",
+     "type": "text"
+    },
+    {
+     "name": "FollowUpDate",
+     "type": "text"
+    },
+    {
+     "name": "RecurrenceRule",
+     "type": "text"
+    },
+    {
+     "name": "PrivacyLevel",
+     "type": "text"
+    },
+    {
+     "name": "Tags",
+     "type": "text"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    },
+    {
+     "name": "CaptureKey",
+     "type": "text"
     }
    ]
   },
@@ -5310,6 +5418,179 @@
     {
      "name": "CreatedBy",
      "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "Dependencies",
+   "displayName": "PP Dependencies",
+   "description": "what work waits on what",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "PrerequisiteType",
+     "type": "text"
+    },
+    {
+     "name": "PrerequisiteKey",
+     "type": "text"
+    },
+    {
+     "name": "PrerequisiteStage",
+     "type": "number"
+    },
+    {
+     "name": "DependentType",
+     "type": "text"
+    },
+    {
+     "name": "DependentKey",
+     "type": "text"
+    },
+    {
+     "name": "DependentStage",
+     "type": "number"
+    },
+    {
+     "name": "DependencyType",
+     "type": "text"
+    },
+    {
+     "name": "RequiredOutcome",
+     "type": "text"
+    },
+    {
+     "name": "VerificationRequired",
+     "type": "text"
+    },
+    {
+     "name": "Status",
+     "type": "text"
+    },
+    {
+     "name": "ExpectedCompletion",
+     "type": "text"
+    },
+    {
+     "name": "ResolvedAt",
+     "type": "text"
+    },
+    {
+     "name": "ResolvedBy",
+     "type": "text"
+    },
+    {
+     "name": "OverrideReason",
+     "type": "note"
+    },
+    {
+     "name": "TemplateKey",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    }
+   ]
+  },
+  {
+   "key": "DependencyEvents",
+   "displayName": "PP Dependency History",
+   "description": "the permanent history of dependency changes (never edited)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "DependencyKey",
+     "type": "text"
+    },
+    {
+     "name": "EventType",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Before",
+     "type": "text"
+    },
+    {
+     "name": "After",
+     "type": "text"
+    },
+    {
+     "name": "Reason",
+     "type": "note"
+    }
+   ]
+  },
+  {
+   "key": "TaskEvents",
+   "displayName": "PP Task History",
+   "description": "the permanent history of changes to tasks (never edited)",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "TaskKey",
+     "type": "text"
+    },
+    {
+     "name": "EventType",
+     "type": "text"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    },
+    {
+     "name": "Before",
+     "type": "text"
+    },
+    {
+     "name": "After",
+     "type": "text"
+    },
+    {
+     "name": "Reason",
+     "type": "note"
     }
    ]
   },
