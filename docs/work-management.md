@@ -187,3 +187,16 @@ No screens, no readiness or risk calculation, no store wiring for personal tasks
 **Work reports** (Plan, "Work reports"). Task completion, client actions, dependencies, planning reliability and workload, for the last 30 days, this month or last month. Each figure is marked Fact, Estimate or Projection; figures that cannot be worked out are left out of averages and counted as such.
 
 Limits: reminder settings (cadence, escalation count) are defaults in code, not yet editable; reports are practice-wide and are not exportable; capacity is practice-wide, not per person; recurrence has no "skip this occurrence" action other than cancelling.
+
+## Phase 10: validation (V25.0)
+
+Nothing new is built in this phase; it checks the work of Phases 1 to 9. The checks live in `tests/workValidation.test.ts` and run with the rest.
+
+- **Migration.** Tasks with none of the new columns (no owner type, version, repeat rule or events) still read, change, report and remind. A task with no repeat rule never spawns anything. No migration step is needed for existing data; new columns are optional and the lists are created on first use. Existing jobs, tasks, projects and subtasks are not converted or rewritten, and no dependency history is invented.
+- **Safety.** Across every kind of task change, bulk change and repeat spawn, no patch ever contains `Deadline`, `CHDeadline` or `DeadlineSource`. Dependency cycles and self-dependencies terminate and are reported as integrity issues. Personal and private tasks appear in no reminder, report or overview. A passed expected date on a prerequisite becomes a reminder and never changes a deadline.
+- **Concurrency and duplicates.** Task changes are refused when the version moved on; task capture and repeat occurrences are idempotent by key. Finishing, reopening and finishing a repeating task again makes one next occurrence.
+- **Performance.** With 2,000 jobs, 8,000 tasks and 4,800 dependencies: readiness and risk for every job about 0.2s, building the work items about 0.5s, the overview heatmaps and workload about 1.7s (the slowest part), reports and reminders about 0.03s. A dependency chain of 3,000 does not overflow or hang, and the chain view is capped. Browser rendering with that volume was not measured.
+- **Accessibility.** On the new screens (Work reports, Work overview, Unblock) in a browser: every control has a name or label, tables have header cells and captions, no skipped heading levels, keyboard focus order starts at the navigation, and the page does not scroll sideways at phone width (390px). Status is written out as well as shaded. This was a scripted check, not a screen reader test or a full audit.
+- **Regression.** 1,430 app tests and 339 API tests pass; the MCP schema is unchanged (97 lists); the production build succeeds.
+
+Known gaps carried forward: the personal-task area is not built (decision on where private tasks are stored is open); reminder settings are code defaults; reports are not exportable; capacity is practice-wide; bank holidays count as working days; the template match-and-create flow and the repeat controls were verified by tests only, not in the browser, because the demo data has no services or repeating tasks.
