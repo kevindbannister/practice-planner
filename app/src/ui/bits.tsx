@@ -157,8 +157,8 @@ export function companiesHouseUrl(number?: string): string | undefined {
 }
 
 /** The Plan section's heading and its views. */
-export function PlanTabs({ current }: { current: "today" | "inbox" | "unblock" | "week" | "months" | "deadlines" | "done" | "projects" | "chase" | "history" | "timesheet" | "time" }) {
-  const tabs: [string, string, string][] = [["today", "Today", "#/plan/today"], ["inbox", "Inbox", "#/plan/inbox"], ["unblock", "Unblock", "#/plan/unblock"], ["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"], ["done", "Completed", "#/plan/done"], ["projects", "Projects", "#/plan/projects"], ["chase", "Chase", "#/plan/chase"], ["timesheet", "Timesheet", "#/plan/timesheet"], ["time", "Time reports", "#/plan/time"], ["history", "History", "#/plan/history"]];
+export function PlanTabs({ current }: { current: "today" | "inbox" | "unblock" | "overview" | "week" | "months" | "deadlines" | "done" | "projects" | "chase" | "history" | "timesheet" | "time" }) {
+  const tabs: [string, string, string][] = [["today", "Today", "#/plan/today"], ["inbox", "Inbox", "#/plan/inbox"], ["unblock", "Unblock", "#/plan/unblock"], ["overview", "Work overview", "#/plan/overview"], ["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"], ["done", "Completed", "#/plan/done"], ["projects", "Projects", "#/plan/projects"], ["chase", "Chase", "#/plan/chase"], ["timesheet", "Timesheet", "#/plan/timesheet"], ["time", "Time reports", "#/plan/time"], ["history", "History", "#/plan/history"]];
   // on a narrow screen the tabs scroll sideways: bring the one you're on into view
   const nav = useRef<HTMLElement>(null);
   useEffect(() => {

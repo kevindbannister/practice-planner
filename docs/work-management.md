@@ -155,3 +155,19 @@ No screens, no readiness or risk calculation, no store wiring for personal tasks
 **Schema / migration.** None.
 **Tests.** `tests/workRisk.test.ts` (9). App suite 1,398 pass; API 339.
 **Limits.** Bank holidays count as working days unless marked off. Capacity is the practice's day hours, not per person, and other planned commitments are not yet subtracted (Phase 9). The date agreed with the client exists on tasks but not jobs. Planned hours ahead are not yet fed into the risk figure.
+
+## Phase 8: client work overview and heatmaps (V24.8, on main)
+
+**Features** (`lib/work/overview.ts`, `ui/ClientWorkOverview.tsx`, `ui/WorkOverview.tsx`, `ui/WorkList.tsx`, `ui/overviewKit.tsx`).
+- **One record, one count.** Every job and every task is one item; planned sessions never create or multiply items. Jobs and tasks are always counted apart. Private and personal tasks never appear in practice-wide views.
+- **Client Work Overview** (top of each client's Overview tab): a Jobs row and a Tasks row with To do, In progress, Waiting on client, Blocked, Overdue, Ready to work and Completed (last 30 days). Each number opens the matching list. The indicators overlap by design (an overdue job can also be blocked). "In progress" means time recorded on the job or past its first stage (or a task set In progress); "Waiting on client" means a client-owned task, or a job held with the client as the reason.
+- **Work list** (compact rows, not cards): Open, View dependencies (opens the item at its Dependencies section), Complete (tasks; a job is completed from its own page where its checks apply), Assign (tasks), Schedule (adds one planned session you choose, moves nothing else), Chase (opens the client action's chase panel), Mark waiting (tasks and jobs).
+- **Practice heatmap** (Plan > Work overview): clients against Ready, In progress, Waiting, Blocked, Overdue, At risk, with drill-down on every cell. Sort by deadline risk, overdue, blocked, outstanding hours, client importance or name. Filter by person, service, client group and due period. On a phone it becomes a list. Cells show "2J 3T" as text; shading is only a guide, never the only signal.
+- **Workload heatmap:** measures are open tasks, remaining estimated hours, planned hours (current), planned hours (as it stood), actual recorded hours, blocked hours and overdue hours; rows are clients or people; columns are days, weeks or months. Due-based measures add Earlier, Later and No date columns so nothing drops out.
+  - Planned (current) counts only sessions still to happen, so moved, finished and cancelled sessions are not capacity. Planned (as it stood) keeps every non-cancelled session on its original day for comparison, so a moved session appears on both days there.
+  - Actual hours come only from timesheet entries. Ticking a task off records no time.
+
+**Files.** New: `lib/work/overview.ts`, `ui/WorkOverview.tsx`, `ui/ClientWorkOverview.tsx`, `ui/WorkList.tsx`, `ui/overviewKit.tsx`. Edited: `ui/ClientPage.tsx`, `ui/PlanPage.tsx`, `ui/bits.tsx`, `public/styles.css`, `lib/devHubSeed.ts`, `version.ts`.
+**Schema / migration.** None.
+**Tests.** `tests/workOverview.test.ts` (9).
+**Limits.** Jobs have no assignee of their own, so a job is attributed to the client's manager or partner. Rescheduling an existing session is still done in the planner (Phase 9 integrates it). Capacity per person is not overlaid on the workload grid. The Actions menu is not yet keyboard-optimised beyond the browser default for details elements.

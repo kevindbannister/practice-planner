@@ -3,6 +3,7 @@
 // On a phone the week becomes a strip of days: tap one to see it, or drag a card onto it.
 import { TaskInbox } from "./TaskInbox";
 import { Unblock } from "./Unblock";
+import { WorkOverview } from "./WorkOverview";
 import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ChasePage } from "./ChasePage";
 import { Job, Task, fmtDate, fmtHours, holdAlert, holdLabel, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
@@ -89,6 +90,7 @@ export function PlanPage() {
   if (parts[1] === "today") return <TodayView />;
   if (parts[1] === "inbox") return <TaskInbox />;
   if (parts[1] === "unblock") return <Unblock />;
+  if (parts[1] === "overview") return <WorkOverview />;
   if (parts[1] === "months") return <MonthsView />;
   if (parts[1] === "deadlines") return <DeadlinesView />;
   if (parts[1] === "done") return <DoneView />;

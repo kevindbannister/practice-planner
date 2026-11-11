@@ -1,4 +1,5 @@
 // The full client page: overview and work tabs, with editable contact and references.
+import { ClientWorkOverview } from "./ClientWorkOverview";
 import { ClientTasks } from "./ClientTasks";
 import { CustomDetailsCard } from "./CustomFields";
 import { XamaClientPanel } from "./XamaClientPanel";
@@ -184,6 +185,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       {tab === "signing" && <SigningRequests client={c} />}
       {tab === "invoices" && <XeroInvoices client={c} />}
       {tab === "clearance" && <ClearanceTab client={c} />}
+      {tab === "overview" && <ClientWorkOverview clientKey={String(c.Key)} />}
       {tab === "tasks" && <ClientTasks client={c} />}
       {tab === "disengage" && <DisengageTab client={c} />}
       {tab === "aml" && <AmlTab client={c} />}
