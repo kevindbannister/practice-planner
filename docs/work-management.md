@@ -86,3 +86,19 @@ No screens, no readiness or risk calculation, no store wiring for personal tasks
 - The top-bar plus is inside the collapsible tools area on narrower desktop windows; Alt+N always works.
 - Swipe actions weren't added: every row already has large tick boxes, and a swipe gesture needs an accessible alternative on every row first.
 - The queue lives in this browser's local storage; it isn't synced between devices and is cleared if you clear site data before it syncs.
+
+## Phase 4: client actions and meeting actions (V24.4, on main)
+
+**Features.** A client action (owner is the client or another outside party) can be shared through the existing client portal as an information request. The task keeps our side (status, checking, chasing, history); the portal request keeps the client's side. New `PortalRequestId` column links them.
+- Sharing, a portal reminder, accepting, asking for corrections and reopening each show what will happen and need a Confirm press. Logging a call, email or note sends nothing.
+- When the client answers in the portal the task moves to Submitted by itself. That is the only automatic change. Nothing the client or portal does can make a task Done or Cancelled: those are only suggested. Accept is the practice's own check, recorded as a `verified` event, which is what Phase 5 will use to satisfy dependencies that need verification.
+- Chasing: call, email, note, portal reminder, escalate, follow-up date. A portal reminder is refused within 3 days of the last one.
+- Append-only history (`TaskEvents`) for status, owner, responsible party, sharing, submissions, checks, chases and follow-up dates.
+- Meetings: every agreed action can be turned into a task after a review list with tick boxes. Tasks for others are tracked as client actions and not shared. A capture key per action means converting twice can't duplicate. Actions found in the notes ("Action:", "[ ]", "Sam will...") are offered, never added automatically. The meeting shows how many of its actions are done, read from the linked tasks.
+- Action Centre: submitted work to check, overdue client actions to chase, follow-ups due. Private tasks are excluded.
+
+**Files.** `lib/work/clientActions.ts`, `ui/ClientActionPanel.tsx`; edited `ui/TaskDetails.tsx`, `ui/Meetings.tsx`, `lib/actions.ts`, `lib/schema.ts`, `lib/devHubSeed.ts`, `version.ts`, MCP schema regenerated.
+**Schema.** Tasks: `PortalRequestId` (auto-provisioned). `TaskEvents` was already added in Phase 1.
+**Migration.** None. Existing tasks are unaffected.
+**Tests.** `tests/workClientActions.test.ts` (12). App suite 1,365 pass; API 339 pass.
+**Limits.** Portal sync runs when a task is open, not in the background. The legacy meeting "Add my actions to the plan" button is replaced by the review list, so tasks it made earlier keep their link. Browser walkthrough of the panel was not run against a live portal (the demo has none). Meeting action completion is not written back to the meeting's tick box.

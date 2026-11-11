@@ -7,6 +7,7 @@ import { aiContext, emailGreeting, salutationFor } from "../lib/comms";
 import { Job, fmtDate, todayIso } from "../lib/domain";
 import { Action, AgendaItem, KIND_NAMES, MeetingKind, TEMPLATES, fmtWhen, readJson, summaryEmail, templateFor } from "../lib/meetings";
 import { newKey } from "../lib/planning";
+import { meetingActionTask, meetingProgress, suggestFromNotes } from "../lib/work/clientActions";
 import { Row } from "../lib/schema";
 import { stageLabel } from "../lib/stages";
 import { TaxPayment, paymentsForAi } from "../lib/taxPayments";
@@ -124,7 +125,7 @@ export function MeetingsTable({ clientKey }: { clientKey?: string }) {
 // ------------------------------------------------------------------ one meeting
 
 export function MeetingPage({ meetingKey, initial }: { meetingKey?: string; initial?: { clientKey: string; kind: string; jobKey: string } }) {
-  const { data, create, update, remove } = useData();
+  const { data, create, update, remove, user } = useData();
   const idx = useIndex();
   const prefs = useCommsPrefs();
   const ai = useAi();
@@ -242,25 +243,33 @@ export function MeetingPage({ meetingKey, initial }: { meetingKey?: string; init
     }
   };
 
-  const mine = m.actions.filter((a) => a.text.trim() && /^me$/i.test(a.who) && !a.taskKey);
+  // Turn agreed actions into real tasks. Every action is listed for review first; the person ticks which ones to create. Creating twice can't make two (capture key).
+  const loose = m.actions.map((a, i) => ({ a, i })).filter(({ a }) => a.text.trim() && !a.taskKey);
+  const [review, setReview] = useState<number[] | null>(null);
   const toPlan = async () => {
-    if (!client) return;
+    if (!review) return;
     setBusy("plan");
     try {
-      const next = [...m.actions];
-      for (const a of mine) {
-        const key = newKey("T");
-        await create("Tasks", { Key: key, Title: a.text.slice(0, 250), ClientKey: client.Key, Type: "Client work", DueDate: a.due || "", Status: "Open", EstimateHours: 0.5, Notes: `From the ${t.name.toLowerCase()} on ${fmtDate(m.When.slice(0, 10))}` });
-        next[next.indexOf(a)] = { ...a, taskKey: key };
+      const next = [...m.actions]; let made = 0; const skipped: string[] = [];
+      for (const i of review) {
+        const a = m.actions[i]; const key = newKey("T");
+        const existing = (data.tasks as Row[]).find((r) => String(r.CaptureKey || "").startsWith(`mtg:${m.Key}:${i}:`) && r.CaptureKey === (meetingActionTask(a, { key: m.Key, clientKey: m.ClientKey, title: t.name }, i, { user: user || "", now: "", taskKey: key }) as Row).CaptureKey);
+        if (existing) { next[i] = { ...a, taskKey: String(existing.Key) }; continue; }
+        const row = meetingActionTask(a, { key: m.Key, clientKey: m.ClientKey, title: `${t.name} on ${fmtDate(m.When.slice(0, 10))}` }, i, { user: user || "", now: new Date().toISOString(), taskKey: key });
+        if ("error" in row) { skipped.push(String(row.error)); continue; }
+        await create("Tasks", row); next[i] = { ...a, taskKey: key }; made++;
       }
       await persist({ actions: next });
-      setNote(`${mine.length} task${mine.length === 1 ? "" : "s"} added to the Unplanned list in the plan.`);
+      setReview(null);
+      setNote(`${made} task${made === 1 ? "" : "s"} created.${skipped.length ? ` Not created: ${skipped[0]}` : ""} Nothing was sent to the client.`);
     } catch {
-      setError("Couldn't add the tasks. Try again.");
+      setError("Couldn't create the tasks. Try again.");
     } finally {
       setBusy("");
     }
   };
+  const suggestions = suggestFromNotes(m.Notes || "").filter((s) => !m.actions.some((a) => a.text.trim().toLowerCase() === s.text.toLowerCase()));
+  const progress = meetingProgress(m.actions, data.tasks as Row[]);
 
   const followUpTask = async () => {
     if (!client || !m.FollowUp) return;
@@ -405,10 +414,19 @@ export function MeetingPage({ meetingKey, initial }: { meetingKey?: string; init
           <datalist id="who-list"><option value="Me" /><option value="Client" /></datalist>
           <div className="row-wrap">
             <button type="button" className="btn small" onClick={() => set({ actions: [...m.actions, { text: "", who: "Me", due: "" }] })}><Icon name="plus" size={14} />Add</button>
-            {mine.length > 0 && client && (
-              <button type="button" className="btn small primary" disabled={busy !== ""} onClick={toPlan}>{busy === "plan" ? "Adding…" : `Add my ${mine.length} action${mine.length === 1 ? "" : "s"} to the plan`}</button>
+            {loose.length > 0 && client && !review && (
+              <button type="button" className="btn small primary" disabled={busy !== ""} onClick={() => setReview(loose.map((l) => l.i))}>{`Create tasks from ${loose.length} action${loose.length === 1 ? "" : "s"}…`}</button>
             )}
+            {suggestions.length > 0 && <button type="button" className="btn small" onClick={() => set({ actions: [...m.actions, ...suggestions.map((s) => ({ text: s.text, who: s.who || "Me", due: "" }))] })}>{`Add ${suggestions.length} action${suggestions.length === 1 ? "" : "s"} found in the notes`}</button>}
           </div>
+          {progress.agreed > 0 && <p className="muted" style={{ margin: 0 }}>{progress.done} of {progress.agreed} actions done{progress.unlinked ? ` · ${progress.unlinked} not yet tasks` : ""}.</p>}
+          {review && (
+            <div className="card pad stack" role="group" aria-label="Review tasks to create" style={{ gap: 6 }}>
+              <strong>Create these tasks?</strong>
+              {loose.map(({ a, i }) => <label key={i} className="row-wrap"><input type="checkbox" checked={review.includes(i)} onChange={(e) => setReview(e.target.checked ? [...review, i] : review.filter((x) => x !== i))} /> {a.text} <span className="muted">({a.who || "Me"}{a.due ? `, due ${a.due}` : ""}{/^me$/i.test(a.who) || !a.who ? "" : "; tracked as a client action, not shared"})</span></label>)}
+              <div className="row-wrap" style={{ gap: 6 }}><button type="button" className="btn small primary" disabled={busy !== "" || !review.length} onClick={toPlan}>{busy === "plan" ? "Creating…" : "Create"}</button><button type="button" className="btn small" onClick={() => setReview(null)}>Cancel</button></div>
+            </div>
+          )}
         </div>
 
         <div className="row-wrap" style={{ alignItems: "flex-end" }}>

@@ -4,11 +4,14 @@ import { ReactNode, useState } from "react";
 import { Row } from "../lib/schema";
 import { EXTERNAL_STATUSES, CORE_STATUSES, canMove, readTask, statusLabel } from "../lib/work/model";
 import { Spec, childProgress, changeTask } from "../lib/work/tasks";
+import { newKey } from "../lib/planning";
+import { eventsForChange, taskEventRow } from "../lib/work/clientActions";
 import { teamFrom } from "../lib/permissions";
+import { ClientActionPanel } from "./ClientActionPanel";
 import { useData } from "./data";
 
 export function TaskDetails({ task }: { task: Row }) {
-  const { data, update, user } = useData();
+  const { data, update, create, user } = useData();
   const rows = data.tasks as Row[];
   const t = readTask(task);
   const [error, setError] = useState<string>();
@@ -18,7 +21,7 @@ export function TaskDetails({ task }: { task: Row }) {
     const c = changeTask(rows, t.key, spec, { user: user || "", now: new Date().toISOString() });
     if ("error" in c && c.error) return setError(c.error);
     setError(undefined);
-    try { await update("Tasks", task, (c as { patch: Row }).patch); } catch { setError("That didn't save. Try again."); }
+    try { const patch = (c as { patch: Row }).patch; await update("Tasks", task, patch); for (const e of eventsForChange(task, patch, { user: user || "", now: new Date().toISOString(), key: () => newKey("E") })) await create("TaskEvents", taskEventRow(e)); } catch { setError("That didn't save. Try again."); }
   };
   const statuses = (t.ownerType === "user" ? CORE_STATUSES : EXTERNAL_STATUSES).filter((s) => canMove(t.status, s, t.ownerType));
   const parents = rows.map(readTask).filter((p) => p.key !== t.key && !["Done", "Complete", "Cancelled"].includes(p.status) && (!t.clientKey || !p.clientKey || p.clientKey === t.clientKey));
@@ -41,6 +44,7 @@ export function TaskDetails({ task }: { task: Row }) {
       {kids.total > 0 && <p className="muted" style={{ margin: 0 }}>Smaller tasks: {kids.done} of {kids.total} done.</p>}
       {t.ownerType !== "user" && t.status === "Submitted" && <p className="muted" style={{ margin: 0 }}>The client says this is done. It only counts once you've checked it: move it to Under review, then Done.</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
+      <ClientActionPanel task={task} />
     </section>
   );
 }

@@ -15,6 +15,7 @@ import { CatalogueService, clientTypeFor, effectiveStatus, proposalCan } from ".
 import { Lead, Opp, isOpenOpp } from "./sales";
 import { Row } from "./schema";
 import { addDays } from "./planning";
+import { clientActionItems } from "./work/clientActions";
 
 const str = (v: unknown): string => (v === undefined || v === null ? "" : String(v));
 
@@ -143,8 +144,11 @@ export function buildActions(src: Source): Action[] {
   for (const t of src.tasks) {
     const ck = str(t.ClientKey);
     if (isOnHold(t as never)) continue;
+    if (str(t.OwnerType) && str(t.OwnerType) !== "user") continue; // client actions have their own items below
     if (t.DueDate && str(t.DueDate) < today) add({ key: `task:${t.Key}`, category: "jobs", title: ck ? `${nameOf(ck)}: ${str(t.Title)}` : str(t.Title), detail: `Task was due ${fmtDate(str(t.DueDate))}`, clientKey: ck, assignee: str(t.Assignee), due: str(t.DueDate), priority: "high", href: `editor:task:${t.Key}` });
   }
+
+  for (const i of clientActionItems(src.tasks, nameOf, today)) add({ key: i.key, category: "info", title: i.title, detail: i.detail, clientKey: i.clientKey, assignee: manager(i.clientKey), due: i.due, priority: i.priority, href: `editor:task:${i.taskKey}` });
 
   // ---- other
   // ---- company secretarial: changes to review, filings to approve, submit or fix, and Companies House differences
