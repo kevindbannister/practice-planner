@@ -69,7 +69,8 @@ export type WorkTask = {
 /** Work out the area for a task. An explicit Area wins. Otherwise: a project task is a project task, a task with a client is client work, and anything else is in the inbox. */
 export function areaOf(r: Row): Area {
   const a = s(r.Area) as Area;
-  if (AREAS.includes(a)) return a;
+  // "inbox" means not yet filed: a task that has since been given a client or project (here or in an older screen) is filed, whatever Area says
+  if (AREAS.includes(a) && !(a === "inbox" && (s(r.ProjectKey) || s(r.ClientKey)))) return a;
   if (s(r.ProjectKey)) return "project";
   if (s(r.ClientKey)) return "client";
   return "inbox";

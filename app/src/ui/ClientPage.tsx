@@ -1,4 +1,5 @@
 // The full client page: overview and work tabs, with editable contact and references.
+import { ClientTasks } from "./ClientTasks";
 import { CustomDetailsCard } from "./CustomFields";
 import { XamaClientPanel } from "./XamaClientPanel";
 import { CisCard } from "./CisCard";
@@ -49,11 +50,12 @@ import { officerName, pscName } from "../lib/cosecForms";
 import { OverviewGrid, OverviewCard, DefaultColumn } from "./OverviewGrid";
 import { sectionJobs, waitingOnClient } from "../lib/workGroups";
 
-export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "papers" | "numbers" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "invoices" | "clearance" | "disengage" | "aml" | "forms" | "portal" }) {
+export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overview" | "work" | "tasks" | "papers" | "numbers" | "comms" | "meetings" | "tax" | "activity" | "timeline" | "signing" | "invoices" | "clearance" | "disengage" | "aml" | "forms" | "portal" }) {
   const idx = useIndex();
   const { data: allData } = useData();
   const commsCount = allData.comms.filter((m) => m.ClientKey === clientKey).length;
   const meetingsCount = allData.meetings.filter((m) => m.ClientKey === clientKey).length;
+  const openTaskCount = allData.tasks.filter((x) => x.ClientKey === clientKey && x.Status !== "Done" && x.Status !== "Complete" && x.Status !== "Cancelled").length;
   const owingCount = allData.taxPayments.filter((p) => p.ClientKey === clientKey && !p.PaidOn && Number(p.Amount) > 0).length;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [arrangeTick, setArrangeTick] = useState(0);
@@ -133,7 +135,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         type T = { key: typeof tab; label: string; count?: number };
         const groups: { label: string; tabs: T[] }[] = [
           { label: "Overview", tabs: [{ key: "overview", label: "Overview" }] },
-          { label: "Work", tabs: [{ key: "work", label: "Jobs", count: jobs.length }, { key: "papers", label: "Working papers" }] },
+          { label: "Work", tabs: [{ key: "work", label: "Jobs", count: jobs.length }, { key: "tasks", label: "Tasks", count: openTaskCount }, { key: "papers", label: "Working papers" }] },
           { label: "Communication", tabs: [{ key: "timeline", label: "Communication" }, { key: "activity", label: "Activity" }, { key: "comms", label: "Letters and emails", count: commsCount }, { key: "meetings", label: "Meetings", count: meetingsCount }] },
           { label: "Documents", tabs: [{ key: "signing", label: "Signing requests" }, { key: "forms", label: "Forms" }, { key: "portal", label: "Portal" }] },
           { label: "Finance", tabs: [{ key: "invoices", label: "Invoices" }, { key: "tax", label: "Tax payments", count: owingCount }, { key: "numbers", label: "Numbers" }] },
@@ -182,11 +184,12 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
       {tab === "signing" && <SigningRequests client={c} />}
       {tab === "invoices" && <XeroInvoices client={c} />}
       {tab === "clearance" && <ClearanceTab client={c} />}
+      {tab === "tasks" && <ClientTasks client={c} />}
       {tab === "disengage" && <DisengageTab client={c} />}
       {tab === "aml" && <AmlTab client={c} />}
       {tab === "forms" && <ClientForms client={c} />}
       {tab === "portal" && <div className="stack"><ClientPortalUsers client={c} /><ClientMessages client={c} /><ClientRequests client={c} /><ClientDocuments client={c} /></div>}
-      {tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "disengage" || tab === "aml" || tab === "forms" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} arrangeSignal={arrangeTick} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : tab === "papers" ? <ClientPapers client={c} jobs={jobs} /> : tab === "numbers" ? <ClientNumbers client={c} /> : (
+      {tab === "tasks" || tab === "meetings" || tab === "tax" || tab === "activity" || tab === "timeline" || tab === "signing" || tab === "invoices" || tab === "clearance" || tab === "disengage" || tab === "aml" || tab === "forms" || tab === "portal" ? null : tab === "overview" ? <Overview client={c} jobs={jobs} arrangeSignal={arrangeTick} /> : tab === "work" ? <WorkTab client={c} jobs={jobs} /> : tab === "papers" ? <ClientPapers client={c} jobs={jobs} /> : tab === "numbers" ? <ClientNumbers client={c} /> : (
         <div className="stack">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Letters and emails to {c.Title}, newest first.</p>

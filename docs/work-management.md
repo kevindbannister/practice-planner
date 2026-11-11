@@ -39,3 +39,24 @@ The app reads SharePoint directly from the browser with each person's own sign-i
 
 ### Outstanding limitations
 No screens, no readiness or risk calculation, no store wiring for personal tasks, no portal changes. Those are Phases 2 to 9. Nothing here is switched on for users.
+
+## Phase 2: universal task management (V24.2, merged to main)
+
+**Built**
+- **Task Inbox** (`#/plan/inbox`, a new Plan tab). Quick add needs only a title; Enter saves and the box stays ready. Pick tasks, then move to a client or project, assign, set due date or priority, complete or archive. Archive means cancel: nothing is erased. Search. The last change can be undone; an undo is refused (and says so) for any task someone has changed since.
+- **Client Tasks tab** under Work. One compact list of every task for the client (ours and the client's, including tasks linked to a job or meeting; nothing is copied). Filters: All outstanding, Our actions, Client actions, Waiting, Blocked, Overdue, Completed, with counts. Group by status, responsible party, job, due date or priority. Quick add with the client preselected. Smaller tasks show under their parent with a done/total chip.
+- **Bulk add**: paste lines, untick any, then add. Bullets and numbers stripped, repeats dropped. Every line has a stable capture key, so pressing Add again after a failure only creates what is missing.
+- **Task editor** now has a Details section: who does it (us, the client, someone else), who exactly, owner or who chases it, status, priority, due date, our target date, follow-up date, "part of" (parent task) and what is stopping it.
+- **Rules** (`lib/work/tasks.ts`): every change is a patch that bumps Version and refuses when the task changed since it was read; a task can't be its own parent, a child of its own child, under a finished parent, under another client's task, or more than 3 levels deep; completing a task with open smaller tasks needs an explicit yes; a client action follows Not requested, Requested, In progress, Submitted, Under review, Done (it can't jump to Done), and switching who does a task sets a sensible status.
+- A task given a client or project is treated as filed even when an older screen left Area as inbox.
+
+**Files**: `lib/work/tasks.ts`, `lib/work/model.ts` (area rule), `ui/TaskInbox.tsx`, `ui/ClientTasks.tsx`, `ui/taskKit.tsx`, `ui/TaskDetails.tsx`; edited `Editors.tsx`, `ClientPage.tsx`, `PlanPage.tsx`, `App.tsx`, `bits.tsx`, `devHubSeed.ts`.
+**Schema changes**: none beyond Phase 1 (the new Tasks columns are added to SharePoint automatically on first run).
+**Migration**: none needed. Old tasks appear in the client list and keep working. Run the dry run in Phase 1 if you want a report before anything is backfilled.
+**Tests**: `app/tests/workTasks.test.ts` (12) plus the Phase 1 tests; whole suite 1,345 pass. Checked in a browser on the demo build: quick add, bulk move to a client, undo, paste three lines, client tab, mobile width; no errors.
+
+**Not built, on purpose**
+- No Personal area yet: it waits for your privacy decision (separate private list vs app-level only). Nothing personal is stored.
+- Blocked here means "has a stated reason". Dependencies feed it from Phase 5.
+- Partner/manager "assign to" lists only people set up under Team; with no team set up it offers Me.
+- Swipe actions, PWA, Quick Add shortcut and floating mobile Add button are Phase 3.
