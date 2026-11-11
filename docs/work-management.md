@@ -171,3 +171,19 @@ No screens, no readiness or risk calculation, no store wiring for personal tasks
 **Schema / migration.** None.
 **Tests.** `tests/workOverview.test.ts` (9).
 **Limits.** Jobs have no assignee of their own, so a job is attributed to the client's manager or partner. Rescheduling an existing session is still done in the planner (Phase 9 integrates it). Capacity per person is not overlaid on the workload grid. The Actions menu is not yet keyboard-optimised beyond the browser default for details elements.
+
+## Phase 9: reporting, reminders and planner integration (V24.9)
+
+**Recurring tasks** (`lib/work/recurrence.ts`). A task can repeat daily, weekly, monthly (a day, the last day, or "first Monday") or yearly, every N, with an optional end date. Set it in the task details ("Repeats"); the screen shows the next dates. Only one open occurrence of a series exists: finishing it creates the next, nothing is made ahead. A capture key (`rec:<series>:<date>`) and a check for an open sibling mean finishing, reopening, finishing again, or a retry never creates two. Moving the date of an occurrence changes that occurrence only. Cancelling it ends the series. These are separate from accounting-period jobs, which roll forward from period ends. New column `SeriesKey` on `Tasks`.
+
+**Planner** (`lib/work/planning.ts`, `lib/autoplan.ts`). Suggest a plan no longer offers fully blocked work: it is listed under "not planned" with its reason. A partly ready job is planned only for the hours that can be done now ("Available part only (2h of 6h)"). Client-owned tasks are never internal capacity. Nothing creates or moves a session on its own; history is untouched.
+
+**Newly unblocked work.** When a prerequisite is satisfied or overridden and the dependent becomes ready, it appears in the Action Centre for its owner for three days. Nothing is planned for them.
+
+**Timesheet.** The existing timesheet only. Time on a client-owned task is refused unless it is chase time (the "Chasing records" activity). Personal tasks are outside practice time and all reports.
+
+**Reminders.** Suggestions in the Action Centre, never sent automatically: task due, client action (not again within 3 days of the last chase; after 3 chases it suggests escalating instead; nothing once escalated), dependency follow-up (expected date passed), overdue, newly unblocked. Acting on one uses the Phase 4 flows, with their confirmation and history.
+
+**Work reports** (Plan, "Work reports"). Task completion, client actions, dependencies, planning reliability and workload, for the last 30 days, this month or last month. Each figure is marked Fact, Estimate or Projection; figures that cannot be worked out are left out of averages and counted as such.
+
+Limits: reminder settings (cadence, escalation count) are defaults in code, not yet editable; reports are practice-wide and are not exportable; capacity is practice-wide, not per person; recurrence has no "skip this occurrence" action other than cancelling.

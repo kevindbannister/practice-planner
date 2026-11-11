@@ -5,6 +5,7 @@ import { newKey } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { Capture, WorkTask, bulkCaptureKeys, newTaskRow, notYetCreated, splitBulk, statusLabel } from "../lib/work/model";
 import { Change, Spec, bulkChange, changeTask, complete, reopen, undoChange } from "../lib/work/tasks";
+import { spawnNext } from "../lib/work/recurrence";
 import { useData } from "./data";
 import { ReadinessChip } from "./DependencyPanel";
 import { useEditor } from "./Editors";
@@ -14,7 +15,7 @@ type Applied = { changes: { key: string; patch: Row; before: Row }[]; label: str
 
 /** Saving task changes with an undo. Every change goes through lib/work/tasks, so a task that changed since the screen loaded is refused, not overwritten. */
 export function useTaskChanges() {
-  const { data, updateMany, user } = useData();
+  const { data, updateMany, user, create } = useData();
   const rows = data.tasks as Row[];
   const [undo, setUndo] = useState<Applied>();
   const [error, setError] = useState<string>();
@@ -25,6 +26,13 @@ export function useTaskChanges() {
     if (!changes.length) return;
     try {
       await updateMany("Tasks", changes.map((c) => ({ row: rows.find((r) => r.Key === c.key)!, patch: c.patch })));
+      // finishing one occurrence of a repeating task makes the next (only that one; the capture key stops a repeat)
+      const made: Row[] = [];
+      for (const c of changes) {
+        const row = rows.find((r) => r.Key === c.key)!; if (c.patch.Status !== "Done" || !row.RecurrenceRule) continue;
+        const n = spawnNext({ ...row, ...c.patch }, [...rows, ...made], { now: new Date().toISOString(), today: todayIso(), key: () => newKey("T") });
+        if (n.row) { made.push(n.row); try { await create("Tasks", n.row); } catch { /* the next occurrence can be made again by completing it again; the capture key prevents duplicates */ } }
+      }
       setUndo({ changes: changes.map(({ key, patch, before }) => ({ key, patch, before })), label });
       window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setUndo(undefined), 12000);
     } catch (e) { setError(say(e)); }

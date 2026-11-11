@@ -4,6 +4,7 @@
 import { TaskInbox } from "./TaskInbox";
 import { Unblock } from "./Unblock";
 import { WorkOverview } from "./WorkOverview";
+import { WorkReports } from "./WorkReports";
 import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ChasePage } from "./ChasePage";
 import { Job, Task, fmtDate, fmtHours, holdAlert, holdLabel, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
@@ -31,6 +32,10 @@ import { TypeFilter, TypeOption, useRememberedTypes } from "./TypeFilter";
 import { useCalendar } from "./Calendar";
 import { svcClass } from "../lib/serviceColour";
 import { readSetting } from "./data";
+import { useRisk } from "./riskKit";
+import { assess } from "../lib/work/readiness";
+import { plannable } from "../lib/work/planning";
+import { readTask } from "../lib/work/model";
 import { Candidate, DEFAULT_FILL, LOOK_AHEAD_DAYS, Skipped, Suggestion, suggestPlan } from "../lib/autoplan";
 import { waitingForRecords } from "../lib/chase";
 import { stageLabel } from "../lib/stages";
@@ -91,6 +96,7 @@ export function PlanPage() {
   if (parts[1] === "inbox") return <TaskInbox />;
   if (parts[1] === "unblock") return <Unblock />;
   if (parts[1] === "overview") return <WorkOverview />;
+  if (parts[1] === "reports") return <WorkReports />;
   if (parts[1] === "months") return <MonthsView />;
   if (parts[1] === "deadlines") return <DeadlinesView />;
   if (parts[1] === "done") return <DoneView />;
@@ -421,6 +427,7 @@ function WeekView() {
     }
   };
 
+  const rk = useRisk();
   const moveRef = useRef(move);
   moveRef.current = move; // undo runs later, so it needs the latest board
 
@@ -435,6 +442,11 @@ function WeekView() {
       planned: i.planned, suggestedSlot: i.kind === "job" && !i.finalise ? ((i.row as Job).SuggestedSlot as string | undefined) : undefined,
       waitingForClient: !!i.waiting, notBefore: i.waiting ? i.speakOn : undefined,
       waitingForRecords: !includeWaiting && i.kind === "job" && waitingForRecords(i.row as Job, data.services, data.stageTemplates),
+      ...(() => {
+        // dependencies: fully blocked work is not offered, a partly ready job only for the hours that can be done now, client-owned work is never our capacity
+        const p = plannable(assess(i.kind, i.key, rk.world), i.hours, i.kind === "job" ? rk.facts.get(i.key)?.actionable : undefined, i.kind === "task" ? readTask(i.row) : undefined);
+        return { blocked: p.blocked, actionableHours: p.actionableHours };
+      })(),
     }));
     const r = suggestPlan(cands, {
       today, days, capacity: Object.fromEntries(days.map((d) => [d, capacity(d)])), load: Object.fromEntries(days.map((d) => [d, load(d)])),

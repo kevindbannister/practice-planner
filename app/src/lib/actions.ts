@@ -42,6 +42,8 @@ export type Source = {
   /** Company secretarial filings and Companies House differences (see lib/cosec.ts). */
   cosecTx?: Row[]; chFlags?: Row[];
   /** Held-up jobs that are short of time (see lib/work/risk.ts). */
+  /** reminders and newly unblocked work (lib/work/planning). Suggestions only: acting on one still goes through the usual confirmation. */
+  work?: { key: string; clientKey: string; title: string; detail: string; priority: Priority; due: string; taskKey?: string }[];
   risks?: { key: string; clientKey: string; title: string; detail: string; priority: Priority; due: string; href: string }[];
 };
 
@@ -152,6 +154,7 @@ export function buildActions(src: Source): Action[] {
 
   for (const i of clientActionItems(src.tasks, nameOf, today)) add({ key: i.key, category: "info", title: i.title, detail: i.detail, clientKey: i.clientKey, assignee: manager(i.clientKey), due: i.due, priority: i.priority, href: `editor:task:${i.taskKey}` });
 
+  for (const r of src.work || []) add({ key: r.key, category: "jobs", title: r.title, detail: r.detail, clientKey: r.clientKey, assignee: manager(r.clientKey), due: r.due, priority: r.priority, href: r.taskKey ? `editor:task:${r.taskKey}` : `#/clients/${r.clientKey}` });
   for (const r of src.risks || []) add({ key: r.key, category: "jobs", title: r.title, detail: r.detail, clientKey: r.clientKey, assignee: manager(r.clientKey), due: r.due, priority: r.priority, href: r.href });
 
   // ---- other

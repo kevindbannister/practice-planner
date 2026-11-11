@@ -1134,6 +1134,10 @@
     {
      "name": "PortalRequestId",
      "type": "text"
+    },
+    {
+     "name": "SeriesKey",
+     "type": "text"
     }
    ]
   },

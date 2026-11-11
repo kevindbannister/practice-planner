@@ -11,6 +11,8 @@ import { readSetting, useData } from "./data";
 import { Icon, PlanTabs } from "./bits";
 import { usePlanning } from "./usePlanning";
 import { Denied, approvalOn, can, teamFrom } from "../lib/permissions";
+import { readTask } from "../lib/work/model";
+import { timeRefusal } from "../lib/work/planning";
 import { readRec, timeEventRow } from "../lib/timeBilling";
 import { submit, APPROVAL_LABEL } from "../lib/timeApproval";
 import { useTodayModel } from "./useTodayModel";
@@ -51,11 +53,14 @@ export function Timesheet() {
     const s = stopAt(e, at || new Date().toISOString());
     if (s.error) setErr(s.error); else await update("JobTime", r, s.patch!);
   });
+  const refuse = (taskKey: string, activityKey: string) => { const why = timeRefusal(data.tasks.find((x) => x.Key === taskKey) ? readTask(data.tasks.find((x) => x.Key === taskKey)!) : undefined, activityKey); if (why) setErr(why); return why; };
   const startTimer = (p: Pick, sessionKey = "") => go(async () => {
+    if (refuse(p.taskKey, p.activityKey)) return;
     if (run) { const r = rowOf(run.key); const s = stopAt(run, new Date().toISOString()); if (r && s.patch) await update("JobTime", r, s.patch); } // one timer at a time
     await create("JobTime", timerEntry({ ...p, sessionKey }, user || "", newKey, new Date()));
   });
   const addEntry = (i: Parameters<typeof manualEntry>[0]) => go(async () => {
+    if (refuse(i.taskKey || "", i.activityKey || "")) return;
     const m = manualEntry(i, user || "", newKey, new Date());
     if (m.error) { setErr(m.error); return; }
     await create("JobTime", m.row!);

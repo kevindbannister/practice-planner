@@ -92,6 +92,7 @@ export function missingPrerequisites(deps: Dependency[], known: Known): { dep: D
 
 export type DepEventType = "create" | "satisfy" | "reopen" | "override" | "cancel" | "change";
 export type DepEvent = { key: string; dependencyKey: string; type: DepEventType; at: string; by: string; before: string; after: string; reason: string };
+export const readDepEvent = (r: Row): DepEvent => ({ key: s(r.Key), dependencyKey: s(r.DependencyKey), type: s(r.EventType) as DepEventType, at: s(r.Created), by: s(r.CreatedBy), before: s(r.Before), after: s(r.After), reason: s(r.Reason) });
 export const depEventRow = (e: DepEvent, practiceId = ""): Row => ({ Key: e.key, PracticeId: practiceId, DependencyKey: e.dependencyKey, EventType: e.type, Created: e.at, CreatedBy: e.by, Before: e.before, After: e.after, Reason: e.reason });
 
 /** Satisfy, reopen, override or cancel a dependency. Each returns the changed record and the event to append; the old state stays in the event. Never edits history. */

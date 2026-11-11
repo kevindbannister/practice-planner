@@ -24,6 +24,8 @@ export type Candidate = {
   waitingForRecords: boolean;
   waitingForClient?: boolean; // with the client for approval
   notBefore?: string; // the day you're speaking to the client: finalising goes on or after it
+  blocked?: string; // fully blocked by a dependency (or owned by the client): never offered, listed with this reason
+  actionableHours?: number; // a partly ready job: only this part can be done now, so only this much is planned
 };
 
 export type PlanOptions = {
@@ -65,6 +67,10 @@ export function suggestPlan(cands: Candidate[], o: PlanOptions): { suggestions: 
     const slotThisWeek = !!c.suggestedSlot && days.includes(c.suggestedSlot);
     if (!c.deadline && !slotThisWeek) return false; // nothing to say when it's needed
     if (c.deadline && c.deadline > until && !slotThisWeek && !c.urgent) return false;
+    if (c.blocked) {
+      skipped.push({ key: c.key, reason: c.blocked });
+      return false;
+    }
     if (c.waitingForRecords) {
       skipped.push({ key: c.key, reason: "Waiting for records" });
       return false;
@@ -85,7 +91,9 @@ export function suggestPlan(cands: Candidate[], o: PlanOptions): { suggestions: 
       b.hours - a.hours,
   );
 
-  for (const c of eligible) {
+  for (const c0 of eligible) {
+    const part = c0.actionableHours != null && c0.actionableHours > 0 && c0.actionableHours < c0.hours;
+    const c = part ? { ...c0, hours: c0.actionableHours as number } : c0;
     const after = c.notBefore || "";
     const allowed = days.filter((d) => (late(c) || !c.deadline || d <= c.deadline) && d >= after);
     if (!allowed.length) {
@@ -112,7 +120,7 @@ export function suggestPlan(cands: Candidate[], o: PlanOptions): { suggestions: 
     room[day] = Math.max(0, room[day] - c.hours);
     empty[day] = false;
     // the card already shows the deadline; say why it was picked
-    const why = [late(c) ? "Late" : "", c.urgent ? "Urgent" : "", c.notBefore ? "After speaking to the client" : "", reason].filter(Boolean);
+    const why = [part ? `Available part only (${c.hours}h of ${c0.hours}h)` : "", late(c) ? "Late" : "", c.urgent ? "Urgent" : "", c.notBefore ? "After speaking to the client" : "", reason].filter(Boolean);
     if (!why.length) why.push("Next deadline");
     suggestions.push({ key: c.key, day, reason: why.join(" · ") });
   }

@@ -1,5 +1,6 @@
 // Everyday task handling on the one task model: the Inbox, triage, the client task list (filters and groups), parent and child tasks, bulk edits and undo.
 // Pure rules over rows. Every change is a patch that bumps Version, and refuses (never overwrites) when the task has changed since it was read.
+import { parseRule, formatRule } from "./recurrence";
 import { Row } from "../schema";
 import { Area, Priority, WorkTask, canMove, isDone, isFinished, readTask } from "./model";
 
@@ -88,12 +89,12 @@ export function parentProblems(rows: Row[], key: string, parentKey: string): str
 // ---------------------------------------------------------------- changes
 export type Spec = {
   client?: string | null; project?: string | null; job?: string | null; parent?: string | null; area?: Area; owner?: string; ownerType?: "user" | "contact" | "external"; responsible?: string;
-  due?: string | null; target?: string | null; followUp?: string | null; priority?: Priority; status?: string; title?: string; description?: string; blockedReason?: string; tags?: string[]; estimateMinutes?: number | null;
+  due?: string | null; target?: string | null; followUp?: string | null; priority?: Priority; status?: string; title?: string; description?: string; blockedReason?: string; tags?: string[]; estimateMinutes?: number | null; repeat?: string | null;
 };
 export type Ctx = { user: string; now: string };
 export type Change = { key: string; patch: Row; before: Row; error?: undefined } | { key: string; error: string };
 
-const COLS: Record<keyof Spec, string> = { client: "ClientKey", project: "ProjectKey", job: "JobKey", parent: "ParentTaskKey", area: "Area", owner: "AssignedUser", ownerType: "OwnerType", responsible: "AssignedContact", due: "DueDate", target: "InternalTargetDate", followUp: "FollowUpDate", priority: "Priority", status: "Status", title: "Title", description: "Description", blockedReason: "BlockedReason", tags: "Tags", estimateMinutes: "EstimateMinutes" };
+const COLS: Record<keyof Spec, string> = { client: "ClientKey", project: "ProjectKey", job: "JobKey", parent: "ParentTaskKey", area: "Area", owner: "AssignedUser", ownerType: "OwnerType", responsible: "AssignedContact", due: "DueDate", target: "InternalTargetDate", followUp: "FollowUpDate", priority: "Priority", status: "Status", title: "Title", description: "Description", blockedReason: "BlockedReason", tags: "Tags", estimateMinutes: "EstimateMinutes" , repeat: "RecurrenceRule"};
 
 /** Work out the patch for one task. `rows` is every task (needed to check parents and open children). `expected` is the Version the screen was showing. `force` allows finishing a task with open children. */
 export function changeTask(rows: Row[], key: string, spec: Spec, ctx: Ctx, opts: { expected?: number; force?: boolean } = {}): Change {
@@ -117,6 +118,7 @@ export function changeTask(rows: Row[], key: string, spec: Spec, ctx: Ctx, opts:
   if (spec.blockedReason !== undefined) set("blockedReason", spec.blockedReason.trim());
   if (spec.tags !== undefined) set("tags", spec.tags.map((x) => x.trim()).filter(Boolean).join(", "));
   if (spec.estimateMinutes !== undefined) set("estimateMinutes", spec.estimateMinutes);
+  if (spec.repeat !== undefined) { if (spec.repeat) { const r = parseRule(spec.repeat); if ("error" in r) return { key, error: r.error }; set("repeat", formatRule(r)); } else set("repeat", ""); }
   if (spec.parent !== undefined) { const bad = parentProblems(rows, key, spec.parent || ""); if (bad.length) return { key, error: bad[0] }; set("parent", spec.parent); }
   const newType = spec.ownerType ?? t.ownerType;
   if (spec.ownerType !== undefined && spec.ownerType !== t.ownerType && spec.status === undefined && !isFinished(t.status)) {

@@ -111,7 +111,7 @@ export const LISTS: ListDef[] = [
       t("DueDate"), t("Status"), t("CompletedDate"), note("Notes"), t("HoldReason"), t("HoldUntil"), t("HeldOn"), t("HoldKind"), note("CardNote"),
       n("DayOrder"), note("Subtasks"), t("StartTime"), n("ActualHours"), n("RemainingHours"), n("ReadyHours"), t("ReadyNote"), t("TimeSkipped"), t("ProjectKey"), t("RoutineKey"), t("RoutineDate"), t("PracticeId", true),
       // Unified task model (lib/work/model.ts). All optional: old rows work without them.
-      note("Description"), t("Area", true), t("ParentTaskKey", true), t("JobKey", true), t("MeetingKey", true), t("OwnerType"), t("AssignedUser", true), t("AssignedContact"), t("ExternalParty"), t("InternalOwner"), t("CreatedBy"), t("Created"), t("Updated"), t("Priority"), t("InternalTargetDate"), t("ClientAgreedDate"), n("EstimateMinutes"), n("RemainingMinutes"), t("CompletedBy"), note("BlockedReason"), t("WaitingSince"), t("FollowUpDate"), t("RecurrenceRule"), t("PrivacyLevel"), t("Tags"), n("Version"), t("CaptureKey", true), t("PortalRequestId", true),
+      note("Description"), t("Area", true), t("ParentTaskKey", true), t("JobKey", true), t("MeetingKey", true), t("OwnerType"), t("AssignedUser", true), t("AssignedContact"), t("ExternalParty"), t("InternalOwner"), t("CreatedBy"), t("Created"), t("Updated"), t("Priority"), t("InternalTargetDate"), t("ClientAgreedDate"), n("EstimateMinutes"), n("RemainingMinutes"), t("CompletedBy"), note("BlockedReason"), t("WaitingSince"), t("FollowUpDate"), t("RecurrenceRule"), t("PrivacyLevel"), t("Tags"), n("Version"), t("CaptureKey", true), t("PortalRequestId", true), t("SeriesKey", true),
     ],
   },
   {
