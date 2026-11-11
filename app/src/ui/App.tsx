@@ -173,10 +173,11 @@ export function App({ demo }: { demo: boolean }) {
     <BackupProvider>
       <CompaniesHouseProvider demo={demo}>
         <CalendarProvider demo={demo}>
+          <PortalProvider>
           <EditorProvider>
             <QuickAddProvider ready={status === "ready"}>
             <AssistantProvider>
-              <PortalProvider>
+              <>
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
                 {!(section === "devhub" || (section === "advisory" || section === "papers" || section === "tax" || section === "taxplan" || section === "reporting") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
                 <span className="version-badge" title={`Prototype, version ${VERSION}`}>P V{VERSION}</span>
@@ -188,10 +189,11 @@ export function App({ demo }: { demo: boolean }) {
                 <PageBoundary resetKey={path} onProblem={(p) => void saveSetting("debug.lastProblem", p).catch(() => undefined)}>
                   <Suspense fallback={<div className="card pad muted" role="status">Loading…</div>}>{body}</Suspense>
                 </PageBoundary>
-              </PortalProvider>
+              </>
             </AssistantProvider>
             </QuickAddProvider>
           </EditorProvider>
+          </PortalProvider>
         </CalendarProvider>
       </CompaniesHouseProvider>
     </BackupProvider>

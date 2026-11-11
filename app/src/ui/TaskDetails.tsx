@@ -8,6 +8,7 @@ import { newKey } from "../lib/planning";
 import { eventsForChange, taskEventRow } from "../lib/work/clientActions";
 import { teamFrom } from "../lib/permissions";
 import { ClientActionPanel } from "./ClientActionPanel";
+import { DependencyPanel } from "./DependencyPanel";
 import { useData } from "./data";
 
 export function TaskDetails({ task }: { task: Row }) {
@@ -45,6 +46,7 @@ export function TaskDetails({ task }: { task: Row }) {
       {t.ownerType !== "user" && t.status === "Submitted" && <p className="muted" style={{ margin: 0 }}>The client says this is done. It only counts once you've checked it: move it to Under review, then Done.</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
       <ClientActionPanel task={task} />
+      <DependencyPanel kind="task" id={t.key} />
     </section>
   );
 }

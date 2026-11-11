@@ -102,3 +102,24 @@ No screens, no readiness or risk calculation, no store wiring for personal tasks
 **Migration.** None. Existing tasks are unaffected.
 **Tests.** `tests/workClientActions.test.ts` (12). App suite 1,365 pass; API 339 pass.
 **Limits.** Portal sync runs when a task is open, not in the background. The legacy meeting "Add my actions to the plan" button is replaced by the review list, so tasks it made earlier keep their link. Browser walkthrough of the panel was not run against a live portal (the demo has none). Meeting action completion is not written back to the meeting's tick box.
+
+## Phase 5: dependency engine and readiness (V24.5, on main)
+
+**Features.** One engine (`lib/work/readiness.ts`) reads the dependency records and the real state of the work they point at.
+- Readiness values: Ready, Partly ready, Blocked, Waiting, On hold, Complete. Kept separate from workflow status.
+- A dependency is met only when its prerequisite really is: a task is Done (and, for client information or anything marked "must check", also accepted by the practice); a job is Complete or has reached the named stage. A cancelled prerequisite or a missing one blocks and is flagged for a decision; it is never treated as met.
+- Stage-scoped holds: a dependency on one stage of a job (partial, or any type with a stage chosen) leaves the job Partly ready until it reaches that stage, then Blocked. The other stages stay actionable.
+- Every block has a plain reason, for example "Blocked because Annual Accounts 2026 has not reached Approved", with a button to open the prerequisite.
+- Chain view: everything a piece of work is waiting on, nearest first, and the earliest steps that can be acted on.
+- Hours split helper (`splitHours`): remaining hours into actionable and held, from stage budgets; says it cannot split when stage hours are unknown.
+- Integrity checks: missing or cancelled ends, stages that no longer exist, cycles in existing data, a satisfied record whose prerequisite went back, a job moved past a held stage, duplicates, overrides with no reason.
+- Records follow the facts: satisfied once truly met, reopened if the prerequisite goes back, each with a history entry. Overriding needs a reason and is reversible.
+- Screens: a Dependencies section on every task and job editor (add, override, put back, remove, chain); a readiness chip in task lists; the client Tasks "blocked" filter now includes tasks held by dependencies.
+- No expected date is invented: where none is known the panel says so and says the deadline does not move.
+
+**Files.** `lib/work/readiness.ts`, `ui/DependencyPanel.tsx`; edited `ui/TaskDetails.tsx`, `ui/Editors.tsx`, `ui/taskKit.tsx`, `ui/ClientTasks.tsx`, `lib/devHubSeed.ts`, `version.ts`.
+**Schema / migration.** None (Dependencies and DependencyEvents lists came in Phase 1).
+**Tests.** `tests/workReadiness.test.ts` (14).
+**Limits.** The planner does not yet schedule only the actionable hours (Phase 9); deadline risk and Action Centre alerts for blocked work are Phase 7; templates are Phase 6. The Inbox list shows the readiness chip but does not filter on it. Approval dependencies on a job rely on the approval stage being chosen. Not browser-checked against live data.
+
+**Fix included in V24.5.** Phase 4's client-action panel needs the portal context, but the task and job editor drawers were mounted outside it, so opening any task crashed. The portal provider now wraps the editors. Found by the browser check, not by the unit tests.

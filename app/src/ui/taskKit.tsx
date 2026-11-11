@@ -6,6 +6,7 @@ import { Row } from "../lib/schema";
 import { Capture, WorkTask, bulkCaptureKeys, newTaskRow, notYetCreated, splitBulk, statusLabel } from "../lib/work/model";
 import { Change, Spec, bulkChange, changeTask, complete, reopen, undoChange } from "../lib/work/tasks";
 import { useData } from "./data";
+import { ReadinessChip } from "./DependencyPanel";
 import { useEditor } from "./Editors";
 
 const say = (e: unknown) => (e instanceof Error && e.message ? e.message : "That didn't save. Try again.");
@@ -119,6 +120,7 @@ export function TaskLine({ t, selected, onSelect, onToggle, onPriority, onDue, s
       {t.status !== "Open" && !done && <span className="chip">{statusLabel(t.status)}</span>}
       {t.ownerType !== "user" && <span className="chip">{t.responsible || "Client"}</span>}
       {t.blockedReason && <span className="chip red" title={t.blockedReason}>Blocked</span>}
+      {!t.blockedReason && <ReadinessChip kind="task" id={t.key} />}
       <select aria-label={`Priority of ${t.title}`} className="input" style={{ width: 104 }} value={t.priority} onChange={(e) => onPriority(e.target.value as WorkTask["priority"])}><option value="">Priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
       <input type="date" aria-label={`Due date of ${t.title}`} className="input" style={{ width: 140, color: overdue ? "var(--red-ink)" : undefined }} value={t.dueDate} onChange={(e) => onDue(e.target.value)} />
       {subline && <span className="muted" style={{ flexBasis: "100%", fontSize: 12, paddingLeft: 30 }}>{subline}{t.dueDate && overdue ? ` · was due ${fmtDate(t.dueDate, { year: false })}` : ""}</span>}

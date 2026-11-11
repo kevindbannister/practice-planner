@@ -2,6 +2,7 @@
 // and jobs. Open them from anywhere with useEditor().open(...). Every field saves as
 // soon as it's changed.
 import { TaskDetails } from "./TaskDetails";
+import { DependencyPanel } from "./DependencyPanel";
 import { JobTime, TrackedHint } from "./JobTime";
 import { ProgressSection } from "./ProgressSection";
 import { CustomValuesEditor } from "./CustomFields";
@@ -294,6 +295,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       </div>
       {isOpen(job) && <HoldSection item={job} deadline={job.Deadline} save={save} what="job" />}
       <ProgressSection item={job} kind="job" estimate={jobHours(job as never, data.services)} save={save} />
+      <DependencyPanel kind="job" id={job.Key as string} />
 
       <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
         <div style={{ gridColumn: "1 / -1" }}>
