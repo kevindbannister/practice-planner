@@ -123,3 +123,19 @@ No screens, no readiness or risk calculation, no store wiring for personal tasks
 **Limits.** The planner does not yet schedule only the actionable hours (Phase 9); deadline risk and Action Centre alerts for blocked work are Phase 7; templates are Phase 6. The Inbox list shows the readiness chip but does not filter on it. Approval dependencies on a job rely on the approval stage being chosen. Not browser-checked against live data.
 
 **Fix included in V24.5.** Phase 4's client-action panel needs the portal context, but the task and job editor drawers were mounted outside it, so opening any task crashed. The portal provider now wraps the editors. Found by the browser check, not by the unit tests.
+
+## Phase 6: accounting dependency templates (V24.6, on main)
+
+**Features.** Configurable templates (`lib/work/templates.ts`, screen at Settings > Dependencies, `#/dependencies`) for the standard relationships: records received → VAT, bookkeeping → accounts, accounts approved → tax finalisation, partnership accounts → partners' Self Assessment, payroll information → payroll, reconciliations → management accounts. Six starter drafts are offered; they stay off until the services (and stages) are chosen, so nothing runs half-configured.
+- A template says "this service waits for [another service's job | information to be received]", optionally at a named stage and holding back a named stage (stored by name, so reordering stages doesn't break it; a missing stage becomes a review, not a wrong link).
+- Matching is by service, client and period only: same period end; the period it covers (accounts → tax); same tax year (6 April to 5 April); or a different client.
+- Uncertain means review, never a guess: several candidates; no period end; accounts longer than 12 months covering an earlier tax period; partnership to partner (different clients, no relationship recorded, so always a confirm); a stage that no longer exists; a link that would make work wait on itself. A person picks the right job or says "this doesn't apply" (remembered).
+- Information templates make a client task (not shared with the client) and a verified-only dependency. A repeat can't make two (capture key).
+- Applied to open jobs only. Finished jobs are untouched; a dependency that was removed on purpose or declined is never recreated; editing a template changes nothing that already exists.
+- Automatic when a job is created (completing a recurring job, or adding one by hand): only what is certain is created. Everything else, and jobs created elsewhere, shows on the screen under "Ready to create" (needs a click) and "Needs a decision".
+- Template administration: view, create, edit, on/off (refused while unfinished), where used. Managers and partners only (the existing Checks permission).
+
+**Files.** `lib/work/templates.ts`, `ui/DependencyTemplates.tsx`, `ui/templateKit.tsx`; edited `ui/Editors.tsx`, `ui/App.tsx`, `ui/SettingsTabs.tsx`, `ui/data.tsx`, `lib/schema.ts`, `lib/devHubSeed.ts`, `version.ts`, MCP schema regenerated.
+**Schema.** New lists `DependencyTemplates` and `TemplateDecisions` (auto-provisioned). No migration.
+**Tests.** `tests/workTemplates.test.ts` (10).
+**Limits.** Jobs created by Companies House roll-forward are picked up on the screen, not automatically. Review items are on the Dependencies screen only; the Action Centre alert comes with Phase 7. Template matching for a new job covers that job as the waiting side only. Tax periods and accounts periods are matched by period end because jobs don't record a start date. Not tried end to end in the browser (the demo data has no services); the matching and creation rules are covered by tests.

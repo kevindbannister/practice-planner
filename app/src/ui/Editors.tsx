@@ -3,6 +3,7 @@
 // soon as it's changed.
 import { TaskDetails } from "./TaskDetails";
 import { DependencyPanel } from "./DependencyPanel";
+import { useTemplatesForNewJob } from "./templateKit";
 import { JobTime, TrackedHint } from "./JobTime";
 import { ProgressSection } from "./ProgressSection";
 import { CustomValuesEditor } from "./CustomFields";
@@ -161,6 +162,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const [fin, setFin] = useState("");
   const askRef = useRef<HTMLDivElement>(null);
   const gate = useJobBlockers(jobKey);
+  const afterJob = useTemplatesForNewJob();
   const checks = useChecklists();
   const [why, setWhy] = useState("");
   const stageRules = useStageRules();
@@ -245,6 +247,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       if (nextRow) {
         nextRow.StageName = (stages[0]?.Title as string) || "";
         await create("Jobs", nextRow);
+        await afterJob(nextRow);
       }
       await save({ Status: "Complete", CompletedDate: today, ...(hours !== undefined ? timePatch(hours) : {}) });
       setDone(nextRow);
@@ -464,6 +467,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
 
 function NewJobPanel({ clientKey, onClose }: { clientKey: string; onClose: () => void }) {
   const { data, create } = useData();
+  const afterJob = useTemplatesForNewJob();
   const idx = useIndex();
   const client = idx.clientByKey.get(clientKey);
   const services = data.services.filter((s) => s.Key !== "TASK").sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
@@ -484,7 +488,7 @@ function NewJobPanel({ clientKey, onClose }: { clientKey: string; onClose: () =>
     setBusy(true);
     try {
       const stages = idx.stagesByService.get(service) || [];
-      await create("Jobs", {
+      const newRow: Row = {
         Key: newKey("J"),
         Title: (data.services.find((s) => s.Key === service)?.Title as string) || service,
         ClientKey: clientKey,
@@ -498,7 +502,9 @@ function NewJobPanel({ clientKey, onClose }: { clientKey: string; onClose: () =>
         StageName: (stages[0]?.Title as string) || "",
         Status: "Open",
         Source: "Added",
-      });
+      };
+      await create("Jobs", newRow);
+      await afterJob(newRow);
       onClose();
     } catch {
       setError("Couldn't add the job. Try again.");

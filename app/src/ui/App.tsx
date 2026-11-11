@@ -53,6 +53,7 @@ function page<P extends object>(load: () => Promise<ComponentType<P>>) {
 const ChasePage = page(() => import("./ChasePage").then((m) => m.ChasePage));
 const PayrollPage = page(() => import("./Payroll").then((m) => m.PayrollPage));
 const SettingsPage = page(() => import("./SettingsPage").then((m) => m.SettingsPage));
+const DependencyTemplatesPage = page(() => import("./DependencyTemplates").then((m) => m.DependencyTemplatesPage));
 const ChecklistsPage = page(() => import("./Checklists").then((m) => m.ChecklistsPage));
 const PortalPage = page(() => import("./PortalAdmin").then((m) => m.PortalPage));
 const DevHubPage = page(() => import("./DevHub").then((m) => m.DevHubPage));
@@ -161,6 +162,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <CompliancePage />;
   } else if (section === "payroll") {
     body = <PayrollPage />;
+  } else if (section === "dependencies") {
+    body = <><SettingsTabs current="dependencies" /><DependencyTemplatesPage /></>;
   } else if (section === "checklists") {
     body = <><SettingsTabs current="checklists" /><ChecklistsPage /></>;
   } else if (section === "portal") {

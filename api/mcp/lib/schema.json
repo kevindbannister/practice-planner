@@ -5556,6 +5556,120 @@
    ]
   },
   {
+   "key": "DependencyTemplates",
+   "displayName": "PP Dependency Templates",
+   "description": "standard dependencies between kinds of work",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "Title",
+     "type": "text"
+    },
+    {
+     "name": "Enabled",
+     "type": "text"
+    },
+    {
+     "name": "PrerequisiteKind",
+     "type": "text"
+    },
+    {
+     "name": "PrerequisiteService",
+     "type": "text"
+    },
+    {
+     "name": "PrerequisiteTask",
+     "type": "text"
+    },
+    {
+     "name": "PrerequisiteStage",
+     "type": "text"
+    },
+    {
+     "name": "DependentService",
+     "type": "text"
+    },
+    {
+     "name": "DependentStage",
+     "type": "text"
+    },
+    {
+     "name": "Relation",
+     "type": "text"
+    },
+    {
+     "name": "DependencyType",
+     "type": "text"
+    },
+    {
+     "name": "VerificationRequired",
+     "type": "text"
+    },
+    {
+     "name": "Notes",
+     "type": "note"
+    },
+    {
+     "name": "Version",
+     "type": "number"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
+   "key": "TemplateDecisions",
+   "displayName": "PP Template Decisions",
+   "description": "jobs a dependency template was declined for",
+   "columns": [
+    {
+     "name": "Key",
+     "type": "text"
+    },
+    {
+     "name": "PracticeId",
+     "type": "text"
+    },
+    {
+     "name": "TemplateKey",
+     "type": "text"
+    },
+    {
+     "name": "DependentKey",
+     "type": "text"
+    },
+    {
+     "name": "Decision",
+     "type": "text"
+    },
+    {
+     "name": "Reason",
+     "type": "note"
+    },
+    {
+     "name": "Created",
+     "type": "text"
+    },
+    {
+     "name": "CreatedBy",
+     "type": "text"
+    }
+   ]
+  },
+  {
    "key": "TaskEvents",
    "displayName": "PP Task History",
    "description": "the permanent history of changes to tasks (never edited)",

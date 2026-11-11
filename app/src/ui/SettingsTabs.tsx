@@ -6,7 +6,7 @@ export const TABS: [string, string][] = [
   ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["services", "Services & pricing"], ["fields", "Your own fields"], ["pricing", "Pricing rules"], ["design", "Document design"], ["clearance", "Clearance points"], ["adfin", "Adfin"], ["engagement", "Engagement letters"], ["onboarding", "Onboarding"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["forms", "Forms"], ["xero", "Xero"], ["detailedpl", "Detailed P&L"], ["hmrc", "HMRC"], ["cosec", "Co Sec"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
 ];
 // These two have their own pages; they sit with Settings rather than in the main bar.
-export const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["portal", "Client portal", "#/portal"]];
+export const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["dependencies", "Dependencies", "#/dependencies"], ["portal", "Client portal", "#/portal"]];
 
 /** The Settings tab bar, also shown above Checks and the Client portal so they read as part of Settings. */
 export function SettingsTabs({ current }: { current: string }) {

@@ -18,7 +18,7 @@ export type ListKey =
   | "Authorisations" | "HmrcAuthorisations" | "HmrcAuthEvents" | "Settings" | "CHFlags" | "Communications" | "TaxPayments" | "Meetings" | "WorkingPapers" | "PaperLines" | "Projects" | "DocTemplates" | "DocVersions" | "Documents" | "Activities"
   | "ChecklistTemplates" | "ChecklistVersions" | "Checklists" | "ChecklistItems" | "ChecklistNotes" | "ChecklistLog"
   | "Leads" | "Opportunities" | "SalesLog" | "Proposals" | "ProposalVersions" | "Engagements" | "Onboardings" | "FeeHistory" | "FeeCharges" | "ClientCosts" | "Actions"
-  | "TimeEvents" | "Dependencies" | "DependencyEvents" | "TaskEvents" | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "AmlRecords" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "PlanSessions" | "PlanEvents" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions" | "HmrcFilings" | "HmrcFilingLog"
+  | "TimeEvents" | "Dependencies" | "DependencyEvents" | "TaskEvents" | "DependencyTemplates" | "TemplateDecisions" | "CoSecEvents" | "CoSecTransactions" | "CoSecOfficers" | "CoSecPscs" | "CoSecShares" | "CoSecShareClasses" | "Clearances" | "AmlAssessments" | "AmlRecords" | "FormTemplates" | "FormRequests" | "CoSecProfiles" | "CoSecLedger" | "CoSecImports" | "CoSecCertificates" | "CoSecDividends" | "CoSecAccounts" | "AdvisoryPlans" | "JobTime" | "PlanSessions" | "PlanEvents" | "CustomValues" | "BillingLinks" | "BillingChases" | "ComplianceLog" | "Obligations" | "TaxPlans" | "PayrollSchemes" | "PayrollPeople" | "PayYears" | "PayRuns" | "RtiSubmissions" | "HmrcFilings" | "HmrcFilingLog"
   | "PortalUsers" | "PortalAccess" | "PortalAudit" | "PortalInvites" | "PortalDocuments" | "PortalSigning" | "PortalIdentity" | "PortalRequests" | "PortalMessages" | "PortalChanges" | "PortalNotices" | "PortalReminders" | "PortalSettings" | "PortalProposals";
 
 export const LISTS: ListDef[] = [
@@ -481,6 +481,16 @@ export const LISTS: ListDef[] = [
     // Append-only: every creation, satisfaction, reopening, override and cancellation of a dependency. Never edited or deleted.
     key: "DependencyEvents", displayName: "PP Dependency History", description: "Practice Planner: the permanent history of dependency changes (never edited)",
     columns: [t("Key", true), t("PracticeId", true), t("DependencyKey", true), t("EventType"), t("Created"), t("CreatedBy"), t("Before"), t("After"), note("Reason")],
+  },
+  {
+    // Standard relationships between kinds of work, applied to each new period's jobs. See lib/work/templates.ts.
+    key: "DependencyTemplates", displayName: "PP Dependency Templates", description: "Practice Planner: standard dependencies between kinds of work",
+    columns: [t("Key", true), t("PracticeId", true), t("Title"), t("Enabled"), t("PrerequisiteKind"), t("PrerequisiteService"), t("PrerequisiteTask"), t("PrerequisiteStage"), t("DependentService", true), t("DependentStage"), t("Relation"), t("DependencyType"), t("VerificationRequired"), note("Notes"), n("Version"), t("Created"), t("CreatedBy")],
+  },
+  {
+    // A person's decision that a template does not apply to one job, so it is not offered again.
+    key: "TemplateDecisions", displayName: "PP Template Decisions", description: "Practice Planner: jobs a dependency template was declined for",
+    columns: [t("Key", true), t("PracticeId", true), t("TemplateKey", true), t("DependentKey", true), t("Decision"), note("Reason"), t("Created"), t("CreatedBy")],
   },
   {
     // Append-only: status changes, submissions, verifications, chases and reassignments on tasks (client actions especially). Never edited or deleted.
