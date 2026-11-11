@@ -1,4 +1,5 @@
 // App shell: top bar, save indicator, and routing between pages.
+import { QuickAddProvider, useQuickAdd } from "./QuickAdd";
 import { VERSION } from "../version";
 import { AreaMenu, AreaPicker, TwoLineAreas, TwoLineModules, useMenuKind } from "./AreaMenu";
 import { PortalProvider, usePortal } from "./portalKit";
@@ -173,6 +174,7 @@ export function App({ demo }: { demo: boolean }) {
       <CompaniesHouseProvider demo={demo}>
         <CalendarProvider demo={demo}>
           <EditorProvider>
+            <QuickAddProvider ready={status === "ready"}>
             <AssistantProvider>
               <PortalProvider>
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
@@ -188,6 +190,7 @@ export function App({ demo }: { demo: boolean }) {
                 </PageBoundary>
               </PortalProvider>
             </AssistantProvider>
+            </QuickAddProvider>
           </EditorProvider>
         </CalendarProvider>
       </CompaniesHouseProvider>
@@ -197,7 +200,7 @@ export function App({ demo }: { demo: boolean }) {
 
 function TopBar({ section, demo, ready }: { section: string; demo: boolean; ready: boolean }) {
   const { save, user } = useData();
-  const { open } = useEditor();
+  const quick = useQuickAdd();
   const chase = useChaseCount();
   const assistant = useAssistant();
   const portalWaiting = usePortal().overview?.attention.length || 0;
@@ -253,7 +256,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
             <>
               <button type="button" className="btn small hide-phone" onClick={assistant.toggle} aria-expanded={assistant.open}><Icon name="spark" size={16} /> Ask</button>
               <button type="button" className="btn topbar-icon only-phone" aria-label="Ask the assistant" onClick={assistant.toggle}><Icon name="spark" size={20} /></button>
-              <button type="button" className="btn primary topbar-icon" aria-label="New task" title="New task" onClick={() => open({ kind: "task" })}>
+              <button type="button" className="btn primary topbar-icon" aria-label="New task" title="New task (Alt+N)" onClick={() => quick.open()}>
                 <Icon name="plus" size={20} />
               </button>
             </>

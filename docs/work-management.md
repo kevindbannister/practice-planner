@@ -60,3 +60,29 @@ No screens, no readiness or risk calculation, no store wiring for personal tasks
 - Blocked here means "has a stated reason". Dependencies feed it from Phase 5.
 - Partner/manager "assign to" lists only people set up under Team; with no team set up it offers Me.
 - Swipe actions, PWA, Quick Add shortcut and floating mobile Add button are Phase 3.
+
+## Phase 3: quick capture and mobile (V24.3, merged to main)
+
+**Built**
+- **Quick Add** (`ui/QuickAdd.tsx`): a small composer that opens from **Alt+N** (Option+N on a Mac; Ctrl/Cmd+K is already Search), the top-bar plus button, or a **floating Add button on a phone** (above the bottom navigation, 56px). The title is focused; Enter saves. Only the title is needed.
+- It files the task **where you are**: on a client's page it adds to that client; anywhere else it goes to the Inbox. A "Goes to" picker lets you change it (Inbox, a client or a business project). Personal is not offered (see below).
+- **Quick dates** for **Due (the deadline)**: Today, Tomorrow, This week (this Friday, or today at the end of the week, never in the past), Next week (next Monday), pick a date, or none. **Plan to work on it** is a separate, clearly labelled date under More details, so a deadline and a plan are never confused. More details also has notes and priority, and a link to the full task form.
+- **Several at once**: paste lines and the dialog switches to a list ("Add 3 tasks"). Retrying never repeats ones already saved.
+- **Add another after this** keeps the box open for the next one.
+- **Speak a task**: shown only where the browser supports speech recognition. The words go into the box for you to read and change; nothing is saved until you press Add. The normal box works without it.
+- **Offline-safe capture**: if the save fails because there is no connection, the task is kept on this device and added when you're back online (also checked at start-up). Every task carries a capture key, so it can't be saved twice, even from two tabs. After 5 failed tries it stops and shows the task in the Inbox for you to retry or discard. Only new tasks are queued, never edits, so there is nothing to clash.
+- **Share from a phone**: the app is now installable (manifest, icons) and declares a share target, so on Android Chrome you can share a link or text to it and the composer opens filled in (title from the first line, everything kept in the notes).
+- **Service worker** (`public/sw.js`): network-first, so while you're online you always get the current release, and it never touches sign-in, SharePoint, Graph or the API. It only lets a screen you already have open keep working through a dropped connection.
+
+**Files**: `lib/work/capture.ts`, `ui/QuickAdd.tsx`, `ui/App.tsx`, `ui/TaskInbox.tsx`, `main.tsx`, `public/manifest.webmanifest`, `public/sw.js`, `public/icon-192.png`, `public/icon-512.png`, `public/index.html`, `public/styles.css`, `public/staticwebapp.config.json`, `devHubSeed.ts`.
+**Schema changes**: none. **Migration**: none.
+**Tests**: `app/tests/workCapture.test.ts` (8): quick dates around weekends and year end, where a task goes from the screen, share parsing, voice tidy-up, queue de-duplication, retry limits and a damaged stored queue. Browser-checked on the demo build: Alt+N, quick date, client default, three-line paste, the phone Add button and layout, no errors.
+
+**Limits to know**
+- **Offline start**: capture works while the app is open when the connection drops. Opening the app cold with no connection shows the cached screen but it can't load your data (sign-in and SharePoint need the network), so you can't capture then. A tiny stand-alone capture page would be needed for that and wasn't built.
+- **The offline save path was not exercised in the browser** (the demo uses an in-memory store that can't go offline). The decision and the queue are unit-tested; please try it once on your phone in aeroplane mode with the app open.
+- **iPhone**: Safari doesn't support share targets or reliable speech recognition in an installed app, so those are Android/desktop Chrome only. Quick Add, the Add button and the offline queue work everywhere.
+- The installable icons are enlarged from the existing 64px icon, so they're soft. Replace `icon-192.png` and `icon-512.png` with proper artwork when you have it.
+- The top-bar plus is inside the collapsible tools area on narrower desktop windows; Alt+N always works.
+- Swipe actions weren't added: every row already has large tick boxes, and a swipe gesture needs an accessible alternative on every row first.
+- The queue lives in this browser's local storage; it isn't synced between devices and is cleared if you clear site data before it syncs.

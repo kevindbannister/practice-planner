@@ -3473,3 +3473,8 @@ table.deadlines .c-kind { white-space: nowrap; }
 @media print { .aml-col { position: static; max-height: none; overflow: visible; } }
 @media (min-width: 900px) { .aml-side { position: sticky; top: calc(var(--topbar-h, 64px) + 28px); max-height: calc(100vh - var(--topbar-h, 64px) - 44px); overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain; } }
 @media print { .aml-side { position: static; max-height: none; overflow: visible; } }
+
+/* Floating Add button on a phone: always within thumb reach, above the bottom navigation */
+.fab { position: fixed; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 25; width: 56px; height: 56px; border-radius: 50%; border: 0; display: none; align-items: center; justify-content: center; cursor: pointer; color: #fff; background: var(--brand-ink, #0b4f6c); box-shadow: 0 6px 18px rgba(8, 40, 60, 0.35); }
+.fab:focus-visible { outline: 3px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 5px var(--brand-ink, #0b4f6c); }
+@media (max-width: 720px) { .fab.only-phone { display: inline-flex; } }

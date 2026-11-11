@@ -6,6 +6,7 @@ import { teamFrom } from "../lib/permissions";
 import { inbox } from "../lib/work/tasks";
 import { PlanTabs } from "./bits";
 import { useData } from "./data";
+import { QueueNotice } from "./QuickAdd";
 import { BulkAdd, QuickAdd, TaskLine, UndoBar, useTaskChanges } from "./taskKit";
 
 export function TaskInbox() {
@@ -22,6 +23,7 @@ export function TaskInbox() {
     <div className="stack" style={{ gap: 12 }}>
       <PlanTabs current="inbox" />
       <p className="muted" style={{ margin: 0 }}>Type a task and press Enter. Everything else can wait: file it here later.</p>
+      <QueueNotice />
       <QuickAdd context={{}} />
       <div className="row-wrap" style={{ gap: 10, alignItems: "center", justifyContent: "space-between" }}>
         <span className="muted">{list.length} to file</span>

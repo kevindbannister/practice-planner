@@ -74,3 +74,6 @@ async function start() {
 }
 
 start();
+
+// Makes the app installable and lets an already-open screen ride out a dropped connection (public/sw.js is network-first, so it never serves an old release while you're online).
+if (!__DEMO__ && "serviceWorker" in navigator && window.location.protocol === "https:") window.addEventListener("load", () => { void navigator.serviceWorker.register("/sw.js").catch(() => undefined); });

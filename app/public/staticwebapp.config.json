@@ -8,6 +8,10 @@
       "/portal.css",
       "/styles.css",
       "/theme.js",
+      "/sw.js",
+      "/manifest.webmanifest",
+      "/icon-192.png",
+      "/icon-512.png",
       "/api/*",
       "/accept.js",
       "/accept.css"
