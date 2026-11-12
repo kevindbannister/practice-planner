@@ -1,6 +1,7 @@
 // Month: the plan on a calendar. Each day shows what is planned on it against the hours available, and what is due. Click a day to plan it in the Week view.
-import { useEffect, useMemo, useState } from "react";
-import { Job, Task, fmtHours, isOnHold, todayIso } from "../lib/domain";
+import { KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Job, Task, fmtDate, fmtHours, isOnHold, todayIso } from "../lib/domain";
+import { addDays } from "../lib/planning";
 import { dayHours } from "../lib/dayTypes";
 import { MonthItem, Show, buildMonth, monthKey, shiftMonth } from "../lib/monthPlan";
 import { isBusinessTask } from "../lib/projects";
@@ -8,8 +9,10 @@ import { svcClass } from "../lib/serviceColour";
 import { planHours } from "../lib/waiting";
 import { isStatutory } from "../lib/workGroups";
 import { PlanTabs } from "./bits";
+import { Row } from "../lib/schema";
 import { useData, useIndex } from "./data";
 import { useEditor } from "./Editors";
+import { useBoardDrag } from "./useBoardDrag";
 
 const monthName = (key: string) => new Date(`${key}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 const dayName = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -18,7 +21,7 @@ const MAX_SHOWN = 3;
 function useNarrow(q = "(max-width: 720px)") { const get = () => typeof matchMedia === "function" && matchMedia(q).matches; const [n, setN] = useState(get); useEffect(() => { const m = matchMedia(q); const f = () => setN(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, [q]); return n; }
 
 export function MonthView() {
-  const { data, settings } = useData(); const idx = useIndex(); const { open } = useEditor(); const today = todayIso(); const narrow = useNarrow();
+  const { data, settings, update } = useData(); const idx = useIndex(); const { open } = useEditor(); const today = todayIso(); const narrow = useNarrow();
   const [month, setMonth] = useState(monthKey(today)); const [show, setShow] = useState<Show>("all");
   const items: MonthItem[] = useMemo(() => {
     const out: MonthItem[] = [];
@@ -33,12 +36,31 @@ export function MonthView() {
     }
     return out;
   }, [data.jobs, data.tasks, data.services, data.projects, idx]);
+  // moving a job or task to another day changes only the day it is planned for; deadlines are never touched
+  const [toast, setToast] = useState<{ text: string; undo?: () => void }>(); const [error, setError] = useState<string>(); const timer = useRef(0);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const say = (text: string, undo?: () => void) => { setToast({ text, undo }); window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setToast(undefined), 6000); };
+  const move = async (key: string, date: string) => {
+    const item = items.find((i) => i.key === key); if (!item || item.done || item.held || !/^\d{4}-\d{2}-\d{2}$/.test(date) || item.planned === date) return;
+    const list = item.kind === "job" ? "Jobs" : "Tasks"; const row = ((item.kind === "job" ? data.jobs : data.tasks) as Row[]).find((r) => r.Key === key); if (!row) return;
+    const before = { PlannedDate: String(row.PlannedDate || ""), StartTime: String(row.StartTime || ""), DayOrder: row.DayOrder ?? "" }; setError(undefined);
+    try {
+      await update(list, row, { PlannedDate: date, StartTime: "", DayOrder: "" });
+      const late = item.deadline && date > item.deadline ? `. That is after its deadline (${fmtDate(item.deadline, { year: false })})` : "";
+      say(`${item.client || item.title}: planned for ${fmtDate(date, { weekday: true, year: false })}${late}`, () => update(list, row, before).then(() => setToast(undefined)).catch(() => setError("Couldn't undo that. Move it back by hand.")));
+    } catch { setError("That move didn't save. It's been put back; try again."); }
+  };
+  const { dragKey, target: dropTarget, cardProps } = useBoardDrag((key, to) => void move(key, to), (by) => setMonth((m) => shiftMonth(m, by))); // holding a card at the edge turns the month
+  const keyMove = (i: MonthItem, e: ReactKeyboardEvent) => {
+    if (!e.altKey || !i.planned) return; const by = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" ? -7 : e.key === "ArrowDown" ? 7 : 0; if (!by) return;
+    e.preventDefault(); void move(i.key, addDays(i.planned, by));
+  };
   const cap = (d: string) => { const h = dayHours(d, settings); return h.client + h.business; };
   const m = useMemo(() => buildMonth(month, items, cap, today, show), [month, items, settings, today, show]); // eslint-disable-line react-hooks/exhaustive-deps
   const goWeek = (date: string) => { try { sessionStorage.setItem("pp.plan.jump", date); } catch { /* the Week view opens on this week instead */ } window.location.hash = "#/plan"; };
   const openItem = (i: MonthItem) => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key });
   const chip = (i: MonthItem) => (
-    <button key={i.key} type="button" className="month-item" onClick={(e) => { e.stopPropagation(); openItem(i); }} title={`${i.client ? i.client + ": " : ""}${i.title} · ${fmtHours(i.hours)}`}>
+    <button key={i.key} type="button" className={`month-item${dragKey === i.key ? " dragging" : ""}`} {...(i.done || i.held ? {} : cardProps(i.key))} onKeyDown={(e) => keyMove(i, e)} onClick={(e) => { e.stopPropagation(); openItem(i); }} title={`${i.client ? i.client + ": " : ""}${i.title} · ${fmtHours(i.hours)}`}>
       <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" />{i.client || i.title}<span className="muted"> {fmtHours(i.hours)}</span>
     </button>
   );
@@ -48,8 +70,8 @@ export function MonthView() {
       <PlanTabs current="month" />
       <div className="row-wrap no-print" style={{ gap: 12, alignItems: "center" }}>
         <div className="row" style={{ gap: 4 }}>
-          <button type="button" className="btn small" aria-label="Previous month" onClick={() => setMonth(shiftMonth(month, -1))}>‹</button>
-          <button type="button" className="btn small" aria-label="Next month" onClick={() => setMonth(shiftMonth(month, 1))}>›</button>
+          <button type="button" className="btn small" data-drop="week-prev" aria-label="Previous month" onClick={() => setMonth(shiftMonth(month, -1))}>‹</button>
+          <button type="button" className="btn small" data-drop="week-next" aria-label="Next month" onClick={() => setMonth(shiftMonth(month, 1))}>›</button>
         </div>
         <h2 style={{ margin: 0, fontSize: 20 }} aria-live="polite">{monthName(month)}</h2>
         {month !== monthKey(today) && <button type="button" className="btn small" onClick={() => setMonth(monthKey(today))}>This month</button>}
@@ -64,7 +86,7 @@ export function MonthView() {
           {cellsWithContent.map((c) => (
             <li key={c.date} className={c.today ? "today" : ""}>
               <button type="button" className="linkbtn" onClick={() => goWeek(c.date)}><strong>{dayName(c.date)}</strong></button> <span className="muted">{fmtHours(c.plannedHours) || "0h"} of {fmtHours(c.capacity) || "0h"}</span>
-              <div>{c.planned.map(chip)}</div>
+              <div>{c.planned.map((i) => <div key={i.key} className="row" style={{ gap: 6, justifyContent: "space-between" }}>{chip(i)}<input className="input" type="date" aria-label={`Move ${i.client || i.title} to another day`} value={c.date} style={{ width: "auto", minHeight: 32, padding: "2px 6px", fontSize: 12 }} onChange={(e) => void move(i.key, e.target.value)} /></div>)}</div>
               {c.due.length > 0 && <div className="month-due">Due: {c.due.map((i) => (i.client || i.title)).join(", ")}</div>}
             </li>
           ))}
@@ -79,7 +101,7 @@ export function MonthView() {
                 {w.map((c) => {
                   const pct = c.capacity ? Math.min(100, Math.round((c.plannedHours / c.capacity) * 100)) : c.plannedHours ? 100 : 0;
                   return (
-                    <td key={c.date} className={`month-cell${c.inMonth ? "" : " out"}${c.today ? " today" : ""}${c.weekend ? " weekend" : ""}${c.over ? " over" : ""}`} onClick={() => goWeek(c.date)}>
+                    <td key={c.date} data-drop={c.date} className={`month-cell${dropTarget === c.date ? " drop" : ""}${c.inMonth ? "" : " out"}${c.today ? " today" : ""}${c.weekend ? " weekend" : ""}${c.over ? " over" : ""}`} onClick={() => goWeek(c.date)}>
                       <div className="month-cell-head">
                         <button type="button" className="month-day" aria-label={`${dayName(c.date)}: ${fmtHours(c.plannedHours) || "0h"} planned of ${fmtHours(c.capacity) || "0h"}. Open in the week view`} onClick={(e) => { e.stopPropagation(); goWeek(c.date); }}>{Number(c.date.slice(8))}</button>
                         {c.due.length > 0 && <span className="chip red" title={c.due.map((i) => `${i.client ? i.client + ": " : ""}${i.title}`).join("\n")}>{c.due.length} due</span>}
@@ -97,7 +119,10 @@ export function MonthView() {
           </tbody>
         </table>
       )}
-      <p className="muted" style={{ margin: 0 }}>Held work is left off. Bars show planned hours against the hours you have that day; red means more is planned than fits. Click a day to plan it in the Week view.</p>
+      <p className="muted" style={{ margin: 0 }}>Held work is left off. Bars show planned hours against the hours you have that day; red means more is planned than fits. Drag a job or task to another day to move it (or hold it at the left or right edge of the screen to change month), or focus it and press Alt with an arrow key: left and right move a day, up and down a week. Click a day to plan it in the Week view.</p>
+      {error && <p className="import-list warn" role="alert">{error}</p>}
+      <div aria-live="polite" className="sr-only">{toast?.text}</div>
+      {toast && <div className="toast" role="status">{toast.text}{toast.undo && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={toast.undo}>Undo</button>}</div>}
     </div>
   );
 }
