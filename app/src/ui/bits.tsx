@@ -156,25 +156,43 @@ export function companiesHouseUrl(number?: string): string | undefined {
   return number ? `https://find-and-update.company-information.service.gov.uk/company/${encodeURIComponent(number)}` : undefined;
 }
 
-/** The Plan section's heading and its views. */
-export function PlanTabs({ current }: { current: "today" | "inbox" | "unblock" | "overview" | "reports" | "week" | "months" | "deadlines" | "done" | "projects" | "chase" | "history" | "timesheet" | "time" }) {
-  const tabs: [string, string, string][] = [["today", "Today", "#/plan/today"], ["inbox", "Inbox", "#/plan/inbox"], ["unblock", "Unblock", "#/plan/unblock"], ["overview", "Work overview", "#/plan/overview"], ["reports", "Work reports", "#/plan/reports"], ["week", "Week", "#/plan"], ["months", "Months ahead", "#/plan/months"], ["deadlines", "Deadlines", "#/plan/deadlines"], ["done", "Completed", "#/plan/done"], ["projects", "Projects", "#/plan/projects"], ["chase", "Chase", "#/plan/chase"], ["timesheet", "Timesheet", "#/plan/timesheet"], ["time", "Time reports", "#/plan/time"], ["history", "History", "#/plan/history"]];
-  // on a narrow screen the tabs scroll sideways: bring the one you're on into view
+
+export type TabItem = { key: string; label: string; to: string; badge?: number };
+export type TabGroup = { label: string; items: TabItem[] };
+/** Two rows of tabs: the main row has a handful of groups, and the row under it has the views in the group you're in (shown only when the group has more than one).
+ *  Every view keeps its own address, so older links and bookmarks still land on the right screen. */
+export function GroupedTabs({ groups, current, label, heading }: { groups: TabGroup[]; current: string; label: string; heading?: string }) {
+  const active = groups.find((g) => g.items.some((i) => i.key === current)) || groups[0];
   const nav = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const el = nav.current?.querySelector<HTMLElement>("[aria-current]");
-    if (el && nav.current && nav.current.scrollWidth > nav.current.clientWidth) nav.current.scrollLeft = el.offsetLeft - (nav.current.clientWidth - el.offsetWidth) / 2;
-  }, [current]);
+  useEffect(() => { const el = nav.current?.querySelector<HTMLElement>("[aria-current]"); if (el && nav.current && nav.current.scrollWidth > nav.current.clientWidth) nav.current.scrollLeft = el.offsetLeft - (nav.current.clientWidth - el.offsetWidth) / 2; }, [current]);
+  const badge = (n?: number) => (n ? <span className="chip amber" style={{ marginLeft: 6 }}>{n}</span> : null);
+  const count = (g: TabGroup) => g.items.reduce((n, i) => n + (i.badge || 0), 0);
   return (
-    <div className="plan-title">
-      <h1>Plan</h1>
-      <nav className="subtabs" aria-label="Plan views" ref={nav}>
-        {tabs.map(([k, label, to]) => (
-          <a key={k} href={to} aria-current={current === k ? "page" : undefined}>{label}</a>
-        ))}
+    <div className="grouped-tabs">
+      {heading && <div className="page-head"><h1>{heading}</h1></div>}
+      <nav className="tabs" aria-label={label} ref={nav}>
+        {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{g.items.length > 1 ? null : null}{badge(count(g))}</a>)}
       </nav>
+      {active.items.length > 1 && (
+        <nav className="subtabs" aria-label={`${label}: ${active.label}`} style={{ marginTop: 10 }}>
+          {active.items.map((i) => <a key={i.key} href={i.to} aria-current={current === i.key ? "page" : undefined}>{i.label}{badge(i.badge)}</a>)}
+        </nav>
+      )}
     </div>
   );
+}
+
+/** The Plan section's heading and its views. */
+export function PlanTabs({ current }: { current: "today" | "inbox" | "unblock" | "overview" | "reports" | "week" | "months" | "deadlines" | "done" | "projects" | "chase" | "history" | "timesheet" | "time" }) {
+  const T = (key: string, label: string, to: string): TabItem => ({ key, label, to });
+  const groups: TabGroup[] = [
+    { label: "Today", items: [T("today", "Today", "#/plan/today"), T("inbox", "Inbox", "#/plan/inbox"), T("unblock", "Unblock", "#/plan/unblock")] },
+    { label: "Schedule", items: [T("week", "Week", "#/plan"), T("months", "Months ahead", "#/plan/months"), T("deadlines", "Deadlines", "#/plan/deadlines")] },
+    { label: "Work", items: [T("overview", "Work overview", "#/plan/overview"), T("projects", "Projects", "#/plan/projects"), T("chase", "Chase", "#/plan/chase"), T("done", "Completed", "#/plan/done")] },
+    { label: "Time", items: [T("timesheet", "Timesheet", "#/plan/timesheet"), T("time", "Time reports", "#/plan/time")] },
+    { label: "Reports", items: [T("reports", "Work reports", "#/plan/reports"), T("history", "History", "#/plan/history")] },
+  ];
+  return <GroupedTabs groups={groups} current={current} label="Plan" heading="Plan" />;
 }
 
 /** A small copy icon: puts `value` on the clipboard and shows a tick for a moment. */

@@ -11,7 +11,7 @@ import { returnLive, Live } from "../lib/amlReturn";
 import { DOCX_TYPE } from "../lib/docx";
 import { fmtDate, todayIso } from "../lib/domain";
 import { Row } from "../lib/schema";
-import { href, useRoute } from "./bits";
+import { GroupedTabs, TabGroup, href, useRoute } from "./bits";
 import { Entry, REC_TYPES, RecType, Tone, timeline } from "../lib/amlTimelineView";
 import { amlStampRead } from "../lib/xamaActions";
 import { screening as screeningOf } from "../lib/amlScreening";
@@ -26,6 +26,8 @@ import { useFirm } from "./FirmSettings";
 const TABS: [string, string][] = [
   ["overview", "Overview"], ["checklist", "ACCA checklist"], ["clients", "Client tracker"], ["fwra", "Risk assessment"], ["policies", "Policies"], ["annualreturn", "ACCA return"], ["records", "Records"], ["forms", "SAR and blank forms"],
 ];
+const AML_SECTIONS: [string, string[]][] = [["Overview", ["overview"]], ["Clients", ["clients", "fwra"]], ["Firm", ["policies", "checklist", "annualreturn"]], ["Records", ["records", "forms"]]];
+const AML_GROUPS: TabGroup[] = AML_SECTIONS.map(([name, keys]) => ({ label: name, items: keys.map((k) => ({ key: k, label: TABS.find(([x]) => x === k)![1], to: href("aml", k) })) }));
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const fmt = (d: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
 
@@ -576,9 +578,7 @@ export function AmlPage() {
   } else body = def ? <FormScreen key={def.id} def={def} /> : null;
   return (
     <div className="page">
-      <div className="row-wrap no-print" role="tablist" aria-label="AML" style={{ gap: 8 }}>
-        {TABS.map(([k, l]) => <a key={k} role="tab" aria-selected={tab === k} className={`btn small${tab === k ? " primary" : ""}`} href={href("aml", k)}>{l}</a>)}
-      </div>
+      <div className="no-print"><GroupedTabs groups={AML_GROUPS} current={tab} label="AML" /></div>
       {body}
     </div>
   );

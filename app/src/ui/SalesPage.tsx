@@ -6,7 +6,7 @@ import {
   ACTIVITY_KINDS, ActivityInput, Lead, Match, Opp, createLead, createOpp, findDuplicates, inStage, isOpenOpp, linkToClient, logActivity, logRow, moveStage, outcomeOf, reopen, setOutcome, totals,
 } from "../lib/sales";
 import { Row } from "../lib/schema";
-import { href, useRoute } from "./bits";
+import { GroupedTabs, TabGroup, href, useRoute } from "./bits";
 import { useData } from "./data";
 import { money, outcomeChip, useSales } from "./salesKit";
 import { useBoardDrag } from "./useBoardDrag";
@@ -18,7 +18,11 @@ import { BillingPage } from "./Collections";
 import { ReportsPage } from "./ReportsPage";
 import { TYPE_INFO, ActivityType } from "../lib/timeline";
 
-const TABS: [string, string, string][] = [["", "Overview", "#/sales"], ["pipeline", "Pipeline", "#/sales/pipeline"], ["leads", "Leads", "#/sales/leads"], ["proposals", "Proposals", "#/sales/proposals"], ["engagements", "Engagements", "#/sales/engagements"], ["onboarding", "Onboarding", "#/sales/onboarding"], ["fees", "Fees & revenue", "#/sales/fees"], ["billing", "Billing", "#/sales/billing"], ["reports", "Reports", "#/sales/reports"]];
+const SALES_GROUPS: TabGroup[] = [
+  { label: "Pipeline", items: [{ key: "", label: "Overview", to: "#/sales" }, { key: "pipeline", label: "Pipeline", to: "#/sales/pipeline" }, { key: "leads", label: "Leads", to: "#/sales/leads" }] },
+  { label: "Proposals", items: [{ key: "proposals", label: "Proposals", to: "#/sales/proposals" }, { key: "engagements", label: "Engagements", to: "#/sales/engagements" }, { key: "onboarding", label: "Onboarding", to: "#/sales/onboarding" }] },
+  { label: "Money", items: [{ key: "fees", label: "Fees & revenue", to: "#/sales/fees" }, { key: "billing", label: "Billing", to: "#/sales/billing" }, { key: "reports", label: "Reports", to: "#/sales/reports" }] },
+];
 
 export function SalesPage() {
   const { parts } = useRoute();
@@ -28,16 +32,7 @@ export function SalesPage() {
   const current = sub === "lead" ? "leads" : sub === "opp" ? "pipeline" : sub === "proposal" ? "proposals" : sub === "engagement" ? "engagements" : sub === "onboard" ? "onboarding" : sub;
   return (
     <div className="page">
-      <div className="plan-title">
-        <h1>Sales</h1>
-        <nav className="subtabs" aria-label="Sales views">
-          {TABS.map(([k, label, to]) => <a key={k} href={to} aria-current={current === k ? "page" : undefined}>{label}</a>)}
-          {s.can("configure") && <a href="#/settings/sales">Sales settings</a>}
-          {s.pcan("configure") && <a href="#/settings/services">Services & pricing</a>}
-          {s.pcan("configure") && <a href="#/settings/engagement">Engagement letter settings</a>}
-          {s.pcan("configure") && <a href="#/settings/onboarding">Onboarding settings</a>}
-        </nav>
-      </div>
+      <GroupedTabs groups={SALES_GROUPS} current={current} label="Sales" heading="Sales" />
       {sub === "pipeline" && <Pipeline />}
       {sub === "leads" && <Leads />}
       {sub === "lead" && parts[2] && <LeadDetail leadKey={parts[2]} />}

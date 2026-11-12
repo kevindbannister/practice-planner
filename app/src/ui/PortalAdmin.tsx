@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Client, fmtDate } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { ChangeRequestStaff, DecideResult, LEVELS, PortalBusiness, PortalEvent, PortalLevel, PortalPerson, STATUS_LABEL, eventLabel, levelLabel } from "../lib/portalAdmin";
-import { href, useRoute } from "./bits";
+import { GroupedTabs, TabGroup, TabItem, href, useRoute } from "./bits";
 import { useData } from "./data";
 import { say, useFresh, usePortal } from "./portalKit";
 import { IdentityFor, IdentityTab } from "./PortalIdentity";
@@ -16,6 +16,10 @@ const when = (iso?: string) => (iso ? fmtDate(iso.slice(0, 10)) + " " + iso.slic
 const day = (iso?: string) => (iso ? fmtDate(iso.slice(0, 10)) : "—");
 const statusClass = (s: string) => (s === "active" ? "green" : s === "invited" ? "amber" : s === "none" ? "dashed" : "red");
 
+const portalGroups = (waiting: number): TabGroup[] => {
+  const it = (k: string, badge?: number): TabItem => ({ key: k, label: k === "setup" ? "Status" : TABS.find(([x]) => x === k)![1], to: `#/portal${k ? "/" + k : ""}`, badge });
+  return [{ label: "Overview", items: [it("")] }, { label: "Approvals", items: [it("changes", waiting), it("identity")] }, { label: "Activity", items: [it("activity")] }, { label: "Set-up", items: [it("reminders"), it("branding"), it("people"), it("setup")] }];
+};
 const TABS: [string, string][] = [["", "Overview"], ["changes", "Changes"], ["identity", "Identity"], ["reminders", "Reminders"], ["branding", "Branding"], ["people", "People"], ["activity", "Activity"], ["setup", "Set-up"]];
 
 export function PortalPage() {
@@ -30,9 +34,7 @@ export function PortalPage() {
         <h1>Client portal</h1>
         <p className="muted" style={{ margin: "4px 0 0" }}>Who can sign in, which businesses they can see, and what needs your attention. Clients only ever see what you publish to them.</p>
       </div></div>
-      <nav className="subtabs" aria-label="Client portal">
-        {TABS.map(([k, label]) => <a key={k} className="subtab" href={`#/portal${k ? "/" + k : ""}`} aria-current={sub === k ? "page" : undefined}>{label}{k === "changes" && changesWaiting > 0 ? <span className="chip amber" style={{ marginLeft: 6 }}>{changesWaiting}</span> : null}</a>)}
-      </nav>
+      <GroupedTabs groups={portalGroups(changesWaiting)} current={sub} label="Client portal" />
       {portal.error && <p className="import-list warn" role="alert">{portal.error}</p>}
       {portal.status && !portal.status.configured && sub !== "setup" && (
         <p className="import-list warn" role="status">The client portal isn't switched on yet. <a href="#/portal/setup">See what's needed</a>.</p>

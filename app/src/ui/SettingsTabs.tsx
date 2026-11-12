@@ -1,5 +1,5 @@
 // The Settings tab bar, apart from the Settings page so that showing it above Checks and the Client portal doesn't load every settings screen.
-import { href } from "./bits";
+import { GroupedTabs, TabGroup, href } from "./bits";
 import { usePortal } from "./portalKit";
 
 export const TABS: [string, string][] = [
@@ -8,17 +8,21 @@ export const TABS: [string, string][] = [
 // These two have their own pages; they sit with Settings rather than in the main bar.
 export const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["dependencies", "Dependencies", "#/dependencies"], ["portal", "Client portal", "#/portal"]];
 
+const SECTION_OF: [string, string[]][] = [
+  ["Firm", ["week", "firm", "calendar", "backups"]],
+  ["Work and pricing", ["work", "fields", "services", "pricing", "clearance", "sales"]],
+  ["Documents and email", ["design", "letters", "forms", "engagement", "onboarding"]],
+  ["Connections", ["xero", "adfin", "hmrc", "companies-house", "cosec", "xama", "detailedpl"]],
+];
+/** Settings in groups: the same screens as before, each under one of five headings. */
+export function settingsGroups(portalWaiting = 0): TabGroup[] {
+  const label = (k: string) => TABS.find(([x]) => x === k)?.[1] || k;
+  const groups: TabGroup[] = SECTION_OF.map(([name, keys]) => ({ label: name, items: keys.map((k) => ({ key: k, label: label(k), to: href("settings", k) })) }));
+  groups.push({ label: "Checks and portal", items: PAGE_TABS.map(([k, l, to]) => ({ key: k, label: l, to, badge: k === "portal" ? portalWaiting : 0 })) });
+  return groups;
+}
 /** The Settings tab bar, also shown above Checks and the Client portal so they read as part of Settings. */
 export function SettingsTabs({ current }: { current: string }) {
   const waiting = usePortal().overview?.attention.length || 0;
-  return (
-    <div className="page" style={{ paddingBottom: 0 }}>
-      <div className="page-head"><h1>Settings</h1></div>
-      <nav className="tabs" aria-label="Settings sections">
-        {TABS.map(([k, label]) => <a key={k} href={href("settings", k)} aria-current={current === k ? "page" : undefined}>{label}</a>)}
-        {PAGE_TABS.map(([k, label, to]) => <a key={k} href={to} aria-current={current === k ? "page" : undefined}>{label}{k === "portal" && waiting > 0 ? ` (${waiting})` : ""}</a>)}
-      </nav>
-    </div>
-  );
+  return <div className="page" style={{ paddingBottom: 0 }}><GroupedTabs groups={settingsGroups(waiting)} current={current} label="Settings" heading="Settings" /></div>;
 }
-

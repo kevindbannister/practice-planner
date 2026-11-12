@@ -6,12 +6,14 @@ import { todayIso } from "../lib/domain";
 import { position } from "../lib/amlAssessment";
 import * as c from "../lib/compliance";
 import { Row } from "../lib/schema";
-import { href, useRoute } from "./bits";
+import { GroupedTabs, TabGroup, href, useRoute } from "./bits";
 import { readSetting, useData } from "./data";
 import { useSales } from "./salesKit";
 
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const fmt = (d: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "");
+const COMPLIANCE_SECTIONS: [string, string[]][] = [["Overview", ["overview"]], ["Dates and requests", ["obligations", "requests"]], ["Records", ["retention", "aml", "audit"]]];
+const complianceGroups = (): TabGroup[] => COMPLIANCE_SECTIONS.map(([name, keys]) => ({ label: name, items: keys.map((k) => ({ key: k, label: TABS.find(([x]) => x === k)![1], to: href("compliance", k) })) }));
 const TABS: [string, string][] = [["overview", "Overview"], ["obligations", "Our dates"], ["requests", "Requests and incidents"], ["retention", "Retention"], ["aml", "AML"], ["audit", "Audit trail"]];
 const dot = (l: c.Level) => <span aria-hidden="true" className={`chip ${l === "red" ? "red" : l === "amber" ? "amber" : "green"}`} style={{ marginRight: 8 }}>{l === "red" ? "Act" : l === "amber" ? "Watch" : "OK"}</span>;
 
@@ -39,9 +41,7 @@ export function CompliancePage() {
   return (
     <div className="page">
       <div className="page-head"><div><h1>Compliance</h1><p className="muted" style={{ margin: "4px 0 0" }}>The practice's own regulatory risk. The planner records dates and decisions; it never deletes anything or contacts anyone.</p></div></div>
-      <div className="row-wrap" role="tablist" aria-label="Compliance" style={{ gap: 8 }}>
-        {TABS.map(([k, l]) => <a key={k} role="tab" aria-selected={tab === k} className={`btn small${tab === k ? " primary" : ""}`} href={href("compliance", k)}>{l}</a>)}
-      </div>
+      <GroupedTabs groups={complianceGroups()} current={tab} label="Compliance" />
       {!logsLoaded && <div className="note" role="status">Still loading the compliance and audit logs. Figures on this page will fill in shortly.</div>}
       {tab === "overview" && <Overview years={years} today={today} />}
       {tab === "obligations" && <Obligations today={today} />}

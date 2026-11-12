@@ -28,7 +28,7 @@ import {
 } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { DEFAULT_DAY_TYPES, DEFAULT_WEEK, DayType } from "../lib/dayTypes";
-import { Icon, href, useRoute } from "./bits";
+import { GroupedTabs, Icon, href, useRoute } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
 import { DEFAULT_FILL } from "../lib/autoplan";
 import { SelectField } from "./Editors";
@@ -47,7 +47,7 @@ import { signOut } from "../lib/auth";
 declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
-import { PAGE_TABS, TABS } from "./SettingsTabs";
+import { TABS, settingsGroups } from "./SettingsTabs";
 import { DigestSettings } from "./DigestSettings";
 export { SettingsTabs } from "./SettingsTabs";
 
@@ -56,13 +56,7 @@ export function SettingsPage() {
   const tab = TABS.some(([k]) => k === parts[1]) ? parts[1] : "week";
   return (
     <div className="page">
-      <div className="page-head"><h1>Settings</h1></div>
-      <nav className="tabs" aria-label="Settings sections">
-        {TABS.map(([k, label]) => (
-          <a key={k} href={href("settings", k)} aria-current={tab === k ? "page" : undefined}>{label}</a>
-        ))}
-        {PAGE_TABS.map(([k, label, to]) => <a key={k} href={to}>{label}</a>)}
-      </nav>
+      <GroupedTabs groups={settingsGroups()} current={tab} label="Settings" heading="Settings" />
       {tab === "week" && <HoursCard />}
       {tab === "week" && <DayTypesCard />}
       {tab === "week" && <RoutinesCard />}
