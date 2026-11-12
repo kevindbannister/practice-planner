@@ -21,3 +21,10 @@ test("statutory and other filters; days outside the month are shown but not tota
   assert.equal(buildMonth("2026-11", items, cap, "2026-11-01", "other").weeks.flat().find((c) => c.date === "2026-11-10")!.planned[0].key, "o");
   const all = buildMonth("2026-11", items, cap, "2026-11-01"); assert.equal(all.weeks[0].find((c) => c.date === "2026-10-28")!.planned.length, 1); assert.equal(all.totals.planned, 4);
 });
+import { unplannedOf } from "../src/lib/monthPlan";
+test("unplanned: only open, unheld, unplanned work, earliest deadline first, undated last; follows filter and search", () => {
+  const list = [I({ key: "a", deadline: "2026-12-01", client: "Zed" }), I({ key: "b", deadline: "2026-11-20", client: "Amy" }), I({ key: "c", client: "Bob", statutory: false }), I({ key: "p", planned: "2026-11-10" }), I({ key: "h", held: true }), I({ key: "d", done: true })];
+  assert.deepEqual(unplannedOf(list).map((i) => i.key), ["b", "a", "c"]);
+  assert.deepEqual(unplannedOf(list, "statutory").map((i) => i.key), ["b", "a"]); assert.deepEqual(unplannedOf(list, "other").map((i) => i.key), ["c"]);
+  assert.deepEqual(unplannedOf(list, "all", "zed").map((i) => i.key), ["a"]);
+});

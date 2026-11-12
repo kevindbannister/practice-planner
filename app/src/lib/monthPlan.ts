@@ -32,3 +32,10 @@ export function buildMonth(key: string, items: MonthItem[], capacityOn: (date: s
   const dueItems = inMonth.flatMap((c) => c.due);
   return { weeks, totals: { planned: Math.round(inMonth.reduce((t, c) => t + c.plannedHours, 0) * 100) / 100, capacity: Math.round(inMonth.reduce((t, c) => t + c.capacity, 0) * 100) / 100, due: dueItems.length, unplanned: dueItems.filter((i) => !i.planned).length } };
 }
+
+/** Work with no planned day yet (not held, not finished), earliest deadline first, then the ones with no deadline. Follows the same statutory / other filter as the calendar. */
+export function unplannedOf(items: MonthItem[], show: Show = "all", search = ""): MonthItem[] {
+  const q = search.trim().toLowerCase();
+  return items.filter((i) => !i.planned && !i.done && !i.held && (show === "all" || (show === "statutory") === i.statutory) && (!q || `${i.client} ${i.title}`.toLowerCase().includes(q)))
+    .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999") || a.client.localeCompare(b.client));
+}

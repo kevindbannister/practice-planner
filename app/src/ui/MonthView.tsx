@@ -3,7 +3,7 @@ import { KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useSta
 import { Job, Task, fmtDate, fmtHours, isOnHold, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { dayHours } from "../lib/dayTypes";
-import { MonthItem, Show, buildMonth, monthKey, shiftMonth } from "../lib/monthPlan";
+import { MonthItem, Show, buildMonth, monthKey, shiftMonth, unplannedOf } from "../lib/monthPlan";
 import { isBusinessTask } from "../lib/projects";
 import { svcClass } from "../lib/serviceColour";
 import { planHours } from "../lib/waiting";
@@ -41,28 +41,54 @@ export function MonthView() {
   useEffect(() => () => window.clearTimeout(timer.current), []);
   const say = (text: string, undo?: () => void) => { setToast({ text, undo }); window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setToast(undefined), 6000); };
   const move = async (key: string, date: string) => {
-    const item = items.find((i) => i.key === key); if (!item || item.done || item.held || !/^\d{4}-\d{2}-\d{2}$/.test(date) || item.planned === date) return;
+    const item = items.find((i) => i.key === key); if (!item || item.done || item.held || (date !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(date)) || item.planned === date) return;
     const list = item.kind === "job" ? "Jobs" : "Tasks"; const row = ((item.kind === "job" ? data.jobs : data.tasks) as Row[]).find((r) => r.Key === key); if (!row) return;
     const before = { PlannedDate: String(row.PlannedDate || ""), StartTime: String(row.StartTime || ""), DayOrder: row.DayOrder ?? "" }; setError(undefined);
     try {
       await update(list, row, { PlannedDate: date, StartTime: "", DayOrder: "" });
+      if (!date) { say(`${item.client || item.title}: taken off the plan`, () => update(list, row, before).then(() => setToast(undefined)).catch(() => setError("Couldn't undo that. Plan it again by hand."))); return; }
       const late = item.deadline && date > item.deadline ? `. That is after its deadline (${fmtDate(item.deadline, { year: false })})` : "";
       say(`${item.client || item.title}: planned for ${fmtDate(date, { weekday: true, year: false })}${late}`, () => update(list, row, before).then(() => setToast(undefined)).catch(() => setError("Couldn't undo that. Move it back by hand.")));
     } catch { setError("That move didn't save. It's been put back; try again."); }
   };
-  const { dragKey, target: dropTarget, cardProps } = useBoardDrag((key, to) => void move(key, to), (by) => setMonth((m) => shiftMonth(m, by))); // holding a card at the edge turns the month
+  const { dragKey, target: dropTarget, cardProps } = useBoardDrag((key, to) => void move(key, to === "tray" ? "" : to), (by) => setMonth((m) => shiftMonth(m, by))); // holding a card at the edge turns the month
   const keyMove = (i: MonthItem, e: ReactKeyboardEvent) => {
     if (!e.altKey || !i.planned) return; const by = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" ? -7 : e.key === "ArrowDown" ? 7 : 0; if (!by) return;
     e.preventDefault(); void move(i.key, addDays(i.planned, by));
   };
   const cap = (d: string) => { const h = dayHours(d, settings); return h.client + h.business; };
   const m = useMemo(() => buildMonth(month, items, cap, today, show), [month, items, settings, today, show]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [search, setSearch] = useState("");
+  const unplanned = useMemo(() => unplannedOf(items, show, search), [items, show, search]);
   const goWeek = (date: string) => { try { sessionStorage.setItem("pp.plan.jump", date); } catch { /* the Week view opens on this week instead */ } window.location.hash = "#/plan"; };
   const openItem = (i: MonthItem) => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key });
   const chip = (i: MonthItem) => (
     <button key={i.key} type="button" className={`month-item${dragKey === i.key ? " dragging" : ""}`} {...(i.done || i.held ? {} : cardProps(i.key))} onKeyDown={(e) => keyMove(i, e)} onClick={(e) => { e.stopPropagation(); openItem(i); }} title={`${i.client ? i.client + ": " : ""}${i.title} · ${fmtHours(i.hours)}`}>
       <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" />{i.client || i.title}<span className="muted"> {fmtHours(i.hours)}</span>
     </button>
+  );
+  const panel = (
+    <aside className={`month-tray${dropTarget === "tray" ? " drop" : ""}`} aria-label="Unplanned work" data-drop="tray">
+      <div className="row" style={{ justifyContent: "space-between", gap: 8 }}><strong>Unplanned <span className="muted">({unplanned.length})</span></strong></div>
+      <input className="input" type="search" placeholder="Search" aria-label="Search unplanned work" value={search} onChange={(e) => setSearch(e.target.value)} style={{ minHeight: 34, margin: "8px 0" }} />
+      <p className="muted" style={{ fontSize: 12, margin: "0 0 8px" }}>{narrow ? "Pick a day for each." : "Drag onto a day to plan it. Drop a planned item here to take it off the plan."}</p>
+      <div className="month-tray-list">
+        {unplanned.length === 0 && <p className="muted">{search ? "Nothing matches." : "Everything is planned."}</p>}
+        {unplanned.map((i) => {
+          const late = i.deadline && i.deadline < today;
+          return (
+            <div key={i.key} className={`month-unplanned${dragKey === i.key ? " dragging" : ""}`} {...cardProps(i.key)} data-card={i.key}>
+              <button type="button" className="month-un-main" onClick={() => openItem(i)}>
+                <span><span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" /> <strong>{i.client || i.title}</strong></span>
+                <span className="muted">{i.client ? `${i.title} · ` : ""}{fmtHours(i.hours)}</span>
+                <span className={late ? "month-late" : "muted"}>{i.deadline ? `${late ? "Late: " : "Due "}${fmtDate(i.deadline, { year: false })}` : "No deadline"}</span>
+              </button>
+              {narrow && <input className="input" type="date" aria-label={`Plan ${i.client || i.title} for a day`} value="" style={{ width: "auto", minHeight: 32, padding: "2px 6px", fontSize: 12 }} onChange={(e) => void move(i.key, e.target.value)} />}
+            </div>
+          );
+        })}
+      </div>
+    </aside>
   );
   const cellsWithContent = m.weeks.flat().filter((c) => c.inMonth && (c.planned.length || c.due.length || c.done.length));
   return (
@@ -80,6 +106,9 @@ export function MonthView() {
         </div>
         <span className="muted">{fmtHours(m.totals.planned) || "0h"} planned of {fmtHours(m.totals.capacity) || "0h"} available · {m.totals.due} due{m.totals.unplanned ? `, ${m.totals.unplanned} not planned yet` : ""}</span>
       </div>
+      <div className="month-layout">
+      {!narrow && panel}
+      <div>
       {narrow ? (
         <ul className="month-agenda" aria-label={`Plan for ${monthName(month)}`}>
           {cellsWithContent.length === 0 && <li className="muted">Nothing planned or due this month.</li>}
@@ -119,7 +148,10 @@ export function MonthView() {
           </tbody>
         </table>
       )}
-      <p className="muted" style={{ margin: 0 }}>Held work is left off. Bars show planned hours against the hours you have that day; red means more is planned than fits. Drag a job or task to another day to move it (or hold it at the left or right edge of the screen to change month), or focus it and press Alt with an arrow key: left and right move a day, up and down a week. Click a day to plan it in the Week view.</p>
+      </div>
+      </div>
+      {narrow && panel}
+      <p className="muted" style={{ margin: 0 }}>Held work is left off. Bars show planned hours against the hours you have that day; red means more is planned than fits. Drag a job or task to another day to move it (or hold it at the left or right edge of the screen to change month), or focus it and press Alt with an arrow key: left and right move a day, up and down a week. Click a day to plan it in the Week view. The Unplanned list shows work with no day yet, earliest deadline first.</p>
       {error && <p className="import-list warn" role="alert">{error}</p>}
       <div aria-live="polite" className="sr-only">{toast?.text}</div>
       {toast && <div className="toast" role="status">{toast.text}{toast.undo && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={toast.undo}>Undo</button>}</div>}
