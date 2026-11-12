@@ -20,3 +20,14 @@ self.addEventListener("fetch", (e) => {
     }
   })());
 });
+
+// Pop-up notifications (lib/notify.ts shows them with registration.showNotification). Tapping one brings the planner to the front and opens what it was about.
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const href = String((e.notification.data && e.notification.data.href) || "#/actions");
+  e.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of all) { if (new URL(c.url).origin === self.location.origin) { await c.focus(); c.postMessage({ type: "pp-open", href }); return; } }
+    await self.clients.openWindow("/" + (href.startsWith("#") ? href : "#/actions"));
+  })());
+});

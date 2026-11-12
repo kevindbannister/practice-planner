@@ -17,6 +17,7 @@ import { useOnboarding } from "./onboardingKit";
 import { usePortal } from "./portalKit";
 import { useSales } from "./salesKit";
 import { readStates } from "../lib/onboarding";
+import { PopupNotificationSettings } from "./PopupNotifications";
 
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const msgOf = (e: unknown) => (e instanceof Error && e.message ? e.message : "That didn't work. Try again.");
@@ -118,6 +119,7 @@ export function ActionCentrePage() {
     <div className="page">
       <div className="plan-title"><h1>Action Centre</h1><span className="muted">{counts.all} outstanding{a.seeAll ? "" : " that are yours or unassigned"}</span></div>
       <p className="muted" style={{ marginTop: 0 }}>Everything that needs doing, worked out from the real records. An action goes away by itself when the work is done. Informational notices can be dismissed; nothing else can.</p>
+      <PopupNotificationSettings />
       <nav className="subtabs" aria-label="Action views">
         {VIEWS.map((v) => <button key={v.key} type="button" className="linkbtn" style={{ fontWeight: view === v.key ? 700 : 400 }} aria-current={view === v.key ? "page" : undefined} onClick={() => setView(v.key)}>{v.label} ({counts[v.key]})</button>)}
         <button type="button" className="linkbtn" aria-expanded={showPrefs} onClick={() => setShowPrefs(!showPrefs)}>Notification preferences</button>

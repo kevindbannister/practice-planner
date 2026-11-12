@@ -1,4 +1,5 @@
 // App shell: top bar, save indicator, and routing between pages.
+declare const __DEMO__: boolean;
 import { QuickAddProvider, useQuickAdd } from "./QuickAdd";
 import { VERSION } from "../version";
 import { AreaMenu, AreaPicker, TwoLineAreas, TwoLineModules, useMenuKind } from "./AreaMenu";
@@ -30,6 +31,7 @@ import { salesAlerts } from "../lib/sales";
 import { onboardingAlerts } from "../lib/onboarding";
 import { useOnboarding } from "./onboardingKit";
 import { ActionCentrePage, ActionCentreLink, ActionSync } from "./ActionCentre";
+import { NotificationWatcher } from "./PopupNotifications";
 import { engagementAlerts, readEngagementSettings } from "../lib/engagements";
 import { SearchButton } from "./Search";
 import { readSetting } from "./data";
@@ -185,6 +187,7 @@ export function App({ demo }: { demo: boolean }) {
                 {!(section === "devhub" || (section === "advisory" || section === "papers" || section === "tax" || section === "taxplan" || section === "reporting") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
                 <span className="version-badge" title={`Prototype, version ${VERSION}`}>P V{VERSION}</span>
                 {status === "ready" && <ActionSync />}
+                {status === "ready" && !__DEMO__ && <NotificationWatcher />}
                 {status === "ready" && <CoSecSync />}
                 {status === "ready" && <TimerChip />}
                 {status === "ready" && <AdfinKeepAlive />}
