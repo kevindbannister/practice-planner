@@ -5,6 +5,7 @@ import { TaskInbox } from "./TaskInbox";
 import { Unblock } from "./Unblock";
 import { WorkOverview } from "./WorkOverview";
 import { WorkReports } from "./WorkReports";
+import { MonthView } from "./MonthView";
 import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, holdAlert, holdLabel, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
 import { addDays, mondayOf, weekday } from "../lib/planning";
@@ -102,6 +103,7 @@ export function PlanPage() {
   );
   if (parts[1] === "overview") return <WorkOverview />;
   if (parts[1] === "reports") return <WorkReports />;
+  if (parts[1] === "month") return <MonthView />;
   if (parts[1] === "months") return <MonthsView />;
   if (parts[1] === "deadlines") return <DeadlinesView />;
   if (parts[1] === "done" || parts[1] === "history") return (
@@ -122,7 +124,8 @@ function WeekView() {
   const idx = useIndex();
   const { open } = useEditor();
   const today = todayIso();
-  const [week, setWeek] = useState(mondayOf(today));
+  // opened from a day in the Month view: start on that day's week
+  const [week, setWeek] = useState(() => { try { const j = sessionStorage.getItem("pp.plan.jump"); if (j) { sessionStorage.removeItem("pp.plan.jump"); return mondayOf(j); } } catch { /* ignore */ } return mondayOf(today); });
   const [show, setShow] = useState<Show>("all");
   const [horizon, setHorizon] = useState<Horizon>("90");
   const [search, setSearch] = useState("");

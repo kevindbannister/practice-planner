@@ -1,0 +1,103 @@
+// Month: the plan on a calendar. Each day shows what is planned on it against the hours available, and what is due. Click a day to plan it in the Week view.
+import { useEffect, useMemo, useState } from "react";
+import { Job, Task, fmtHours, isOnHold, todayIso } from "../lib/domain";
+import { dayHours } from "../lib/dayTypes";
+import { MonthItem, Show, buildMonth, monthKey, shiftMonth } from "../lib/monthPlan";
+import { isBusinessTask } from "../lib/projects";
+import { svcClass } from "../lib/serviceColour";
+import { planHours } from "../lib/waiting";
+import { isStatutory } from "../lib/workGroups";
+import { PlanTabs } from "./bits";
+import { useData, useIndex } from "./data";
+import { useEditor } from "./Editors";
+
+const monthName = (key: string) => new Date(`${key}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+const dayName = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MAX_SHOWN = 3;
+function useNarrow(q = "(max-width: 720px)") { const get = () => typeof matchMedia === "function" && matchMedia(q).matches; const [n, setN] = useState(get); useEffect(() => { const m = matchMedia(q); const f = () => setN(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, [q]); return n; }
+
+export function MonthView() {
+  const { data, settings } = useData(); const idx = useIndex(); const { open } = useEditor(); const today = todayIso(); const narrow = useNarrow();
+  const [month, setMonth] = useState(monthKey(today)); const [show, setShow] = useState<Show>("all");
+  const items: MonthItem[] = useMemo(() => {
+    const out: MonthItem[] = [];
+    for (const j of data.jobs as Job[]) {
+      const done = j.Status === "Complete"; if (!done && (j.Status === "Cancelled")) continue;
+      out.push({ key: j.Key, kind: "job", title: j.Title, client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "", serviceKey: j.ServiceKey, hours: planHours(j, data.services), planned: String(j.PlannedDate || "").slice(0, 10), deadline: String(j.Deadline || "").slice(0, 10), statutory: isStatutory(data.services.find((x) => x.Key === j.ServiceKey), j.ServiceKey), held: !done && isOnHold(j), done, doneOn: done ? String(j.CompletedDate || j.PlannedDate || "").slice(0, 10) : "" });
+    }
+    for (const t of data.tasks as Task[]) {
+      const done = t.Status === "Done"; if (!done && (t.Status === "Cancelled")) continue;
+      const proj = isBusinessTask(t) ? data.projects.find((p) => p.Key === t.ProjectKey) : undefined;
+      out.push({ key: t.Key, kind: "task", title: t.Title, client: proj ? String(proj.Title) : (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "", hours: t.EstimateHours || 1, planned: String(t.PlannedDate || "").slice(0, 10), deadline: String(t.DueDate || "").slice(0, 10), statutory: false, held: !done && isOnHold(t), done, doneOn: done ? String(t.CompletedDate || t.PlannedDate || "").slice(0, 10) : "" });
+    }
+    return out;
+  }, [data.jobs, data.tasks, data.services, data.projects, idx]);
+  const cap = (d: string) => { const h = dayHours(d, settings); return h.client + h.business; };
+  const m = useMemo(() => buildMonth(month, items, cap, today, show), [month, items, settings, today, show]); // eslint-disable-line react-hooks/exhaustive-deps
+  const goWeek = (date: string) => { try { sessionStorage.setItem("pp.plan.jump", date); } catch { /* the Week view opens on this week instead */ } window.location.hash = "#/plan"; };
+  const openItem = (i: MonthItem) => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key });
+  const chip = (i: MonthItem) => (
+    <button key={i.key} type="button" className="month-item" onClick={(e) => { e.stopPropagation(); openItem(i); }} title={`${i.client ? i.client + ": " : ""}${i.title} · ${fmtHours(i.hours)}`}>
+      <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" />{i.client || i.title}<span className="muted"> {fmtHours(i.hours)}</span>
+    </button>
+  );
+  const cellsWithContent = m.weeks.flat().filter((c) => c.inMonth && (c.planned.length || c.due.length || c.done.length));
+  return (
+    <div className="page">
+      <PlanTabs current="month" />
+      <div className="row-wrap no-print" style={{ gap: 12, alignItems: "center" }}>
+        <div className="row" style={{ gap: 4 }}>
+          <button type="button" className="btn small" aria-label="Previous month" onClick={() => setMonth(shiftMonth(month, -1))}>‹</button>
+          <button type="button" className="btn small" aria-label="Next month" onClick={() => setMonth(shiftMonth(month, 1))}>›</button>
+        </div>
+        <h2 style={{ margin: 0, fontSize: 20 }} aria-live="polite">{monthName(month)}</h2>
+        {month !== monthKey(today) && <button type="button" className="btn small" onClick={() => setMonth(monthKey(today))}>This month</button>}
+        <div className="seg" role="group" aria-label="Show">
+          {([["all", "All work"], ["statutory", "Statutory"], ["other", "Other"]] as [Show, string][]).map(([k, l]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => setShow(k)}>{l}</button>)}
+        </div>
+        <span className="muted">{fmtHours(m.totals.planned) || "0h"} planned of {fmtHours(m.totals.capacity) || "0h"} available · {m.totals.due} due{m.totals.unplanned ? `, ${m.totals.unplanned} not planned yet` : ""}</span>
+      </div>
+      {narrow ? (
+        <ul className="month-agenda" aria-label={`Plan for ${monthName(month)}`}>
+          {cellsWithContent.length === 0 && <li className="muted">Nothing planned or due this month.</li>}
+          {cellsWithContent.map((c) => (
+            <li key={c.date} className={c.today ? "today" : ""}>
+              <button type="button" className="linkbtn" onClick={() => goWeek(c.date)}><strong>{dayName(c.date)}</strong></button> <span className="muted">{fmtHours(c.plannedHours) || "0h"} of {fmtHours(c.capacity) || "0h"}</span>
+              <div>{c.planned.map(chip)}</div>
+              {c.due.length > 0 && <div className="month-due">Due: {c.due.map((i) => (i.client || i.title)).join(", ")}</div>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <table className="month-grid">
+          <caption className="sr-only">Plan for {monthName(month)}</caption>
+          <thead><tr>{WEEKDAYS.map((d) => <th key={d} scope="col">{d}</th>)}</tr></thead>
+          <tbody>
+            {m.weeks.map((w, wi) => (
+              <tr key={wi}>
+                {w.map((c) => {
+                  const pct = c.capacity ? Math.min(100, Math.round((c.plannedHours / c.capacity) * 100)) : c.plannedHours ? 100 : 0;
+                  return (
+                    <td key={c.date} className={`month-cell${c.inMonth ? "" : " out"}${c.today ? " today" : ""}${c.weekend ? " weekend" : ""}${c.over ? " over" : ""}`} onClick={() => goWeek(c.date)}>
+                      <div className="month-cell-head">
+                        <button type="button" className="month-day" aria-label={`${dayName(c.date)}: ${fmtHours(c.plannedHours) || "0h"} planned of ${fmtHours(c.capacity) || "0h"}. Open in the week view`} onClick={(e) => { e.stopPropagation(); goWeek(c.date); }}>{Number(c.date.slice(8))}</button>
+                        {c.due.length > 0 && <span className="chip red" title={c.due.map((i) => `${i.client ? i.client + ": " : ""}${i.title}`).join("\n")}>{c.due.length} due</span>}
+                      </div>
+                      {c.capacity > 0 || c.plannedHours > 0 ? <div className="month-bar" aria-hidden="true"><span className={c.over ? "over" : ""} style={{ width: `${pct}%` }} /></div> : null}
+                      {c.planned.slice(0, MAX_SHOWN).map(chip)}
+                      {c.planned.length > MAX_SHOWN && <button type="button" className="linkbtn month-more" onClick={(e) => { e.stopPropagation(); goWeek(c.date); }}>+{c.planned.length - MAX_SHOWN} more</button>}
+                      {c.done.length > 0 && <div className="muted month-doneline">{c.done.length} done</div>}
+                      {c.capacity > 0 && <div className="muted month-hours">{fmtHours(c.plannedHours) || "0h"}/{fmtHours(c.capacity)}</div>}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <p className="muted" style={{ margin: 0 }}>Held work is left off. Bars show planned hours against the hours you have that day; red means more is planned than fits. Click a day to plan it in the Week view.</p>
+    </div>
+  );
+}

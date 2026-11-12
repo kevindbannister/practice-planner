@@ -223,3 +223,7 @@ Beyond regrouping, screens that were slices of the same thing were merged. Merge
 - **Client portal**: Reminders, Branding, People and Status are sections of one Set-up screen.
 - Not merged: AML (4 groups), Compliance (3), Payroll, Email, Working papers, Co Sec, the Client page. They were already short or each view holds different content.
 - No usage data exists in the app, so what was kept or merged is a judgement from what each screen shows, not from how often it is opened.
+
+## Month calendar (V25.6)
+
+Plan, Calendar, Month: the plan on a calendar (`lib/monthPlan.ts`, `ui/MonthView.tsx`). Each day shows the work planned on it, planned hours against the hours available that day (client plus business time from your week settings; red when more is planned than fits), what is due that day, and how much was finished. Filter: All work, Statutory, Other. Held work is left off. Click a day to open that week in the Week view, where planning is done (the Month view doesn't move work itself). On a phone it is a list of the days that have something. Months ahead (hours due per month against capacity) is unchanged.

@@ -3489,3 +3489,19 @@ table.deadlines .c-kind { white-space: nowrap; }
 /* a whole screen shown inside a section of another (PlanSection in ui/bits.tsx): no second page heading or page padding */
 .plan-section h1 { display: none; }
 .plan-section .page { padding: 0; margin: 0; max-width: none; }
+
+/* Month view of the plan (ui/MonthView.tsx) */
+.month-grid { width: 100%; border-collapse: separate; border-spacing: 4px; table-layout: fixed; }
+.month-grid th { font-size: 12px; font-weight: 600; color: var(--ink-2); text-align: left; padding: 2px 6px; }
+.month-cell { vertical-align: top; height: 132px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; overflow: hidden; }
+.month-cell.out { opacity: .45; } .month-cell.weekend { background: var(--line-2); }
+.month-cell.today { outline: 2px solid var(--ink); outline-offset: -2px; } .month-cell.over { border-color: #c0392b; }
+.month-cell-head { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 4px; }
+.month-day { border: 0; background: none; font-weight: 700; font-size: 14px; color: var(--ink); cursor: pointer; padding: 0 4px; border-radius: 6px; }
+.month-day:hover, .month-day:focus-visible { background: var(--line-2); }
+.month-bar { height: 4px; border-radius: 2px; background: var(--line); margin-bottom: 4px; } .month-bar span { display: block; height: 100%; border-radius: 2px; background: #2e7d6b; } .month-bar span.over { background: #c0392b; }
+.month-item { display: block; width: 100%; text-align: left; border: 0; background: none; font-size: 12px; line-height: 1.35; padding: 1px 2px; border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.month-item:hover, .month-item:focus-visible { background: var(--line-2); }
+.month-more, .month-doneline, .month-hours { font-size: 11.5px; padding: 0 2px; } .month-hours { margin-top: 2px; }
+.month-agenda { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; } .month-agenda li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); } .month-agenda li.today { border-color: var(--ink); } .month-due { font-size: 13px; color: #c0392b; }
+@media print { .month-cell { height: auto; min-height: 90px; } }
