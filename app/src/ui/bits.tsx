@@ -1,5 +1,5 @@
 // Small shared pieces: routing, client badge, deadline chips, icons.
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
 import { logoSrc } from "../lib/logo";
 import { elementsUrl } from "../lib/elements";
 import { Client, Job, badgeColours, deadlineLabel, initials, jobState, todayIso } from "../lib/domain";
@@ -183,16 +183,29 @@ export function GroupedTabs({ groups, current, label, heading }: { groups: TabGr
 }
 
 /** The Plan section's heading and its views. */
+/** Set while a Plan screen is shown inside another one (Today holds Inbox and Unblock; Done holds History), so the inner one doesn't draw its own heading and tabs. */
+export const PlanEmbed = createContext(false);
+/** A titled, collapsible block that holds a whole screen. Open when it is the one the link asked for. */
+export function PlanSection({ title, id, open, count, children }: { title: string; id: string; open: boolean; count?: number; children: ReactNode }) {
+  return (
+    <details id={id} className="card pad plan-section" open={open} style={{ marginTop: 12 }}>
+      <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 16 }}>{title}{count ? <span className="chip amber" style={{ marginLeft: 8 }}>{count}</span> : null}</summary>
+      <div style={{ marginTop: 10 }}><PlanEmbed.Provider value={true}>{children}</PlanEmbed.Provider></div>
+    </details>
+  );
+}
+const PLAN_ALIAS: Record<string, string> = { inbox: "today", unblock: "today", history: "done" };
 export function PlanTabs({ current }: { current: "today" | "inbox" | "unblock" | "overview" | "reports" | "week" | "months" | "deadlines" | "done" | "projects" | "chase" | "history" | "timesheet" | "time" }) {
+  const embedded = useContext(PlanEmbed);
+  if (embedded) return null;
   const T = (key: string, label: string, to: string): TabItem => ({ key, label, to });
   const groups: TabGroup[] = [
-    { label: "Today", items: [T("today", "Today", "#/plan/today"), T("inbox", "Inbox", "#/plan/inbox"), T("unblock", "Unblock", "#/plan/unblock")] },
-    { label: "Schedule", items: [T("week", "Week", "#/plan"), T("months", "Months ahead", "#/plan/months"), T("deadlines", "Deadlines", "#/plan/deadlines")] },
-    { label: "Work", items: [T("overview", "Work overview", "#/plan/overview"), T("projects", "Projects", "#/plan/projects"), T("chase", "Chase", "#/plan/chase"), T("done", "Completed", "#/plan/done")] },
+    { label: "Today", items: [T("today", "Today", "#/plan/today")] },
+    { label: "Calendar", items: [T("week", "Week", "#/plan"), T("months", "Months ahead", "#/plan/months"), T("deadlines", "Deadlines", "#/plan/deadlines")] },
+    { label: "Work", items: [T("overview", "Overview", "#/plan/overview"), T("projects", "Projects", "#/plan/projects"), T("done", "Done", "#/plan/done"), T("reports", "Reports", "#/plan/reports")] },
     { label: "Time", items: [T("timesheet", "Timesheet", "#/plan/timesheet"), T("time", "Time reports", "#/plan/time")] },
-    { label: "Reports", items: [T("reports", "Work reports", "#/plan/reports"), T("history", "History", "#/plan/history")] },
   ];
-  return <GroupedTabs groups={groups} current={current} label="Plan" heading="Plan" />;
+  return <GroupedTabs groups={groups} current={PLAN_ALIAS[current] || current} label="Plan" heading="Plan" />;
 }
 
 /** A small copy icon: puts `value` on the clipboard and shows a tick for a moment. */

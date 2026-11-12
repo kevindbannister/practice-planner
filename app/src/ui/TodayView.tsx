@@ -137,7 +137,7 @@ export function TodayView() {
         <section className="card" aria-labelledby="td-chase">
           <div className="card-head">
             <h2 id="td-chase">Time to chase</h2>
-            <span className="muted" style={{ fontSize: 13 }}>{t.chase.length} · <a href="#/plan/chase">Chase page</a></span>
+            <span className="muted" style={{ fontSize: 13 }}>{t.chase.length} · <a href="#/chase">Chase page</a></span>
           </div>
           <ul className="today-list">{(allChase ? t.chase : t.chase.slice(0, CHASE_SHOWN)).map((l) => row(l))}</ul>
           {t.chase.length > CHASE_SHOWN && (

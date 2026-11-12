@@ -8,10 +8,12 @@ export const TABS: [string, string][] = [
 // These two have their own pages; they sit with Settings rather than in the main bar.
 export const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["dependencies", "Dependencies", "#/dependencies"], ["portal", "Client portal", "#/portal"]];
 
+/** Screens that now sit inside another one (pricing rules under Services & pricing, engagement letters under Letters and email). Their old addresses still work. */
+export const SETTINGS_ALIAS: Record<string, string> = { pricing: "services", engagement: "letters" };
 const SECTION_OF: [string, string[]][] = [
   ["Firm", ["week", "firm", "calendar", "backups"]],
-  ["Work and pricing", ["work", "fields", "services", "pricing", "clearance", "sales"]],
-  ["Documents and email", ["design", "letters", "forms", "engagement", "onboarding"]],
+  ["Work and pricing", ["work", "fields", "services", "clearance", "sales"]],
+  ["Documents and email", ["design", "letters", "forms", "onboarding"]],
   ["Connections", ["xero", "adfin", "hmrc", "companies-house", "cosec", "xama", "detailedpl"]],
 ];
 /** Settings in groups: the same screens as before, each under one of five headings. */
@@ -24,5 +26,5 @@ export function settingsGroups(portalWaiting = 0): TabGroup[] {
 /** The Settings tab bar, also shown above Checks and the Client portal so they read as part of Settings. */
 export function SettingsTabs({ current }: { current: string }) {
   const waiting = usePortal().overview?.attention.length || 0;
-  return <div className="page" style={{ paddingBottom: 0 }}><GroupedTabs groups={settingsGroups(waiting)} current={current} label="Settings" heading="Settings" /></div>;
+  return <div className="page" style={{ paddingBottom: 0 }}><GroupedTabs groups={settingsGroups(waiting)} current={SETTINGS_ALIAS[current] || current} label="Settings" heading="Settings" /></div>;
 }

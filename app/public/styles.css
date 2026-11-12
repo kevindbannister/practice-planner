@@ -3486,3 +3486,6 @@ table.deadlines .c-kind { white-space: nowrap; }
 /* two rows of tabs: the groups, then the views in the group you're in (GroupedTabs in ui/bits.tsx) */
 .grouped-tabs .page-head { margin-bottom: 10px; }
 .grouped-tabs .subtabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+/* a whole screen shown inside a section of another (PlanSection in ui/bits.tsx): no second page heading or page padding */
+.plan-section h1 { display: none; }
+.plan-section .page { padding: 0; margin: 0; max-width: none; }

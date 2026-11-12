@@ -212,3 +212,14 @@ Rules: only your actions (assigned to you), at or above the chosen priority and 
 ## Tidier tabs (V25.3)
 
 Long tab rows are now two rows (`GroupedTabs` in `ui/bits.tsx`): a main row of at most six groups, and under it the views in the group you are in. Every view keeps its own address, so old links and bookmarks still work. Plan 14 tabs became 5 groups (Today, Schedule, Work, Time, Reports); Sales 13 became 3 (Pipeline, Proposals, Money); Settings 22 became 5 (Firm, Work and pricing, Documents and email, Connections, Checks and portal); AML 8 became 4; Client portal 8 became 4; Compliance 6 became 3. The four Sales settings shortcuts (Sales settings, Services & pricing, Engagement letter settings, Onboarding settings) were removed from the Sales bar because the same screens are in Settings. The Compliance AML tab was kept (under Records) because it shows content that isn't elsewhere.
+
+## Fewer screens (V25.4)
+
+Beyond regrouping, screens that were slices of the same thing were merged. Merged screens keep their old addresses, which open the combined screen with the right section expanded.
+
+- **Plan** is now Today, Calendar (Week, Months ahead, Deadlines), Work (Overview, Projects, Done, Reports) and Time (Timesheet, Time reports). Inbox and "What can I unblock?" are sections under Today; Planning history is a section under Done; Chase is no longer a Plan tab (it has its own page, `#/chase`; `#/plan/chase` redirects there).
+- **Sales** is Overview (with Sales reports under it), Pipeline (Pipeline, Leads), Proposals (Proposals, Engagements and onboarding) and Money (Fees & revenue, Billing).
+- **Settings**: Pricing rules sit under Services & pricing, and Engagement letters under Letters and email.
+- **Client portal**: Reminders, Branding, People and Status are sections of one Set-up screen.
+- Not merged: AML (4 groups), Compliance (3), Payroll, Email, Working papers, Co Sec, the Client page. They were already short or each view holds different content.
+- No usage data exists in the app, so what was kept or merged is a judgement from what each screen shows, not from how often it is opened.

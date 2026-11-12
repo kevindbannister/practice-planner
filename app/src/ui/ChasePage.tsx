@@ -7,7 +7,7 @@ import {
   fillTemplate, groupByClient, mailtoLink, receivedStage,
 } from "../lib/chase";
 import { Client, Job, contactName, fmtDate, todayIso } from "../lib/domain";
-import { ClientBadge, href, PlanTabs } from "./bits";
+import { ClientBadge, href } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
 import { useEditor } from "./Editors";
 import { svcClass } from "../lib/serviceColour";
@@ -65,7 +65,7 @@ export function ChasePage() {
 
   return (
     <div className="page">
-      <PlanTabs current="chase" />
+      <div className="page-head"><h1>Chase</h1></div>
       <div className="page-head">
         <div>
           <h2 className="sec-h">Chase records</h2>

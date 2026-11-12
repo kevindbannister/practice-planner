@@ -6,7 +6,7 @@ import {
   ACTIVITY_KINDS, ActivityInput, Lead, Match, Opp, createLead, createOpp, findDuplicates, inStage, isOpenOpp, linkToClient, logActivity, logRow, moveStage, outcomeOf, reopen, setOutcome, totals,
 } from "../lib/sales";
 import { Row } from "../lib/schema";
-import { GroupedTabs, TabGroup, href, useRoute } from "./bits";
+import { GroupedTabs, PlanSection, TabGroup, href, useRoute } from "./bits";
 import { useData } from "./data";
 import { money, outcomeChip, useSales } from "./salesKit";
 import { useBoardDrag } from "./useBoardDrag";
@@ -19,9 +19,10 @@ import { ReportsPage } from "./ReportsPage";
 import { TYPE_INFO, ActivityType } from "../lib/timeline";
 
 const SALES_GROUPS: TabGroup[] = [
-  { label: "Pipeline", items: [{ key: "", label: "Overview", to: "#/sales" }, { key: "pipeline", label: "Pipeline", to: "#/sales/pipeline" }, { key: "leads", label: "Leads", to: "#/sales/leads" }] },
-  { label: "Proposals", items: [{ key: "proposals", label: "Proposals", to: "#/sales/proposals" }, { key: "engagements", label: "Engagements", to: "#/sales/engagements" }, { key: "onboarding", label: "Onboarding", to: "#/sales/onboarding" }] },
-  { label: "Money", items: [{ key: "fees", label: "Fees & revenue", to: "#/sales/fees" }, { key: "billing", label: "Billing", to: "#/sales/billing" }, { key: "reports", label: "Reports", to: "#/sales/reports" }] },
+  { label: "Overview", items: [{ key: "", label: "Overview", to: "#/sales" }] },
+  { label: "Pipeline", items: [{ key: "pipeline", label: "Pipeline", to: "#/sales/pipeline" }, { key: "leads", label: "Leads", to: "#/sales/leads" }] },
+  { label: "Proposals", items: [{ key: "proposals", label: "Proposals", to: "#/sales/proposals" }, { key: "engagements", label: "Engagements and onboarding", to: "#/sales/engagements" }] },
+  { label: "Money", items: [{ key: "fees", label: "Fees & revenue", to: "#/sales/fees" }, { key: "billing", label: "Billing", to: "#/sales/billing" }] },
 ];
 
 export function SalesPage() {
@@ -29,7 +30,7 @@ export function SalesPage() {
   const s = useSales();
   const sub = parts[1] || "";
   if (!s.can("view")) return <div className="page"><div className="card empty"><p>Sales isn't open to your role. Ask a manager or partner if you need it.</p></div></div>;
-  const current = sub === "lead" ? "leads" : sub === "opp" ? "pipeline" : sub === "proposal" ? "proposals" : sub === "engagement" ? "engagements" : sub === "onboard" ? "onboarding" : sub;
+  const current = sub === "reports" ? "" : sub === "onboarding" || sub === "onboard" ? "engagements" : sub === "lead" ? "leads" : sub === "opp" ? "pipeline" : sub === "proposal" ? "proposals" : sub === "engagement" ? "engagements" : sub === "onboard" ? "onboarding" : sub;
   return (
     <div className="page">
       <GroupedTabs groups={SALES_GROUPS} current={current} label="Sales" heading="Sales" />
@@ -39,14 +40,15 @@ export function SalesPage() {
       {sub === "opp" && parts[2] && <OppDetail oppKey={parts[2]} />}
       {sub === "proposals" && <ProposalsList />}
       {sub === "proposal" && parts[2] && <ProposalDetail propKey={parts[2]} />}
-      {sub === "engagements" && <EngagementsList existing={parts[2] === "existing"} />}
+      {(sub === "engagements" || sub === "onboarding") && <EngagementsList existing={parts[2] === "existing"} />}
       {sub === "engagement" && parts[2] && <EngagementDetail engKey={parts[2]} />}
-      {sub === "onboarding" && <OnboardingList />}
+
       {sub === "fees" && <RevenuePage />}
       {sub === "billing" && <BillingPage />}
-      {sub === "reports" && <ReportsPage />}
+
       {sub === "onboard" && parts[2] && <OnboardingDetail onbKey={parts[2]} />}
-      {!sub && <Overview />}
+      {(!sub || sub === "reports") && <><Overview /><PlanSection id="reports" title="Sales reports" open={sub === "reports"} key={`r${sub}`}><ReportsPage /></PlanSection></>}
+      {(sub === "engagements" || sub === "onboarding") && <PlanSection id="onboarding" title="Onboarding" open={sub === "onboarding"} key={`o${sub}`}><OnboardingList /></PlanSection>}
     </div>
   );
 }

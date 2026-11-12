@@ -6,11 +6,10 @@ import { Unblock } from "./Unblock";
 import { WorkOverview } from "./WorkOverview";
 import { WorkReports } from "./WorkReports";
 import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ChasePage } from "./ChasePage";
 import { Job, Task, fmtDate, fmtHours, holdAlert, holdLabel, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
 import { addDays, mondayOf, weekday } from "../lib/planning";
 import { dayHours, usualTypeKey } from "../lib/dayTypes";
-import { Icon, PlanTabs, useRoute } from "./bits";
+import { Icon, PlanSection, PlanTabs, useRoute } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { DoneView } from "./DoneView";
 import { TodayView } from "./TodayView";
@@ -92,17 +91,27 @@ type Horizon = "30" | "90" | "all";
 
 export function PlanPage() {
   const { parts } = useRoute();
-  if (parts[1] === "today") return <TodayView />;
-  if (parts[1] === "inbox") return <TaskInbox />;
-  if (parts[1] === "unblock") return <Unblock />;
+  if (parts[1] === "today" || parts[1] === "inbox" || parts[1] === "unblock") return (
+    <>
+      <TodayView />
+      <div className="page" style={{ paddingTop: 0 }}>
+        <PlanSection id="inbox" title="Inbox: tasks to sort" open={parts[1] === "inbox"} key={`i${parts[1]}`}><TaskInbox /></PlanSection>
+        <PlanSection id="unblock" title="What can I unblock?" open={parts[1] === "unblock"} key={`u${parts[1]}`}><Unblock /></PlanSection>
+      </div>
+    </>
+  );
   if (parts[1] === "overview") return <WorkOverview />;
   if (parts[1] === "reports") return <WorkReports />;
   if (parts[1] === "months") return <MonthsView />;
   if (parts[1] === "deadlines") return <DeadlinesView />;
-  if (parts[1] === "done") return <DoneView />;
+  if (parts[1] === "done" || parts[1] === "history") return (
+    <>
+      <DoneView />
+      <div className="page" style={{ paddingTop: 0 }}><PlanSection id="history" title="Planning history" open={parts[1] === "history"} key={`h${parts[1]}`}><PlanningHistory /></PlanSection></div>
+    </>
+  );
   if (parts[1] === "projects") return <ProjectsView />;
-  if (parts[1] === "chase") return <ChasePage />;
-  if (parts[1] === "history") return <PlanningHistory />;
+  if (parts[1] === "chase") { window.location.hash = "#/chase"; return null; }
   if (parts[1] === "timesheet") return <Timesheet />;
   if (parts[1] === "time") return <TimeFinance tab={parts[2] || ""} />;
   return <WeekView />;

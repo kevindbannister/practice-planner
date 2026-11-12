@@ -47,7 +47,7 @@ import { signOut } from "../lib/auth";
 declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
-import { TABS, settingsGroups } from "./SettingsTabs";
+import { SETTINGS_ALIAS, TABS, settingsGroups } from "./SettingsTabs";
 import { DigestSettings } from "./DigestSettings";
 export { SettingsTabs } from "./SettingsTabs";
 
@@ -56,7 +56,7 @@ export function SettingsPage() {
   const tab = TABS.some(([k]) => k === parts[1]) ? parts[1] : "week";
   return (
     <div className="page">
-      <GroupedTabs groups={settingsGroups()} current={tab} label="Settings" heading="Settings" />
+      <GroupedTabs groups={settingsGroups()} current={SETTINGS_ALIAS[tab] || tab} label="Settings" heading="Settings" />
       {tab === "week" && <HoursCard />}
       {tab === "week" && <DayTypesCard />}
       {tab === "week" && <RoutinesCard />}
@@ -65,14 +65,15 @@ export function SettingsPage() {
       {tab === "companies-house" && <CompaniesHouseSettings />}
       {tab === "backups" && <BackupSettings />}
       {tab === "calendar" && <CalendarSettings />}
-      {tab === "letters" && <CommsSettings />}
+      {(tab === "letters" || tab === "engagement") && <CommsSettings />}
       {tab === "letters" && <AssistantSettings />}
-      {tab === "letters" && <EmailSettings />}
+      {(tab === "letters" || tab === "engagement") && <EmailSettings />}
+      {(tab === "letters" || tab === "engagement") && <EngagementLetterSettings />}
       {tab === "xero" && <XeroSettings />}
       {tab === "detailedpl" && <DetailedPlSettings />}
       {tab === "forms" && <FormSettings />}
       {tab === "fields" && <CustomFieldSettings />}
-      {tab === "pricing" && <PricingSettings />}
+
       {tab === "design" && <DocDesignSettings />}
       {tab === "clearance" && <ClearancePointsSettings />}
       {tab === "adfin" && <AdfinSettings />}
@@ -81,8 +82,9 @@ export function SettingsPage() {
       {tab === "xama" && <XamaSettings />}
       {tab === "firm" && <><FirmSettings /><DigestSettings /></>}
       {tab === "sales" && <SalesSettings />}
-      {tab === "services" && <ServicesSettings />}
-      {tab === "engagement" && <EngagementLetterSettings />}
+      {(tab === "services" || tab === "pricing") && <ServicesSettings />}
+      {(tab === "services" || tab === "pricing") && <PricingSettings />}
+
       {tab === "onboarding" && <OnboardingSettingsPage />}
     </div>
   );
