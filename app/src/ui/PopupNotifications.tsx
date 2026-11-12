@@ -1,7 +1,7 @@
 // Pop-up notifications on this device: the watcher that decides when to pop one up, and the settings panel (inside the Action Centre).
 import { useEffect, useRef, useState } from "react";
 import { CATEGORIES } from "../lib/actions";
-import { DEFAULT_NOTIFY, NotifyPrefs, askPermission, londonMinutes, plan, readPrefs, readState, show, support, writePrefs, writeState } from "../lib/notify";
+import { DEFAULT_NOTIFY, NotifyPrefs, askPermission, diagnose, londonMinutes, showDetailed, plan, readPrefs, readState, show, support, writePrefs, writeState } from "../lib/notify";
 import { useEditor } from "./Editors";
 import { useActions } from "./ActionCentre";
 
@@ -33,7 +33,7 @@ export function NotificationWatcher() {
 
 export function PopupNotificationSettings() {
   const { user } = useDataUser(); const me = user;
-  const [prefs, setPrefs] = useState<NotifyPrefs>(() => readPrefs(me)); const [msg, setMsg] = useState(""); const [sp, setSp] = useState(support());
+  const [prefs, setPrefs] = useState<NotifyPrefs>(() => readPrefs(me)); const [msg, setMsg] = useState(""); const [info, setInfo] = useState<string[]>([]); const [sp, setSp] = useState(support());
   const save = (p: Partial<NotifyPrefs>) => { const n = { ...prefs, ...p }; setPrefs(n); writePrefs(me, n); window.dispatchEvent(new Event(PREFS_EVENT)); };
   const turnOn = async () => {
     setMsg(""); const perm = await askPermission(); setSp(support());
@@ -41,7 +41,11 @@ export function PopupNotificationSettings() {
     writeState(me, { baselined: false, seen: {} }); save({ enabled: true });
     setMsg("On for this device. What is already waiting won't pop up; new actions will.");
   };
-  const test = async () => { setMsg((await show({ tag: "test", title: "Practice Planner", body: "Pop-ups are working on this device.", href: "#/actions" })) ? "Test sent. If you didn't see it, check this device's notification settings (and Focus or Do Not Disturb)." : "Couldn't show a test pop-up on this device."); };
+  const test = async () => {
+    setMsg("Sending..."); const r = await showDetailed({ tag: "test-" + Date.now(), title: "Practice Planner", body: "Pop-ups are working on this device.", href: "#/actions" });
+    setInfo(await diagnose());
+    setMsg(r.ok ? `The browser accepted the test (${r.via}). If nothing appeared, the device is hiding it: check that notifications are allowed for this browser in the device settings, and that Focus, Do Not Disturb or battery saver isn't on. On a computer, also check the browser isn't in full-screen presentation.` : `Couldn't show a test pop-up. ${r.error || ""}`);
+  };
   const on = prefs.enabled && sp.ok && sp.permission === "granted";
   return (
     <details className="card pad" style={{ marginBottom: 12 }}>
@@ -64,6 +68,7 @@ export function PopupNotificationSettings() {
           <p className="muted" style={{ margin: 0 }}>Anything that arrives during quiet hours is summarised in one pop-up afterwards. More than three new actions at once also become one pop-up.</p>
         </>}
         {msg && <p role="status" style={{ margin: 0 }}>{msg}</p>}
+        {info.length > 0 && <ul className="muted" style={{ margin: 0, paddingLeft: 18 }}>{info.map((x) => <li key={x}>{x}</li>)}</ul>}
       </div>
     </details>
   );

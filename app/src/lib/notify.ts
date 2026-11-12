@@ -68,11 +68,29 @@ export function writePrefs(me: string, p: NotifyPrefs) { try { localStorage.setI
 export function readState(me: string): NotifyState { try { const raw = localStorage.getItem(storeKey(me, "state")); const s = raw ? JSON.parse(raw) : null; return s && typeof s === "object" && s.seen ? { baselined: !!s.baselined, seen: s.seen } : EMPTY_STATE; } catch { return EMPTY_STATE; } }
 export function writeState(me: string, s: NotifyState) { try { localStorage.setItem(storeKey(me, "state"), JSON.stringify(s)); } catch { /* ignore */ } }
 
-/** Android Chrome only allows pop-ups through the service worker, so that is tried first; the plain constructor is the fallback on desktop without one. */
-export async function show(p: Pop): Promise<boolean> {
-  const sp = support(); if (!sp.ok || sp.permission !== "granted") return false;
-  const opts: NotificationOptions & { renotify?: boolean } = { body: p.body, tag: p.tag, icon: "/icon-192.png", badge: "/icon-192.png", data: { href: p.href }, renotify: false };
-  try { const reg = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : undefined; if (reg) { await reg.showNotification(p.title, opts); return true; } } catch { /* fall through */ }
-  try { const n = new Notification(p.title, opts); n.onclick = () => { window.focus(); window.location.hash = p.href.replace(/^#/, ""); n.close(); }; return true; } catch { return false; }
+export type Shown = { ok: boolean; via?: "service worker" | "browser"; error?: string };
+const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | undefined> => new Promise((res) => { const t = setTimeout(() => res(undefined), ms); p.then((v) => { clearTimeout(t); res(v); }, () => { clearTimeout(t); res(undefined); }); });
+/** Android Chrome only allows pop-ups through the service worker, so that is tried first. It waits (briefly) for the worker to be active, because right after the app loads the
+ *  worker may still be starting; the plain browser pop-up is the fallback on desktop. If both fail the reason is returned so the screen can say what went wrong. */
+export async function showDetailed(p: Pop): Promise<Shown> {
+  const sp = support(); if (!sp.ok) return { ok: false, error: sp.why }; if (sp.permission !== "granted") return { ok: false, error: "Permission isn't granted for this site." };
+  const opts: NotificationOptions & { renotify?: boolean } = { body: p.body, tag: p.tag, icon: "/icon-192.png", badge: "/icon-192.png", data: { href: p.href } };
+  let err = "";
+  if ("serviceWorker" in navigator) {
+    const reg = await withTimeout(navigator.serviceWorker.ready, 4000);
+    if (reg) { try { await reg.showNotification(p.title, opts); return { ok: true, via: "service worker" }; } catch (e) { err = `Service worker: ${e instanceof Error ? e.message : String(e)}`; } }
+    else err = "The app's background worker isn't running yet (it starts after the first load on the secure address). Reload the page and try again.";
+  }
+  try { const n = new Notification(p.title, opts); n.onclick = () => { window.focus(); window.location.hash = p.href.replace(/^#/, ""); n.close(); }; return { ok: true, via: "browser" }; } catch (e) { return { ok: false, error: err || (e instanceof Error ? e.message : String(e)) }; }
+}
+export const show = async (p: Pop) => (await showDetailed(p)).ok;
+/** What this device is doing, for the settings panel: helps find out why a pop-up doesn't appear. */
+export async function diagnose(): Promise<string[]> {
+  const out: string[] = []; const sp = support();
+  out.push(`Permission: ${sp.permission}${sp.ok ? "" : ` (${sp.why})`}`);
+  out.push(`Secure address: ${typeof window !== "undefined" && window.isSecureContext ? "yes" : "no"}`);
+  if ("serviceWorker" in navigator) { const reg = await navigator.serviceWorker.getRegistration().catch(() => undefined); out.push(`Background worker: ${reg ? (reg.active ? "running" : reg.installing || reg.waiting ? "starting" : "registered, not active") : "not registered"}`); } else out.push("Background worker: not supported");
+  out.push(`Looking at the app: ${document.visibilityState === "visible" ? "yes" : "no"}`);
+  return out;
 }
 export async function askPermission(): Promise<Support["permission"]> { const sp = support(); if (!sp.ok) return sp.permission; try { return (await Notification.requestPermission()) as Support["permission"]; } catch { return Notification.permission as Support["permission"]; } }
