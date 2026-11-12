@@ -12,6 +12,7 @@ import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 
 type Range = "30" | "60" | "90" | "180" | "all";
+type Kind = "all" | "statutory" | "other";
 type Line = {
   key: string; kind: "job" | "task"; row: Job | Task; deadline: string; client: string; clientKey?: string; groupKey?: string; work: string; type: string;
   periodEnd?: string; stage?: string; planned?: string; records?: string; held: boolean; urgent: boolean; wait?: string; statutory: boolean;
@@ -26,6 +27,9 @@ export function DeadlinesView() {
   const today = todayIso();
   const [range, setRange] = useState<Range>("90");
   const [picked, setPicked] = useRememberedTypes("pp.deadlines.types");
+  // statutory deadlines (filing dates the law sets) or everything else; remembered on this device
+  const [kind, setKindState] = useState<Kind>(() => { try { const v = localStorage.getItem("pp.deadlines.kind"); return v === "statutory" || v === "other" ? v : "all"; } catch { return "all"; } });
+  const setKind = (k: Kind) => { setKindState(k); try { localStorage.setItem("pp.deadlines.kind", k); } catch { /* this visit only */ } };
   const [tasks, setTasks] = useState(true);
   const [held, setHeld] = useState(false); // jobs on hold are hidden until asked for
   const [search, setSearch] = useState("");
@@ -72,6 +76,7 @@ export function DeadlinesView() {
   const shown = lines.filter((l) =>
     l.deadline <= until &&
     (!chosen.length || chosen.includes(l.type)) &&
+    (kind === "all" || (kind === "statutory") === l.statutory) &&
     (tasks || l.kind !== "task") &&
     (held || !l.held) &&
     (!theGroup || inGroup(l.clientKey) || l.groupKey === group) &&
@@ -84,8 +89,10 @@ export function DeadlinesView() {
     if (!months.has(k)) months.set(k, []);
     months.get(k)!.push(l);
   }
+  const inRange = lines.filter((l) => l.deadline <= until);
+  const kindCount = { all: inRange.length, statutory: inRange.filter((l) => l.statutory).length, other: inRange.filter((l) => !l.statutory).length };
   const rangeText = range === "all" ? "all deadlines" : `the next ${range} days`;
-  const typeText = (theGroup ? ` · ${theGroup.Title}` : "") + (chosen.length ? ` · ${chosen.map((k) => types.find(([t]) => t === k)?.[1]).join(", ")}` : "");
+  const typeText = (kind === "statutory" ? " · Statutory deadlines only" : kind === "other" ? " · Other deadlines only" : "") + (theGroup ? ` · ${theGroup.Title}` : "") + (chosen.length ? ` · ${chosen.map((k) => types.find(([t]) => t === k)?.[1]).join(", ")}` : "");
 
   const downloadCsv = () => {
     const head = ["Deadline", "Client", "Work", "Type of work", "Period end", "Stage", "Planned", "Records", "Kind", "Status"];
@@ -158,6 +165,11 @@ export function DeadlinesView() {
             <button key={r} type="button" aria-pressed={range === r} onClick={() => setRange(r)} aria-label={r === "all" ? "All" : `${r} days`}>
               {r === "all" ? "All" : <>{r}<span className="hide-phone">&nbsp;days</span><span className="only-phone">d</span></>}
             </button>
+          ))}
+        </div>
+        <div className="seg" role="group" aria-label="Kind of deadline">
+          {([["all", "All"], ["statutory", "Statutory"], ["other", "Other"]] as [Kind, string][]).map(([k, l]) => (
+            <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} title={k === "statutory" ? "Filing and payment dates set by law or HMRC / Companies House" : k === "other" ? "Everything else: internal targets, client-agreed dates and tasks" : "Every deadline"}>{l} <span className="muted">{kindCount[k]}</span></button>
           ))}
         </div>
         <div className="deadline-types">
