@@ -3937,3 +3937,17 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 .paper-main table.grid tbody tr:hover td { background: color-mix(in srgb, var(--navy) 3%, transparent); }
 :root[data-theme="dark"] .paper-main table.grid thead th { background: #2E4C70; border-color: #2E4C70; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .paper-main table.grid thead th { background: #2E4C70; border-color: #2E4C70; } }
+
+/* V30.2: the section list sits on a plain grey side panel running to the edge of the screen, and the paper itself
+   is a white sheet with a rounded top-left corner, as in the reference picture */
+@media (min-width: 801px) {
+  .paper-page .paper { margin: 0 -32px -40px; gap: 0; align-items: stretch; background: #EEF1F5; min-height: calc(100vh - 140px); }
+  .paper-page .paper-side { background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 18px 12px 18px 20px; align-self: stretch; }
+  .paper-page .paper-side .paper-item.on { background: color-mix(in srgb, #2F6FD6 13%, #fff); }
+  .paper-page .paper-side .paper-item:hover:not(.on) { background: rgba(255, 255, 255, 0.7); }
+  .paper-page .paper-complete { background: #fff; border-color: transparent; box-shadow: 0 1px 2px rgba(23, 38, 58, 0.06); }
+  .paper-page .paper-main { background: var(--surface); border-top-left-radius: 28px; padding: 22px 32px 32px; box-shadow: -1px -1px 0 rgba(23, 38, 58, 0.06), -6px -4px 20px rgba(23, 38, 58, 0.04); min-width: 0; }
+  .paper-page .paper-main .card { box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); border: 1px solid var(--sep); }
+}
+:root[data-theme="dark"] .paper-page .paper { background: #0d1828; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .paper-page .paper { background: #0d1828; } }
