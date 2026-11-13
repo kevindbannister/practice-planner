@@ -104,8 +104,9 @@ export function MonthView() {
   const cellsWithContent = m.weeks.flat().filter((c) => c.inMonth && (weekends || !c.weekend) && (c.planned.length || c.due.length || c.done.length));
   return (
     <div className={`page${narrow ? "" : " month-fit"}`}>
+      <div className="row-wrap no-print" style={{ gap: 12, alignItems: "center", justifyContent: "space-between" }}>
       <PlanTabs current="month" />
-      <div className="row-wrap no-print" style={{ gap: 12, alignItems: "center" }}>
+      <div className="row-wrap" style={{ gap: 12, alignItems: "center" }}>
         <div className="row" style={{ gap: 4 }}>
           <button type="button" className="btn small" data-drop="week-prev" aria-label="Previous month" onClick={() => setMonth(shiftMonth(month, -1))}>‹</button>
           <button type="button" className="btn small" data-drop="week-next" aria-label="Next month" onClick={() => setMonth(shiftMonth(month, 1))}>›</button>
@@ -118,6 +119,7 @@ export function MonthView() {
         {!narrow && <span className="muted" tabIndex={0} role="note" aria-label={HELP} title={HELP} style={{ cursor: "help" }}>ⓘ How this works</span>}
         <button type="button" className="btn small" aria-pressed={weekends} onClick={toggleWeekends} title={weekends ? "Hide Saturdays and Sundays" : "Show Saturdays and Sundays"}>{weekends ? "Hide weekends" : `Show weekends${hiddenWeekend ? ` (${hiddenWeekend} planned)` : ""}`}</button>
         <span className="muted">{fmtHours(m.totals.planned) || "0h"} planned of {fmtHours(m.totals.capacity) || "0h"} available · {m.totals.due} due{m.totals.unplanned ? `, ${m.totals.unplanned} not planned yet` : ""}</span>
+      </div>
       </div>
       <div className="month-layout">
       {!narrow && panel}
