@@ -155,21 +155,17 @@ export function ModeMenu({ section, mode, chase }: { section: string; mode: Mode
   const here = navKeyOf(section);
   const mods = mode === "work" ? WORK_MODULES : PRACTICE_MODULES;
   const pick = (m: Mode) => {
-    if (m === mode) return;
     keepMode(m);
     window.location.hash = lastPage(m);
     window.dispatchEvent(new Event("pp-menu"));
   };
   return (
     <nav className="nv-nav mode-nav" aria-label="Main">
-      <div className="mode-toggle" role="group" aria-label="Practice or work">
-        <button type="button" aria-pressed={mode === "practice"} title="Practice: running the firm" onClick={() => pick("practice")}>
-          <Icon name="building" size={17} /><span className="sr-only">Practice</span>
-        </button>
-        <button type="button" aria-pressed={mode === "work"} title="Work: clients' work" onClick={() => pick("work")}>
-          <Icon name="briefcase" size={17} /><span className="sr-only">Work</span>
-        </button>
-      </div>
+      <button type="button" className="mode-toggle" role="switch" aria-checked={mode === "work"} aria-label={mode === "work" ? "Work menu. Switch to Practice" : "Practice menu. Switch to Work"}
+        title={mode === "work" ? "Switch to Practice" : "Switch to Work"} onClick={() => pick(mode === "work" ? "practice" : "work")}>
+        <span className={`mode-opt${mode === "practice" ? " on" : ""}`}><Icon name="building" size={17} /></span>
+        <span className={`mode-opt${mode === "work" ? " on" : ""}`}><Icon name="briefcase" size={17} /></span>
+      </button>
       {mods.map((k) => (
         <a key={k} className="nv-link" href={`#/${k}`} aria-current={here === k ? "page" : undefined}>
           {(mode === "work" && WORK_LABELS[k]) || MODULE_LABELS[k]}

@@ -3826,3 +3826,13 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
 .work-client { animation: wc-in 0.45s cubic-bezier(.2, .8, .2, 1); }
 @keyframes wc-in { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .topbar.mode-bar, .topbar.mode-bar::before, .work-client { transition: none; animation: none; } }
+
+/* V29.5: the switch is one button: a click anywhere on it changes to the other menu */
+.mode-toggle { border: 0; cursor: pointer; font: inherit; }
+.mode-toggle .mode-opt { width: 40px; height: 36px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: var(--ink-2); transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease; }
+.mode-toggle .mode-opt.on { background: var(--navy); color: #fff; box-shadow: 0 3px 10px rgba(30, 53, 80, 0.3); }
+.mode-toggle:hover .mode-opt:not(.on) { color: var(--ink); }
+.mode-toggle:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.topbar.mode-work .mode-toggle .mode-opt { color: rgba(255, 255, 255, 0.8); }
+.topbar.mode-work .mode-toggle .mode-opt.on { background: #fff; color: #1E3550; }
+.topbar.mode-work .mode-toggle:focus-visible { outline-color: #fff; }
