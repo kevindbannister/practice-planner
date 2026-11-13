@@ -37,7 +37,7 @@ export function useActions() {
   const derived = useMemo(() => buildActions({
     today, clients: data.clients as Row[], jobs: idx.openJobs as Row[], tasks: idx.openTasks as Row[], leads: s.leads, opps: s.opps, firstStageKey: s.stages[0].key, proposals: data.proposals, versions: data.proposalVersions,
     engagements: data.engagements, onboardings: data.onboardings, viewFor: onboarding.viewFor, clientServices: data.clientServices, portal: portal.overview?.attention || [], eng: readEngagementSettings(data.settings), catalogue: s.catalogue,
-    cosecTx: data.cosecTx, chFlags: data.chFlags, risks: risk.items, work: signals.reminders, ch, backup: backup || undefined, agentDone: (o) => !onboarding.settings.stages.find((x) => x.key === "agent")?.enabled || readStates(o.Stages).agent?.status === "done",
+    cosecTx: data.cosecTx, chFlags: data.chFlags, risks: risk.items, work: signals.reminders, services: data.services, stageTemplates: data.stageTemplates, ch, backup: backup || undefined, agentDone: (o) => !onboarding.settings.stages.find((x) => x.key === "agent")?.enabled || readStates(o.Stages).agent?.status === "done",
   }), [data, idx, ch, backup, portal.overview, s.catalogue, onboarding.settings, today, risk.items, signals.reminders]); // eslint-disable-line react-hooks/exhaustive-deps
   const prefs = useMemo(() => readPrefs(data.settings, user || ""), [data.settings, user]);
   const items = useMemo(() => itemsOf(derived, data.actions), [derived, data.actions]);
@@ -82,6 +82,8 @@ export function ActionCentrePage() {
   const [view, setView] = useState<ViewKey>(a.seeAll ? "all" : "mine");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [showAll, setShowAll] = useState<Record<string, boolean>>({});
+  const CAP = 8; // a long group shows its most urgent few, so the rest does not become wallpaper
   const [expanded, setExpanded] = useState("");
   const [err, setErr] = useState<string>();
   const [showPrefs, setShowPrefs] = useState(false);
@@ -142,8 +144,9 @@ export function ActionCentrePage() {
             <span><span className="chip">{g.items.length}</span>{g.overdue > 0 && view !== "completed" ? <span className="chip red" style={{ marginLeft: 6 }}>{g.overdue} high</span> : null}</span>
           </button>
           {!collapsed[g.category] && (
+            <>
             <ul className="plain" style={{ margin: 0, padding: "0 14px 8px" }}>
-              {g.items.map((x) => (
+              {(view === "completed" || showAll[g.category] ? g.items : g.items.slice(0, CAP)).map((x) => (
                 <li key={x.key} style={{ borderTop: "1px solid var(--line, #e5e7eb)", padding: "10px 0" }}>
                   <div className="row-wrap" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div className="stack" style={{ gap: 2, flex: 1, minWidth: 240 }}>
@@ -168,6 +171,8 @@ export function ActionCentrePage() {
                 </li>
               ))}
             </ul>
+            {view !== "completed" && g.items.length > CAP && <div style={{ padding: "0 14px 10px" }}><button type="button" className="linkbtn" onClick={() => setShowAll({ ...showAll, [g.category]: !showAll[g.category] })}>{showAll[g.category] ? "Show fewer" : `Show ${g.items.length - CAP} more`}</button></div>}
+            </>
           )}
         </section>
       ))}

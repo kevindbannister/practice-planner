@@ -16,6 +16,8 @@ import { Lead, Opp, isOpenOpp } from "./sales";
 import { Row } from "./schema";
 import { addDays } from "./planning";
 import { clientActionItems } from "./work/clientActions";
+import { pastRecordsStage, recordsRule, RECENT_DAYS } from "./chase";
+import { verifiedOf } from "./cosec";
 
 const str = (v: unknown): string => (v === undefined || v === null ? "" : String(v));
 
@@ -45,7 +47,19 @@ export type Source = {
   /** reminders and newly unblocked work (lib/work/planning). Suggestions only: acting on one still goes through the usual confirmation. */
   work?: { key: string; clientKey: string; title: string; detail: string; priority: Priority; due: string; taskKey?: string }[];
   risks?: { key: string; clientKey: string; title: string; detail: string; priority: Priority; due: string; href: string }[];
+  /** For the year-end records prompt: which work needs records, and the stages that show they are in. */
+  services?: Row[]; stageTemplates?: Row[];
 };
+
+/** Company accounts whose year end Companies House has already moved past: the accounts are filed, whatever the job still says. */
+export const COMPANY_ACCOUNTS = ["ACCS_LTD", "ACCS_LLP"];
+export function filedAtCH(client: Row | undefined, job: Row): boolean {
+  if (!client || !COMPANY_ACCOUNTS.includes(str(job.ServiceKey)) || !str(client.CompanyNumber) || !str(job.PeriodEnd)) return false;
+  const to = verifiedOf(client).accTo;
+  return !!to && to > str(job.PeriodEnd).slice(0, 10);
+}
+/** A year end this recent still deserves a chase prompt; older ones are the overdue list's business. */
+export const YEAR_END_WINDOW_DAYS = 45;
 
 const hash = (s: string) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
 const days = (a: string, b: string) => Math.round((Date.parse(b.slice(0, 10) + "T00:00:00Z") - Date.parse(a.slice(0, 10) + "T00:00:00Z")) / 86400000);
@@ -138,13 +152,23 @@ export function buildActions(src: Source): Action[] {
   }
 
   // ---- practice jobs and deadlines
+  const filed = new Map<string, Row[]>();
+  const yearEnd = new Map<string, { end: string; jobs: Row[] }>();
   for (const j of src.jobs) {
     const ck = str(j.ClientKey); const nm = nameOf(ck) || str(j.ClientName);
+    if (filedAtCH(client(ck), j)) { filed.set(ck, [...(filed.get(ck) || []), j]); continue; } // already filed: no overdue or chase noise
+    const pe = str(j.PeriodEnd).slice(0, 10);
+    if (src.services && ck && pe && pe < today && pe >= addDays(today, -YEAR_END_WINDOW_DAYS) && !isOnHold(j as never) && !str(j.RecordsReceived) && !pastRecordsStage(j as never, src.stageTemplates || []) && recordsRule(str(j.ServiceKey), src.services).needs) {
+      const last = str(j.LastChased).slice(0, 10);
+      if (!(last && days(last, today) < RECENT_DAYS)) { const cur = yearEnd.get(ck); if (!cur || pe > cur.end) yearEnd.set(ck, { end: pe, jobs: [j] }); else if (pe === cur.end) cur.jobs.push(j); }
+    }
     if (isOnHold(j as never)) { const h = holdAlert(j as never, str(j.Deadline), today); if (h) add({ key: `job:${j.Key}`, category: "jobs", title: `${nm}: ${str(j.Title)}`, detail: h.text, clientKey: ck, assignee: manager(ck), due: str(j.Deadline), priority: h.level === "red" ? "high" : "medium", href: `editor:job:${j.Key}` }); continue; }
     if (!j.Deadline) continue;
     if (jobState(j as never, today).state === "overdue") add({ key: `job:${j.Key}`, category: "jobs", title: `${nm}: ${str(j.Title)}`, detail: `Was due ${fmtDate(str(j.Deadline))}`, clientKey: ck, assignee: manager(ck), due: str(j.Deadline), priority: "high", href: `editor:job:${j.Key}` });
     else if (!j.PlannedDate && str(j.Deadline) <= soon) add({ key: `job:${j.Key}`, category: "jobs", title: `${nm}: ${str(j.Title)}`, detail: `Due ${fmtDate(str(j.Deadline))}, not planned`, clientKey: ck, assignee: manager(ck), due: str(j.Deadline), priority: "medium", href: `editor:job:${j.Key}` });
   }
+  for (const [ck, js] of filed) add({ key: `job:filed:${ck}`, category: "jobs", title: `Accounts already filed at Companies House: ${nameOf(ck)}`, detail: `${js.map((j) => str(j.Title)).join("; ")}. Companies House shows the year as filed, so no overdue or chase reminders are raised. Close the job when you are happy.`, clientKey: ck, assignee: manager(ck), priority: "low", dismissible: true, href: `editor:job:${js[0].Key}` });
+  for (const [ck, y] of yearEnd) add({ key: `yearend:${ck}:${y.end}`, category: "jobs", title: `Year end ${fmtDate(y.end)} has passed: review chasing records for ${nameOf(ck)}`, detail: `${y.jobs.map((j) => str(j.Title)).join("; ")}. One prompt for the latest year end only.`, clientKey: ck, assignee: manager(ck), priority: "medium", dismissible: true, href: "#/chase" });
   for (const t of src.tasks) {
     const ck = str(t.ClientKey);
     if (isOnHold(t as never)) continue;
