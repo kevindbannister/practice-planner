@@ -3974,3 +3974,7 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 .wp-body > .card.pad:empty { display: none; }
 .wp-body .lead-main:only-child, .wp-body .asset-main:only-child { max-width: none; flex: 1 1 auto; }
 .wp-body .lead-split { width: 100%; }
+/* V30.4: a clearer grey behind the section list, and schedule tables across the full sheet */
+@media (min-width: 801px) { .paper-page .paper { background: #E7EBF0; } .paper-page .paper-main { box-shadow: -1px -1px 0 rgba(23, 38, 58, 0.08), -8px -6px 24px rgba(23, 38, 58, 0.06); } }
+.wp-body table.grid { width: 100%; }
+.wp-body .asset-main > .card, .wp-body .lead-main > .card { width: auto; }
