@@ -213,9 +213,15 @@ const typeKey = (i: Item) => (i.kind === "task" ? "TASK" : (i.row as Job).Servic
  */
 export function usePlanTray({ items, today, inTray, suggestedKeys }: { items: Item[]; today: string; inTray: (i: Item) => boolean; suggestedKeys?: Set<string> }) {
   const idx = useIndex();
-  const [horizon, setHorizon] = useState<Horizon>("90");
-  const [days, setDays] = useState("45");
-  const [until, setUntil] = useState("");
+  // the due-date choice is remembered on this device until it is changed again (as are the type filter and the records toggle)
+  const remembered = <T extends string>(key: string, fallback: T, ok: (v: string) => boolean) => () => { try { const v = localStorage.getItem(key); return v !== null && ok(v) ? (v as T) : fallback; } catch { return fallback; } };
+  const keep = (key: string, v: string) => { try { localStorage.setItem(key, v); } catch { /* this visit only */ } };
+  const [horizon, setHorizonState] = useState<Horizon>(remembered<Horizon>("pp.plan.horizon", "90", (v) => ["30", "90", "all", "days", "date"].includes(v)));
+  const [days, setDaysState] = useState(remembered("pp.plan.horizonDays", "45", (v) => /^\d{0,4}$/.test(v)));
+  const [until, setUntilState] = useState(remembered("pp.plan.horizonUntil", "", (v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v)));
+  const setHorizon = (v: Horizon) => { setHorizonState(v); keep("pp.plan.horizon", v); };
+  const setDays = (v: string) => { setDaysState(v); keep("pp.plan.horizonDays", v); };
+  const setUntil = (v: string) => { setUntilState(v); keep("pp.plan.horizonUntil", v); };
   const [withRecords, setWithRecordsState] = useState(() => { try { return localStorage.getItem("pp.plan.withRecords") === "1"; } catch { return false; } });
   const setWithRecords = (v: boolean) => { setWithRecordsState(v); try { localStorage.setItem("pp.plan.withRecords", v ? "1" : "0"); } catch { /* this visit only */ } };
   const [search, setSearch] = useState("");
