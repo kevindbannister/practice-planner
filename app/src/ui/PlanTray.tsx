@@ -13,8 +13,9 @@ import { stageLabel } from "../lib/stages";
 import { progress, readSubtasks } from "../lib/subtasks";
 import { inFinalise, planHours, waitState, waitingForClient } from "../lib/waiting";
 import { CardField } from "./CardOptions";
+import { Horizon, inHorizon } from "../lib/trayFilter";
 
-export type Horizon = "30" | "90" | "all";
+export type { Horizon };
 
 export type Item = {
   kind: "job" | "task";
@@ -213,6 +214,10 @@ const typeKey = (i: Item) => (i.kind === "task" ? "TASK" : (i.row as Job).Servic
 export function usePlanTray({ items, today, inTray, suggestedKeys }: { items: Item[]; today: string; inTray: (i: Item) => boolean; suggestedKeys?: Set<string> }) {
   const idx = useIndex();
   const [horizon, setHorizon] = useState<Horizon>("90");
+  const [days, setDays] = useState("45");
+  const [until, setUntil] = useState("");
+  const [withRecords, setWithRecordsState] = useState(() => { try { return localStorage.getItem("pp.plan.withRecords") === "1"; } catch { return false; } });
+  const setWithRecords = (v: boolean) => { setWithRecordsState(v); try { localStorage.setItem("pp.plan.withRecords", v ? "1" : "0"); } catch { /* this visit only */ } };
   const [search, setSearch] = useState("");
   const [types, setTypes] = useRememberedTypes("pp.plan.types");
   const skip = suggestedKeys || new Set<string>();
@@ -229,7 +234,7 @@ export function usePlanTray({ items, today, inTray, suggestedKeys }: { items: It
   const trayAll = visible
     .filter((i) => !skip.has(i.key) && !(i.waiting && inTray(i)))
     .filter(inTray)
-    .filter((i) => horizon === "all" || !i.deadline || i.deadline <= addDays(today, Number(horizon)))
+    .filter((i) => inHorizon(i, { horizon, days, until, withRecords }, today))
     .filter((i) => !search || `${i.title} ${i.client}`.toLowerCase().includes(search.toLowerCase()));
   const typeOptions: TypeOption[] = [...trayAll.reduce((m, i) => {
     const k = typeKey(i);
@@ -241,7 +246,7 @@ export function usePlanTray({ items, today, inTray, suggestedKeys }: { items: It
   const unplanned = trayAll
     .filter((i) => !activeTypes.length || activeTypes.includes(typeKey(i)))
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999"));
-  return { horizon, setHorizon, search, setSearch, types, setTypes, held, withClient, speakDue, typeOptions, unplanned, today };
+  return { horizon, setHorizon, days, setDays, until, setUntil, withRecords, setWithRecords, search, setSearch, types, setTypes, held, withClient, speakDue, typeOptions, unplanned, today };
 }
 
 export type Tray = ReturnType<typeof usePlanTray>;
@@ -257,10 +262,29 @@ export function UnplannedTray({ tray, today, narrow, dropOver, card, wide }: { t
           <select className="input" value={tray.horizon} onChange={(e) => tray.setHorizon(e.target.value as Horizon)} style={{ minHeight: 36, padding: "4px 8px", width: "auto", fontSize: 13 }}>
             <option value="30">Due in 30 days</option>
             <option value="90">Due in 90 days</option>
+            <option value="days">Due in a number of days…</option>
+            <option value="date">Due by a date…</option>
             <option value="all">Everything</option>
           </select>
         </label>
       </div>
+      {(tray.horizon === "days" || tray.horizon === "date") && (
+        <div className="row-wrap" style={{ gap: 6, alignItems: "center" }}>
+          {tray.horizon === "days" ? (
+            <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Due within
+              <input className="input" type="number" inputMode="numeric" min={0} max={3650} step={1} value={tray.days} aria-label="Number of days" onChange={(e) => tray.setDays(e.target.value)} style={{ width: 80, minHeight: 34, padding: "2px 8px" }} />
+              days</label>
+          ) : (
+            <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Due on or before
+              <input className="input" type="date" value={tray.until} aria-label="Due on or before" onChange={(e) => tray.setUntil(e.target.value)} style={{ minHeight: 34, padding: "2px 8px", width: "auto" }} />
+            </label>
+          )}
+        </div>
+      )}
+      <label className="row-wrap" style={{ gap: 6, fontSize: 13 }} title="Show jobs we already have the records for, even when their deadline is later than the limit above">
+        <input type="checkbox" checked={tray.withRecords} onChange={(e) => tray.setWithRecords(e.target.checked)} />
+        Also show jobs we have records for, whatever the deadline
+      </label>
       <label className="search" style={{ maxWidth: "none", flex: "0 0 auto", minHeight: 40 }}>
         <Icon name="search" />
         <span className="sr-only">Search unplanned work</span>
