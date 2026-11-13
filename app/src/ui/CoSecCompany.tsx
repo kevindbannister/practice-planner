@@ -2,7 +2,7 @@
 // waiting to be filed), officers, persons with significant control, shares, the printable registers and its filings.
 import { useMemo, useState } from "react";
 import { fmtDate , todayIso } from "../lib/domain";
-import { filingRows, FilingRow } from "../lib/cosecHistory";
+import { filingRows, filingsFrom, FilingRow } from "../lib/cosecHistory";
 import { PENDING_TARGET, STATUS_LABEL, appointPerson, allotShares, changePerson, companyKind, isOpenTx, officersFromCh, pendingFor, pscsFromCh, terminatePerson, prepareTransfer, txStatus, verifiedFrom, verifiedOf } from "../lib/cosec";
 import { OFFICER_ROLES, PSC_KINDS, officerName, pscName } from "../lib/cosecForms";
 import { chNumber } from "../lib/companiesHouse";
