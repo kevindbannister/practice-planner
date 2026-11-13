@@ -3978,3 +3978,9 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 @media (min-width: 801px) { .paper-page .paper { background: #E7EBF0; } .paper-page .paper-main { box-shadow: -1px -1px 0 rgba(23, 38, 58, 0.08), -8px -6px 24px rgba(23, 38, 58, 0.06); } }
 .wp-body table.grid { width: 100%; }
 .wp-body .asset-main > .card, .wp-body .lead-main > .card { width: auto; }
+/* V30.5: tables fill the sheet; the section list scrolls without a visible bar and has no lines between groups */
+.wp-body table.grid { width: 100% !important; }
+.paper-page .paper-side { scrollbar-width: none; }
+.paper-page .paper-side::-webkit-scrollbar { display: none; }
+.paper-page .paper-group, .paper-page .paper-group + .paper-group, .paper-page .paper-side-head { border: 0 !important; }
+@media (min-width: 801px) { .paper-page .paper-split-main, .paper-page .paper-split-main > div { margin-top: 0; padding-top: 0; } .paper-page > .paper-split, .paper-page > div:has(> .paper-split-main) { margin-top: -14px; } }
