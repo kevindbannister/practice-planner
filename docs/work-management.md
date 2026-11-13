@@ -239,3 +239,7 @@ Too many notifications get ignored, so the Action Centre now raises fewer, bette
 - **Long groups are trimmed.** Each group shows its 8 most urgent items with "Show N more". Nothing is hidden for good and statutory overdue items still sort first.
 - Not changed: statutory deadlines, assignment rules, pop-up rules.
 - Limit: "filed" relies on Companies House data held on the client record (refresh it from the client's Companies House panel). Other accounts types (sole trader, charity) have no equivalent proof, so they are not suppressed.
+
+## V26.0: menu option that shows where you are
+
+Profile menu > "Drop-down, shows where you are". It is the normal drop-down menu, except the area word (Practise, Work, Advise) changes to the page you are on: on Tax the "Work" button reads "Tax", and clicking it still opens the Work menu. The other three menu styles are unchanged and the default stays as it was. The choice is kept per browser. The phone icons are not renamed.

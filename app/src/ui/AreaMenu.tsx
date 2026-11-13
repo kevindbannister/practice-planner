@@ -6,7 +6,7 @@ import { AREAS, MODULE_LABELS, areaOf, navKeyOf, type AreaId, type NavArea } fro
 
 const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
 
-export function AreaMenu({ section, chase = 0, children }: { section: string; chase?: number; children?: ReactNode }) {
+export function AreaMenu({ section, chase = 0, rename = false, children }: { section: string; chase?: number; rename?: boolean; children?: ReactNode }) {
   const [open, setOpen] = useState<AreaId | null>(null);
   const box = useRef<HTMLElement>(null);
   const here = areaOf(section);
@@ -25,8 +25,8 @@ export function AreaMenu({ section, chase = 0, children }: { section: string; ch
       <a className="nv-link nv-home" href="#/home" aria-label="Home" title="Home" aria-current={section === "home" ? "page" : undefined}><Icon name="home" size={20} /></a>
       {AREAS.map((a) => (
         <div key={a.id} className={`nv-item${open === a.id ? " open" : ""}${here === a.id ? " here" : ""}`} onMouseEnter={() => { if (open) setOpen(a.id); }}>
-          <button type="button" className="nv-link" aria-expanded={open === a.id} aria-controls={`nv-panel-${a.id}`} onClick={() => setOpen(open === a.id ? null : a.id)}>
-            {a.name}
+          <button type="button" className="nv-link" aria-expanded={open === a.id} aria-controls={`nv-panel-${a.id}`} aria-label={rename && here === a.id ? `${MODULE_LABELS[current]}, in ${a.name}. Open the ${a.name} menu` : undefined} title={rename && here === a.id ? `${a.name} menu` : undefined} onClick={() => setOpen(open === a.id ? null : a.id)}>
+            {rename && here === a.id && MODULE_LABELS[current] ? MODULE_LABELS[current] : a.name}
             <svg className="nv-caret" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
           <div className="nv-panel" id={`nv-panel-${a.id}`} aria-hidden={open !== a.id}>
@@ -47,8 +47,8 @@ export function AreaMenu({ section, chase = 0, children }: { section: string; ch
 }
 
 /** Which menu is showing: the drop-down one, or the two-line trial. Kept in this browser. */
-export type MenuKind = "drop" | "two" | "pick";
-const read = (): MenuKind => { try { const v = localStorage.getItem("pp.menu"); return v === "two" || v === "pick" ? v : "drop"; } catch { return "drop"; } };
+export type MenuKind = "drop" | "named" | "two" | "pick";
+const read = (): MenuKind => { try { const v = localStorage.getItem("pp.menu"); return v === "two" || v === "pick" || v === "named" ? v : "drop"; } catch { return "drop"; } };
 const subscribe = (cb: () => void) => { window.addEventListener("pp-menu", cb); return () => window.removeEventListener("pp-menu", cb); };
 export function useMenuKind(): [MenuKind, (k: MenuKind) => void] {
   const kind = useSyncExternalStore(subscribe, read, () => "drop" as MenuKind);

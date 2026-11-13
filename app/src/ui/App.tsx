@@ -231,7 +231,7 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
     <header className={`topbar${two ? " two" : ""}`}>
       <div className="topbar-left">
         <Brand />
-        <div className="hide-phone">{two ? <TwoLineAreas section={section} area={area} onPick={pickArea} /> : pick ? <AreaPicker section={section} area={area} onPick={pickArea} chase={ready ? chase : 0} /> : <AreaMenu section={section} chase={ready ? chase : 0} />}</div>
+        <div className="hide-phone">{two ? <TwoLineAreas section={section} area={area} onPick={pickArea} /> : pick ? <AreaPicker section={section} area={area} onPick={pickArea} chase={ready ? chase : 0} /> : <AreaMenu section={section} rename={menuKind === "named"} chase={ready ? chase : 0} />}</div>
         <div className="phone-nav">
         <div className="areas" role="group" aria-label="Areas">
           {AREAS.map((a) => (
@@ -324,7 +324,7 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
           <a role="menuitem" href="#/settings" onClick={() => setShown(false)}><Icon name="settings" size={16} /> Settings{waiting > 0 && <span className="nav-count" aria-label={`${waiting} waiting in the portal`}>{waiting}</span>}</a>
           <a role="menuitem" href="#/devhub" onClick={() => setShown(false)}><Icon name="cog" size={16} /> Development Hub</a>
           <div className="profile-sub">Menu style</div>
-          {([["drop", "Drop-down areas"], ["two", "Two lines"], ["pick", "Area picker"]] as const).map(([k, label]) => (
+          {([["drop", "Drop-down areas"], ["named", "Drop-down, shows where you are"], ["two", "Two lines"], ["pick", "Area picker"]] as const).map(([k, label]) => (
             <button key={k} type="button" role="menuitemradio" aria-checked={menuKind === k} onClick={() => { setMenuKind(k); setShown(false); }}>
               <Icon name={menuKind === k ? "check" : "layout"} size={16} /> {label}
             </button>
