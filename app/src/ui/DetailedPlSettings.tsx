@@ -59,7 +59,7 @@ export function DetailedPlSettings() {
   return (
     <section className="card pad stack" aria-labelledby="dpl-h" style={{ maxWidth: 680 }}>
       <h2 id="dpl-h">Detailed profit and loss</h2>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+      <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>
         Every IRIS line, in IRIS number order. Drag a line up or down to change where it shows on the detailed profit and loss account (in the accounts, the client deck and
         the PDF). Turnover, cost of sales and administrative expenses stay in their own parts; the order only changes inside each part. A line only shows when the client has a figure on it.
         The accounts update by themselves when you save a change here, even if they are open in another tab.

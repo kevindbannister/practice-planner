@@ -17,7 +17,7 @@ export function FreedomTab({ plan, edit }: Tab) {
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
           <div>
             <h2>Day to day living</h2>
-            <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>What their life costs each month. Rows left at nothing are ignored.</p>
+            <p className="muted tip" style={{ margin: "2px 0 0", fontSize: 13 }}>What their life costs each month. Rows left at nothing are ignored.</p>
           </div>
           <div style={{ textAlign: "right" }}>
             <strong className="mono" style={{ fontSize: 18 }}>{gbp(livingMonthly(plan))}</strong> <span className="muted" style={{ fontSize: 13 }}>a month</span>
@@ -56,7 +56,7 @@ export function FreedomTab({ plan, edit }: Tab) {
       <section className="card pad stack" aria-label="Long-term planning">
         <div>
           <h2>Long-term planning</h2>
-          <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>One-off goals, spread evenly over the years they are paid off in. Anything past year five is shown under Later.</p>
+          <p className="muted tip" style={{ margin: "2px 0 0", fontSize: 13 }}>One-off goals, spread evenly over the years they are paid off in. Anything past year five is shown under Later.</p>
         </div>
         <div className="table-wrap">
           <table className="grid lines">
@@ -90,7 +90,7 @@ export function FreedomTab({ plan, edit }: Tab) {
       <section className="card pad stack" aria-label="Tax and growth">
         <div>
           <h2>Tax and growth</h2>
-          <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>
+          <p className="muted tip" style={{ margin: "2px 0 0", fontSize: 13 }}>
             To take home £1 after personal tax the client needs £1 ÷ (1 − personal rate) of income, and the business must earn £1 ÷ (1 − business rate) of that before its own tax.
             These are effective rates (20% means they keep 80p in the pound). A calculation by tax band and tax year is still to come.
           </p>
@@ -105,7 +105,7 @@ export function FreedomTab({ plan, edit }: Tab) {
       <section className="card pad stack" aria-label="Your true Freedom Number">
         <div>
           <h2>Your True Freedom Number</h2>
-          <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>What the business has to earn, before its own tax, to pay for the life above.</p>
+          <p className="muted tip" style={{ margin: "2px 0 0", fontSize: 13 }}>What the business has to earn, before its own tax, to pay for the life above.</p>
         </div>
         <div className="table-wrap">
           <table className="grid lines">
@@ -163,7 +163,7 @@ export function NowTab({ plan, edit }: Tab) {
       <section className="card pad stack" aria-label="Current recurring income">
         <div>
           <h2>Current recurring income</h2>
-          <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>Income the business already has coming in every month, such as retainers and subscriptions. It carries on at the same level in every year.</p>
+          <p className="muted tip" style={{ margin: "2px 0 0", fontSize: 13 }}>Income the business already has coming in every month, such as retainers and subscriptions. It carries on at the same level in every year.</p>
         </div>
         <div className="row-wrap" style={{ gap: 20, alignItems: "flex-end" }}>
           <label className="field"><span className="muted" style={{ fontSize: 12 }}>Monthly recurring revenue</span><Num label="Monthly recurring revenue" prefix="£" width={140} value={plan.base.revenue} onChange={(n) => edit((p) => ({ ...p, base: { ...p.base, revenue: n } }))} /></label>
@@ -255,7 +255,7 @@ export function LeversTab({ plan, edit }: Tab) {
       <section className="card pad adv-lever-head" aria-label="Levers summary">
         <div>
           <h2>Levers</h2>
-          <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>Move the sliders to try new numbers of sales, prices and costs. Everything below and the Freedom Gap update as you go. Today's numbers stay as they are on Where you are now.</p>
+          <p className="muted tip" style={{ margin: "2px 0 0", fontSize: 13 }}>Move the sliders to try new numbers of sales, prices and costs. Everything below and the Freedom Gap update as you go. Today's numbers stay as they are on Where you are now.</p>
         </div>
         <div className="adv-stats">
           <Stat label="First 12 months now" value={gbp(now.years[0])} />

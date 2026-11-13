@@ -98,7 +98,7 @@ function Overview() {
   const waiting = outstanding(hub.integrations);
   return (
     <div className="stack" style={{ gap: 14 }}>
-      <div><h2 className="sec-h">Overview</h2><p className="muted" style={{ margin: "4px 0 0" }}>Built from the feature inventory, so anything changed in the Hub updates this page. "Complete" means checked live with evidence, so it starts at zero.</p></div>
+      <div><h2 className="sec-h">Overview</h2><p className="muted tip" style={{ margin: "4px 0 0" }}>Built from the feature inventory, so anything changed in the Hub updates this page. "Complete" means checked live with evidence, so it starts at zero.</p></div>
       <GhBanner />
       {hub.admin.open && <AdminSetup />}
       <div className="tiles">
@@ -135,7 +135,7 @@ function Overview() {
       <div className="dh-two">
         <div className="card pad stack" style={{ gap: 8 }}>
           <h3 className="sec-h" style={{ fontSize: 17 }}>Work on next</h3>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Priority 1 first. Open issues, then the features that most need attention.</p>
+          <p className="muted tip" style={{ margin: 0, fontSize: 12 }}>Priority 1 first. Open issues, then the features that most need attention.</p>
           {upNext.length ? <ul className="dh-list">{upNext.map((t) => <li key={t.number}><PriorityChip p={t.priority} /> <a href="#/devhub/board">#{t.number} {t.title.replace(/^\s*\[[^\]]*\]\s*/, "")}</a> <span className="chip">{t.column}</span></li>)}</ul> : <p className="muted" style={{ margin: 0 }}>No open prioritised issues.</p>}
           <h4 className="dh-h" style={{ marginTop: 6 }}>Features needing attention</h4>
           <ul className="dh-list">{next.map((f) => <li key={f.id}><a href={`#/devhub/map/${f.id}`}>{f.name}</a> <StatusChip status={f.status} /> <PriorityChip p={f.priority} /></li>)}</ul>

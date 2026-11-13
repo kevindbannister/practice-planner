@@ -66,7 +66,7 @@ export function CommsPage() {
       <div className="page-head">
         <div>
           <h1>Letters and emails</h1>
-          <p className="muted" style={{ margin: "4px 0 0" }}>Write with AI or by hand. Letters go into your letterhead as Word files; emails go into your Outlook drafts.</p>
+          <p className="muted tip" style={{ margin: "4px 0 0" }}>Write with AI or by hand. Letters go into your letterhead as Word files; emails go into your Outlook drafts.</p>
         </div>
         <NewButtons />
       </div>

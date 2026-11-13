@@ -42,7 +42,7 @@ export function TaxPlanningList() {
   return (
     <div className="page">
       <div className="page-head">
-        <div><h1>Tax planning</h1><p className="muted" style={{ margin: "4px 0 0" }}>Salary and dividends for each limited company's directors and shareholders.</p></div>
+        <div><h1>Tax planning</h1><p className="muted tip" style={{ margin: "4px 0 0" }}>Salary and dividends for each limited company's directors and shareholders.</p></div>
         <a className="btn" href={href("taxplan", "example", String(year))}>Worked example</a>
         <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Tax year
           <select className="input" style={{ width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>{[...tp.PLAN_YEARS].reverse().map((y) => <option key={y} value={y}>{yearLabel(y)}</option>)}</select>
@@ -216,7 +216,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
           {options.length > 0 && (
             <section className="card pad stack" aria-label="Salary options">
               <h2 className="sec-h">Salary options</h2>
-              <p className="muted" style={{ margin: 0, fontSize: 13 }}>Take-home is everyone's salary and dividends from this company after their income tax and NI, on whether Employment Allowance can be claimed (at least two people paid over £5,000); the other case is shown underneath. "Kept" is profit left in the company after corporation tax.</p>
+              <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>Take-home is everyone's salary and dividends from this company after their income tax and NI, on whether Employment Allowance can be claimed (at least two people paid over £5,000); the other case is shown underneath. "Kept" is profit left in the company after corporation tax.</p>
               <div className="table-wrap"><table className="grid">
                 <thead><tr><th /><th>Option</th><th>Salaries</th><th>Employment Allowance</th><th className="num">Take-home</th><th className="num">Kept in company</th><th className="num">All tax</th></tr></thead>
                 <tbody>{options.map((o) => (

@@ -34,7 +34,7 @@ export function OwnershipCheck({ client }: { client: Row }) {
   const [asOf, setAsOf] = useState(todayIso());
   const own = useMemo(() => owners(entries, classes, ck, asOf), [entries, classes, ck, asOf]);
   const check = useMemo(() => pscCheck(own, k.data.cosecPscs.filter((p) => p.ClientKey === ck)), [own, k.data.cosecPscs, ck]);
-  if (!entries.length) return <section className="card pad stack" aria-label="Ownership"><h3 style={{ margin: 0 }}>Ownership</h3><p className="muted" style={{ margin: 0 }}>Nothing on the share ledger yet, so there is no ownership to work out.</p></section>;
+  if (!entries.length) return <section className="card pad stack" aria-label="Ownership"><h3 style={{ margin: 0 }}>Ownership</h3><p className="muted tip" style={{ margin: 0 }}>Nothing on the share ledger yet, so there is no ownership to work out.</p></section>;
   return (
     <section className="card pad stack" aria-label="Ownership">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>

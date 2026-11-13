@@ -19,7 +19,7 @@ export function DevRoadmap() {
   return (
     <section className="stack" style={{ gap: 12, minWidth: 0 }} aria-label="Roadmap">
       <h2 className="sec-h">Roadmap</h2>
-      <p className="muted" style={{ margin: 0 }}>The five agreed priorities, in order. Bars show where each group of features actually stands: the dark green part is features verified complete live; nothing is counted as done because code exists. No dates are shown until some are agreed.</p>
+      <p className="muted tip" style={{ margin: 0 }}>The five agreed priorities, in order. Bars show where each group of features actually stands: the dark green part is features verified complete live; nothing is counted as done because code exists. No dates are shown until some are agreed.</p>
       <div className="alert blue"><strong>Parallel track: external approvals</strong><span>{open} of {hub.integrations.length} approvals still need action. These run alongside every priority below.</span><a className="btn small" href="#/devhub/integrations">Open approvals</a></div>
       {SEED_ROADMAP.map((p, idx) => {
         const feats = featuresUnder(hub.features, p.items.flatMap((i) => i.features));

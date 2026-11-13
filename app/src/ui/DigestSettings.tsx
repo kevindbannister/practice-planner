@@ -22,7 +22,7 @@ export function DigestSettings() {
   return (
     <section className="card pad stack" aria-label="Morning email">
       <h2 className="sec-h">Morning email</h2>
-      <p className="muted" style={{ margin: 0 }}>Each morning the server emails each person what is overdue or due in the next 7 days on their clients' work (clients where they are the manager or partner). Managers and partners also get AML reviews, assessments in progress and sanctions re-screens. It is sent from the practice mailbox the client portal uses, and only when there is something to say.</p>
+      <p className="muted tip" style={{ margin: 0 }}>Each morning the server emails each person what is overdue or due in the next 7 days on their clients' work (clients where they are the manager or partner). Managers and partners also get AML reviews, assessments in progress and sanctions re-screens. It is sent from the practice mailbox the client portal uses, and only when there is something to say.</p>
       <label className="row" style={{ gap: 8 }}><input type="checkbox" checked={!!v.enabled} onChange={(e) => save({ enabled: e.target.checked })} /> Send the morning email</label>
       <label className="row" style={{ gap: 8 }}>Days
         <select className="input" style={{ maxWidth: 220 }} value={v.days || "weekdays"} onChange={(e) => save({ days: e.target.value as "weekdays" | "daily" })}><option value="weekdays">Monday to Friday</option><option value="daily">Every day</option></select>

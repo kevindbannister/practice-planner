@@ -410,7 +410,7 @@ export function PaymentReminders() {
       <div className="page-head">
         <div>
           <h1>Payment reminders</h1>
-          <p className="muted" style={{ margin: "4px 0 0" }}>
+          <p className="muted tip" style={{ margin: "4px 0 0" }}>
             Tax payments due soon and not marked paid, one email per client and date. They come from each client's Tax payments tab.
           </p>
         </div>

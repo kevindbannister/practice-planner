@@ -30,7 +30,7 @@ export function WorkOverview() {
   return (
     <div className="page">
       <PlanTabs current="overview" />
-      <div className="page-head"><div><h1>Work overview</h1><p className="muted" style={{ margin: "4px 0 0" }}>Every client's open work. Counts are of jobs and tasks, never of planned sessions.</p></div></div>
+      <div className="page-head"><div><h1>Work overview</h1><p className="muted tip" style={{ margin: "4px 0 0" }}>Every client's open work. Counts are of jobs and tasks, never of planned sessions.</p></div></div>
       <div className="card pad row-wrap" style={{ gap: 8 }}>
         <div role="group" aria-label="View" className="row-wrap" style={{ gap: 4 }}>{(["counts", "workload"] as const).map((v) => <button key={v} type="button" className={`btn small${view === v ? " primary" : ""}`} aria-pressed={view === v} onClick={() => setView(v)}>{v === "counts" ? "Counts" : "Workload"}</button>)}</div>
         <label className="doc-field"><span>Person</span><select className="input" value={user} onChange={(e) => setUser(e.target.value)}><option value="">Everyone</option>{owners.map((o) => <option key={o}>{o}</option>)}</select></label>

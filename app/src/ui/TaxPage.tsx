@@ -70,7 +70,7 @@ function TaxList() {
       <div className="page-head">
         <div>
           <h1>Personal tax</h1>
-          <p className="muted" style={{ margin: "4px 0 0" }}>Self Assessment returns and tax computations for each client and tax year.</p>
+          <p className="muted tip" style={{ margin: "4px 0 0" }}>Self Assessment returns and tax computations for each client and tax year.</p>
         </div>
         <button type="button" className="btn" title="Bring in a client's past returns from IRIS Elements, one PDF for each year" onClick={() => setBulk(true)}><Icon name="download" size={15} /> Import past returns</button>
         <button type="button" className="btn primary" onClick={() => setStarting(true)}><Icon name="plus" size={15} /> New tax return</button>

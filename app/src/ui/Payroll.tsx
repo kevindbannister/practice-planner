@@ -87,7 +87,7 @@ function PayrollList() {
   };
   return (
     <div className="page">
-      <div className="page-head"><div><h1>Payroll</h1><p className="muted" style={{ margin: "4px 0 0" }}>PAYE schemes the practice runs as agent. Each FPS goes to HMRC on payday; months with no pay get a nil EPS. The client pays HMRC.</p></div></div>
+      <div className="page-head"><div><h1>Payroll</h1><p className="muted tip" style={{ margin: "4px 0 0" }}>PAYE schemes the practice runs as agent. Each FPS goes to HMRC on payday; months with no pay get a nil EPS. The client pays HMRC.</p></div></div>
       <section className="card pad" aria-label="HMRC filing">
         {err ? <p className="warn" style={{ margin: 0 }}>{err}</p> : !info ? <p className="muted" style={{ margin: 0 }}>Checking HMRC filing…</p>
           : info.configured ? <p style={{ margin: 0 }}><span className={`chip ${info.live ? "green" : "amber"}`}>{info.live ? "Live" : "HMRC test service"}</span> Filing as agent is set up{info.live ? "" : ": submissions go to HMRC's test service until RTI_LIVE is switched on"}.</p>
@@ -302,7 +302,7 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
 
       <section className="card pad stack" aria-label="The year ahead">
         <h2 className="sec-h">The year ahead</h2>
-        <p className="muted" style={{ margin: 0, fontSize: 13 }}>Every period worked out now from the paydays and pay above, carrying the year to date from one to the next. Approved periods show what was approved.</p>
+        <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>Every period worked out now from the paydays and pay above, carrying the year to date from one to the next. Approved periods show what was approved.</p>
         <div className="table-wrap"><table className="grid">
           <thead><tr><th>Period</th><th>Payday</th><th className="num">Gross</th><th className="num">Tax</th><th className="num">Employee NI</th><th className="num">Employer NI</th><th className="num">Loans</th><th className="num">Net pay</th><th className="num">Due to HMRC</th><th>State</th></tr></thead>
           <tbody>{preview.periods.map((p) => (
@@ -369,7 +369,7 @@ function ExtrasCard({ can, scheme, people, paydays, locked, extras, setExtras, y
   return (
     <section className="card pad stack" aria-label="One-off and statutory pay">
       <h2 className="sec-h">One-off and statutory pay</h2>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Bonuses, expenses, deductions and statutory pay for one period, on top of the usual pay. Family payments are claimed back on an EPS automatically when the period is approved; SSP can't be claimed back.</p>
+      <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>Bonuses, expenses, deductions and statutory pay for one period, on top of the usual pay. Family payments are claimed back on an EPS automatically when the period is approved; SSP can't be claimed back.</p>
       <div className="row-wrap" style={{ gap: 8 }}>
         <label className="field"><span>Person</span><select className="input" value={pk} onChange={(e) => setPk(e.target.value)}>{people.map((p) => <option key={p.key} value={p.key}>{rec.fullName(p)}</option>)}</select></label>
         <label className="field"><span>Period</span><select className="input" value={period} onChange={(e) => setPeriod(Number(e.target.value))}>{paydays.map((d, i) => <option key={i} value={i + 1} disabled={!d}>{i + 1}{d ? ` (paid ${fmt(d)})` : " (no payday)"}{locked.has(i + 1) ? ", approved" : ""}</option>)}</select></label>
@@ -495,7 +495,7 @@ function RunsTab({ P, scheme, people, y, runs, subs, view }: { P: PP; scheme: re
       </section>
       <section className="card pad stack" aria-label="P60 and P45">
         <h2 className="sec-h">P60 and P45</h2>
-        <p className="muted" style={{ margin: 0, fontSize: 13 }}>P60s go to everyone employed on 5 April, by 31 May. A leaver's P45 details are made from their last approved run (the leaving date goes to HMRC on that FPS). A P45 on plain paper needs HMRC's approval as a substitute form.</p>
+        <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>P60s go to everyone employed on 5 April, by 31 May. A leaver's P45 details are made from their last approved run (the leaving date goes to HMRC on that FPS). A P45 on plain paper needs HMRC's approval as a substitute form.</p>
         <div className="table-wrap"><table className="grid"><tbody>{people.map((p) => { const l = lastLine(p.key); return (
           <tr key={p.key}><td>{rec.fullName(p)}</td>
             <td>{l ? <button className="linkbtn" type="button" disabled={!finalDone && !p.leavingDate} title={finalDone ? "" : "Approve the last period of the year first"} onClick={() => makeDoc(`P60 ${yearLabel(y.year)}`, p60(scheme, p, l, y.year), rec.fullName(p))}>P60{finalDone ? "" : " (after the last run)"}</button> : <span className="muted">No approved runs</span>}</td>

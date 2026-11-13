@@ -58,7 +58,7 @@ export function MeetingsList() {
       <div className="page-head">
         <div>
           <h1>Meetings and calls</h1>
-          <p className="muted" style={{ margin: "4px 0 0" }}>Plan with an agenda, take notes under each item, then tidy up into a summary and actions.</p>
+          <p className="muted tip" style={{ margin: "4px 0 0" }}>Plan with an agenda, take notes under each item, then tidy up into a summary and actions.</p>
         </div>
         <NewMeetingButtons />
       </div>
@@ -192,7 +192,7 @@ export function MeetingPage({ meetingKey, initial }: { meetingKey?: string; init
       <div className="page">
         <CommsTabs current="meetings" />
         <div className="page-head"><h1>New meeting</h1></div>
-        <p className="muted" style={{ margin: 0 }}>Choose what sort of meeting it is. The agenda is filled in for you, and you can change it.</p>
+        <p className="muted tip" style={{ margin: 0 }}>Choose what sort of meeting it is. The agenda is filled in for you, and you can change it.</p>
         <div className="template-grid">
           {TEMPLATES.map((t) => (
             <button key={t.key} type="button" className="card template-card" onClick={() => set({ Template: t.key, Kind: t.kind, Minutes: t.minutes, agenda: t.agenda.map((item) => ({ item, notes: "" })), Status: t.key === "call" ? "done" : "planned" })}>

@@ -23,7 +23,7 @@ export function CoSecSettings() {
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Companies House fees">
         <h3 style={{ margin: 0 }}>Companies House fees</h3>
-        <p className="muted" style={{ margin: 0 }}>Shown on confirmation statements. The built-in figure came from a third-party article, not GOV.UK, so check it before relying on it and note where you checked.</p>
+        <p className="muted tip" style={{ margin: 0 }}>Shown on confirmation statements. The built-in figure came from a third-party article, not GOV.UK, so check it before relying on it and note where you checked.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 10 }}>
           <label className="doc-field"><span>Confirmation statement fee (£, online)</span><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
           <label className="doc-field"><span>Effective from</span><input className="input" type="date" value={effective} onChange={(e) => setEffective(e.target.value)} /></label>

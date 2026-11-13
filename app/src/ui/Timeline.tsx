@@ -143,7 +143,7 @@ export function ClientTimeline({ client, mode = "all" }: { client: Client; mode?
       {confirm.length > 0 && (
         <section className="card pad stack" aria-label="Emails to confirm">
           <h3 style={{ margin: 0 }}>{confirm.length} email{confirm.length === 1 ? "" : "s"} might belong to {client.Title}</h3>
-          <p className="muted" style={{ margin: 0 }}>The address is shared with another client or only matches a company domain, so nothing is linked until you say so.</p>
+          <p className="muted tip" style={{ margin: 0 }}>The address is shared with another client or only matches a company domain, so nothing is linked until you say so.</p>
           {confirm.slice(0, 10).map((m) => (
             <div key={m.id} className="tl-confirm">
               <div><strong>{m.subject || "(no subject)"}</strong><div className="muted">{m.folder === "inbox" ? `From ${m.fromName || m.fromAddress}` : `To ${m.to.join(", ")}`} · {fmtDate(m.at.slice(0, 10))}</div></div>

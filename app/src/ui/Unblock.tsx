@@ -19,7 +19,7 @@ export function Unblock() {
   return (
     <div className="page">
       <PlanTabs current="unblock" />
-      <div className="page-head"><div><h1>What can I unblock?</h1><p className="muted" style={{ margin: "4px 0 0" }}>Outstanding prerequisites, most worth acting on first. Deadlines never move because something is waiting.</p></div></div>
+      <div className="page-head"><div><h1>What can I unblock?</h1><p className="muted tip" style={{ margin: "4px 0 0" }}>Outstanding prerequisites, most worth acting on first. Deadlines never move because something is waiting.</p></div></div>
       {!r.impacts.length && <p className="card pad muted">Nothing is holding up any work.</p>}
       <ul className="plain stack" style={{ gap: 10, margin: 0 }}>{r.impacts.map((i) => (
         <li key={i.prerequisite.kind + i.prerequisite.key} className="card pad stack" style={{ gap: 4 }}>

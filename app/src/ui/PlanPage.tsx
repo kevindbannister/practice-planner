@@ -690,7 +690,7 @@ function WeekView() {
           <div className="missed-head">
             <button type="button" className="missed-toggle" aria-expanded={lateOpen} onClick={() => setLateOpen(!lateOpen)}>
               <span aria-hidden="true">{lateOpen ? "▾" : "▸"}</span>
-              <span id="late-h"><strong>⚠ {lateItems.length} planned after {lateItems.length === 1 ? "its" : "their"} deadline</strong></span>
+              <span id="late-h"><strong><span className="sym-alert" aria-hidden="true"><Icon name="alert" size={13} /></span>{lateItems.length} planned after {lateItems.length === 1 ? "its" : "their"} deadline</strong></span>
             </button>
           </div>
           {lateOpen && (

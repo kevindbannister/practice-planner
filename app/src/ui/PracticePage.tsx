@@ -48,7 +48,7 @@ export function PracticePage() {
       <div className="page-head">
         <div>
           <h1>Practice</h1>
-          <p className="muted" style={{ margin: "4px 0 0" }}>How the whole firm is doing today. Read only: every figure opens the screen with the detail.</p>
+          <p className="muted tip" style={{ margin: "4px 0 0" }}>How the whole firm is doing today. Read only: every figure opens the screen with the detail.</p>
         </div>
       </div>
 

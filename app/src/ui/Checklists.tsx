@@ -20,7 +20,7 @@ export function ChecklistsPage() {
     <div className="page checklists-page">
       <div className="page-head"><div>
         <h1>Checklists</h1>
-        <p className="muted" style={{ margin: "4px 0 0" }}>Standard steps for each job: what applies, who does it, what's left and what's been reviewed.</p>
+        <p className="muted tip" style={{ margin: "4px 0 0" }}>Standard steps for each job: what applies, who does it, what's left and what's been reviewed.</p>
       </div></div>
       <nav className="subtabs" aria-label="Checklists">
         {TABS.map(([k, label, h]) => <a key={k} className="subtab" href={h} aria-current={sub === k ? "page" : undefined}>{label}</a>)}

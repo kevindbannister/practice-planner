@@ -87,7 +87,7 @@ export function AmlClients() {
 
   return (
     <>
-      <div className="page-head"><div><h1>Client AML tracker</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 780 }}>Every active client's AML position in one place: risk rating, when it was last done, when the next review is due and whether a review has been triggered. Sanctions and PEP shows green when the client's screening is within your policy period, amber in the last 30 days before the re-screen is due, and red when it is overdue, has never been done or found a possible match. Review periods and triggers come from your policy's monitoring step.</p></div></div>
+      <div className="page-head"><div><h1>Client AML tracker</h1><p className="muted tip" style={{ margin: "4px 0 0", maxWidth: 780 }}>Every active client's AML position in one place: risk rating, when it was last done, when the next review is due and whether a review has been triggered. Sanctions and PEP shows green when the client's screening is within your policy period, amber in the last 30 days before the re-screen is due, and red when it is overdue, has never been done or found a possible match. Review periods and triggers come from your policy's monitoring step.</p></div></div>
       <section className="card pad stack" aria-label="Filters">
         <div className="row-wrap no-print" role="group" aria-label="Show" style={{ gap: 8 }}>
           {FILTERS.map(([k, l]) => <button key={k} type="button" className={`btn small${filter === k ? " primary" : ""}`} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l} ({count(k)})</button>)}

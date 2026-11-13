@@ -30,7 +30,7 @@ export function FirmSettings() {
   return (
     <section className="card" aria-labelledby="firm-h" style={{ marginTop: 16, padding: 22 }}>
       <h2 id="firm-h">Your firm</h2>
-      <p className="muted">Your practice's details as an agent. They appear alongside a client's details when you register them with HMRC, for example for CIS. Leave out anything you don't have yet.</p>
+      <p className="muted tip">Your practice's details as an agent. They appear alongside a client's details when you register them with HMRC, for example for CIS. Leave out anything you don't have yet.</p>
       <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", marginTop: 12 }}>
         {input("firmName", "Firm name")}
         {input("contactName", "Contact at the firm")}

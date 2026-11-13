@@ -351,7 +351,7 @@ function Overview() {
   const tone = (st: p.Standing) => (st === "overdue" ? "red" : st === "soon" || st === "draft" ? "amber" : st === "ok" ? "green" : "");
   return (
     <>
-      <div className="page-head"><div><h1>AML</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 760 }}>The practice's own anti-money-laundering records, in one place. Everything is based on your own draft documents: check it, complete it and approve it before relying on it as evidence. Nothing here is sent anywhere.</p></div></div>
+      <div className="page-head"><div><h1>AML</h1><p className="muted tip" style={{ margin: "4px 0 0", maxWidth: 760 }}>The practice's own anti-money-laundering records, in one place. Everything is based on your own draft documents: check it, complete it and approve it before relying on it as evidence. Nothing here is sent anywhere.</p></div></div>
       <section className="card pad stack" aria-label="Client reviews needed">
         <div className="card-title-row"><h2 className="sec-h">Client reviews needed</h2><span className={`chip ${needed.length ? (needed.some((x) => x.chip === "red") ? "red" : "amber") : "green"}`}>{needed.length ? `${needed.length} to do` : "None"}</span></div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Clients with a scheduled review due or overdue, a review opened by a trigger, a change your policy says should prompt one, or no assessment yet. Review periods and triggers come from your policy's monitoring step.</p>
@@ -432,7 +432,7 @@ function Checklist() {
   const word = (s: string) => (s === "done" ? "Done" : s === "work" ? "Needs work" : "Not started");
   return (
     <>
-      <div className="page-head"><div><h1>ACCA checklist</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 780 }}>What an ACCA-supervised firm is expected to have in place for AML, checked against what is recorded in the planner. Start with the red and amber items.</p></div></div>
+      <div className="page-head"><div><h1>ACCA checklist</h1><p className="muted tip" style={{ margin: "4px 0 0", maxWidth: 780 }}>What an ACCA-supervised firm is expected to have in place for AML, checked against what is recorded in the planner. Start with the red and amber items.</p></div></div>
       <section className="card pad stack" aria-label="Summary">
         <span><strong>{done} of {items.length}</strong> in place. {items.filter((i) => i.state === "start").length} not started, {items.filter((i) => i.state === "work").length} need work.</span>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>"Done" means the planner holds evidence. It can't judge whether an answer is good enough, and some duties, such as screening staff, can only be checked by whether the policy covers them. Regulation numbers are from the Money Laundering Regulations 2017: check them against ACCA's current guidance.</p>
@@ -458,7 +458,7 @@ function BlankForms() {
   const a = useAml();
   return (
     <>
-      <div className="page-head"><div><h1>SAR and blank forms</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 760 }}>These are printed blank and filled in by hand or in Word, and the completed copies are kept in a restricted place. Nothing you type about a suspicion is stored in the planner.</p></div></div>
+      <div className="page-head"><div><h1>SAR and blank forms</h1><p className="muted tip" style={{ margin: "4px 0 0", maxWidth: 760 }}>These are printed blank and filled in by hand or in Word, and the completed copies are kept in a restricted place. Nothing you type about a suspicion is stored in the planner.</p></div></div>
       {p.FORMS.filter((f) => !f.stored).map((f) => (
         <section key={f.id} className="card pad stack" aria-label={f.title}>
           <div className="card-title-row"><h2 className="sec-h">{f.title}{f.restricted && <span className="chip red" style={{ marginLeft: 8 }}>Restricted</span>}</h2><ExportButtons def={f} blank firm={a.firm} clientName={a.clientName} /></div>
@@ -476,7 +476,7 @@ function XamaScreening() {
   return (
     <section className="card pad stack" aria-label="Screening from Xama">
       <h2 className="sec-h">From Xama</h2>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Each client's Xama AML check (identity and address, PEP and sanctions), dated from Xama's own report. It fills in when you refresh a client's Xama result. Record checks done anywhere else in the form below.</p>
+      <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>Each client's Xama AML check (identity and address, PEP and sanctions), dated from Xama's own report. It fills in when you refresh a client's Xama result. Record checks done anywhere else in the form below.</p>
       {rows.length === 0 ? <p className="muted" style={{ margin: 0 }}>No Xama AML check has been picked up yet. Open a client's AML tab and press Refresh result after running one.</p> : (
         <table className="table"><thead><tr><th>Client</th><th>Checked</th><th>Result</th></tr></thead>
           <tbody>{rows.map(({ c, x }) => <tr key={String(c.Key)}><td><a href={href("clients", String(c.Key), "aml")}>{String(c.Title)}</a></td><td>{x.on ? fmtDate(x.on) : "—"}</td>
@@ -507,7 +507,7 @@ function Records() {
   let last = "";
   return (
     <>
-      <div className="page-head"><div><h1>AML records</h1><p className="muted" style={{ margin: "4px 0 0", maxWidth: 780 }}>Client reviews, screening checks, training, actions, registrations, the MLRO report and the independent review on one timeline, newest first, with what is coming up next. Choose a type to filter, or add a new record: it opens in the same form as before.</p></div></div>
+      <div className="page-head"><div><h1>AML records</h1><p className="muted tip" style={{ margin: "4px 0 0", maxWidth: 780 }}>Client reviews, screening checks, training, actions, registrations, the MLRO report and the independent review on one timeline, newest first, with what is coming up next. Choose a type to filter, or add a new record: it opens in the same form as before.</p></div></div>
       <section className="card pad stack" aria-label="Filters">
         <div className="row-wrap" style={{ gap: 8, alignItems: "center", justifyContent: "space-between" }}>
           <div className="row-wrap" role="group" aria-label="Type" style={{ gap: 8 }}>

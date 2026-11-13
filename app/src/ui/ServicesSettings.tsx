@@ -81,7 +81,7 @@ export function ServicesSettings() {
         {f && current ? (
           <section className="card pad stack" style={{ flex: "2 1 460px" }} aria-label={`${current.name} settings`}>
             <h2 className="sec-h">{current.name}</h2>
-            <p className="muted" style={{ margin: 0 }}>This is also a type of work in the planner. Its repeat and deadline rules are under Types of work; this page is what a proposal says and charges.</p>
+            <p className="muted tip" style={{ margin: 0 }}>This is also a type of work in the planner. Its repeat and deadline rules are under Types of work; this page is what a proposal says and charges.</p>
             <div className="row-wrap" style={{ gap: 16 }}>
               <label className="row-wrap" style={{ gap: 6 }}><input type="checkbox" checked={f.offered} onChange={(e) => set("offered", e.target.checked)} /> Offer in proposals</label>
               <label className="row-wrap" style={{ gap: 6 }} title="When ticked, onboarding will not start this work until an agent authorisation is recorded"><input type="checkbox" checked={f.requiresAuth} onChange={(e) => set("requiresAuth", e.target.checked)} /> Needs an agent authorisation before work starts</label>

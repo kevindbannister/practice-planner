@@ -46,7 +46,7 @@ export function SalesSettings() {
     <>
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <h2 style={{ marginTop: 0 }}>Pipeline stages</h2>
-        <p className="muted">Rename, reorder, add or remove stages. The last stage is where won work ends up, and always stays last.</p>
+        <p className="muted tip">Rename, reorder, add or remove stages. The last stage is where won work ends up, and always stays last.</p>
         <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {stages.map((st, i) => (
             <li key={st.key} className="row-wrap" style={{ gap: 8, marginBottom: 8, alignItems: "center" }}>

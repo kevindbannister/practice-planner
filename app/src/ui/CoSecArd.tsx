@@ -45,7 +45,7 @@ export function ArdTab({ client }: { client: Row }) {
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Change accounting reference date">
         <h3 style={{ margin: 0 }}>{form === "LLAA01" ? "LL AA01" : "AA01"}: {formTitle(form)}</h3>
-        <p className="muted" style={{ margin: 0 }}>Use this when the client wants a different year end. It prepares the form for review and checks the extension and shortening rules. It doesn't prepare accounts, which are done in Working Papers and Accounts Production, and it doesn't send anything to Companies House.</p>
+        <p className="muted tip" style={{ margin: 0 }}>Use this when the client wants a different year end. It prepares the form for review and checks the extension and shortening rules. It doesn't prepare accounts, which are done in Working Papers and Accounts Production, and it doesn't send anything to Companies House.</p>
         <p style={{ margin: 0 }}>Companies House shows the accounting reference date as <strong>{ver.ard || "not checked yet"}</strong>{ver.accTo ? <>, with the next accounts for the period ending <strong>{fmtDate(ver.accTo)}</strong>{ver.accDue ? <> and due by <strong>{fmtDate(ver.accDue)}</strong></> : null}</> : null}.{!ver.accTo && " Check Companies House on the Details tab to fill in the period dates."}</p>
         {open.length > 0 && <p className="chip amber" style={{ alignSelf: "flex-start" }}>A change is already waiting: <a href={href("cosec", "filing", s(open[0].Key))}>{s(open[0].Ref)}</a>. Preparing again updates that draft.</p>}
         {edit ? (

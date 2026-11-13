@@ -40,7 +40,7 @@ export function CompliancePage() {
   const clients = data.clients as Row[];
   return (
     <div className="page">
-      <div className="page-head"><div><h1>Compliance</h1><p className="muted" style={{ margin: "4px 0 0" }}>The practice's own regulatory risk. The planner records dates and decisions; it never deletes anything or contacts anyone.</p></div></div>
+      <div className="page-head"><div><h1>Compliance</h1><p className="muted tip" style={{ margin: "4px 0 0" }}>The practice's own regulatory risk. The planner records dates and decisions; it never deletes anything or contacts anyone.</p></div></div>
       <GroupedTabs groups={complianceGroups()} current={tab} label="Compliance" />
       {!logsLoaded && <div className="note" role="status">Still loading the compliance and audit logs. Figures on this page will fill in shortly.</div>}
       {tab === "overview" && <Overview years={years} today={today} />}

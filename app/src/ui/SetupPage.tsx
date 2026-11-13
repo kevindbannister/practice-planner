@@ -70,7 +70,7 @@ export function SetupPage() {
       <div className="panel">
         <span className="eyebrow">Setup</span>
         <h1>Get Xproflow ready</h1>
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted tip" style={{ margin: 0 }}>
           Two steps, both safe to run again: nothing already there is changed or duplicated.
         </p>
 

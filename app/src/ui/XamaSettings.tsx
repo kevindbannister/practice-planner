@@ -74,7 +74,7 @@ export function XamaSettings() {
   return (
     <section className="card" aria-labelledby="xama-h" style={{ marginTop: 16, padding: 22 }}>
       <h2 id="xama-h">Xama (AML checks)</h2>
-      <p className="muted">Reads each client's AML result from your Xama account into the planner. It only reads: nothing in Xama is ever changed.</p>
+      <p className="muted tip">Reads each client's AML result from your Xama account into the planner. It only reads: nothing in Xama is ever changed.</p>
 
       <div className="card" style={box}>
         <h3 style={{ marginTop: 0 }}>1. Connection</h3>
@@ -119,7 +119,7 @@ export function XamaSettings() {
 
       <div className="card" style={box}>
         <h3 style={{ marginTop: 0 }}>2. Read AML results</h3>
-        <p className="muted">Finds each client in Xama (by the Xama link already on the client, otherwise by an exact name match), reads its latest approved risk assessment, and shows what would change. Nothing is saved until you press Save.</p>
+        <p className="muted tip">Finds each client in Xama (by the Xama link already on the client, otherwise by an exact name match), reads its latest approved risk assessment, and shows what would change. Nothing is saved until you press Save.</p>
         <button type="button" className="btn primary" disabled={!ready || !!progress} onClick={() => void read()}>
           {progress ? `Reading… ${progress[0]} of ${progress[1]}` : rows ? "Read again" : "Read from Xama"}
         </button>

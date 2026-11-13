@@ -3692,3 +3692,9 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
 .step-btn .step-num { width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--line-2); color: var(--ink-2); font-size: 13px; font-weight: 700; }
 .step-btn[aria-current="step"] { background: var(--navy); border-color: var(--navy); color: #fff; }
 .step-btn[aria-current="step"] .step-num { background: rgba(255, 255, 255, 0.2); color: #fff; }
+
+/* V28.9: tips (a screen's or box's explanation) only when "Show tips" is on in the profile menu; symbols are icons */
+:root:not([data-tips]) .tip { display: none; }
+.sym-alert, .sym-ok { display: inline-flex; vertical-align: -2px; margin-right: 4px; }
+.sym-alert { color: var(--red-solid); }
+.sym-ok { color: var(--green); }

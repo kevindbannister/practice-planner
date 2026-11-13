@@ -30,7 +30,7 @@ export function DependencyTemplatesPage() {
   const decline = (o: Extract<Outcome, { kind: "review" }>) => run(async () => { await create("TemplateDecisions", decisionRow(o.template.key, o.dependent.key, { user: user || "", now: new Date().toISOString(), key: () => newKey("TD") }, "Does not apply")); });
   return (
     <div className="page">
-      <div className="page-head"><div><h1>Dependency templates</h1><p className="muted" style={{ margin: "4px 0 0" }}>Standard relationships between kinds of work, applied to each new period's jobs. They only fill in what is missing on open jobs and never change finished ones. Nothing is sent to a client.</p></div></div>
+      <div className="page-head"><div><h1>Dependency templates</h1><p className="muted tip" style={{ margin: "4px 0 0" }}>Standard relationships between kinds of work, applied to each new period's jobs. They only fill in what is missing on open jobs and never change finished ones. Nothing is sent to a client.</p></div></div>
       {error && <p className="error-text" role="alert">{error}</p>}{msg && <p role="status">{msg}</p>}
       {p.reviews.length > 0 && <section className="card pad stack" aria-label="Needs a decision"><h2 style={{ margin: 0, fontSize: 16 }}>Needs a decision ({p.reviews.length})</h2>
         {p.reviews.map((o) => <div key={o.template.key + o.dependent.key} className="stack" style={{ gap: 4, borderTop: "1px solid var(--line)", paddingTop: 8 }}>
@@ -66,7 +66,7 @@ function TemplateForm({ t, services, stagesOf, exists, onClose, onSave }: { t: T
   return (
     <section className="card pad stack" aria-label="Edit template" style={{ gap: 8 }}>
       <h2 style={{ margin: 0, fontSize: 16 }}>{exists ? "Edit template" : "New template"}</h2>
-      <p className="muted" style={{ margin: 0 }}>Changes apply to jobs created or checked from now on. Existing dependencies and finished jobs are not changed.</p>
+      <p className="muted tip" style={{ margin: 0 }}>Changes apply to jobs created or checked from now on. Existing dependencies and finished jobs are not changed.</p>
       <label className="doc-field"><span>Name</span><input className="input" value={v.title} onChange={(e) => set({ title: e.target.value })} /></label>
       <label className="doc-field"><span>It waits for</span><select className="input" value={v.kind} onChange={(e) => set({ kind: e.target.value as "job" | "task", relation: e.target.value === "task" ? "same_period" : v.relation, type: e.target.value === "task" ? "information" : v.type })}><option value="job">Another job</option><option value="task">Information to be received</option></select></label>
       {svc("This service waits", v.depService, (x) => set({ depService: x, depStage: "" }))}

@@ -53,7 +53,7 @@ export function PricingSettings() {
     <div className="stack" style={{ maxWidth: 900 }}>
       <section className="card pad stack" aria-labelledby="pr-h">
         <h2 id="pr-h" style={{ margin: 0 }}>Pricing rules</h2>
-        <p className="muted" style={{ margin: 0 }}>A rule works out the fee you would suggest for a client from their own figures, such as monthly transactions. It only suggests: it never changes an agreed fee, and fees already agreed are untouched when you change a rule. Set the figures up under Your own fields first.</p>
+        <p className="muted tip" style={{ margin: 0 }}>A rule works out the fee you would suggest for a client from their own figures, such as monthly transactions. It only suggests: it never changes an agreed fee, and fees already agreed are untouched when you change a rule. Set the figures up under Your own fields first.</p>
         {!nums.length && !yns.length && <p className="import-list warn" role="note">You haven't made any client number or yes / no fields yet, so a rule can only be a base fee. Add them under <a href={href("settings", "fields")}>Your own fields</a> (for example monthly transactions).</p>}
         {rules.length === 0 ? <p className="muted" style={{ margin: 0 }}>No rules yet. A service with no rule is simply not checked.</p> : (
           <div className="table-wrap"><table className="grid" style={{ minWidth: 520 }}>

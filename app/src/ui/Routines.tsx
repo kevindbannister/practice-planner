@@ -34,7 +34,7 @@ export function RoutinesCard() {
   return (
     <section className="card pad stack" aria-labelledby="rout-h" style={{ maxWidth: 720 }}>
       <h2 id="rout-h">Routine work</h2>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+      <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>
         Things you do every week or month, such as Monday bookkeeping or a monthly look at the business. Each week the
         Week view offers the ones that are missing, and you add them with one button.
       </p>

@@ -116,7 +116,7 @@ function HoursCard() {
   return (
     <section className="card pad stack" aria-labelledby="hours-h" style={{ maxWidth: 560 }}>
       <h2 id="hours-h">Your week</h2>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+      <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>
         Hours you work each day. 9:00 to 17:30 with an hour for lunch is 7.5. The kind of day (below) decides how
         much of that is for client work.
       </p>
@@ -183,7 +183,7 @@ function DayTypesCard() {
   return (
     <section className="card pad stack" aria-labelledby="dtypes-h" style={{ maxWidth: 720 }}>
       <h2 id="dtypes-h">Kinds of day and your usual week</h2>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+      <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>
         Only the client share of a day counts as room for client work on the planner. The business share is time
         for working on the practice itself. The buffer is held back from both for interruptions and admin.
         You can change any single day from the planner.

@@ -25,7 +25,7 @@ export function AccountsTab({ client }: { client: Row }) {
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Dormant accounts">
         <h3 style={{ margin: 0 }}>Dormant accounts started in Co Sec</h3>
-        <p className="muted" style={{ margin: 0 }}>Accounts are prepared in Working Papers and Accounts Production, and not every company needs dormant accounts, so Co Sec no longer starts them. These jobs were started here earlier. They are kept so they can be finished or looked up.</p>
+        <p className="muted tip" style={{ margin: 0 }}>Accounts are prepared in Working Papers and Accounts Production, and not every company needs dormant accounts, so Co Sec no longer starts them. These jobs were started here earlier. They are kept so they can be finished or looked up.</p>
         {!rows.length && <p style={{ margin: 0 }}>None were started for this company.</p>}
       </section>
       {rows.map((r) => <Job key={s(r.Key)} row={r} client={client} />)}

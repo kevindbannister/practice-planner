@@ -277,10 +277,21 @@ const initialsOf = (name?: string) => {
   return ((w[0]?.[0] || "") + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase() || "?";
 };
 
+/** Tips (the short explanation under a screen's or a box's title) are hidden unless you turn them on. Remembered on this device. */
+function readTips(): boolean { try { return localStorage.getItem("pp.tips") === "1"; } catch { return false; } }
+function applyTips(on: boolean) { document.documentElement.toggleAttribute("data-tips", on); }
+applyTips(readTips());
+function useTips(): [boolean, (on: boolean) => void] {
+  const [on, setOn] = useState(readTips);
+  const set = (v: boolean) => { try { localStorage.setItem("pp.tips", v ? "1" : "0"); } catch { /* this visit only */ } applyTips(v); setOn(v); };
+  return [on, set];
+}
+
 /** The profile icon: your name, the save status, light or dark, and sign out. */
 function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean; waiting?: number }) {
   const { save } = useData();
   const { dark, set } = useTheme();
+  const [tips, setTips] = useTips();
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -306,6 +317,9 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
               {save.state === "saving" ? "Saving…" : save.state === "saved" ? `Saved to SharePoint · ${at}` : save.state === "error" ? "Not saved" : "SharePoint"}
             </span>
           </div>
+          <button type="button" role="menuitemcheckbox" aria-checked={tips} onClick={() => { setTips(!tips); setShown(false); }}>
+            <Icon name={tips ? "check" : "book"} size={16} /> Show tips on each screen
+          </button>
           <button type="button" role="menuitem" onClick={() => { set(dark ? "light" : "dark"); setShown(false); }}>
             <Icon name={dark ? "sun" : "moon"} size={16} /> {dark ? "Light mode" : "Dark mode"}
           </button>

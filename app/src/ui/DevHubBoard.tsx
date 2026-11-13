@@ -186,7 +186,7 @@ function NewIssue({ onClose }: { onClose: () => void }) {
     <div className="dh-modal" role="dialog" aria-modal="true" aria-label="New issue" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="card pad stack dh-modal-box">
         <h2 className="sec-h">New GitHub issue</h2>
-        <p className="muted" style={{ margin: 0 }}>Every task is linked to a feature. Use the title prefix [P1] to [P5] or [Access]. Don't put passwords, tokens or client data in an issue.</p>
+        <p className="muted tip" style={{ margin: 0 }}>Every task is linked to a feature. Use the title prefix [P1] to [P5] or [Access]. Don't put passwords, tokens or client data in an issue.</p>
         <label>Title<input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="[P2] ..." /></label>
         {dup && <div className="alert amber"><strong>Issue #{dup.number} already has this title</strong><span>Use that one instead of creating a duplicate.</span></div>}
         <label>Feature this belongs to<select className="input" value={feature} onChange={(e) => setFeature(e.target.value)}><option value="">Choose a feature…</option>{modules.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select></label>

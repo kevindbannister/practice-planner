@@ -64,7 +64,7 @@ function AdvisoryHome() {
       <div className="page-head">
         <div>
           <h1>Freedom Plans</h1>
-          <p className="muted" style={{ margin: "4px 0 0", maxWidth: 760 }}>
+          <p className="muted tip" style={{ margin: "4px 0 0", maxWidth: 760 }}>
             Works out what a client's life costs, what their business delivers today, and how far the numbers move if they change their prices, sales and costs.
           </p>
         </div>

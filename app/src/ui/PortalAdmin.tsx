@@ -32,7 +32,7 @@ export function PortalPage() {
     <div className="page portal-page">
       <div className="page-head"><div>
         <h1>Client portal</h1>
-        <p className="muted" style={{ margin: "4px 0 0" }}>Who can sign in, which businesses they can see, and what needs your attention. Clients only ever see what you publish to them.</p>
+        <p className="muted tip" style={{ margin: "4px 0 0" }}>Who can sign in, which businesses they can see, and what needs your attention. Clients only ever see what you publish to them.</p>
       </div></div>
       <GroupedTabs groups={portalGroups(changesWaiting)} current={["reminders", "branding", "people"].includes(sub) ? "setup" : sub} label="Client portal" />
       {portal.error && <p className="import-list warn" role="alert">{portal.error}</p>}

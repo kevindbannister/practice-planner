@@ -301,7 +301,7 @@ export function HoursView(p: Props) {
                       aria-label={`${c.client ? `${c.client}: ` : ""}${c.title}, ${clock(s)} to ${clock(f)}${pl.pinned ? ", set time" : ""}${c.suggested !== undefined ? ", suggested" : ""}. Open.`}
                     >
                       <span className="hb-top">
-                        <strong>{c.prepared || c.done ? "✓ " : ""}{c.flags.includes("afterdue") ? "⚠ " : ""}{c.client || c.title}</strong>
+                        <strong>{c.prepared || c.done ? <span className="sym-ok" aria-hidden="true"><Icon name="check" size={13} /></span> : null}{c.flags.includes("afterdue") ? <span className="sym-alert" aria-hidden="true"><Icon name="alert" size={13} /></span> : null}{c.client || c.title}</strong>
                         {pl.pinned && <span className="hb-pin" title="Set to this time"><Icon name="clock" size={11} /></span>}
                       </span>
                       {!small && <span className="hb-sub">{c.client ? c.title : c.tag}{n > 0 ? " (continued)" : ""}</span>}
@@ -353,7 +353,7 @@ export function HoursView(p: Props) {
                     <div key={c.key} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       <button type="button" style={{ ["--cat" as string]: c.cat }} className={`hblock unfit done ${c.svc}${c.task ? " task" : ""}${c.biz ? " biz" : ""}`}
                         {...p.cardProps(c.key)} onClick={() => p.onOpen(c.key)}>
-                        <span className="hb-top"><strong>✓ {c.client || c.title}</strong><span className="mono">{fmtHours(c.hours)}</span></span>
+                        <span className="hb-top"><strong><span className="sym-ok" aria-hidden="true"><Icon name="check" size={13} /></span>{c.client || c.title}</strong><span className="mono">{fmtHours(c.hours)}</span></span>
                         <span className="hb-sub">{c.client ? c.title : c.tag}</span>
                       </button>
                       {p.onPlace && <label className="muted" style={{ fontSize: 11, display: "flex", gap: 4, alignItems: "center" }}>Put at <input type="time" step={900} aria-label={`Put ${c.client || c.title} at a time`} onChange={(e) => { if (e.target.value) p.onPlace!(c.key, x.d, e.target.value); }} style={{ font: "inherit", maxWidth: 96 }} /></label>}

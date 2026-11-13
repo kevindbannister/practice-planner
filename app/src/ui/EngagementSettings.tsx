@@ -38,7 +38,7 @@ export function EngagementLetterSettings() {
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Engagement wording">
         <h2 className="sec-h">Engagement letter wording</h2>
-        <p className="muted" style={{ margin: 0 }}>This is your engagement letter, one box for each point. Format it as you like (bold, underline, lists) and the letter keeps it. The planner never makes up legal or professional terms: letters are built only from what you save and review here, plus each service's own schedule (set next to the service in Services settings).</p>
+        <p className="muted tip" style={{ margin: 0 }}>This is your engagement letter, one box for each point. Format it as you like (bold, underline, lists) and the letter keeps it. The planner never makes up legal or professional terms: letters are built only from what you save and review here, plus each service's own schedule (set next to the service in Services settings).</p>
         <details><summary>Merge fields you can put in the wording</summary>
           <p className="muted" style={{ margin: "6px 0" }}>Write them in square brackets, or use the "Insert field" list above each box. Anything else in square brackets is left exactly as written.</p>
           <ul className="plain" style={{ columns: "2 260px" }}>{[...MERGE_FIELDS, ...BLOCK_FIELDS].map(([k, d]) => <li key={k}><code>[{k}]</code> {d}</li>)}</ul>
@@ -77,7 +77,7 @@ export function EngagementLetterSettings() {
 
       <section className="card pad stack" aria-label="Review intervals">
         <h2 className="sec-h">Renewal and review</h2>
-        <p className="muted" style={{ margin: 0 }}>Engagements are reviewed three years after they take effect unless set otherwise. The most specific setting wins: the engagement itself, then the client, then the client type, then the practice.</p>
+        <p className="muted tip" style={{ margin: 0 }}>Engagements are reviewed three years after they take effect unless set otherwise. The most specific setting wins: the engagement itself, then the client, then the client type, then the practice.</p>
         <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
           <label className="doc-field"><span>Practice default (years)</span><input className="input" type="number" min={1} max={10} disabled={!allowed} value={draft.years} onChange={(e) => setDraft({ ...draft, years: years(e.target.value) || 3 })} /></label>
           {CLIENT_TYPES.map(([k, l]) => (

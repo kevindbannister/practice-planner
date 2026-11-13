@@ -72,7 +72,7 @@ function Gaps() {
     <section className="card pad stack" aria-label="Clients without a letter">
       <div>
         <h2 className="sec-h">Clients without a letter</h2>
-        <p className="muted" style={{ margin: "4px 0 0" }}>Active clients with services that no letter in progress or in force covers. Drafts are built from each client's own services and fees as recorded here, not from a proposal, so check the fees before anything is sent.</p>
+        <p className="muted tip" style={{ margin: "4px 0 0" }}>Active clients with services that no letter in progress or in force covers. Drafts are built from each client's own services and fees as recorded here, not from a proposal, so check the fees before anything is sent.</p>
       </div>
       <div className="row-wrap inline-form" style={{ gap: 10 }}>
         <input className="input" style={{ maxWidth: 220 }} placeholder="Search clients" aria-label="Search clients" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -195,7 +195,7 @@ function Drafts() {
     <section className="card pad stack" aria-label="Drafts for existing clients">
       <div>
         <h2 className="sec-h">Letters built from client records</h2>
-        <p className="muted" style={{ margin: "4px 0 0" }}>Drafts made above, until they are sent. Open one to read or change it; submit, approve and send them here in batches. Each letter is checked on its own, and a letter you prepared can't be approved by you if approval has to be independent.</p>
+        <p className="muted tip" style={{ margin: "4px 0 0" }}>Drafts made above, until they are sent. Open one to read or change it; submit, approve and send them here in batches. Each letter is checked on its own, and a letter you prepared can't be approved by you if approval has to be independent.</p>
       </div>
       <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
         <button type="button" className="btn" onClick={() => setPicked(sel.length === rows.length ? [] : rows.map((e) => String(e.Key)))}>{sel.length === rows.length && rows.length ? "Clear selection" : `Select all ${rows.length}`}</button>

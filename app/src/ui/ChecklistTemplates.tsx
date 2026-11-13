@@ -346,7 +346,7 @@ function Preview({ t }: { t: Template }) {
   return (
     <section className="card pad stack" aria-label="Preview">
       <h3 style={{ margin: 0 }}>Preview</h3>
-      <p className="muted" style={{ margin: 0 }}>How the checklist would look for a client like this. Set an answer to “not known” to see the questions a user would be asked.</p>
+      <p className="muted tip" style={{ margin: 0 }}>How the checklist would look for a client like this. Set an answer to “not known” to see the questions a user would be asked.</p>
       <div className="row-wrap">
         <label className="doc-field"><span>Client type</span><select className="input" value={facts.kind} onChange={(e) => setFacts({ ...facts, kind: e.target.value })}>{C.KINDS.map((k) => <option key={k} value={k}>{C.KIND_LABEL[k]}</option>)}</select></label>
         {C.ATTRS.filter((a) => a.kind !== "choice").map((a) => (

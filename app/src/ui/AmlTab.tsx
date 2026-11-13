@@ -163,7 +163,7 @@ export function AmlTab({ client }: { client: Client }) {
       {(() => { const tl = timeline(client.Key, data.amlAssessments, data.onboardings); return tl.length > 0 && (
         <section className="card pad stack" aria-label="AML timeline">
           <h2 className="sec-h">Timeline</h2>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Every check and review for this client, newest first. It is read from the reviews, so to add or correct an entry, edit the check's date in a review.</p>
+          <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>Every check and review for this client, newest first. It is read from the reviews, so to add or correct an entry, edit the check's date in a review.</p>
           <table className="table"><thead><tr><th scope="col">Date</th><th scope="col">What</th><th scope="col">Result</th><th scope="col">Note</th><th scope="col">By</th><th scope="col">From</th></tr></thead>
             <tbody>{tl.map((e, i) => <tr key={i}><td>{e.date ? fmtDate(e.date) : "—"}</td><td>{e.title}</td><td>{e.result === "pass" ? "Passed" : e.result === "fail" ? "Failed" : "Pending"}</td><td>{e.note}</td><td>{e.by}</td><td>{e.where}</td></tr>)}</tbody></table>
         </section>

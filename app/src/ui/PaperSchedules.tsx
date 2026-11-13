@@ -981,7 +981,7 @@ function AccountsSummary() {
       <ul className="check-list">
         {checks.map(([label, ok, why]) => (
           <li key={label} className={ok ? "ok" : "warn"}>
-            <span aria-hidden="true">{ok ? "✔" : "⚠"}</span> <strong>{label}</strong>{why && <span className="muted"> — {why}</span>}
+            <span aria-hidden="true" className={ok ? "sym-ok" : "sym-alert"}><Icon name={ok ? "check" : "alert"} size={14} /></span> <strong>{label}</strong>{why && <span className="muted"> — {why}</span>}
             {label.startsWith("Every account") && unsaved > 0 && (
               <> <button type="button" className="linkbtn" disabled={w.busy} onClick={() => void writeMaps(maps.filter((m) => !m.saved).map((m) => ({ key: m.acct.key, iris: m.iris, dest: m.dest })))}>Accept them all</button>
               <span className="muted"> (or check them under Year end trial balance)</span></>
@@ -1402,7 +1402,7 @@ function DepreciationJournal({ lines }: { lines: Line[] }) {
         </div>
       )}
       {plan.newAccounts.length > 0 && !upToDate && <p className="muted" style={{ margin: 0, fontSize: 12 }}>New accounts the journal will create (they aren't on the software's trial balance): {plan.newAccounts.map((a) => [a.code, a.name].filter(Boolean).join(" ")).join(" · ")}.</p>}
-      {plan.notes.map((n) => <p key={n} className="muted" style={{ margin: 0, fontSize: 12 }}>⚠ {n}</p>)}
+      {plan.notes.map((n) => <p key={n} className="muted" style={{ margin: 0, fontSize: 12 }}><span className="sym-alert" aria-hidden="true"><Icon name="alert" size={13} /></span>{n}</p>)}
       {!upToDate && (plan.lines.length > 0 || lines.length > 0) && (
         <div><button type="button" className="btn primary small" disabled={w.busy} onClick={() => void post()}>{lines.length ? "Update the depreciation journal" : "Post the depreciation journal"}</button></div>
       )}

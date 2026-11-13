@@ -10,7 +10,7 @@ import { isBusinessTask } from "../lib/projects";
 import { svcClass } from "../lib/serviceColour";
 import { planHours } from "../lib/waiting";
 import { isStatutory } from "../lib/workGroups";
-import { PlanTabs } from "./bits";
+import { Icon, PlanTabs } from "./bits";
 import { Row } from "../lib/schema";
 import { useData, useIndex } from "./data";
 import { useEditor } from "./Editors";
@@ -95,7 +95,7 @@ export function MonthView({ rolling = false }: { rolling?: boolean }) {
   const openItem = (i: MonthItem) => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key });
   const chip = (i: MonthItem) => (
     <button key={i.key} type="button" className={`month-item ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}${i.lateBy ? " planned-late" : ""}${dragKey === i.key ? " dragging" : ""}`} {...(i.done || i.held ? {} : cardProps(i.key))} onKeyDown={(e) => keyMove(i, e)} onClick={(e) => { e.stopPropagation(); openItem(i); }} title={`${i.lateBy ? `Planned ${i.lateBy} day${i.lateBy === 1 ? "" : "s"} after its deadline. ` : ""}${i.client ? i.client + ": " : ""}${i.title}${i.period ? ` · period to ${fmtDate(i.period)}` : ""} · ${fmtHours(i.hours)}`}>
-      <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" />{i.lateBy ? "⚠ " : ""}{i.client || i.title}<span className="muted"> {fmtHours(i.hours)}</span>{i.period && <span className="muted month-period"> · to {fmtDate(i.period, { year: false })}</span>}
+      <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" />{i.lateBy ? <span className="sym-alert" aria-hidden="true"><Icon name="alert" size={13} /></span> : null}{i.client || i.title}<span className="muted"> {fmtHours(i.hours)}</span>{i.period && <span className="muted month-period"> · to {fmtDate(i.period, { year: false })}</span>}
     </button>
   );
   const panel = (

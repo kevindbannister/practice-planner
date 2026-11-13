@@ -275,7 +275,7 @@ export function AssistantSettings() {
   return (
     <section className="card pad stack" aria-labelledby="asst-h" style={{ maxWidth: 720 }}>
       <h2 id="asst-h">Assistant (chat)</h2>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+      <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>
         The "Ask" button at the top asks OpenAI, using the same key as AI writing. Each question sends a snapshot of your open work
         (titles, dates and hours, plus today's plan) so it can answer. It proposes changes; you approve each one.
       </p>

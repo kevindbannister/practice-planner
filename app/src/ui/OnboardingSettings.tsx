@@ -34,7 +34,7 @@ export function OnboardingSettingsPage() {
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Onboarding stages">
         <h2 className="sec-h">Onboarding stages</h2>
-        <p className="muted" style={{ margin: 0 }}>A client can only be approved and activated when every required stage that applies to them is done. Proposal accepted, internal approval and activation are always required. Switching off "Agent authorisations" means services that need one are no longer held back at activation.</p>
+        <p className="muted tip" style={{ margin: 0 }}>A client can only be approved and activated when every required stage that applies to them is done. Proposal accepted, internal approval and activation are always required. Switching off "Agent authorisations" means services that need one are no longer held back at activation.</p>
         <table className="grid">
           <thead><tr><th>Stage</th><th>Used</th><th>Required</th><th>Applies to</th></tr></thead>
           <tbody>{draft.stages.map((d) => {
@@ -53,14 +53,14 @@ export function OnboardingSettingsPage() {
       </section>
       <section className="card pad stack" aria-label="AML re-verification">
         <h2 className="sec-h">AML re-verification</h2>
-        <p className="muted" style={{ margin: 0 }}>When AML is approved, the client's AML review date is set this many months ahead, by risk rating. Your AML policy sets these: change them in its monitoring step. If the policy has not set them yet, these values are used.</p>
+        <p className="muted tip" style={{ margin: 0 }}>When AML is approved, the client's AML review date is set this many months ahead, by risk rating. Your AML policy sets these: change them in its monitoring step. If the policy has not set them yet, these values are used.</p>
         <div className="row-wrap">
           {(["low", "medium", "high"] as const).map((k) => <label key={k} className="doc-field"><span>{k[0].toUpperCase() + k.slice(1)} risk (months)</span><input className="input" type="number" min={1} max={120} disabled={!allowed || !!pm[k]} value={draft.amlMonths[k]} onChange={(e) => months(k, e.target.value)} /></label>)}
         </div>
       </section>
       <section className="card pad stack" aria-label="Fee schedules">
         <h2 className="sec-h">Fee schedules</h2>
-        <p className="muted" style={{ margin: 0 }}>New agreed fees are given a review date this many months after they start. Reviews coming due show in the Action Centre.</p>
+        <p className="muted tip" style={{ margin: 0 }}>New agreed fees are given a review date this many months after they start. Reviews coming due show in the Action Centre.</p>
         <label className="doc-field" style={{ maxWidth: 220 }}><span>Review fees every (months)</span><input className="input" type="number" min={1} max={60} disabled={!allowed} value={reviewMonths} onChange={(e) => setReviewMonths(Number(e.target.value))} /></label>
       </section>
       {allowed ? <div className="row-wrap"><button type="button" className="btn primary" disabled={busy || !dirty} onClick={save}>{busy ? "Saving…" : "Save"}</button>{msg && <span role={msg.ok ? "status" : "alert"} style={{ color: msg.ok ? undefined : "var(--red-ink)" }}>{msg.text}</span>}</div> : <p className="muted">Only a manager or partner can change these.</p>}

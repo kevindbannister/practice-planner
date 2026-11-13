@@ -510,7 +510,7 @@ export function ClientDeck({ client, period }: { client: Client; period: string 
   if (state === "none") return (
     <section className="card pad stack" aria-label="Client deck">
       <h2 className="sec-h">Client deck</h2>
-      <p className="muted" style={{ margin: 0, maxWidth: "62ch" }}>Make a presentation to talk the client through their draft accounts: the headline, how profit moved, where the money went, what the company owns and owes, tax, your questions and next steps. It is worked out from the figures, and you can change every slide, add your own, and use the client's logo and colours.</p>
+      <p className="muted tip" style={{ margin: 0, maxWidth: "62ch" }}>Make a presentation to talk the client through their draft accounts: the headline, how profit moved, where the money went, what the company owns and owes, tax, your questions and next steps. It is worked out from the figures, and you can change every slide, add your own, and use the client's logo and colours.</p>
       {!acc.maps && <p className="notice" role="status">There is no trial balance for this year yet, so the slides will be empty. Add it in the working papers first.</p>}
       <div><button type="button" className="btn primary" disabled={busy === "make"} onClick={() => void make()}>{busy === "make" ? "Making the deck…" : "Make the deck"}</button></div>
       {error && <p className="error-text" role="alert">{error}</p>}

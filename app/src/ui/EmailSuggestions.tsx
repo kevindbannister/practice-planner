@@ -146,7 +146,7 @@ export function EmailSettings() {
   return (
     <section className="card pad stack" aria-labelledby="emset-h" style={{ maxWidth: 720 }}>
       <h2 id="emset-h">Email suggestions</h2>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+      <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>
         The planner reads your recent inbox and suggests tasks from emails that look like they need action, on the Today screen. You add or dismiss each one.
         It only reads your mail; it never changes, moves or sends anything. It uses the same Outlook permission as drafting letters.
       </p>

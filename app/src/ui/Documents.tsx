@@ -20,7 +20,7 @@ export function DocumentsPage() {
       <div className="page-head">
         <div>
           <h1>Documents</h1>
-          <p className="muted" style={{ margin: "4px 0 0" }}>Letters and documents from templates, in your branding, as PDFs saved to the client.</p>
+          <p className="muted tip" style={{ margin: "4px 0 0" }}>Letters and documents from templates, in your branding, as PDFs saved to the client.</p>
         </div>
       </div>
       <nav className="subtabs" aria-label="Documents">

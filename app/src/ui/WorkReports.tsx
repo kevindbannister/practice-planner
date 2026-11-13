@@ -39,7 +39,7 @@ export function WorkReports() {
   return (
     <div className="page">
       <PlanTabs current="reports" />
-      <div className="page-head"><div><h1>Work reports</h1><p className="muted" style={{ margin: "4px 0 0" }}>Tasks, client actions, dependencies, planning and workload. Personal tasks are never included. Every figure is marked as a fact (counted from records), an estimate (from estimated hours) or a projection (what the current dates imply).</p></div></div>
+      <div className="page-head"><div><h1>Work reports</h1><p className="muted tip" style={{ margin: "4px 0 0" }}>Tasks, client actions, dependencies, planning and workload. Personal tasks are never included. Every figure is marked as a fact (counted from records), an estimate (from estimated hours) or a projection (what the current dates imply).</p></div></div>
       <div className="card pad row-wrap" style={{ gap: 6 }} role="group" aria-label="Period">
         {([["30", "Last 30 days"], ["month", "This month"], ["last", "Last month"]] as const).map(([k, l]) => <button key={k} type="button" className={`btn small${preset === k ? " primary" : ""}`} aria-pressed={preset === k} onClick={() => setPreset(k)}>{l}</button>)}
         <span className="muted">{period.from} to {period.to}. Workload looks four weeks ahead.</span>

@@ -69,7 +69,7 @@ function Attach({ cl, job, svc, client, run, busy }: { cl: ReturnType<typeof use
   return (
     <section className="card pad stack" aria-label="Add a checklist">
       <h3 style={{ margin: 0 }}>This job has no checklist</h3>
-      <p className="muted" style={{ margin: 0 }}>Choose a template. Only the steps that apply to this client are included, and you'll be asked about anything that isn't known.</p>
+      <p className="muted tip" style={{ margin: 0 }}>Choose a template. Only the steps that apply to this client are included, and you'll be asked about anything that isn't known.</p>
       {chosen ? (
         <div className="row-wrap">
           <select className="input" aria-label="Template" value={pick || (chosen.id.startsWith("starter:") ? "starter" : chosen.id)} onChange={(e) => setPick(e.target.value)}>
@@ -158,7 +158,7 @@ function Body({ cl, checklist, job, run, busy }: { cl: ReturnType<typeof useChec
       {questions.length > 0 && (
         <section className="card pad stack" aria-label="Questions">
           <h3 style={{ margin: 0 }}>Please confirm</h3>
-          <p className="muted" style={{ margin: 0 }}>These aren't recorded for this client, so some steps are waiting rather than assumed unnecessary.</p>
+          <p className="muted tip" style={{ margin: 0 }}>These aren't recorded for this client, so some steps are waiting rather than assumed unnecessary.</p>
           {questions.map((q) => (
             <div key={q} className="row-wrap"><span style={{ minWidth: 280 }}>{C.ATTRS.find((a) => a.key === q)?.question}</span>
               <button type="button" className="btn small" disabled={busy === q} onClick={() => run(q, () => cl.answer(checklist, q, "yes"))}>Yes</button>
@@ -381,7 +381,7 @@ function UpdatePanel({ cl, checklist, template, run, busy, onDone }: { cl: Retur
   return (
     <section className="card pad stack" aria-label="Template update">
       <h3 style={{ margin: 0 }}>Update to version {template.version}?</h3>
-      <p className="muted" style={{ margin: 0 }}>Nothing changes until you apply it. Finished work is never altered, and steps already started are kept.</p>
+      <p className="muted tip" style={{ margin: 0 }}>Nothing changes until you apply it. Finished work is never altered, and steps already started are kept.</p>
       {nothing && <p style={{ margin: 0 }}>No differences for this job. Applying just records the new version.</p>}
       {d.added.length > 0 && <div><strong>Added</strong><ul>{d.added.map((i) => <li key={i.id}>{i.title} <span className="muted">· {i.section}</span></li>)}</ul></div>}
       {d.removed.length > 0 && <div><strong>No longer in the template</strong><ul>{d.removed.map((i) => <li key={i.key}>{i.title} <span className="muted">· {i.status === "todo" && !i.notes ? "will be removed" : "kept, work has started"}</span></li>)}</ul></div>}
