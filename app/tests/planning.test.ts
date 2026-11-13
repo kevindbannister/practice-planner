@@ -151,3 +151,16 @@ test("finishing a stage moves the job to the next one", () => {
   assert.equal(stageLabel({ StageNo: 2 }, stages), "Records received");
   assert.equal(stageLabel({ StageNo: 5, StageName: "Old name" }, stages), "Old name");
 });
+
+test("changing a job's period: the deadline only moves when asked", async () => {
+  const { changePeriod, ruleFor } = await import("../src/lib/planning");
+  const r = ruleFor("MGMT_ACCS", []);
+  const job = { PeriodEnd: "2026-09-30", Deadline: "2026-10-21" };
+  assert.deepEqual(changePeriod(r, job, "2026-10-31", false), { PeriodEnd: "2026-10-31" });
+  const re = changePeriod(r, job, "2026-10-31", true)!;
+  assert.equal(re.PeriodEnd, "2026-10-31");
+  assert.equal(re.DeadlineSource, "Calculated");
+  assert.ok(re.Deadline && re.Deadline > "2026-10-31");
+  assert.equal(changePeriod(r, job, "2026-09-30", false), null, "no change");
+  assert.equal(changePeriod(r, job, "not a date", true), null);
+});

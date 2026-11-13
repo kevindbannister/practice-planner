@@ -193,6 +193,17 @@ export function deadlineByRule(r: Rule, periodEnd: string, previousGap = 0): str
 
 export type NextPeriod = { PeriodEnd: string; Deadline: string; rule: string };
 
+/**
+ * Changing the period a job is for. The period end always changes; the deadline only if asked, and then by the work's usual rule,
+ * keeping the gap the job had between its old period end and its deadline where the rule works that way.
+ */
+export function changePeriod(r: Rule, job: { PeriodEnd?: string; Deadline?: string }, newEnd: string, recalc: boolean): { PeriodEnd: string; Deadline?: string; DeadlineSource?: string } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newEnd) || Number.isNaN(parseIso(newEnd).getTime()) || newEnd === job.PeriodEnd) return null;
+  if (!recalc) return { PeriodEnd: newEnd };
+  const gap = job.Deadline && job.PeriodEnd ? Math.round((parseIso(job.Deadline).getTime() - parseIso(job.PeriodEnd).getTime()) / 86400000) : 0;
+  return { PeriodEnd: newEnd, Deadline: deadlineByRule(r, newEnd, gap), DeadlineSource: "Calculated" };
+}
+
 /** Next period and deadline under a rule, or null if the work doesn't repeat. */
 export function nextPeriod(r: Rule, periodEnd?: string, deadline?: string): NextPeriod | null {
   if (!r.repeatMonths || !periodEnd) return null;

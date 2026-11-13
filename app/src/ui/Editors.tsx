@@ -13,7 +13,7 @@ import { createContext, ReactNode, useContext, useEffect, useId, useRef, useStat
 import {
   HOLD_WARN_DAYS, Job, Task, WAIT_KINDS, fmtDate, fmtHours, holdAlert, holdLabel, holdPatch, isOnHold, isOpen, jobState, resumePatch, todayIso,
 } from "../lib/domain";
-import { deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
+import { changePeriod, deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
 import { chaseSummary } from "../lib/chase";
 import { Subtask, progress, readSubtasks, writeSubtasks } from "../lib/subtasks";
@@ -296,6 +296,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <DeadlineChip job={job} today={today} />
         {!isOpen(job) && <span className="chip green">Complete</span>}
       </div>
+      {isOpen(job) && <PeriodSection job={job} rule={rule} save={save} />}
       {isOpen(job) && <HoldSection item={job} deadline={job.Deadline} save={save} what="job" />}
       <ProgressSection item={job} kind="job" estimate={jobHours(job as never, data.services)} save={save} />
       <DependencyPanel kind="job" id={job.Key as string} />
@@ -980,3 +981,34 @@ export function taskAsJob(t: Task): Job {
 
 export const listFor = (kind: "job" | "task"): ListKey => (kind === "job" ? "Jobs" : "Tasks");
 export { jobState };
+
+
+/** Change the period a job is for (for example a management accounts month). The deadline is left alone unless asked. */
+function PeriodSection({ job, rule, save }: { job: Job; rule: ReturnType<typeof ruleFor>; save: (patch: Row) => Promise<unknown> }) {
+  const [open, setOpen] = useState(false);
+  const [end, setEnd] = useState(job.PeriodEnd || "");
+  const [recalc, setRecalc] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string>();
+  const change = changePeriod(rule, job, end, recalc);
+  if (!open) return <div><button type="button" className="linkbtn" onClick={() => { setEnd(job.PeriodEnd || ""); setOpen(true); }}>{job.PeriodEnd ? "Change the period" : "Set the period"}</button></div>;
+  return (
+    <section className="stack" aria-label="Period" style={{ gap: 8 }}>
+      <label>
+        Period ends
+        <input className="input" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+      </label>
+      <label className="row-wrap" style={{ gap: 6 }}>
+        <input type="checkbox" checked={recalc} onChange={(e) => setRecalc(e.target.checked)} />
+        Also work out the deadline again ({describeRule(rule).toLowerCase()}){change?.Deadline ? `: ${fmtDate(change.Deadline)}` : ""}
+      </label>
+      {!recalc && job.Deadline && <p className="muted" style={{ margin: 0, fontSize: 12 }}>The deadline stays {fmtDate(job.Deadline)}.</p>}
+      {job.DeadlineSource === "Companies House" && <p className="muted" style={{ margin: 0, fontSize: 12 }}>This job's dates come from Companies House, so the next refresh may suggest putting them back.</p>}
+      {err && <p role="alert" style={{ margin: 0, color: "var(--red-ink)" }}>{err}</p>}
+      <div className="form-actions">
+        <button type="button" className="btn" onClick={() => setOpen(false)}>Cancel</button>
+        <button type="button" className="btn primary" disabled={!change || busy} onClick={async () => { if (!change) return; setBusy(true); setErr(undefined); try { await save(change); setOpen(false); } catch { setErr("That didn't save. Try again."); } finally { setBusy(false); } }}>Save period</button>
+      </div>
+    </section>
+  );
+}
