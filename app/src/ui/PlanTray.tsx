@@ -217,8 +217,8 @@ export function usePlanTray({ items, today, inTray, suggestedKeys }: { items: It
   const remembered = <T extends string>(key: string, fallback: T, ok: (v: string) => boolean) => () => { try { const v = localStorage.getItem(key); return v !== null && ok(v) ? (v as T) : fallback; } catch { return fallback; } };
   const keep = (key: string, v: string) => { try { localStorage.setItem(key, v); } catch { /* this visit only */ } };
   const [horizon, setHorizonState] = useState<Horizon>(remembered<Horizon>("pp.plan.horizon", "90", (v) => ["30", "90", "all", "days", "date"].includes(v)));
-  const [days, setDaysState] = useState(remembered("pp.plan.horizonDays", "45", (v) => /^\d{0,4}$/.test(v)));
-  const [until, setUntilState] = useState(remembered("pp.plan.horizonUntil", "", (v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v)));
+  const [days, setDaysState] = useState(remembered<string>("pp.plan.horizonDays", "45", (v) => /^\d{0,4}$/.test(v)));
+  const [until, setUntilState] = useState(remembered<string>("pp.plan.horizonUntil", "", (v) => v === "" || /^\d{4}-\d{2}-\d{2}$/.test(v)));
   const setHorizon = (v: Horizon) => { setHorizonState(v); keep("pp.plan.horizon", v); };
   const setDays = (v: string) => { setDaysState(v); keep("pp.plan.horizonDays", v); };
   const setUntil = (v: string) => { setUntilState(v); keep("pp.plan.horizonUntil", v); };
