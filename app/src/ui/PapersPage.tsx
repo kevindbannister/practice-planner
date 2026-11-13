@@ -350,6 +350,8 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
   const prog = progress(c.Key, period, data.papers);
   const i = used.findIndex((x) => x.key === sec.key);
   const next = () => i >= 0 && i < used.length - 1 && setPick(used[i + 1].key);
+  const prev = () => i > 0 && setPick(used[i - 1].key);
+  const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
 
   return (
     <div className="paper">
@@ -385,6 +387,7 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
                         <span className="paper-name">{it.title}</span>
                         {st.reviewedBy && <span className="paper-rev" title={`Reviewed by ${st.reviewedBy}`} aria-label="Reviewed">R</span>}
                         {st.note && <span className="paper-note-flag" title="Has a note" aria-label="Has a note" />}
+                        <span className={`paper-state ${st.status}`} aria-hidden="true">{st.status === "done" ? <Icon name="check" size={11} /> : null}</span>
                       </button>
                     </li>
                   );
@@ -393,13 +396,18 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
             </div>
           );
         })}
+        <div className="paper-complete" aria-label={`Completion: ${prog.done} of ${prog.total}`}>
+          <span className="row-wrap" style={{ justifyContent: "space-between" }}><strong>Completion</strong><span>{prog.done} of {prog.total} ({pct}%)</span></span>
+          <span className="paper-complete-bar" aria-hidden="true"><span style={{ width: `${pct}%` }} /></span>
+        </div>
       </nav>
       <section className="paper-main stack" aria-labelledby="paper-h">
         {query.get("from") === "accounts" && (
           <a className="btn small" style={{ alignSelf: "flex-start" }} href={`${href("papers", String(c.Key), period)}?view=accounts&tab=review`}><Icon name="left" size={14} /> Back to the accounts</a>
         )}
         <SectionPage key={`${period}-${sec.key}`} client={c} period={period} sec={sec} user={user || ""} today={today}
-          onWrite={(patch) => w.writeSetup(sec.key, {}, patch)} onNext={next} hasNext={i < used.length - 1} />
+          onWrite={(patch) => w.writeSetup(sec.key, {}, patch)} onNext={next} hasNext={i < used.length - 1}
+          onPrev={prev} prevTitle={i > 0 ? used[i - 1].title : ""} nextTitle={i >= 0 && i < used.length - 1 ? used[i + 1].title : ""} />
         {w.error && <p className="error-text" role="alert">{w.error}</p>}
       </section>
     </div>
@@ -434,9 +442,9 @@ function SectionPicker({ off, onSave }: { off: Set<string>; onSave: (off: Set<st
 
 const who = (name: string) => name || "Me";
 
-function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNext }: {
+function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNext, onPrev, prevTitle, nextTitle }: {
   client: Client; period: string; sec: Section; user: string; today: string; hasNext: boolean;
-  onWrite: (patch: Row) => Promise<void>; onNext: () => void;
+  onWrite: (patch: Row) => Promise<void>; onNext: () => void; onPrev: () => void; prevTitle: string; nextTitle: string;
 }) {
   const { data } = useData();
   const w = useWriterState();
@@ -466,29 +474,31 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
 
   return (
     <>
-      <div className="card pad stack">
-        <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-          <div className="stack" style={{ gap: 2 }}>
-            <span className="eyebrow">{sec.group}</span>
-            <h2 id="paper-h" style={{ margin: 0 }}>{sec.title}</h2>
-          </div>
-          <div className="seg" role="group" aria-label="Status of this section">
-            {(Object.keys(STATUS_LABEL) as PaperStatus[]).map((s) => (
-              <button key={s} type="button" aria-pressed={st.status === s} onClick={() => void onWrite({ Status: s })}>{STATUS_LABEL[s]}</button>
-            ))}
-          </div>
-          <div className="signoffs">
-            {(["Prepared", "Reviewed"] as const).map((k) => {
-              const by = k === "Prepared" ? st.preparedBy : st.reviewedBy, on = k === "Prepared" ? st.preparedOn : st.reviewedOn;
-              return (
-                <button key={k} type="button" onClick={() => void sign(k)} className={`signoff-dot${on ? " on" : ""}`} aria-pressed={!!on} aria-label={on ? `${k} by ${by} on ${fmtDate(on)}. Click to take it off` : `${k}: not yet. Click to sign this section off`}
-                  title={on ? `${k} by ${by}, ${fmtDate(on)}. Click to take the sign-off off` : `Sign this section off as ${k.toLowerCase()}`}>
-                  {k === "Prepared" ? "P" : "R"}
-                </button>
-              );
-            })}
-          </div>
+      <nav className="wp-crumbs" aria-label="Where you are">
+        <a href={href("papers")} aria-label="All working papers"><Icon name="left" size={14} /></a>
+        <a href={href("papers")}>Working papers</a><span aria-hidden="true">›</span>
+        <span>{sec.group}</span><span aria-hidden="true">›</span>
+        <strong>{sec.title}</strong>
+      </nav>
+      <header className="wp-head">
+        <span className="wp-head-icon" aria-hidden="true"><Icon name={sectionIcon(sec.key)} size={24} /></span>
+        <div className="wp-head-text">
+          <h2 id="paper-h">{sec.title}</h2>
+          <span className="muted">{sec.group}, year ended {fmtDate(period)}</span>
         </div>
+        <div className="seg wp-status" role="group" aria-label="Status of this section">
+          {(Object.keys(STATUS_LABEL) as PaperStatus[]).map((s) => (
+            <button key={s} type="button" aria-pressed={st.status === s} onClick={() => void onWrite({ Status: s })}>{STATUS_LABEL[s]}</button>
+          ))}
+        </div>
+        <div className="wp-arrows">
+          <button type="button" className="btn small" disabled={!prevTitle} aria-label={prevTitle ? `Previous: ${prevTitle}` : "No previous section"} title={prevTitle ? `Previous: ${prevTitle}` : undefined} onClick={onPrev}><Icon name="left" size={15} /></button>
+          <button type="button" className="btn small" disabled={!hasNext} aria-label={nextTitle ? `Next: ${nextTitle}` : "No next section"} title={nextTitle ? `Next: ${nextTitle}` : undefined} onClick={onNext}><Icon name="right" size={15} /></button>
+        </div>
+      </header>
+      <div className="wp-layout">
+      <div className="wp-body stack">
+      <div className="card pad stack">
         <SectionRecon section={sec} />
         {["fixed", "journals", "final-tb", "summary"].includes(sec.key) && <AutoDepreciationJournal />}
         {isDoc && (
@@ -508,18 +518,44 @@ function SectionPage({ client, period, sec, user, today, onWrite, onNext, hasNex
       {sec.summary !== "assets" && subs.filter((sb) => sec.summary !== "lead" || !LEAD_KINDS.includes(sb.kind)).map((sb) => <Schedule key={sb.key} section={sec} sb={sb} />)}
       {sec.canAdd && <AddSchedule section={sec} />}
 
-      <div className="card pad stack">
-        <label>
-          <span className="card-title"><span className="card-title-ico" aria-hidden="true"><Icon name="letter" size={16} /></span>{isDoc ? "Notes" : "Notes on this section"}</span>
-          <textarea className="input" rows={isDoc ? 8 : 4} value={note} placeholder="What you did, what you found, what to ask the client"
-            onChange={(e) => setNote(e.target.value)} onBlur={commit} />
-        </label>
-        <div className="form-actions" style={{ justifyContent: "flex-start" }}>
-          <button type="button" className="btn primary" onClick={() => { commit(); void onWrite({ Status: "done" }); onNext(); }}>
-            <Icon name="check" size={14} />{hasNext ? "Done, next section" : "Done"}
-          </button>
-        </div>
       </div>
+      <aside className="wp-aside stack" aria-label="About this working paper">
+        <div className="card pad wp-details">
+          <h3><Icon name="form" size={16} /> Details</h3>
+          <dl>
+            <dt>Section</dt><dd>{sec.title}</dd>
+            <dt>Period</dt><dd>Year ended {fmtDate(period)}</dd>
+            <dt>Prepared by</dt><dd>{st.preparedBy ? `${st.preparedBy}, ${fmtDate(st.preparedOn)}` : "–"}</dd>
+            <dt>Reviewed by</dt><dd>{st.reviewedBy ? `${st.reviewedBy}, ${fmtDate(st.reviewedOn)}` : "–"}</dd>
+          </dl>
+          <div className="signoffs">
+            {(["Prepared", "Reviewed"] as const).map((k) => {
+              const on = k === "Prepared" ? st.preparedOn : st.reviewedOn;
+              return (
+                <button key={k} type="button" className={`btn small${on ? " primary" : ""}`} aria-pressed={!!on} onClick={() => void sign(k)}>
+                  {on ? <><Icon name="check" size={13} /> {k}</> : `Sign off as ${k.toLowerCase()}`}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="card pad wp-notes">
+          <label>
+            <h3><Icon name="letter" size={16} /> {isDoc ? "Notes" : "Notes on this section"}</h3>
+            <textarea className="input" rows={isDoc ? 8 : 5} value={note} placeholder="What you did, what you found, what to ask the client"
+              onChange={(e) => setNote(e.target.value)} onBlur={commit} />
+          </label>
+        </div>
+      </aside>
+      </div>
+      <footer className="wp-foot">
+        <button type="button" className="btn" onClick={() => { commit(); void onWrite({ Status: "done" }); onNext(); }}>
+          <Icon name="check" size={14} /> Mark as done{hasNext ? ", next" : ""}
+        </button>
+        <span style={{ flex: 1 }} />
+        {prevTitle && <button type="button" className="btn" onClick={onPrev}><Icon name="left" size={14} /> Previous: {prevTitle}</button>}
+        {nextTitle && <button type="button" className="btn" onClick={onNext}>Next: {nextTitle} <Icon name="right" size={14} /></button>}
+      </footer>
     </>
   );
 }

@@ -3875,3 +3875,65 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
   html[data-work] .topbar.mode-work.scrolls { box-shadow: none; }
 }
 html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) { background: color-mix(in srgb, var(--navy) 7%, transparent); border-color: transparent; }
+
+/* =====================================================================================
+   V30.1 Working papers, in the style of the reference picture: a white section list on the left with a tick or an
+   empty circle for each section and a completion bar at the foot; each paper opens with a breadcrumb, an icon tile,
+   the title and the status as a rounded switch with previous / next arrows; the paper's boxes sit to the left of a
+   details and notes column; tables have a navy heading and pale blue totals; previous / next along the bottom.
+   ===================================================================================== */
+.paper-side { background: var(--surface); border: 1px solid var(--box-line); border-radius: 18px; box-shadow: var(--box-shadow); padding: 12px 8px; }
+.paper-side .paper-group-name { font: 700 14px var(--sans); color: var(--ink); padding: 8px 10px; }
+.paper-side .paper-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px !important; border-radius: 10px; font-size: 14px; color: var(--ink-2); }
+.paper-side .paper-item:hover { background: color-mix(in srgb, var(--navy) 5%, transparent); }
+.paper-side .paper-item.on { background: color-mix(in srgb, #2F6FD6 12%, transparent); color: var(--ink); font-weight: 700; }
+.paper-side .paper-item .paper-dot { display: none; }
+.paper-side .paper-name { flex: 1 1 auto; min-width: 0; }
+.paper-state { flex: none; width: 18px; height: 18px; border-radius: 999px; border: 1.5px solid #B8C2CF; display: inline-flex; align-items: center; justify-content: center; color: #fff; }
+.paper-state.done { background: #23A46A; border-color: #23A46A; }
+.paper-state.na { border-style: dashed; }
+.paper-item.on .paper-state:not(.done) { border-color: #2F6FD6; }
+.paper-complete { margin: 14px 6px 4px; padding: 14px; border: 1px solid var(--sep); border-radius: 14px; background: var(--pill-bg); display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.paper-complete-bar { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.paper-complete-bar > span { display: block; height: 100%; border-radius: 999px; background: #23A46A; }
+.paper-side-head .paper-bar { display: none; }
+
+.wp-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
+.wp-crumbs a { color: var(--ink-2); text-decoration: none; }
+.wp-crumbs a:hover { color: var(--ink); text-decoration: underline; }
+.wp-crumbs a:first-child { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border-radius: 999px; }
+.wp-crumbs a:first-child:hover { background: var(--pill-bg); text-decoration: none; }
+.wp-crumbs > span[aria-hidden] { color: var(--muted); }
+.wp-crumbs strong { color: var(--ink); font-weight: 600; }
+.wp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 4px 0 6px; }
+.wp-head-icon { width: 60px; height: 60px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, #2F6FD6 10%, var(--surface)); color: #2155C9; border: 1px solid color-mix(in srgb, #2F6FD6 18%, transparent); flex: none; }
+.wp-head-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
+.wp-head-text h2 { margin: 0; font-size: 28px; font-weight: 700; color: var(--ink); line-height: 1.15; }
+.wp-head-text .muted { font-size: 15px; }
+.seg.wp-status { background: color-mix(in srgb, var(--navy) 6%, transparent); border-radius: 999px; padding: 4px; border: 0; gap: 2px; }
+.seg.wp-status button { border: 0; border-radius: 999px; padding: 0 18px; min-height: 38px; background: none; color: var(--ink-2); font: 600 14px var(--sans); }
+.seg.wp-status button[aria-pressed="true"] { background: var(--surface); color: var(--navy-ink); box-shadow: inset 0 0 0 1.5px var(--navy), 0 2px 6px rgba(23, 38, 58, 0.10); }
+.wp-arrows { display: inline-flex; gap: 8px; }
+.wp-arrows .btn { width: 40px; height: 40px; padding: 0; justify-content: center; border-radius: 12px; }
+.wp-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.wp-body { gap: 18px; min-width: 0; }
+.wp-aside { gap: 14px; position: sticky; top: 80px; }
+.wp-aside h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 17px; font-weight: 700; color: var(--ink); }
+.wp-details dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin: 0 0 12px; font-size: 14px; }
+.wp-details dt { color: var(--muted); }
+.wp-details dd { margin: 0; color: var(--ink); }
+.wp-details .signoffs { display: flex; flex-wrap: wrap; gap: 8px; }
+.wp-notes textarea { min-height: 110px; }
+.wp-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 0 4px; border-top: 1px solid var(--sep); margin-top: 4px; }
+@media (max-width: 1250px) { .wp-layout { grid-template-columns: 1fr; } .wp-aside { position: static; } }
+.paper-main > .card, .wp-body > .card { border-radius: 18px; }
+
+/* tables: a navy heading row and pale blue totals */
+.paper-main table.grid thead th { background: #1E3550; color: #fff; font-weight: 700; border-color: #1E3550; }
+.paper-main table.grid thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+.paper-main table.grid thead tr:first-child th:last-child { border-top-right-radius: 10px; }
+.paper-main table.grid thead th a, .paper-main table.grid thead th button { color: #fff; }
+.paper-main table.grid tfoot td, .paper-main table.grid tfoot th, .paper-main table.grid tr.lead-total td, .paper-main table.grid tr.journal-total td { background: color-mix(in srgb, #2F6FD6 11%, var(--surface)); font-weight: 700; color: var(--ink); }
+.paper-main table.grid tbody tr:hover td { background: color-mix(in srgb, var(--navy) 3%, transparent); }
+:root[data-theme="dark"] .paper-main table.grid thead th { background: #2E4C70; border-color: #2E4C70; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .paper-main table.grid thead th { background: #2E4C70; border-color: #2E4C70; } }
