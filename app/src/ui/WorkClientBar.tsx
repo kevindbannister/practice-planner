@@ -43,25 +43,28 @@ export function WorkClientBar({ section, routeKey }: { section: string; routeKey
     </form>
   );
 
+  // working papers, tax returns and reports already have this banner of their own
+  if (fromRoute && (section === "papers" || section === "tax" || section === "reporting")) return null;
+
   return (
-    <div className="work-client" role="region" aria-label="Client you are working on">
-      <span className="wc-icon" aria-hidden="true"><Icon name="briefcase" size={18} /></span>
+    <header className="paper-top work-client" aria-label="Client you are working on">
+      <a className="paper-top-icon" href={c ? href("clients", c.Key) : "#/clients"} title={c ? "Open the client page" : "All clients"} aria-label={c ? "Open the client page" : "All clients"}><Icon name="briefcase" size={20} /></a>
       {!c || picking ? (
         <>{!c && <strong className="wc-name">Choose a client to work on</strong>}{picker}</>
       ) : (
         <>
           <strong className="wc-name">{c.Title}</strong>
-          {c.CompanyNumber && <span className="wc-chip plain">{c.CompanyNumber}</span>}
-          {c.YearEnd && <span className="wc-chip">Year end: {fmtDate(`2000-${c.YearEnd}`, { year: false })}</span>}
-          {c.Kind && <span className="wc-chip">{c.Kind}</span>}
-          <span className="wc-actions">
-            <a className="btn small" href={href("clients", c.Key)}>Client page</a>
-            <a className="btn small" href={href("papers", c.Key)}>Working papers</a>
-            <a className="btn small" href={href("tax", c.Key)}>Tax</a>
-            <button type="button" className="btn small" onClick={() => setPicking(true)}>Change client</button>
-          </span>
+          {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}</span>}
+          {c.YearEnd && <span className="chip">Year end: {fmtDate(`2000-${c.YearEnd}`, { year: false })}</span>}
+          {c.Kind && <span className="chip">{c.Kind}</span>}
+          <a className="chip blue chip-fixed" href={href("clients", c.Key)}>Client page</a>
+          <div className="paper-tools">
+            <a className="btn small paper-tool" href={href("papers", c.Key)}>Working papers</a>
+            <a className="btn small paper-tool" href={href("tax", c.Key)}>Tax</a>
+            <button type="button" className="btn small paper-tool" onClick={() => setPicking(true)}>Change client</button>
+          </div>
         </>
       )}
-    </div>
+    </header>
   );
 }

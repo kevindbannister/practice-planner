@@ -3836,3 +3836,17 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
 .topbar.mode-work .mode-toggle .mode-opt { color: rgba(255, 255, 255, 0.8); }
 .topbar.mode-work .mode-toggle .mode-opt.on { background: #fff; color: #1E3550; }
 .topbar.mode-work .mode-toggle:focus-visible { outline-color: #fff; }
+
+/* V29.6: the client strip in Work is the same banner as on working papers, tax returns and reports (those pages keep
+   their own, so it isn't shown twice); the move between the two menus is slower */
+.work-client.paper-top { position: sticky; top: 74px; z-index: 19; margin: 12px 64px 0; padding: 8px 14px 8px 10px; flex-wrap: nowrap; gap: 10px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: 999px; box-shadow: 0 8px 28px rgba(20, 90, 150, 0.12); }
+.work-client .wc-name { font-size: 18px; font-weight: 700; white-space: nowrap; margin: 0; color: var(--ink); }
+.work-client .wc-pick input { height: 34px; }
+@media (max-width: 1100px) { .work-client.paper-top { margin: 12px 24px 0; } }
+@media (max-width: 720px) { .work-client.paper-top { position: relative; top: 0; margin: 10px 12px 0; } }
+.topbar.mode-bar { transition-duration: 0.9s; }
+.topbar.mode-bar::before { transition-duration: 0.9s; }
+.topbar.mode-bar .brand-logo, .topbar.mode-bar .nv-link, .topbar.mode-bar .mode-toggle, .topbar.mode-bar .mode-opt,
+.topbar.mode-bar .search-btn, .topbar.mode-bar .bell, .topbar.mode-bar .iconbtn, .topbar.mode-bar .btn { transition-duration: 0.9s; }
+.work-client { animation-duration: 0.9s; }
