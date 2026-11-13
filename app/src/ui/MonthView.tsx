@@ -3,7 +3,9 @@ import { KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useSta
 import { Job, Task, fmtDate, fmtHours, isOnHold, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { dayHours } from "../lib/dayTypes";
-import { DueFilter, MonthItem, Show, buildMonth, monthKey, shiftMonth, typeOf, unplannedOf } from "../lib/monthPlan";
+import { MonthItem, Show, buildMonth, monthKey, shiftMonth } from "../lib/monthPlan";
+import { Item, PlanCard, UnplannedTray, usePlanItems, usePlanTray } from "./PlanTray";
+import { useCardFields } from "./CardOptions";
 import { isBusinessTask } from "../lib/projects";
 import { svcClass } from "../lib/serviceColour";
 import { planHours } from "../lib/waiting";
@@ -61,14 +63,12 @@ export function MonthView() {
   };
   const cap = (d: string) => { const h = dayHours(d, settings); return h.client + h.business; };
   const m = useMemo(() => buildMonth(month, items, cap, today, show), [month, items, settings, today, show]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [search, setSearch] = useState("");
-  const [due, setDue] = useState<DueFilter>("all"); const [type, setType] = useState(""); const [clientF, setClientF] = useState("");
-  const base = useMemo(() => unplannedOf(items, show, search, {}, today), [items, show, search, today]); // what the filters below choose from
-  const typeName = (k: string) => (k === "TASK" ? "Tasks" : (data.services.find((s) => s.Key === k)?.Title as string) || k);
-  const typeOpts = useMemo(() => Array.from(new Set<string>(base.map(typeOf))).sort((a, b) => typeName(a).localeCompare(typeName(b))), [base, data.services]); // eslint-disable-line react-hooks/exhaustive-deps
-  const clientOpts = useMemo(() => Array.from(new Set<string>(base.map((i) => i.client).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [base]);
-  const unplanned = useMemo(() => unplannedOf(items, show, search, { due, type, client: clientF }, today), [items, show, search, due, type, clientF, today]);
-  const filtered = due !== "all" || !!type || !!clientF;
+  // the Unplanned panel is the Week view's: the same list, filters and cards
+  const { items: planItems } = usePlanItems();
+  const [fields] = useCardFields();
+  const isStat = (i: Item) => i.kind === "job" && isStatutory(data.services.find((x) => x.Key === (i.row as Job).ServiceKey), (i.row as Job).ServiceKey);
+  const narrowed = useMemo(() => planItems.filter((i) => show === "all" || (show === "statutory") === isStat(i)), [planItems, show, data.services]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tray = usePlanTray({ items: narrowed, today, inTray: (i) => !i.planned });
   const hiddenWeekend = useMemo(() => m.weeks.flat().filter((c) => c.weekend && c.inMonth).reduce((t, c) => t + c.planned.length, 0), [m]);
   const goWeek = (date: string) => { try { sessionStorage.setItem("pp.plan.jump", date); } catch { /* the Week view opens on this week instead */ } window.location.hash = "#/plan"; };
   const openItem = (i: MonthItem) => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key });
@@ -78,40 +78,13 @@ export function MonthView() {
     </button>
   );
   const panel = (
-    <aside className={`month-tray${dropTarget === "tray" ? " drop" : ""}`} aria-label="Unplanned work" data-drop="tray">
-      <div className="row" style={{ justifyContent: "space-between", gap: 8 }}><strong>Unplanned <span className="muted">({unplanned.length})</span></strong></div>
-      <input className="input" type="search" placeholder="Search" aria-label="Search unplanned work" value={search} onChange={(e) => setSearch(e.target.value)} style={{ minHeight: 34, margin: "8px 0" }} />
-      <div className="row-wrap" style={{ gap: 6, margin: "0 0 8px" }} role="group" aria-label="Filter unplanned work">
-        <select className="input" aria-label="Due" value={due} onChange={(e) => setDue(e.target.value as DueFilter)} style={{ minHeight: 32, padding: "2px 6px", fontSize: 13, width: "auto" }}>
-          <option value="all">Any deadline</option><option value="overdue">Overdue</option><option value="30">Due in 30 days</option><option value="90">Due in 90 days</option><option value="none">No deadline</option>
-        </select>
-        <select className="input" aria-label="Type of work" value={type} onChange={(e) => setType(e.target.value)} style={{ minHeight: 32, padding: "2px 6px", fontSize: 13, width: "auto", maxWidth: 170 }}>
-          <option value="">All types</option>{typeOpts.map((k) => <option key={k} value={k}>{typeName(k)}</option>)}
-        </select>
-        <select className="input" aria-label="Client" value={clientF} onChange={(e) => setClientF(e.target.value)} style={{ minHeight: 32, padding: "2px 6px", fontSize: 13, width: "auto", maxWidth: 170 }}>
-          <option value="">All clients</option>{clientOpts.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        {filtered && <button type="button" className="linkbtn" onClick={() => { setDue("all"); setType(""); setClientF(""); }}>Clear filters</button>}
-      </div>
-      <p className="muted" style={{ fontSize: 12, margin: "0 0 8px" }}>{narrow ? "Pick a day for each." : "Drag onto a day to plan it. Drop a planned item here to take it off the plan."}</p>
-      <div className="month-tray-list">
-        {unplanned.length === 0 && <p className="muted">{search || filtered ? "Nothing matches." : "Everything is planned."}</p>}
-        {unplanned.map((i) => {
-          const late = i.deadline && i.deadline < today;
-          return (
-            <div key={i.key} className={`month-unplanned${dragKey === i.key ? " dragging" : ""}`} {...cardProps(i.key)} data-card={i.key}>
-              <button type="button" className="month-un-main" onClick={() => openItem(i)}>
-                <span><span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" /> <strong>{i.client || i.title}</strong></span>
-                <span className="muted">{i.client ? `${i.title} · ` : ""}{fmtHours(i.hours)}</span>
-                {i.period && <span className="muted">Period to {fmtDate(i.period)}</span>}
-                <span className={late ? "month-late" : "muted"}>{i.deadline ? `${late ? "Late: " : "Due "}${fmtDate(i.deadline, { year: false })}` : "No deadline"}</span>
-              </button>
-              {narrow && <input className="input" type="date" aria-label={`Plan ${i.client || i.title} for a day`} value="" style={{ width: "auto", minHeight: 32, padding: "2px 6px", fontSize: 12 }} onChange={(e) => void move(i.key, e.target.value)} />}
-            </div>
-          );
-        })}
-      </div>
-    </aside>
+    <UnplannedTray tray={tray} today={today} narrow={narrow} dropOver={dropTarget === "tray"} wide
+      card={(i) => (
+        <div key={i.key} className="stack" style={{ gap: 4 }}>
+          <PlanCard item={i} today={today} fields={fields} dragging={dragKey === i.key} onOpen={() => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key })} dragProps={cardProps(i.key)} />
+          {narrow && <input className="input" type="date" aria-label={`Plan ${i.client || i.title} for a day`} value="" style={{ width: "auto", minHeight: 32, padding: "2px 6px", fontSize: 12 }} onChange={(e) => void move(i.key, e.target.value)} />}
+        </div>
+      )} />
   );
   const cellsWithContent = m.weeks.flat().filter((c) => c.inMonth && (weekends || !c.weekend) && (c.planned.length || c.due.length || c.done.length));
   return (
