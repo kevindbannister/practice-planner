@@ -2,6 +2,8 @@
 // area's modules, the way the working papers menu button does.
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Icon, IconName } from "./bits";
+import { clientHref, useWorkClient } from "./WorkClientBar";
+import { useData } from "./data";
 import { AREAS, MODULE_LABELS, areaOf, navKeyOf, type AreaId, type NavArea } from "../lib/navAreas";
 
 const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
@@ -114,7 +116,7 @@ export function AreaPicker({ section, area, onPick, chase = 0 }: { section: stri
       </div>
       <nav className="pk-mods" aria-label={`${area.name} modules`}>
         {area.modules.map((k) => (
-          <a key={k} className="nv-link" href={`#/${k}`} aria-current={current === k ? "page" : undefined}>
+          <a key={k} className="nv-link" href={to(k)} aria-current={current === k ? "page" : undefined}>
             {MODULE_LABELS[k]}
             {k === "plan" && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
           </a>
@@ -156,6 +158,10 @@ export function rememberPage(section: string) {
 export function ModeMenu({ section, mode, chase }: { section: string; mode: Mode; chase: number }) {
   const here = navKeyOf(section);
   const mods = mode === "work" ? WORK_MODULES : PRACTICE_MODULES;
+  // in Work, once a client is chosen the menu goes to that client's working papers, tax return and so on
+  const { data } = useData();
+  const workClient = useWorkClient();
+  const to = (k: string) => (mode === "work" && workClient ? clientHref(k, workClient, data.payrollSchemes as never) : `#/${k}`);
   const pick = (m: Mode) => {
     keepMode(m);
     window.location.hash = lastPage(m);
@@ -171,7 +177,7 @@ export function ModeMenu({ section, mode, chase }: { section: string; mode: Mode
       <a className="nv-link nv-home-link" href={mode === "work" ? "#/work" : "#/"} aria-label={mode === "work" ? "Work home" : "Home"} title={mode === "work" ? "Work home" : "Home"}
         aria-current={(mode === "work" ? section === "work" : section === "home") ? "page" : undefined}><Icon name="home" size={18} /></a>
       {mods.map((k) => (
-        <a key={k} className="nv-link" href={`#/${k}`} aria-current={here === k ? "page" : undefined}>
+        <a key={k} className="nv-link" href={to(k)} aria-current={here === k ? "page" : undefined}>
           {(mode === "work" && WORK_LABELS[k]) || MODULE_LABELS[k]}
           {k === "plan" && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
         </a>
