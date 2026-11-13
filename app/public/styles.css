@@ -3850,3 +3850,15 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
 .topbar.mode-bar .brand-logo, .topbar.mode-bar .nv-link, .topbar.mode-bar .mode-toggle, .topbar.mode-bar .mode-opt,
 .topbar.mode-bar .search-btn, .topbar.mode-bar .bell, .topbar.mode-bar .iconbtn, .topbar.mode-bar .btn { transition-duration: 0.9s; }
 .work-client { animation-duration: 0.9s; }
+
+/* V29.7: Home links in both modes, and the Work home */
+.nv-home-link { width: 44px; padding: 0; justify-content: center; }
+.work-families { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; align-items: start; }
+.work-family { border-top: 1px solid var(--box-line); }
+.work-family .card-head h2 { display: inline-flex; align-items: center; gap: 10px; }
+.work-family .card-head h2::before { content: ""; width: 12px; height: 12px; border-radius: 999px; background: var(--svc, var(--muted)); }
+.work-family-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0 22px 8px; font-size: 14px; color: var(--ink-2); }
+.work-family-sum strong { font-size: 17px; color: var(--ink); margin-right: 3px; }
+.work-family-sum .red-text strong, .work-family-sum .red-text { color: var(--red-solid); }
+.work-family-sum .amber-text strong, .work-family-sum .amber-text { color: var(--amber-solid); }
+.work-home .home-hero .home-tiles { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }

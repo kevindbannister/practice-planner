@@ -43,8 +43,10 @@ export function WorkClientBar({ section, routeKey }: { section: string; routeKey
     </form>
   );
 
-  // working papers, tax returns and reports already have this banner of their own
-  if (fromRoute && (section === "papers" || section === "tax" || section === "reporting")) return null;
+  // only on the client-work screens: working papers, tax, payroll and Co Sec (working papers and tax returns for a
+  // client already have this banner of their own, so it isn't shown twice)
+  if (!["papers", "tax", "payroll", "cosec"].includes(section)) return null;
+  if (fromRoute && (section === "papers" || section === "tax")) return null;
 
   return (
     <header className="paper-top work-client" aria-label="Client you are working on">

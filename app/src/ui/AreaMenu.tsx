@@ -134,6 +134,8 @@ export const WORK_MODULES = ["clients", "papers", "tax", "payroll", "cosec", "re
 const WORK_LABELS: Record<string, string> = { papers: "Working papers", reporting: "Reports" };
 
 export function modeOf(section: string): Mode | undefined {
+  if (section === "work") return "work";
+  if (section === "home") return "practice";
   const a = areaOf(section);
   return a === "deliver" || a === "grow" ? "work" : a === "run" ? "practice" : undefined;
 }
@@ -145,7 +147,7 @@ export function useMode(section: string): Mode {
   if (own) keepMode(own);
   return own || readMode();
 }
-const lastPage = (m: Mode): string => { try { return localStorage.getItem(`pp.mode.last.${m}`) || (m === "work" ? "#/papers" : "#/plan"); } catch { return m === "work" ? "#/papers" : "#/plan"; } };
+const lastPage = (m: Mode): string => { try { return localStorage.getItem(`pp.mode.last.${m}`) || (m === "work" ? "#/work" : "#/"); } catch { return m === "work" ? "#/work" : "#/"; } };
 export function rememberPage(section: string) {
   const m = section === "clients" ? undefined : modeOf(section);
   if (m) { try { localStorage.setItem(`pp.mode.last.${m}`, window.location.hash || "#/"); } catch { /* fine */ } }
@@ -166,6 +168,8 @@ export function ModeMenu({ section, mode, chase }: { section: string; mode: Mode
         <span className={`mode-opt${mode === "practice" ? " on" : ""}`}><Icon name="building" size={17} /></span>
         <span className={`mode-opt${mode === "work" ? " on" : ""}`}><Icon name="briefcase" size={17} /></span>
       </button>
+      <a className="nv-link nv-home-link" href={mode === "work" ? "#/work" : "#/"} aria-label={mode === "work" ? "Work home" : "Home"} title={mode === "work" ? "Work home" : "Home"}
+        aria-current={(mode === "work" ? section === "work" : section === "home") ? "page" : undefined}><Icon name="home" size={18} /></a>
       {mods.map((k) => (
         <a key={k} className="nv-link" href={`#/${k}`} aria-current={here === k ? "page" : undefined}>
           {(mode === "work" && WORK_LABELS[k]) || MODULE_LABELS[k]}

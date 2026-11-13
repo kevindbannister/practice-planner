@@ -65,6 +65,7 @@ const ClientsPage = page(() => import("./ClientsPage").then((m) => m.ClientsPage
 const SetupPage = page(() => import("./SetupPage").then((m) => m.SetupPage));
 const PlanPage = page(() => import("./PlanPage").then((m) => m.PlanPage));
 const HomePage = page(() => import("./HomePage").then((m) => m.HomePage));
+const WorkHome = page(() => import("./WorkHome").then((m) => m.WorkHome));
 const CommsPage = page(() => import("./Comms").then((m) => m.CommsPage));
 const PapersPage = page(() => import("./PapersPage").then((m) => m.PapersPage));
 const TaxPage = page(() => import("./TaxPage").then((m) => m.TaxPage));
@@ -129,6 +130,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <ClientPage clientKey={parts[1]} tab={(["work", "tasks", "papers", "numbers", "comms", "meetings", "tax", "activity", "timeline", "signing", "invoices", "clearance", "disengage", "aml", "forms", "portal"].includes(parts[2]) ? parts[2] : "overview") as "overview"} />;
   } else if (section === "groups" || section === "clients") {
     body = <GroupsPage />;
+  } else if (section === "work") {
+    body = <WorkHome />;
   } else if (section === "home") {
     body = <HomePage />;
   } else if (section === "plan") {
