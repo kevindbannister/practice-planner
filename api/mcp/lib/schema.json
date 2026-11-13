@@ -410,6 +410,10 @@
      "type": "bool"
     },
     {
+     "name": "PlanDaysBefore",
+     "type": "number"
+    },
+    {
      "name": "RecordsNeeded",
      "type": "text"
     },
