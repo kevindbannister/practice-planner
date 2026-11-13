@@ -2,7 +2,7 @@
 declare const __DEMO__: boolean;
 import { QuickAddProvider, useQuickAdd } from "./QuickAdd";
 import { VERSION } from "../version";
-import { AreaMenu } from "./AreaMenu";
+import { AreaMenu, AreaPicker, TwoLineAreas, TwoLineModules, useMenuKind } from "./AreaMenu";
 import { PortalProvider, usePortal } from "./portalKit";
 import { Suspense, lazy, useEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
 import { createPortal } from "react-dom";
@@ -207,6 +207,9 @@ export function App({ demo }: { demo: boolean }) {
 }
 
 function TopBar({ section, demo, ready, scrolls = false }: { section: string; demo: boolean; ready: boolean; scrolls?: boolean }) {
+  const [menuKind] = useMenuKind();
+  const two = menuKind === "two";
+  const pick = menuKind === "pick";
   const { save, user } = useData();
   const quick = useQuickAdd();
   const chase = useChaseCount();
@@ -223,10 +226,10 @@ function TopBar({ section, demo, ready, scrolls = false }: { section: string; de
   const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
   const AREA_ICONS: Record<AreaId, IconName> = { run: "layout", deliver: "check", grow: "chart" };
   return (
-    <header className={`topbar${scrolls ? " scrolls" : ""}`}>
+    <header className={`topbar${two ? " two" : ""}${scrolls ? " scrolls" : ""}`}>
       <div className="topbar-left">
         <Brand />
-        <div className="hide-phone"><AreaMenu section={section} chase={ready ? chase : 0} /></div>
+        <div className="hide-phone">{two ? <TwoLineAreas section={section} area={area} onPick={pickArea} /> : pick ? <AreaPicker section={section} area={area} onPick={pickArea} chase={ready ? chase : 0} /> : <AreaMenu section={section} rename={menuKind === "named"} chase={ready ? chase : 0} />}</div>
         <div className="phone-nav">
         <div className="areas" role="group" aria-label="Areas">
           {AREAS.map((a) => (
@@ -268,6 +271,7 @@ function TopBar({ section, demo, ready, scrolls = false }: { section: string; de
         </div>
         <ProfileMenu user={user} demo={demo} waiting={ready ? portalWaiting : 0} />
       </div>
+      {two && <TwoLineModules section={section} area={area} chase={ready ? chase : 0} />}
     </header>
   );
 }
@@ -292,6 +296,7 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
   const { save } = useData();
   const { dark, set } = useTheme();
   const [tips, setTips] = useTips();
+  const [menuKind, setMenuKind] = useMenuKind();
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -325,6 +330,12 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
           </button>
           <a role="menuitem" href="#/settings" onClick={() => setShown(false)}><Icon name="settings" size={16} /> Settings{waiting > 0 && <span className="nav-count" aria-label={`${waiting} waiting in the portal`}>{waiting}</span>}</a>
           <a role="menuitem" href="#/devhub" onClick={() => setShown(false)}><Icon name="cog" size={16} /> Development Hub</a>
+          <div className="profile-sub">Menu style</div>
+          {([["drop", "Drop-down areas"], ["named", "Drop-down, shows where you are"], ["two", "Two lines"], ["pick", "Area picker"]] as const).map(([k, label]) => (
+            <button key={k} type="button" role="menuitemradio" aria-checked={menuKind === k} onClick={() => { setMenuKind(k); setShown(false); }}>
+              <Icon name={menuKind === k ? "check" : "layout"} size={16} /> {label}
+            </button>
+          ))}
           {!demo && <button type="button" role="menuitem" onClick={signOut}><Icon name="left" size={16} /> Sign out</button>}
         </div>
       )}
