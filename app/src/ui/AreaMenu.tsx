@@ -116,7 +116,7 @@ export function AreaPicker({ section, area, onPick, chase = 0 }: { section: stri
       </div>
       <nav className="pk-mods" aria-label={`${area.name} modules`}>
         {area.modules.map((k) => (
-          <a key={k} className="nv-link" href={to(k)} aria-current={current === k ? "page" : undefined}>
+          <a key={k} className="nv-link" href={`#/${k}`} aria-current={current === k ? "page" : undefined}>
             {MODULE_LABELS[k]}
             {k === "plan" && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
           </a>
