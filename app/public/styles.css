@@ -3522,3 +3522,16 @@ table.deadlines .c-kind { white-space: nowrap; }
 .plan.fit .plan-head .plan-title h1 { font-size: 22px; }
 .plan.fit .hours-legend { display: none; }
 .plan.fit .hours-head { padding-bottom: 4px; }
+
+/* Month: fills the window like Working Papers. The calendar takes the room left; the Unplanned panel scrolls on its own. */
+@media (min-width: 721px) {
+  .page.month-fit { height: calc(100vh - var(--topbar-h)); min-height: 560px; box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; overflow: hidden; padding-bottom: 12px; }
+  .month-fit .month-layout { flex: 1 1 auto; min-height: 0; grid-template-columns: 300px minmax(0, 1fr); align-items: stretch; }
+  .month-fit .month-layout > .tray { position: static; max-height: none; max-width: none; height: 100%; min-height: 0; overflow: hidden; }
+  .month-fit .month-layout > .tray .tray-list { flex: 1 1 auto; min-height: 0; }
+  .month-fit .month-main { min-height: 0; display: flex; flex-direction: column; }
+  .month-fit .month-grid-wrap { flex: 1 1 auto; min-height: 0; }
+  .month-fit .month-grid { height: 100%; }
+  .month-fit .month-cell { height: auto; }
+  .month-fit .month-cell { overflow: hidden; }
+}

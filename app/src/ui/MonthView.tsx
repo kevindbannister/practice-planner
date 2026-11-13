@@ -1,5 +1,5 @@
 // Month: the plan on a calendar. Each day shows what is planned on it against the hours available, and what is due. Click a day to plan it in the Week view.
-import { KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { KeyboardEvent as ReactKeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, isOnHold, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { dayHours } from "../lib/dayTypes";
@@ -19,7 +19,8 @@ import { useBoardDrag } from "./useBoardDrag";
 const monthName = (key: string) => new Date(`${key}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 const dayName = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MAX_SHOWN = 3;
+const HELP = "Held work is left off. Bars show planned hours against the hours you have that day; red means more is planned than fits. Drag a job or task to another day to move it (or hold it at the left or right edge of the screen to change month), or focus it and press Alt with an arrow key: left and right move a day, up and down a week. Click a day to plan it in the Week view. The Unplanned list shows work with no day yet, earliest deadline first.";
+const MAX_SHOWN = 3; // on a small screen; on a wide one it follows the height of the rows
 function useNarrow(q = "(max-width: 720px)") { const get = () => typeof matchMedia === "function" && matchMedia(q).matches; const [n, setN] = useState(get); useEffect(() => { const m = matchMedia(q); const f = () => setN(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, [q]); return n; }
 
 export function MonthView() {
@@ -69,6 +70,20 @@ export function MonthView() {
   const isStat = (i: Item) => i.kind === "job" && isStatutory(data.services.find((x) => x.Key === (i.row as Job).ServiceKey), (i.row as Job).ServiceKey);
   const narrowed = useMemo(() => planItems.filter((i) => show === "all" || (show === "statutory") === isStat(i)), [planItems, show, data.services]); // eslint-disable-line react-hooks/exhaustive-deps
   const tray = usePlanTray({ items: narrowed, today, inTray: (i) => !i.planned });
+  // like Working Papers, the month fills the window: the calendar takes the room left and the Unplanned panel scrolls on its own. The number of
+  // items a day can show follows the height its row gets.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [rowH, setRowH] = useState(0);
+  useLayoutEffect(() => {
+    const el = gridRef.current;
+    if (!el || narrow) { setRowH(0); return; }
+    const measure = () => setRowH((cur) => { const next = Math.round((el.clientHeight - 36) / Math.max(1, m.weeks.length)); return Math.abs(next - cur) < 3 ? cur : next; });
+    measure();
+    const watch = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    watch?.observe(el);
+    return () => watch?.disconnect();
+  }, [narrow, m.weeks.length]);
+  const maxShown = rowH ? Math.max(1, Math.min(6, Math.floor((rowH - 62) / 22))) : MAX_SHOWN;
   const hiddenWeekend = useMemo(() => m.weeks.flat().filter((c) => c.weekend && c.inMonth).reduce((t, c) => t + c.planned.length, 0), [m]);
   const goWeek = (date: string) => { try { sessionStorage.setItem("pp.plan.jump", date); } catch { /* the Week view opens on this week instead */ } window.location.hash = "#/plan"; };
   const openItem = (i: MonthItem) => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key });
@@ -88,7 +103,7 @@ export function MonthView() {
   );
   const cellsWithContent = m.weeks.flat().filter((c) => c.inMonth && (weekends || !c.weekend) && (c.planned.length || c.due.length || c.done.length));
   return (
-    <div className="page">
+    <div className={`page${narrow ? "" : " month-fit"}`}>
       <PlanTabs current="month" />
       <div className="row-wrap no-print" style={{ gap: 12, alignItems: "center" }}>
         <div className="row" style={{ gap: 4 }}>
@@ -100,12 +115,13 @@ export function MonthView() {
         <div className="seg" role="group" aria-label="Show">
           {([["all", "All work"], ["statutory", "Statutory"], ["other", "Other"]] as [Show, string][]).map(([k, l]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => setShow(k)}>{l}</button>)}
         </div>
+        {!narrow && <span className="muted" tabIndex={0} role="note" aria-label={HELP} title={HELP} style={{ cursor: "help" }}>ⓘ How this works</span>}
         <button type="button" className="btn small" aria-pressed={weekends} onClick={toggleWeekends} title={weekends ? "Hide Saturdays and Sundays" : "Show Saturdays and Sundays"}>{weekends ? "Hide weekends" : `Show weekends${hiddenWeekend ? ` (${hiddenWeekend} planned)` : ""}`}</button>
         <span className="muted">{fmtHours(m.totals.planned) || "0h"} planned of {fmtHours(m.totals.capacity) || "0h"} available · {m.totals.due} due{m.totals.unplanned ? `, ${m.totals.unplanned} not planned yet` : ""}</span>
       </div>
       <div className="month-layout">
       {!narrow && panel}
-      <div>
+      <div className="month-main">
       {narrow ? (
         <ul className="month-agenda" aria-label={`Plan for ${monthName(month)}`}>
           {cellsWithContent.length === 0 && <li className="muted">Nothing planned or due this month.</li>}
@@ -118,12 +134,13 @@ export function MonthView() {
           ))}
         </ul>
       ) : (
+        <div className="month-grid-wrap" ref={gridRef}>
         <table className="month-grid">
           <caption className="sr-only">Plan for {monthName(month)}</caption>
           <thead><tr>{WEEKDAYS.filter((_, n) => weekends || n < 5).map((d) => <th key={d} scope="col">{d}</th>)}</tr></thead>
           <tbody>
             {m.weeks.map((w, wi) => (
-              <tr key={wi}>
+              <tr key={wi} style={{ height: `${100 / m.weeks.length}%` }}>
                 {w.filter((c) => weekends || !c.weekend).map((c) => {
                   const pct = c.capacity ? Math.min(100, Math.round((c.plannedHours / c.capacity) * 100)) : c.plannedHours ? 100 : 0;
                   return (
@@ -133,8 +150,8 @@ export function MonthView() {
                         {c.due.length > 0 && <span className="chip red" title={c.due.map((i) => `${i.client ? i.client + ": " : ""}${i.title}`).join("\n")}>{c.due.length} due</span>}
                       </div>
                       {c.capacity > 0 || c.plannedHours > 0 ? <div className="month-bar" aria-hidden="true"><span className={c.over ? "over" : ""} style={{ width: `${pct}%` }} /></div> : null}
-                      {c.planned.slice(0, MAX_SHOWN).map(chip)}
-                      {c.planned.length > MAX_SHOWN && <button type="button" className="linkbtn month-more" onClick={(e) => { e.stopPropagation(); goWeek(c.date); }}>+{c.planned.length - MAX_SHOWN} more</button>}
+                      {c.planned.slice(0, maxShown).map(chip)}
+                      {c.planned.length > maxShown && <button type="button" className="linkbtn month-more" onClick={(e) => { e.stopPropagation(); goWeek(c.date); }}>+{c.planned.length - maxShown} more</button>}
                       {c.done.length > 0 && <div className="muted month-doneline">{c.done.length} done</div>}
                       {c.capacity > 0 && <div className="muted month-hours">{fmtHours(c.plannedHours) || "0h"}/{fmtHours(c.capacity)}</div>}
                     </td>
@@ -144,11 +161,12 @@ export function MonthView() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
       </div>
       </div>
       {narrow && panel}
-      <p className="muted" style={{ margin: 0 }}>Held work is left off. Bars show planned hours against the hours you have that day; red means more is planned than fits. Drag a job or task to another day to move it (or hold it at the left or right edge of the screen to change month), or focus it and press Alt with an arrow key: left and right move a day, up and down a week. Click a day to plan it in the Week view. The Unplanned list shows work with no day yet, earliest deadline first.</p>
+      {narrow && <p className="muted" style={{ margin: 0 }}>{HELP}</p>}
       {error && <p className="import-list warn" role="alert">{error}</p>}
       <div aria-live="polite" className="sr-only">{toast?.text}</div>
       {toast && <div className="toast" role="status">{toast.text}{toast.undo && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={toast.undo}>Undo</button>}</div>}
