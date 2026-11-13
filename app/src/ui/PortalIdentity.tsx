@@ -26,7 +26,7 @@ export function IdentityTab() {
     <div className="stack">
       <section className="card pad stack" aria-labelledby="id-h">
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-          <h2 id="id-h" style={{ margin: 0, fontSize: 16 }}>Identity documents</h2>
+          <h2 id="id-h" style={{ margin: 0, fontSize: 17 }}>Identity documents</h2>
           <button type="button" className="btn small" onClick={() => void portal.run((a) => a.sweepIdentity()).then((r) => { setNote(`Checked. ${r.requested} new ${r.requested === 1 ? "request" : "requests"} made and ${r.reminded} ${r.reminded === 1 ? "reminder" : "reminders"} sent.`); return load(); }).catch((e) => setErr(say(e)))}>Run date checks now</button>
         </div>
         <p className="muted" style={{ margin: 0 }}>Only the person themselves can see their identity documents in the portal. Other people at their business, administrators included, can't. Accepting a document records that you checked it; it doesn't complete your anti-money-laundering identity checks on its own.</p>
@@ -50,7 +50,7 @@ export function IdentityFor({ person }: { person: PortalPerson }) {
   useEffect(() => { void load(); }, [person.id]);
   return (
     <section className="card pad stack" aria-labelledby="idf-h">
-      <h2 id="idf-h" style={{ margin: 0, fontSize: 16 }}>Identity documents</h2>
+      <h2 id="idf-h" style={{ margin: 0, fontSize: 17 }}>Identity documents</h2>
       <RequestForm people={[person]} fixed onDone={load} />
       {err && <p className="import-list warn" role="alert">{err}</p>}
       {items && !items.length && <p className="muted" style={{ margin: 0 }}>None asked for yet.</p>}

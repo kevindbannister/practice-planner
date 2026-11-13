@@ -47,7 +47,7 @@ export function TaxRefsCard({ client }: { client: Client }) {
                 {g.fields.map((f) => { const bad = check(f.key, draft[f.key]); return (
                   <label key={f.key}>{f.label}
                     <input className="input" value={draft[f.key] || ""} onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })} aria-invalid={bad ? true : undefined} />
-                    {bad && <span className="muted" style={{ fontSize: 12, color: "var(--amber-ink)" }}>{bad} You can still save it.</span>}
+                    {bad && <span className="muted" style={{ fontSize: 13, color: "var(--amber-ink)" }}>{bad} You can still save it.</span>}
                   </label>
                 ); })}
               </div>
@@ -78,7 +78,7 @@ export function TaxRefsCard({ client }: { client: Client }) {
               </div>
             );
           })}
-          {g.note && <span className="muted" style={{ fontSize: 12 }}>{g.note}</span>}
+          {g.note && <span className="muted" style={{ fontSize: 13 }}>{g.note}</span>}
         </div>
       ))}
     </section>
@@ -112,8 +112,8 @@ function AuthChip({ client, group, today, rows }: { client: Client; group: RefGr
       {open && (
         <span className="row-wrap" style={{ gap: 6, flexBasis: "100%", justifyContent: "flex-end" }}>
           <select className="input" style={{ width: "auto" }} aria-label={`${AUTH_LABEL[group.auth!]} authorisation status`} value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Not authorised</option><option value="requested">Link sent</option><option value="authorised">Authorised</option><option value="refused">Refused</option></select>
-          <label className="muted" style={{ fontSize: 12 }}>Link sent <input className="input" type="date" value={sent} onChange={(e) => setSent(e.target.value)} /></label>
-          <label className="muted" style={{ fontSize: 12 }}>Expires <input className="input" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} /></label>
+          <label className="muted" style={{ fontSize: 13 }}>Link sent <input className="input" type="date" value={sent} onChange={(e) => setSent(e.target.value)} /></label>
+          <label className="muted" style={{ fontSize: 13 }}>Expires <input className="input" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} /></label>
           <button type="button" className="btn small primary" disabled={busy} onClick={() => void save()}>Save</button>
           {err && <span className="error-text">{err}</span>}
         </span>

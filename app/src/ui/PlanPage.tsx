@@ -544,12 +544,12 @@ function WeekView() {
             <button type="button" aria-pressed={view === "hours"} onClick={() => setView("hours")}><Icon name="clock" /><span className="tb-text">Hours</span></button>
             <button type="button" aria-pressed={view === "cards"} onClick={() => setView("cards")}><Icon name="list" /><span className="tb-text">Cards</span></button>
           </div>
-          <label className="row-wrap show-done" style={{ gap: 6, fontSize: 14 }}>
+          <label className="row-wrap show-done" style={{ gap: 6, fontSize: 15 }}>
             <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} style={{ width: 18, height: 18 }} />
             <span>Completed</span>
           </label>
           {view === "hours" && !narrow && (
-            <label className="row-wrap show-done" style={{ gap: 6, fontSize: 14 }} title="Make the hours smaller so the whole day fits on screen without scrolling">
+            <label className="row-wrap show-done" style={{ gap: 6, fontSize: 15 }} title="Make the hours smaller so the whole day fits on screen without scrolling">
               <input type="checkbox" checked={fit} onChange={(e) => setFit(e.target.checked)} style={{ width: 18, height: 18 }} />
               <span>Fit to screen</span>
             </label>
@@ -769,14 +769,14 @@ function WeekView() {
               >
                 <div className="day-title">
                   <h2 className="sec-h">{fmtDate(d, { weekday: true, year: false })}</h2>
-                  <span className="mono" style={{ fontSize: 12, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>
+                  <span className="mono" style={{ fontSize: 13, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>
                     {fmtHours(used) || "0h"} / {fmtHours(cap) || "0h"}{over ? ` · ${fmtHours(used - cap)} over` : ""}
                   </span>
                 </div>
                 <div className="day-head">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                     <span style={{ fontWeight: 700 }}>{fmtDate(d, { weekday: true, year: false })}</span>
-                    <span className="mono" style={{ fontSize: 12, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>
+                    <span className="mono" style={{ fontSize: 13, color: over ? "var(--red-ink)" : "var(--ink-2)" }}>
                       {fmtHours(used) || "0h"} / {fmtHours(cap) || "0h"}
                     </span>
                   </div>
@@ -784,9 +784,9 @@ function WeekView() {
                     <span className={over ? "over" : ""} style={{ width: `${pct}%` }} />
                     {sPct > 0 && <span className="sugg" style={{ width: `${sPct}%` }} />}
                   </div>
-                  {over && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red-ink)" }}>{fmtHours(used - cap)} over</span>}
-                  {sHours > 0 && <span style={{ fontSize: 12, color: "var(--blue-ink)" }}>+{fmtHours(sHours)} suggested</span>}
-                  {cal.meetingsOn(d) > 0 && <span className="muted" style={{ fontSize: 12 }}>Meetings {fmtHours(cal.meetingsOn(d))}</span>}
+                  {over && <span style={{ fontSize: 13, fontWeight: 600, color: "var(--red-ink)" }}>{fmtHours(used - cap)} over</span>}
+                  {sHours > 0 && <span style={{ fontSize: 13, color: "var(--blue-ink)" }}>+{fmtHours(sHours)} suggested</span>}
+                  {cal.meetingsOn(d) > 0 && <span className="muted" style={{ fontSize: 13 }}>Meetings {fmtHours(cal.meetingsOn(d))}</span>}
                   {bizText(d) && <span className={`dhead-biz${bizLoad(d) > dayHours(d, settings).business ? " over" : ""}`}>{bizText(d)}</span>}
                   {typePick(d)}
                 </div>
@@ -876,7 +876,7 @@ function PreparedCard({ item: i, onOpen }: { item: Item; onOpen: () => void }) {
       aria-label={`Prepared: ${i.title}${i.client ? ", " + i.client : ""}. Open the job.`}>
       <span className="pcard-top">
         <span className="pcard-tag"><Icon name="check" size={12} /> Prepared</span>
-        {hours > 0 && <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{fmtHours(hours)}</span>}
+        {hours > 0 && <span className="mono" style={{ fontSize: 13, color: "var(--muted)" }}>{fmtHours(hours)}</span>}
       </span>
       <span className="pcard-client">{i.client || i.title}</span>
       <span className="pcard-sub">{i.client ? job.Title : ""}{i.waiting ? `${i.client ? " · " : ""}with the client` : ""}</span>

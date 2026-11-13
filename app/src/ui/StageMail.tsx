@@ -70,7 +70,7 @@ export function StageMailSettings({ job, stages }: { job: Row; stages: Row[] }) 
     <details>
       <summary className="muted" style={{ cursor: "pointer", fontSize: 13 }}>Emails to the client when a stage is done{on ? ` · ${on} on` : ""}</summary>
       <div className="stack" style={{ gap: 6, marginTop: 6 }}>
-        <p className="muted" style={{ margin: 0, fontSize: 12 }}>For every job of this type. Finishing a stage offers the email as an Outlook draft for you to check; nothing is sent automatically. Use {"{{client.greeting}}, {{client.name}}, {{job.type}}, {{stage}}, {{practice.name}}"}.</p>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>For every job of this type. Finishing a stage offers the email as an Outlook draft for you to check; nothing is sent automatically. Use {"{{client.greeting}}, {{client.name}}, {{job.type}}, {{stage}}, {{practice.name}}"}.</p>
         {stages.map((s) => {
           const no = Number(s.StageNo), r = ruleFor(rules, service, no);
           return (

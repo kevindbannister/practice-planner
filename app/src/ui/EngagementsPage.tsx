@@ -494,7 +494,7 @@ export function ClientEngagements({ clientKey }: { clientKey: string }) {
       {open && s.pcan("edit") && (
         <div className="row-wrap" style={{ gap: 8, alignItems: "center" }}>
           <button type="button" className="btn small primary" disabled={busy || open.state !== "ready"} onClick={draft}>{busy ? "Drafting…" : "Draft a letter from their services"}</button>
-          <span className="muted" style={{ fontSize: 12 }}>{open.state === "ready" ? `Covers ${open.uncovered.map((l) => l.name).join(", ")}, at the fees recorded here.` : open.reason}</span>
+          <span className="muted" style={{ fontSize: 13 }}>{open.state === "ready" ? `Covers ${open.uncovered.map((l) => l.name).join(", ")}, at the fees recorded here.` : open.reason}</span>
         </div>
       )}
       {err && <p role="alert" style={{ color: "var(--red-ink)", margin: 0 }}>{err}</p>}

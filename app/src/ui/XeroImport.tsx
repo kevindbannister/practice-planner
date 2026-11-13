@@ -145,8 +145,8 @@ export function XeroImport({ client, period, open, onClose }: { client: Client; 
               <label key={k} className="row-wrap" style={{ gap: 8, alignItems: "flex-start" }}>
                 <input type="checkbox" style={{ marginTop: 3 }} checked={parts.has(k)} onChange={(e) => setParts((s) => { const n = new Set(s); if (e.target.checked) n.add(k); else n.delete(k); return n; })} />
                 <span className="stack" style={{ gap: 0 }}>
-                  <span>{label}{replaces[k] ? <span className="muted" style={{ fontSize: 12 }}> · replaces {replaces[k]} line{replaces[k] === 1 ? "" : "s"} already there</span> : null}</span>
-                  <span className="muted" style={{ fontSize: 12 }}>{hint}</span>
+                  <span>{label}{replaces[k] ? <span className="muted" style={{ fontSize: 13 }}> · replaces {replaces[k]} line{replaces[k] === 1 ? "" : "s"} already there</span> : null}</span>
+                  <span className="muted" style={{ fontSize: 13 }}>{hint}</span>
                 </span>
               </label>
             ))}
@@ -170,12 +170,12 @@ export function XeroImport({ client, period, open, onClose }: { client: Client; 
       {result && (
         <div className="stack" style={{ gap: 10 }}>
           <div>
-            <strong style={{ fontSize: 14 }}>Read from Xero</strong>
+            <strong style={{ fontSize: 15 }}>Read from Xero</strong>
             <ul className="import-list">{result.log.map((x) => <li key={x}>{x}</li>)}</ul>
           </div>
           {(result.problems.length > 0 || result.book.notes.length > 0) && (
             <div>
-              <strong style={{ fontSize: 14 }}>Worth a look</strong>
+              <strong style={{ fontSize: 15 }}>Worth a look</strong>
               <ul className="import-list warn">{[...result.problems, ...result.book.notes].map((x) => <li key={x}>{x}</li>)}</ul>
             </div>
           )}

@@ -302,7 +302,7 @@ export function HomePage() {
               );
             })}
           </div>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>
             Bars are hours planned; the outline is the hours you have{cal.prefs.enabled ? " after meetings" : ""}.
           </p>
         </section>
@@ -327,7 +327,7 @@ export function HomePage() {
               );
             })}
           </ul>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Hours due each month as a share of the hours you have (the line), including next periods of recurring work.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Hours due each month as a share of the hours you have (the line), including next periods of recurring work.</p>
         </section>
         <section className="card" aria-labelledby="type-h">
           <div className="card-head"><h2 className="with-icon" id="type-h"><span className="h-icon hue-green" aria-hidden="true"><Icon name="list" size={15} /></span>Open work by type</h2><span className="muted" style={{ fontSize: 13 }}>{active.length} open</span></div>
@@ -445,7 +445,7 @@ function WorkRow({ w, today, onOpen, show, inGroup }: { w: Work; today: string; 
           {show === "planned" && (plannedOk
             ? <span className="chip blue">Planned {fmtDate(w.planned, { weekday: true, year: false }).split(" ").slice(0, 2).join(" ")}</span>
             : <span className="chip amber">Not planned</span>)}
-          <span className="mono muted" style={{ fontSize: 12, minWidth: 44, textAlign: "right" }}>{fmtHours(w.hours)}</span>
+          <span className="mono muted" style={{ fontSize: 13, minWidth: 44, textAlign: "right" }}>{fmtHours(w.hours)}</span>
         </span>
       </button>
     </li>

@@ -271,7 +271,7 @@ export function AccountsWorkingPapers({ client, period }: { client: Client; peri
       {txs.length > 0 && (
         <>
           <div className="stack" style={{ gap: 6 }}>
-            <strong style={{ fontSize: 14 }}>Bank reconciliation</strong>
+            <strong style={{ fontSize: 15 }}>Bank reconciliation</strong>
             <div className="row-wrap" style={{ gap: 12, fontSize: 13 }}>
               <label className="row-wrap" style={{ gap: 6 }}>Bank account
                 <input className="input" style={{ width: 220 }} defaultValue={bankName} aria-label="Bank account name" onBlur={(e) => e.target.value !== bankName && void w.writeSetup(KEY, { bankName: e.target.value })} />
@@ -302,10 +302,10 @@ export function AccountsWorkingPapers({ client, period }: { client: Client; peri
 
           <div className="stack" style={{ gap: 6 }}>
             <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-              <strong style={{ fontSize: 14 }}>Categories{unsorted.length ? ` · ${unsorted.length} to sort` : " · all sorted"}</strong>
+              <strong style={{ fontSize: 15 }}>Categories{unsorted.length ? ` · ${unsorted.length} to sort` : " · all sorted"}</strong>
               {unsorted.length > 0 && (
                 <span className="row-wrap" style={{ gap: 8 }}>
-                  <label className="row-wrap" style={{ gap: 6, fontSize: 12 }}>
+                  <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>
                     <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                     OK to send descriptions and amounts (no account details) to OpenAI
                   </label>
@@ -327,7 +327,7 @@ export function AccountsWorkingPapers({ client, period }: { client: Client; peri
           </div>
 
           <div className="stack" style={{ gap: 6 }}>
-            <strong style={{ fontSize: 14 }}>Trial balance created from these{ob ? " and the opening balances" : ""}</strong>
+            <strong style={{ fontSize: 15 }}>Trial balance created from these{ob ? " and the opening balances" : ""}</strong>
             <table className="bank-table">
               <thead><tr><th>Account</th><th className="num">Debit</th><th className="num">Credit</th></tr></thead>
               <tbody>

@@ -32,16 +32,16 @@ export function DependencyTemplatesPage() {
     <div className="page">
       <div className="page-head"><div><h1>Dependency templates</h1><p className="muted tip" style={{ margin: "4px 0 0" }}>Standard relationships between kinds of work, applied to each new period's jobs. They only fill in what is missing on open jobs and never change finished ones. Nothing is sent to a client.</p></div></div>
       {error && <p className="error-text" role="alert">{error}</p>}{msg && <p role="status">{msg}</p>}
-      {p.reviews.length > 0 && <section className="card pad stack" aria-label="Needs a decision"><h2 style={{ margin: 0, fontSize: 16 }}>Needs a decision ({p.reviews.length})</h2>
+      {p.reviews.length > 0 && <section className="card pad stack" aria-label="Needs a decision"><h2 style={{ margin: 0, fontSize: 17 }}>Needs a decision ({p.reviews.length})</h2>
         {p.reviews.map((o) => <div key={o.template.key + o.dependent.key} className="stack" style={{ gap: 4, borderTop: "1px solid var(--line)", paddingTop: 8 }}>
           <strong>{jobTitle(o.dependent)}</strong><span className="muted">{o.template.title}</span><span>{o.reason}</span>
           <div className="row-wrap" style={{ gap: 6 }}>{o.candidates.map((c) => <button key={c.key} type="button" className="btn small" disabled={!canEdit || busy} onClick={() => void resolve(o, c)}>Wait for: {jobTitle(c)}</button>)}<button type="button" className="btn small" disabled={!canEdit || busy} onClick={() => void decline(o)}>This doesn't apply</button></div>
         </div>)}</section>}
-      {(p.links.length > 0 || p.tasks.length > 0) && <section className="card pad stack" aria-label="Ready to create"><h2 style={{ margin: 0, fontSize: 16 }}>Ready to create ({p.links.length + p.tasks.length})</h2>
+      {(p.links.length > 0 || p.tasks.length > 0) && <section className="card pad stack" aria-label="Ready to create"><h2 style={{ margin: 0, fontSize: 17 }}>Ready to create ({p.links.length + p.tasks.length})</h2>
         <ul style={{ margin: 0, paddingLeft: 18 }}>{p.links.map((o) => <li key={o.template.key + o.dependent.key}>{jobTitle(o.dependent)} will wait for {jobTitle(o.prerequisite)}</li>)}{p.tasks.map((o) => <li key={o.template.key + o.dependent.key}>{jobTitle(o.dependent)} will wait for "{o.title}" (a client task is added; it is not shared)</li>)}</ul>
         <div><button type="button" className="btn primary" disabled={!canEdit || busy} onClick={() => void createAll()}>Create these</button></div></section>}
       <section className="card pad stack" aria-label="Templates">
-        <div className="row-wrap" style={{ justifyContent: "space-between" }}><h2 style={{ margin: 0, fontSize: 16 }}>Templates</h2><button type="button" className="btn small primary" disabled={!canEdit} onClick={() => setEditing({ ...STARTERS[1], key: newKey("DT"), title: "", kind: "job", enabled: false, version: 1, created: "", createdBy: user || "", notes: "" })}>New template</button></div>
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}><h2 style={{ margin: 0, fontSize: 17 }}>Templates</h2><button type="button" className="btn small primary" disabled={!canEdit} onClick={() => setEditing({ ...STARTERS[1], key: newKey("DT"), title: "", kind: "job", enabled: false, version: 1, created: "", createdBy: user || "", notes: "" })}>New template</button></div>
         {!canEdit && <p className="muted" style={{ margin: 0 }}>Only a manager or partner can change templates.</p>}
         {!templates.length && <p className="muted" style={{ margin: 0 }}>None yet. Start from one of the standard ones below.</p>}
         <ul className="plain stack" style={{ gap: 8, margin: 0 }}>{templates.map((t) => { const used = usage(t, env.deps); const probs = templateProblems(t); return (
@@ -65,7 +65,7 @@ function TemplateForm({ t, services, stagesOf, exists, onClose, onSave }: { t: T
   const stage = (label: string, service: string, val: string, on: (x: string) => void, none: string) => <label className="doc-field"><span>{label}</span><select className="input" value={val} onChange={(e) => on(e.target.value)}><option value="">{none}</option>{stagesOf(service).map((n) => <option key={n} value={n}>{n}</option>)}</select></label>;
   return (
     <section className="card pad stack" aria-label="Edit template" style={{ gap: 8 }}>
-      <h2 style={{ margin: 0, fontSize: 16 }}>{exists ? "Edit template" : "New template"}</h2>
+      <h2 style={{ margin: 0, fontSize: 17 }}>{exists ? "Edit template" : "New template"}</h2>
       <p className="muted tip" style={{ margin: 0 }}>Changes apply to jobs created or checked from now on. Existing dependencies and finished jobs are not changed.</p>
       <label className="doc-field"><span>Name</span><input className="input" value={v.title} onChange={(e) => set({ title: e.target.value })} /></label>
       <label className="doc-field"><span>It waits for</span><select className="input" value={v.kind} onChange={(e) => set({ kind: e.target.value as "job" | "task", relation: e.target.value === "task" ? "same_period" : v.relation, type: e.target.value === "task" ? "information" : v.type })}><option value="job">Another job</option><option value="task">Information to be received</option></select></label>

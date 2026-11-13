@@ -123,12 +123,12 @@ export function WorkbookImport({ client, period, open, onClose }: { client: Clie
         <div className="stack" style={{ gap: 10 }}>
           {wrongCompany && <div className="alert amber"><strong>Different company?</strong><span>The workbook is for {plan.company}; these papers are {client.Title}.</span></div>}
           <div>
-            <strong style={{ fontSize: 14 }}>Found</strong>
+            <strong style={{ fontSize: 15 }}>Found</strong>
             <ul className="import-list">{plan.found.map((x) => <li key={x}>{x}</li>)}</ul>
           </div>
           {plan.problems.length > 0 && (
             <div>
-              <strong style={{ fontSize: 14 }}>Worth a look</strong>
+              <strong style={{ fontSize: 15 }}>Worth a look</strong>
               <ul className="import-list warn">{plan.problems.map((x) => <li key={x}>{x}</li>)}</ul>
             </div>
           )}
@@ -138,7 +138,7 @@ export function WorkbookImport({ client, period, open, onClose }: { client: Clie
               <label key={k} className="row-wrap" style={{ gap: 8 }}>
                 <input type="checkbox" checked={parts.has(k)} onChange={(e) => setParts((s) => { const n = new Set(s); if (e.target.checked) n.add(k); else n.delete(k); return n; })} />
                 <span>{PART_LABEL[k]}{k === "prior" ? ` (${prior.slice(0, 4)})` : ""}: {k === "info" ? "nature of business, VAT, software" : `${count[k]} lines`}</span>
-                {have[k] > 0 && parts.has(k) && <span className="muted" style={{ fontSize: 12 }}>replaces {have[k]} line{have[k] === 1 ? "" : "s"} already there</span>}
+                {have[k] > 0 && parts.has(k) && <span className="muted" style={{ fontSize: 13 }}>replaces {have[k]} line{have[k] === 1 ? "" : "s"} already there</span>}
               </label>
             ))}
           </fieldset>

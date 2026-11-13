@@ -357,7 +357,7 @@ function PaperBody({ client: c, period, today }: { client: Client; period: strin
         <div className="paper-side-head">
           <QuickJournalButton />
           <strong>{prog.done} of {prog.total} done</strong>
-          <button type="button" className="linkbtn" style={{ fontSize: 12, marginLeft: "auto" }} aria-expanded={choosing} onClick={() => setChoosing(!choosing)}>
+          <button type="button" className="linkbtn" style={{ fontSize: 13, marginLeft: "auto" }} aria-expanded={choosing} onClick={() => setChoosing(!choosing)}>
             {choosing ? "Done choosing" : "Choose sections"}
           </button>
           <span className="paper-bar" aria-hidden="true"><span style={{ width: `${prog.total ? (prog.done / prog.total) * 100 : 0}%` }} /></span>
@@ -416,7 +416,7 @@ function SectionPicker({ off, onSave }: { off: Set<string>; onSave: (off: Set<st
   };
   return (
     <div className="stack" style={{ gap: 4, padding: "4px 6px" }}>
-      <p className="muted" style={{ margin: "0 0 4px", fontSize: 12 }}>Untick sections this company doesn't need. Next year starts with the same choice.</p>
+      <p className="muted" style={{ margin: "0 0 4px", fontSize: 13 }}>Untick sections this company doesn't need. Next year starts with the same choice.</p>
       {GROUPS.map((g) => (
         <fieldset key={g} className="paper-pick">
           <legend>{g}</legend>

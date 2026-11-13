@@ -77,7 +77,7 @@ export function TimeToLog() {
               <button type="button" className="linklike" onClick={() => open(f.kind === "job" ? { kind: "job", key: f.key } : { kind: "task", key: f.key })}>
                 <strong>{name(f) || "No client"}</strong> · {f.title}
               </button>
-              <span className="muted" style={{ fontSize: 12 }}>finished {fmtDate(f.done, { weekday: true, year: false })}</span>
+              <span className="muted" style={{ fontSize: 13 }}>finished {fmtDate(f.done, { weekday: true, year: false })}</span>
               {openKey !== f.key && <button type="button" className="btn small" onClick={() => setOpenKey(f.key)}>Add time</button>}
             </div>
             {openKey === f.key && <TimeEntry finished={f} compact onSaved={() => setOpenKey(undefined)} onCancel={() => setOpenKey(undefined)} />}

@@ -106,7 +106,7 @@ export function ClientNumbers({ client: c }: { client: Client }) {
     <div className="stack" style={{ gap: 14 }} aria-label="Numbers from Xero">
       <div className="row-wrap" style={{ gap: 10, alignItems: "flex-end", justifyContent: "space-between" }}>
         <div className="row-wrap" style={{ gap: 10, alignItems: "flex-end" }}>
-          <label className="stack" style={{ gap: 4, fontSize: 12 }}>
+          <label className="stack" style={{ gap: 4, fontSize: 13 }}>
             <span className="muted">Period</span>
             <select className="input" value={pick} onChange={(e) => { setPick(e.target.value); setDrill(undefined); }} style={{ width: "auto" }}>
               {ranges.map((r) => <option key={r.key} value={r.key}>{r.label}{r.from ? ` (${fmtDate(r.from, { year: false })} to ${fmtDate(r.to, { year: false })})` : ""}</option>)}
@@ -115,15 +115,15 @@ export function ClientNumbers({ client: c }: { client: Client }) {
           </label>
           {pick === "custom" && (
             <>
-              <label className="stack" style={{ gap: 4, fontSize: 12 }}><span className="muted">From</span><input className="input" type="date" value={custom.from} onChange={(e) => setCustom({ ...custom, from: e.target.value })} style={{ width: "auto" }} /></label>
-              <label className="stack" style={{ gap: 4, fontSize: 12 }}><span className="muted">To</span><input className="input" type="date" value={custom.to} onChange={(e) => setCustom({ ...custom, to: e.target.value })} style={{ width: "auto" }} /></label>
+              <label className="stack" style={{ gap: 4, fontSize: 13 }}><span className="muted">From</span><input className="input" type="date" value={custom.from} onChange={(e) => setCustom({ ...custom, from: e.target.value })} style={{ width: "auto" }} /></label>
+              <label className="stack" style={{ gap: 4, fontSize: 13 }}><span className="muted">To</span><input className="input" type="date" value={custom.to} onChange={(e) => setCustom({ ...custom, to: e.target.value })} style={{ width: "auto" }} /></label>
             </>
           )}
           <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>
             <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} /> Compare with the same period last year
           </label>
         </div>
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted" style={{ fontSize: 13 }}>
           {data.busy ? "Reading from Xero…" : cur ? `Read from Xero ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} · kept for 15 minutes` : ""}
         </span>
       </div>
@@ -141,10 +141,10 @@ export function ClientNumbers({ client: c }: { client: Client }) {
               return (
                 <button key={t.label} type="button" className="card pad" aria-pressed={active} onClick={() => setDrill(active ? undefined : { group: t.group })}
                   style={{ textAlign: "left", cursor: "pointer", outline: active ? "2px solid var(--blue)" : "none", padding: "12px 14px" }}>
-                  <span className="muted" style={{ fontSize: 12, display: "block" }}>{t.label}</span>
+                  <span className="muted" style={{ fontSize: 13, display: "block" }}>{t.label}</span>
                   <strong className="mono" style={{ fontSize: 20 }}>{shown}</strong>
                   {compare && (t.prior !== undefined || t.priorText) && (
-                    <span className="muted" style={{ display: "block", fontSize: 12 }}>
+                    <span className="muted" style={{ display: "block", fontSize: 13 }}>
                       Last year {t.priorText ?? money(t.prior ?? 0)}{change ? ` · ${change}` : ""}
                     </span>
                   )}
@@ -155,7 +155,7 @@ export function ClientNumbers({ client: c }: { client: Client }) {
 
           {cur.trend.length > 1 && (
             <div className="card pad stack" style={{ gap: 6 }} aria-label="Monthly sales and profit">
-              <strong style={{ fontSize: 14 }}>By month: sales (blue) and net profit (teal)</strong>
+              <strong style={{ fontSize: 15 }}>By month: sales (blue) and net profit (teal)</strong>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 140, borderBottom: "1px solid var(--line)" }}>
                 {cur.trend.map((t) => (
                   <div key={t.label} title={`${t.label}: sales ${money(t.sales)}, profit ${money(t.profit)}`} style={{ flex: "1 1 0", minWidth: 0, display: "flex", gap: 2, alignItems: "flex-end", height: "100%" }}>
@@ -172,7 +172,7 @@ export function ClientNumbers({ client: c }: { client: Client }) {
 
           {drill && !drill.account && (
             <div className="card pad stack" style={{ gap: 6 }} aria-label={`${GROUP_LABEL[drill.group]} by account`}>
-              <strong style={{ fontSize: 14 }}>{GROUP_LABEL[drill.group]} by account</strong>
+              <strong style={{ fontSize: 15 }}>{GROUP_LABEL[drill.group]} by account</strong>
               {detail.length === 0 ? <p className="muted" style={{ margin: 0 }}>Nothing in this period.</p> : (
                 <table className="grid">
                   <thead><tr><th scope="col">Account</th><th scope="col" className="num">{pick === "custom" ? "Amount" : range?.label}</th>{compare && <th scope="col" className="num">Last year</th>}<th scope="col"><span className="sr-only">Transactions</span></th></tr></thead>
@@ -253,7 +253,7 @@ function Transactions({ acct, txns, filter, setFilter, onBack, period }: { acct:
             </table>
           </div>
           {diff ? (
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
               The difference is usually something Xero posts itself, such as depreciation, payroll postings, currency revaluations or conversion balances, which the documents don't include.
             </p>
           ) : null}

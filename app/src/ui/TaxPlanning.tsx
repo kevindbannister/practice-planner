@@ -194,7 +194,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
                       <option value="typed">Type it in</option>
                     </select>
                   </label>
-                  {x.source === "return" && hasReturn && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Using their return{removed.length ? `, leaving out ${removed.join(", ")} (this company's own figures)` : ""}. <a href={href("tax", x.clientKey, String(year))}>Open the return</a></p>}
+                  {x.source === "return" && hasReturn && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Using their return{removed.length ? `, leaving out ${removed.join(", ")} (this company's own figures)` : ""}. <a href={href("tax", x.clientKey, String(year))}>Open the return</a></p>}
                   {(x.source === "typed" || !hasReturn) && (
                     <details><summary style={{ fontSize: 13 }}>Other income: {gbp(x.other.nonSavings + x.other.savings + x.other.dividends)}{x.other.children ? `, Child Benefit for ${x.other.children}` : ""}</summary>
                     <div className="cf-grid" style={{ marginTop: 8 }}>
@@ -223,7 +223,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
                   <tr key={o.key} style={o.key === best?.key ? { background: "var(--tint, #eef7ee)" } : undefined}>
                     <td><input type="radio" name="tp-option" aria-label={`Choose ${o.label}`} checked={pick?.key === o.key} onChange={() => setChosen(o.key)} /></td>
                     <td><strong>{o.label}</strong>{o.key === best?.key && <div><span className="chip green">Best on these figures</span></div>}{o.key !== "custom" && <div><button className="linkbtn" type="button" onClick={() => copySalaries(o)}>Edit these</button></div>}</td>
-                    <td style={{ fontSize: 12 }}>{names(o)}</td>
+                    <td style={{ fontSize: 13 }}>{names(o)}</td>
                     <td>{o.eligible ? <span className="chip green">Can claim</span> : <span className="chip">Can't claim</span>}</td>
                     <td className="num"><strong>{gbp(o.likely.takeHome)}</strong><div className="muted" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{o.eligible ? `without it ${gbp(o.withoutEa.takeHome)}` : `if claimed ${gbp(o.withEa.takeHome)}`}</div></td>
                     <td className="num">{gbp(o.likely.company.retained)}</td>
@@ -231,7 +231,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
                   </tr>
                 ))}</tbody>
               </table></div>
-              {best?.key === "best" && plan.people.filter((x) => x.salaried).length > 1 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>"Best found" leaves the most for everyone together, so it can favour one person. Use "Edit these" to balance it.</p>}
+              {best?.key === "best" && plan.people.filter((x) => x.salaried).length > 1 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>"Best found" leaves the most for everyone together, so it can favour one person. Use "Edit these" to balance it.</p>}
             </section>
           )}
 
@@ -248,7 +248,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
               <div className="table-wrap"><table className="grid">
                 <thead><tr><th>Person</th><th className="num">Salary</th><th className="num">Dividends</th>{shown.company.loansRepaid > 0 && <th className="num">Loan repaid</th>}<th className="num">Income tax</th><th className="num">Employee NI</th><th className="num">Take-home</th>{plan.aim === "target" && <th className="num">Wanted</th>}{shown.company.pensions > 0 && <th className="num">Pension</th>}<th className="num">Total income</th></tr></thead>
                 <tbody>{shown.people.map((x) => (
-                  <tr key={x.id}><td>{x.name}{x.warnings.map((w) => <div key={w} className="warn" style={{ fontSize: 12 }}>{w}</div>)}</td><td className="num">{gbp(x.salary)}</td><td className="num">{gbp(x.dividends)}</td>{shown.company.loansRepaid > 0 && <td className="num">{gbp(x.loanCash)}</td>}<td className="num">{gbp(x.incomeTax)}</td><td className="num">{gbp(x.employeeNi)}</td><td className="num"><strong>{gbp(x.takeHome)}</strong></td>{plan.aim === "target" && <td className="num">{gbp(x.target)}</td>}{shown.company.pensions > 0 && <td className="num">{gbp(x.employerPension)}</td>}<td className="num">{gbp(x.totalIncome)}</td></tr>
+                  <tr key={x.id}><td>{x.name}{x.warnings.map((w) => <div key={w} className="warn" style={{ fontSize: 13 }}>{w}</div>)}</td><td className="num">{gbp(x.salary)}</td><td className="num">{gbp(x.dividends)}</td>{shown.company.loansRepaid > 0 && <td className="num">{gbp(x.loanCash)}</td>}<td className="num">{gbp(x.incomeTax)}</td><td className="num">{gbp(x.employeeNi)}</td><td className="num"><strong>{gbp(x.takeHome)}</strong></td>{plan.aim === "target" && <td className="num">{gbp(x.target)}</td>}{shown.company.pensions > 0 && <td className="num">{gbp(x.employerPension)}</td>}<td className="num">{gbp(x.totalIncome)}</td></tr>
                 ))}
                   <tr><td><strong>Total</strong></td><td className="num">{gbp(shown.company.salaries)}</td><td className="num">{gbp(shown.company.dividends - shown.company.dividendsToOthers)}</td>{shown.company.loansRepaid > 0 && <td className="num">{gbp(shown.company.loansRepaid)}</td>}<td className="num">{gbp(shown.people.reduce((a, x) => a + x.incomeTax, 0))}</td><td className="num">{gbp(shown.people.reduce((a, x) => a + x.employeeNi, 0))}</td><td className="num"><strong>{gbp(shown.takeHome)}</strong></td>{plan.aim === "target" && <td />}{shown.company.pensions > 0 && <td className="num">{gbp(shown.company.pensions)}</td>}<td /></tr>
                 </tbody>
@@ -265,7 +265,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
                 <tr><td><strong>Kept in the company</strong></td><td className="num"><strong>{gbp(shown.company.retained)}</strong></td></tr>
               </tbody></table>
               {shown.warnings.map((w) => <p key={w} className="warn" style={{ margin: 0 }}>{w}</p>)}
-              <p className="muted" style={{ margin: 0, fontSize: 12 }}>Assumes a 12-month accounting period in line with the tax year, salary paid in the year, directors' NI on the annual basis and {plan.dividendSplit === "classes" ? "dividends set for each class of share" : "one class of share (dividends shared by shareholding)"}. Rates for {yearLabel(year)}.</p>
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>Assumes a 12-month accounting period in line with the tax year, salary paid in the year, directors' NI on the annual basis and {plan.dividendSplit === "classes" ? "dividends set for each class of share" : "one class of share (dividends shared by shareholding)"}. Rates for {yearLabel(year)}.</p>
             </section>
           )}
         </div>

@@ -143,10 +143,10 @@ function QuickAddDialog({ defaults, onClose, onQueue }: { defaults: Defaults; on
           <div className="row-wrap" style={{ justifyContent: "space-between" }}><strong>New task</strong><button type="button" className="linkbtn" onClick={onClose} aria-label="Close">Close</button></div>
           <div className="row-wrap" style={{ gap: 8, alignItems: "flex-start" }}>
             <textarea ref={input} className="input" rows={many ? 4 : 2} aria-label="What needs doing" placeholder="What needs doing?" value={title} disabled={busy}
-              onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !many) { e.preventDefault(); void save(); } }} style={{ flex: "1 1 220px", fontSize: 16, minHeight: 48 }} />
+              onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !many) { e.preventDefault(); void save(); } }} style={{ flex: "1 1 220px", fontSize: 17, minHeight: 48 }} />
             {Voice && <button type="button" className="btn" aria-label={listening ? "Listening…" : "Speak the task"} aria-pressed={listening} onClick={dictate} style={{ minHeight: 48, minWidth: 48 }}>{listening ? "Listening…" : "Speak"}</button>}
           </div>
-          {!many && !title && <span className="muted" style={{ fontSize: 12 }}>Tip: paste several lines to add several tasks at once.</span>}
+          {!many && !title && <span className="muted" style={{ fontSize: 13 }}>Tip: paste several lines to add several tasks at once.</span>}
           {many && <ul className="plain" aria-label="Tasks to be added" style={{ margin: 0 }}>{lines.map((l, i) => <li key={i}>{l}</li>)}</ul>}
           <label className="stack" style={{ gap: 4 }}><span className="muted" style={{ fontSize: 13 }}>Goes to</span>
             <select className="input" aria-label="Where this task goes" value={projectKey ? `p:${projectKey}` : clientKey ? `c:${clientKey}` : ""} onChange={(e) => { const v = e.target.value; setClientKey(v.startsWith("c:") ? v.slice(2) : ""); setProjectKey(v.startsWith("p:") ? v.slice(2) : ""); }} style={{ minHeight: 44 }}>

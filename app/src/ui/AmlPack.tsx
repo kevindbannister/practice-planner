@@ -539,11 +539,11 @@ function Records() {
               const to = e.to || `#/aml/records/${e.form}${e.rec ? `?rec=${encodeURIComponent(e.rec)}` : e.row !== undefined ? `?row=${e.row}` : ""}`;
               return (
                 <li key={e.key}>
-                  {head && <h3 className="sec-h" style={{ margin: "14px 0 6px", fontSize: 14 }}>{m}</h3>}
+                  {head && <h3 className="sec-h" style={{ margin: "14px 0 6px", fontSize: 15 }}>{m}</h3>}
                   <div className="row-wrap" style={{ gap: 12, alignItems: "center", padding: "8px 0", borderTop: "1px solid var(--line, #e6e8ee)" }}>
                     <span style={{ width: 92, flex: "none", fontVariantNumeric: "tabular-nums" }} className={e.upcoming ? "" : "muted"}>{e.date ? fmt(e.date) : "—"}</span>
                     <span className="chip" style={{ flex: "none" }}>{t.label}</span>
-                    <span style={{ flex: "1 1 260px", minWidth: 0 }}><a href={to}><strong>{e.title}</strong></a>{e.detail && <div className="muted" style={{ fontSize: 12 }}>{e.detail}</div>}</span>
+                    <span style={{ flex: "1 1 260px", minWidth: 0 }}><a href={to}><strong>{e.title}</strong></a>{e.detail && <div className="muted" style={{ fontSize: 13 }}>{e.detail}</div>}</span>
                     <span className={`chip ${TONE_INK[e.tone]}`} style={{ flex: "none" }}>{e.chip}</span>
                     <a className="btn small" href={to}>Open</a>
                   </div>

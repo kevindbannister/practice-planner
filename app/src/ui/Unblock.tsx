@@ -34,7 +34,7 @@ export function Unblock() {
           {i.earliest.length > 0 && i.earliest[0].key !== i.prerequisite.key && <span>Earliest step you can act on: <button type="button" className="linkbtn" onClick={() => open(i.earliest[0].kind, i.earliest[0].key)}>{i.earliest[0].label}</button></span>}
         </li>))}</ul>
       <section className="card pad stack" aria-label="Deadline risk">
-        <div className="row-wrap" style={{ justifyContent: "space-between" }}><h2 style={{ margin: 0, fontSize: 16 }}>Deadline risk</h2><label className="row-wrap"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show jobs that are on track</label></div>
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}><h2 style={{ margin: 0, fontSize: 17 }}>Deadline risk</h2><label className="row-wrap"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show jobs that are on track</label></div>
         {!jobs.length && <p className="muted" style={{ margin: 0 }}>No job needs attention.</p>}
         <ul className="plain stack" style={{ gap: 6, margin: 0 }}>{jobs.map(([k, x]) => { const f = r.facts.get(k)!; return (
           <li key={k}><span className={`chip ${RISK_CHIP[x.category]}`}>{RISK_LABEL[x.category]}</span> <button type="button" className="linkbtn" onClick={() => open("job", k)}>{name(f.clientKey)}: {f.title}</button> <span className="muted">{f.deadline ? `due ${fmtDate(f.deadline)}` : "no deadline"}{x.workingDaysLeft !== null ? ` · ${x.workingDaysLeft} working days` : ""}{x.uncertain ? " · prerequisite date unknown" : ""}{x.reasons[0] ? ` · ${x.reasons[0]}` : ""}</span></li>); })}</ul>

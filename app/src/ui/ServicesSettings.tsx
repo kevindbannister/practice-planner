@@ -68,7 +68,7 @@ export function ServicesSettings() {
               <li key={x.key}>
                 <a href={`#/settings/services?service=${encodeURIComponent(x.key)}`} aria-current={x.key === selectedKey ? "true" : undefined}>
                   <span style={{ fontWeight: 600 }}>{x.name}</span>
-                  <span className="muted" style={{ fontSize: 12 }}>{x.offered ? `${x.price ? gbp(pence(x.price)) : "No price"} · ${freqLabel(x.frequency).toLowerCase()}` : "Not offered in proposals"}{x.active ? "" : " · inactive"}</span>
+                  <span className="muted" style={{ fontSize: 13 }}>{x.offered ? `${x.price ? gbp(pence(x.price)) : "No price"} · ${freqLabel(x.frequency).toLowerCase()}` : "Not offered in proposals"}{x.active ? "" : " · inactive"}</span>
                 </a>
               </li>
             ))}
@@ -131,7 +131,7 @@ export function ServicesSettings() {
               <button type="button" className="btn primary" onClick={save}>Save</button>
               {msg && <span role={msg.ok ? "status" : "alert"} style={{ color: msg.ok ? "var(--green)" : "var(--red-ink)" }}>{msg.text}</span>}
             </div>
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>Every change to a price, VAT treatment or whether it's offered is kept in the sales audit trail. Changing a price here never changes a proposal already written.</p>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>Every change to a price, VAT treatment or whether it's offered is kept in the sales audit trail. Changing a price here never changes a proposal already written.</p>
           </section>
         ) : <div className="card empty"><p>No services yet. Add one on the left.</p></div>}
       </div>

@@ -73,7 +73,7 @@ function Overview() {
       </section>
       <section className="card pad stack" aria-labelledby="attn-h">
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-          <h2 id="attn-h" style={{ margin: 0, fontSize: 16 }}>Needs your attention</h2>
+          <h2 id="attn-h" style={{ margin: 0, fontSize: 17 }}>Needs your attention</h2>
           {overview.attention.length > 0 && (
             <div className="row-wrap">
               <select className="input" aria-label="Show" value={kind} onChange={(e) => setKind(e.target.value)}><option value="">Everything</option>{[...new Set(overview.attention.map((a) => a.kind))].map((k) => <option key={k} value={k}>{KIND_LABEL[k] || k}</option>)}</select>
@@ -412,7 +412,7 @@ export function ClientPortalUsers({ client }: { client: Client }) {
     <div className="stack">
       <section className="card pad stack" aria-labelledby="pu-h">
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-          <h2 id="pu-h" style={{ margin: 0, fontSize: 16 }}>Portal users for {client.Title}</h2>
+          <h2 id="pu-h" style={{ margin: 0, fontSize: 17 }}>Portal users for {client.Title}</h2>
           <button type="button" className="btn small primary" onClick={() => setAdding(!adding)}>{adding ? "Close" : "Invite someone"}</button>
         </div>
         {adding && <InviteForm clientKey={client.Key} onDone={() => setAdding(false)} />}
@@ -446,7 +446,7 @@ export function ClientPortalUsers({ client }: { client: Client }) {
         {err && <p className="error-text" role="alert">{err}</p>}
       </section>
       <section className="card pad stack" aria-labelledby="pa-h">
-        <h2 id="pa-h" style={{ margin: 0, fontSize: 16 }}>Levels</h2>
+        <h2 id="pa-h" style={{ margin: 0, fontSize: 17 }}>Levels</h2>
         <dl className="pt-kv">{LEVELS.map((l) => <div key={l.key}><dt>{l.label}</dt><dd>{l.blurb}</dd></div>)}</dl>
         <p className="muted" style={{ margin: 0 }}>Being listed as a director or contact doesn't give anyone access. Only people you add here can see this business, and signing always needs the person to be named on the document.</p>
       </section>
@@ -472,7 +472,7 @@ export function IndividualPortalAccess({ client }: { client: Client }) {
   return (
     <>
     <section className="card pad stack" aria-labelledby="cpa-h">
-      <h2 id="cpa-h" style={{ margin: 0, fontSize: 16 }}>Client portal access</h2>
+      <h2 id="cpa-h" style={{ margin: 0, fontSize: 17 }}>Client portal access</h2>
       {!portal.overview ? <p className="muted" style={{ margin: 0 }}>Loading…</p> : person ? <PersonCard person={person} /> : (
         <>
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>

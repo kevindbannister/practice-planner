@@ -75,7 +75,7 @@ export function SetupPage() {
         </p>
 
         <section className="stack" aria-labelledby="s1">
-          <h2 id="s1" style={{ margin: 0, fontSize: 16 }}>1. Create the lists in SharePoint</h2>
+          <h2 id="s1" style={{ margin: 0, fontSize: 17 }}>1. Create the lists in SharePoint</h2>
           {!schema ? (
             <p className="muted">Checking the Practice Planner site…</p>
           ) : listsReady ? (
@@ -100,7 +100,7 @@ export function SetupPage() {
         </section>
 
         <section className="stack" aria-labelledby="s2" style={{ opacity: listsReady ? 1 : 0.5 }}>
-          <h2 id="s2" style={{ margin: 0, fontSize: 16 }}>2. Load your Engager data</h2>
+          <h2 id="s2" style={{ margin: 0, fontSize: 17 }}>2. Load your Engager data</h2>
           <p style={{ margin: 0 }}>
             Choose the import file (<span className="mono">practice-planner-import.json</span>). It takes a minute or two.
           </p>

@@ -1,6 +1,6 @@
 :root { --ink: #1c2430; --muted: #5b6676; --line: #d9dee6; --accent: #1f5fbf; --bg: #f6f7f9; --err: #b3261e; }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 "Instrument Sans", system-ui, sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 "Atkinson Hyperlegible Next", system-ui, sans-serif; }
 main { max-width: 820px; margin: 0 auto; padding: 24px 16px 64px; }
 h1 { font-size: 28px; margin: 8px 0 12px; } h2 { font-size: 20px; margin: 22px 0 8px; } h3 { font-size: 16px; margin: 16px 0 4px; }
 .from { font-weight: 700; margin: 0; letter-spacing: .02em; } .muted { color: var(--muted); }

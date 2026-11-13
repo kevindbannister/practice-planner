@@ -189,7 +189,7 @@ export function BulkImportDialog({ clients, clientKey, onClose }: { clients: Cli
                               <div className="row-wrap" style={{ gap: 6 }}>
                                 {s.res.kinds.map((k) => <span key={k} className="chip blue">{KIND_LABEL[k]}</span>)}
                                 {s.res.utr && <span className={`chip mono${s.clash ? " red" : ""}`}>UTR {s.res.utr}</span>}
-                                <span className="muted" style={{ fontSize: 12, overflowWrap: "anywhere" }}>{slots[y].map((f) => f.name).join(", ")}</span>
+                                <span className="muted" style={{ fontSize: 13, overflowWrap: "anywhere" }}>{slots[y].map((f) => f.name).join(", ")}</span>
                               </div>
                               {s.res.found.length > 0 && <ul className="tax-found">{s.res.found.slice(0, 4).map((f) => <li key={f}>{f}</li>)}{s.res.found.length > 4 && <li className="muted">and {s.res.found.length - 4} more</li>}</ul>}
                               {s.chk.theirs !== undefined

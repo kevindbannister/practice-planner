@@ -267,7 +267,7 @@ export function FeatureDetail({ id, onSelect, onClose }: { id: string; onSelect:
         {onClose && <button type="button" className="btn small" onClick={onClose} aria-label="Close details">Close</button>}
       </div>
       <p style={{ margin: 0 }}>{f.desc || "No description yet."}</p>
-      <div className="row-wrap"><StatusChip status={shown} />{group && <span className="muted" style={{ fontSize: 12 }}>worst state of {leafFeatures(node).length} features below</span>}<PriorityChip p={f.priority} />{!group && <span className={`chip ${ev === "live" ? "green" : ""}`}>{EVIDENCE_LABEL[ev]}</span>}</div>
+      <div className="row-wrap"><StatusChip status={shown} />{group && <span className="muted" style={{ fontSize: 13 }}>worst state of {leafFeatures(node).length} features below</span>}<PriorityChip p={f.priority} />{!group && <span className={`chip ${ev === "live" ? "green" : ""}`}>{EVIDENCE_LABEL[ev]}</span>}</div>
 
       {!group && (
         <div className="dh-fields">
@@ -321,7 +321,7 @@ export function FeatureDetail({ id, onSelect, onClose }: { id: string; onSelect:
         {f.tests.length > 0 && <><h3 className="dh-h" style={{ marginTop: 8 }}>Tests</h3><ul className="dh-list mono">{f.tests.map((p) => <li key={p}><a href={repoUrl(resolveFile(p))} target="_blank" rel="noreferrer">{resolveFile(p)}</a></li>)}</ul></>}
       </section>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <span className="muted" style={{ fontSize: 12 }}>Last reviewed {f.reviewed}</span>
+        <span className="muted" style={{ fontSize: 13 }}>Last reviewed {f.reviewed}</span>
         {!group && <button type="button" className="btn small" disabled={!!busy} onClick={() => void act("reviewed", () => hub.editFeature(f.id, { reviewed: todayIso() }, `${f.name}: reviewed`))}>Mark reviewed today</button>}
       </div>
     </aside>

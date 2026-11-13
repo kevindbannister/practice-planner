@@ -197,7 +197,7 @@ export function MeetingPage({ meetingKey, initial }: { meetingKey?: string; init
           {TEMPLATES.map((t) => (
             <button key={t.key} type="button" className="card template-card" onClick={() => set({ Template: t.key, Kind: t.kind, Minutes: t.minutes, agenda: t.agenda.map((item) => ({ item, notes: "" })), Status: t.key === "call" ? "done" : "planned" })}>
               <strong>{t.name}</strong>
-              <span className="muted" style={{ fontSize: 12 }}>{KIND_NAMES[t.kind]} · {t.minutes} min</span>
+              <span className="muted" style={{ fontSize: 13 }}>{KIND_NAMES[t.kind]} · {t.minutes} min</span>
               {t.agenda.length ? <span className="template-agenda">{t.agenda.slice(0, 4).join(" · ")}{t.agenda.length > 4 ? " …" : ""}</span> : <span className="template-agenda">Your own agenda</span>}
             </button>
           ))}
@@ -330,7 +330,7 @@ export function MeetingPage({ meetingKey, initial }: { meetingKey?: string; init
             </select>
           </label>
           <div className="stack" style={{ gap: 4 }}>
-            <span style={{ fontSize: 14 }}>How</span>
+            <span style={{ fontSize: 15 }}>How</span>
             <div className="seg" role="group" aria-label="How">
               {(Object.keys(KIND_NAMES) as MeetingKind[]).map((k) => (
                 <button key={k} type="button" aria-pressed={m.Kind === k} onClick={() => set({ Kind: k })}>{KIND_NAMES[k]}</button>
@@ -348,7 +348,7 @@ export function MeetingPage({ meetingKey, initial }: { meetingKey?: string; init
       <section className="card pad stack" aria-labelledby="ag-h">
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
           <h2 id="ag-h" className="composer-h">Agenda and notes</h2>
-          <span className="muted" style={{ fontSize: 12 }}>Type notes under each item as you go. Start a line with "Action:" or "Agreed:" to make tidying up easier.</span>
+          <span className="muted" style={{ fontSize: 13 }}>Type notes under each item as you go. Start a line with "Action:" or "Agreed:" to make tidying up easier.</span>
         </div>
         <ol className="agenda">
           {m.agenda.map((a, i) => (

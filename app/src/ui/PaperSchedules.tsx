@@ -347,7 +347,7 @@ export function TbItems({ section, sb }: { section: Section; sb: Sub }) {
           </tbody>
         </table>
       </div>
-      {hasControl && <p className="muted" style={{ margin: 0, fontSize: 12 }}>A control account is the total of a ledger kept in the accounts software. Hover its tag to see what to agree it to.</p>}
+      {hasControl && <p className="muted" style={{ margin: 0, fontSize: 13 }}>A control account is the total of a ledger kept in the accounts software. Hover its tag to see what to agree it to.</p>}
     </div>
   );
 }
@@ -424,7 +424,7 @@ function KindSettings({ section, sb, itemKey, s, lines }: { section: Section; sb
           <Field value={asText(s.apportion || "months")} label="Part year for additions" options={["months", "days"]} labels={{ months: "By the Months column", days: "By days from the date bought" }}
             onSave={(x) => w.writeSetup(itemKey, { apportion: x === "days" ? "days" : undefined })} />
         </label>
-        <span className="muted" style={{ fontSize: 12, alignSelf: "end" }}>
+        <span className="muted" style={{ fontSize: 13, alignSelf: "end" }}>
           {s.apportion === "days" ? "An asset bought this year is charged from its date to the year end (days ÷ 365)." : "Months is how much of the year to charge (6 for an asset bought half way through)."} Type a charge on a line to override it (a disposal, a rounding line).
         </span>
       </div>
@@ -479,7 +479,7 @@ function JournalChecks({ lines }: { lines: Line[] }) {
         <Stat label={off.length ? "Journals that don't balance" : "Every journal balances"} value={off.length ? off.map((j) => `#${j.no} (${money(j.dr - j.cr)})`).join(", ") : "✔"} warn={off.length > 0} />
       </div>
       {fresh.length > 0 && (
-        <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           <strong>New accounts</strong> (not on the software's trial balance, so the final trial balance adds them): {fresh.join(" · ")}. If one should be an existing account, pick it from the list in the Account box.
         </p>
       )}
@@ -663,7 +663,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
             <input type="checkbox" checked={ownPrior} disabled={w.busy} onChange={(e) => void useOwnPrior(e.target.checked)} />
             Use different figures for last year (instead of last year's final trial balance)
           </label>
-          {!ownPrior && ownLines.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Figures you kept here earlier are saved. Tick the box to use them again.</p>}
+          {!ownPrior && ownLines.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Figures you kept here earlier are saved. Tick the box to use them again.</p>}
         </div>
       )}
       <div className="table-wrap">
@@ -759,7 +759,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
         {defaults.length > 0 && (
           <button type="button" className="btn small" disabled={w.busy} onClick={() => void w.addLines(section.key, sb.key, defaults, 1)}>Use the standard list ({defaults.length})</button>
         )}
-        {w.busy && <span className="muted" style={{ fontSize: 12 }}>Saving…</span>}
+        {w.busy && <span className="muted" style={{ fontSize: 13 }}>Saving…</span>}
       </div>
       {pasting && (
         <div className="stack" style={{ gap: 8 }}>
@@ -768,7 +768,7 @@ function Grid({ section, sb, lines, s, cols, done }: { section: Section; sb: Sub
             <textarea className="input" rows={5} value={paste} onChange={(e) => setPaste(e.target.value)} />
           </label>
           {layout.start === 1 && (
-            <p className="muted" style={{ margin: 0, fontSize: 12 }} role="status">
+            <p className="muted" style={{ margin: 0, fontSize: 13 }} role="status">
               Headings found: {layout.order.map((c, i) => `${grid[0][i] || "(blank)"} → ${c ? c.label : "left out"}`).join(" · ")}
             </p>
           )}
@@ -883,7 +883,7 @@ function FinalTb() {
                 <td className="mono muted" title={irisName}>{iris || irisName}</td>
                 {(["tbDr", "tbCr", "jDr", "jCr"] as const).map((k) => <td key={k} className="num mono muted">{r[k] ? money(r[k]) : "–"}</td>)}
                 <td className="num mono">{r.dr ? money(r.dr) : "–"}</td><td className="num mono">{r.cr ? money(r.cr) : "–"}</td>
-                <td className="muted" style={{ fontSize: 12 }}>{DEST_BY_KEY.get(dest)?.label || dest}</td>
+                <td className="muted" style={{ fontSize: 13 }}>{DEST_BY_KEY.get(dest)?.label || dest}</td>
               </tr>
             ))}
           </tbody>
@@ -1078,7 +1078,7 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
         <tr className="lead-codes"><td colSpan={span}>
           {(() => {
             const c = codesFor(list);
-            if (!c.length) return <p className="muted" style={{ margin: 0, fontSize: 12 }}>{maps ? "No trial balance accounts are assigned to this heading." : "Add the trial balance to see the account codes assigned here."}</p>;
+            if (!c.length) return <p className="muted" style={{ margin: 0, fontSize: 13 }}>{maps ? "No trial balance accounts are assigned to this heading." : "Add the trial balance to see the account codes assigned here."}</p>;
             return (
               <table className="grid lead-codes-table" aria-label={`Codes assigned to ${label}`}>
                 <thead><tr><th scope="col">Code</th><th scope="col">IRIS</th><th scope="col">Account</th><th scope="col">Goes to</th><th scope="col" className="num">{w.period.slice(0, 4)}</th></tr></thead>
@@ -1127,8 +1127,8 @@ export function LeadTable({ section, onOpen }: { section: Section; /** when give
         </aside>
       )}
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>{onOpen ? "Click a line to open its schedule. It has a link back here." : "Click a line to open its working on the right. Its trial balance codes, with their transactions, show under the lead."}</p>
-      {typed && <p className="muted" style={{ margin: 0, fontSize: 12 }}>No paper for last year in the planner yet, so type last year's figures from the accounts.</p>}
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>{onOpen ? "Click a line to open its schedule. It has a link back here." : "Click a line to open its working on the right. Its trial balance codes, with their transactions, show under the lead."}</p>
+      {typed && <p className="muted" style={{ margin: 0, fontSize: 13 }}>No paper for last year in the planner yet, so type last year's figures from the accounts.</p>}
     </section>
   );
 }
@@ -1206,7 +1206,7 @@ export function AssetSummary({ section, picked, onPick }: { section: Section; /*
           </tbody>
         </table>
       </div>
-      {!focus && hiddenWithFigures.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>The total includes {hiddenWithFigures.join(", ")}, which {hiddenWithFigures.length === 1 ? "is" : "are"} hidden but {hiddenWithFigures.length === 1 ? "has" : "have"} figures.</p>}
+      {!focus && hiddenWithFigures.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>The total includes {hiddenWithFigures.join(", ")}, which {hiddenWithFigures.length === 1 ? "is" : "are"} hidden but {hiddenWithFigures.length === 1 ? "has" : "have"} figures.</p>}
     </section>
   );
 }
@@ -1271,7 +1271,7 @@ export function DisposalsFromRegisters({ section }: { section: Section }) {
   const missing = rows.filter((r) => r.proceeds === undefined).length;
   return (
     <>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>An asset appears here when its register line has a Disposals (cost) or Dep&apos;n on disposals amount. Type the proceeds and the date sold here; the profit or loss is proceeds less NBV.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>An asset appears here when its register line has a Disposals (cost) or Dep&apos;n on disposals amount. Type the proceeds and the date sold here; the profit or loss is proceeds less NBV.</p>
       {rows.length === 0 ? <p className="muted" style={{ margin: 0 }}>No disposals in the registers this year. Put the cost sold in the Disposals (cost) column of the asset, and the depreciation to date in Dep&apos;n on disposals.</p> : (
         <div className="table-wrap">
           <table className="grid">
@@ -1299,7 +1299,7 @@ export function DisposalsFromRegisters({ section }: { section: Section }) {
           {missing > 0 && <Stat label="Proceeds not entered" value={`${missing} ${missing === 1 ? "asset" : "assets"}`} warn />}
         </div>
       )}
-      {legacy > 0 && !typedAny && rows.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>The proceeds above are the single total typed before ({money(legacy)}). Type them against each asset to replace it.</p>}
+      {legacy > 0 && !typedAny && rows.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>The proceeds above are the single total typed before ({money(legacy)}). Type them against each asset to replace it.</p>}
     </>
   );
 }
@@ -1315,7 +1315,7 @@ function AdditionsFromRegisters({ section, sb, lines, s }: { section: Section; s
   const registerAdd = Math.round(regs.reduce((a, r) => a + r.lines.reduce((b, l) => b + (Number(l.f.add) || 0), 0), 0) * 100) / 100;
   return (
     <>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>These come from the asset registers above: add an asset there with an amount in Additions and it is listed here. Nothing to type here.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>These come from the asset registers above: add an asset there with an amount in Additions and it is listed here. Nothing to type here.</p>
       {rows.length === 0 ? <p className="muted" style={{ margin: 0 }}>No additions in the registers this year.</p> : (
         <div className="table-wrap">
           <table className="grid">
@@ -1333,7 +1333,7 @@ function AdditionsFromRegisters({ section, sb, lines, s }: { section: Section; s
       </div>
       {lines.length > 0 && (
         <>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}><strong>Typed here earlier</strong> (not from a register, and not in the total above). Move them into a register if they are assets.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}><strong>Typed here earlier</strong> (not from a register, and not in the total above). Move them into a register if they are assets.</p>
           <Grid section={section} sb={sb} lines={lines} s={s} cols={KIND_COLS.list!} />
         </>
       )}
@@ -1401,8 +1401,8 @@ function DepreciationJournal({ lines }: { lines: Line[] }) {
           </table>
         </div>
       )}
-      {plan.newAccounts.length > 0 && !upToDate && <p className="muted" style={{ margin: 0, fontSize: 12 }}>New accounts the journal will create (they aren't on the software's trial balance): {plan.newAccounts.map((a) => [a.code, a.name].filter(Boolean).join(" ")).join(" · ")}.</p>}
-      {plan.notes.map((n) => <p key={n} className="muted" style={{ margin: 0, fontSize: 12 }}><span className="sym-alert" aria-hidden="true"><Icon name="alert" size={13} /></span>{n}</p>)}
+      {plan.newAccounts.length > 0 && !upToDate && <p className="muted" style={{ margin: 0, fontSize: 13 }}>New accounts the journal will create (they aren't on the software's trial balance): {plan.newAccounts.map((a) => [a.code, a.name].filter(Boolean).join(" ")).join(" · ")}.</p>}
+      {plan.notes.map((n) => <p key={n} className="muted" style={{ margin: 0, fontSize: 13 }}><span className="sym-alert" aria-hidden="true"><Icon name="alert" size={13} /></span>{n}</p>)}
       {!upToDate && (plan.lines.length > 0 || lines.length > 0) && (
         <div><button type="button" className="btn primary small" disabled={w.busy} onClick={() => void post()}>{lines.length ? "Update the depreciation journal" : "Post the depreciation journal"}</button></div>
       )}
@@ -1551,7 +1551,7 @@ function TbMapper() {
     <div className="stack tb-map" style={{ gap: 10, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <h4 style={{ margin: 0 }}>Map the final trial balance to IRIS and the schedules</h4>
-        <span className="muted" style={{ fontSize: 12 }}>
+        <span className="muted" style={{ fontSize: 13 }}>
           {loadedChart.length ? `IRIS chart: ${loadedChart.length} codes loaded` : `Using the ${IRIS_BUILT_IN.length} IRIS codes the system knows`} ·{" "}
           <button type="button" className="linkbtn" onClick={() => setLoading(!loading)} aria-expanded={loading}>{loadedChart.length ? "Replace the IRIS chart" : "Load the IRIS chart"}</button>
         </span>
@@ -1581,7 +1581,7 @@ function TbMapper() {
           </button>
         )}
         {unsaved.length > 0 && <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} /> Only show suggestions</label>}
-        <span className="muted" style={{ fontSize: 12 }}>Accounts show in their schedules straight away. Change "Goes to" to move one; each schedule also has a link to move an account.</span>
+        <span className="muted" style={{ fontSize: 13 }}>Accounts show in their schedules straight away. Change "Goes to" to move one; each schedule also has a link to move an account.</span>
       </div>
       <div className="table-wrap">
         <table className="grid lines tb-map-table">
@@ -1604,7 +1604,7 @@ function TbMapper() {
                     {groups.map(([g, list]) => <optgroup key={g} label={g}>{list.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}</optgroup>)}
                   </select>
                 </td>
-                <td className="muted" style={{ fontSize: 12 }}>{m.saved ? "Saved" : m.why}</td>
+                <td className="muted" style={{ fontSize: 13 }}>{m.saved ? "Saved" : m.why}</td>
               </tr>
             ))}
           </tbody>

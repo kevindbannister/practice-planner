@@ -97,7 +97,7 @@ export function ElementsImport() {
                               {clients.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}
                             </select>
                           </td>
-                          <td className="muted" style={{ fontSize: 12 }}>
+                          <td className="muted" style={{ fontSize: 13 }}>
                             {[m.how === "person" ? "Matched on first and last name" : "", m.clientKey && chosenTwice.has(m.clientKey) ? "Two rows for this client: pick one" : "", m.note].filter(Boolean).join(" · ")}
                           </td>
                         </tr>

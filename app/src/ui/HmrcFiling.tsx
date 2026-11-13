@@ -101,7 +101,7 @@ export function HmrcFilingPanel({ client, year, ret }: { client: Client; year: n
   return (
     <section className="card stack" style={{ padding: 16, gap: 10 }} aria-label="HMRC Filing">
       <div className="row-wrap" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h3 style={{ margin: 0 }}>HMRC Filing <span className="muted" style={{ fontWeight: 400, fontSize: 14 }}>{period}</span></h3>
+        <h3 style={{ margin: 0 }}>HMRC Filing <span className="muted" style={{ fontWeight: 400, fontSize: 15 }}>{period}</span></h3>
         {f && <span className={`chip ${CHIP[f.state]}`}>{describe(f)}</span>}
       </div>
       <p className="warn" style={{ margin: 0, fontSize: 13 }}>Nothing is sent to HMRC from here yet. {xml.reason || "HMRC XML is available."}</p>
@@ -149,7 +149,7 @@ export function HmrcFilingPanel({ client, year, ret }: { client: Client; year: n
 
       <details>
         <summary className="muted" style={{ cursor: "pointer", fontSize: 13 }}>Which SA100 pages the planner covers</summary>
-        <p className="muted" style={{ fontSize: 12, margin: "6px 0" }}>Not checked against HMRC's official artefacts yet. The checks above are the planner's own, not HMRC's validation.</p>
+        <p className="muted" style={{ fontSize: 13, margin: "6px 0" }}>Not checked against HMRC's official artefacts yet. The checks above are the planner's own, not HMRC's validation.</p>
         <table className="grid"><tbody>
           {cover.map((c) => <tr key={c.page}><td>{c.page}</td><td>{c.name}</td><td>{c.support === "modelled" ? "In the planner" : c.support === "partly" ? "Partly" : "Not in the planner"}</td><td>{c.used ? "Used in this return" : ""}</td><td className="muted">{c.note}</td></tr>)}
         </tbody></table>

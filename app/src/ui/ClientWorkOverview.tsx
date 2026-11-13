@@ -27,12 +27,12 @@ export function ClientWorkOverview({ clientKey }: { clientKey: string }) {
   const list = mine.filter((i) => (!kind || i.kind === kind) && (ind ? ind.test(i) && (pick !== "completed" || recent(i)) : i.state !== "done")).sort((a, b) => (a.due || "9").localeCompare(b.due || "9"));
   return (
     <section className="card pad stack" aria-label="Work overview" style={{ gap: 8 }}>
-      <div className="row-wrap" style={{ justifyContent: "space-between" }}><h2 style={{ margin: 0, fontSize: 16 }}>Work overview</h2><span className="muted" style={{ fontSize: 13 }}>Jobs and tasks are counted separately.</span></div>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}><h2 style={{ margin: 0, fontSize: 17 }}>Work overview</h2><span className="muted" style={{ fontSize: 13 }}>Jobs and tasks are counted separately.</span></div>
       <div style={{ overflowX: "auto" }}><table className="table" style={{ minWidth: 520 }}>
         <thead><tr><th scope="col" style={{ textAlign: "left" }}> </th>{INDICATORS.map((x) => <th key={x.key} scope="col" style={{ textAlign: "right" }}>{x.label}</th>)}</tr></thead>
         <tbody>{(["job", "task"] as const).map((k) => <tr key={k}><th scope="row" style={{ textAlign: "left" }}>{k === "job" ? "Jobs" : "Tasks"}</th>{INDICATORS.map((x) => { const n = (k === "job" ? c.jobs : c.tasks)[x.key]; const on = pick === x.key && kind === k; return <td key={x.key} style={{ textAlign: "right" }}><button type="button" className="linkbtn" aria-pressed={on} disabled={!n} style={{ fontWeight: on ? 700 : 400 }} onClick={() => { setPick(on ? "" : x.key); setKind(on ? "" : k); }}>{n}</button></td>; })}</tr>)}</tbody>
       </table></div>
-      <div className="row-wrap" style={{ gap: 6 }}><strong style={{ fontSize: 14 }}>{ind ? `${ind.label}${kind ? ` (${kind}s)` : ""}` : "All open work"}</strong>{pick && <button type="button" className="linkbtn" onClick={() => { setPick(""); setKind(""); }}>Show all open</button>}</div>
+      <div className="row-wrap" style={{ gap: 6 }}><strong style={{ fontSize: 15 }}>{ind ? `${ind.label}${kind ? ` (${kind}s)` : ""}` : "All open work"}</strong>{pick && <button type="button" className="linkbtn" onClick={() => { setPick(""); setKind(""); }}>Show all open</button>}</div>
       <WorkList items={list} />
     </section>
   );

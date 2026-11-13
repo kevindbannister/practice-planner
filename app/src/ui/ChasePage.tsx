@@ -190,7 +190,7 @@ function ChaseCard({ group: g, template, me, today, onLog, onRecordsIn }: {
                 </span>
                 <span className="muted">{i.worked ? " (worked out)" : " (set on the job)"} · deadline {fmtDate(i.job.Deadline)}</span>
               </span>
-              <span className="muted" style={{ fontSize: 12 }}>{chaseSummary(i.job)}</span>
+              <span className="muted" style={{ fontSize: 13 }}>{chaseSummary(i.job)}</span>
             </div>
             <button type="button" className="btn small" disabled={busy} onClick={() => act(() => onRecordsIn(i.job))}>Records in</button>
           </li>

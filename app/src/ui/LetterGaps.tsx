@@ -97,10 +97,10 @@ function Gaps() {
               <tbody>{rows.map((g) => (
                 <tr key={g.clientKey}>
                   <td><input type="checkbox" aria-label={`Select ${g.name}`} disabled={g.state !== "ready" || !s.pcan("edit")} checked={chosen.includes(g.clientKey)} onChange={() => toggle(g.clientKey)} /></td>
-                  <td><a href={href("clients", g.clientKey)}>{g.name}</a><div className="muted" style={{ fontSize: 12 }}>{g.hasLetter ? "Some services covered" : "No letter"}</div></td>
+                  <td><a href={href("clients", g.clientKey)}>{g.name}</a><div className="muted" style={{ fontSize: 13 }}>{g.hasLetter ? "Some services covered" : "No letter"}</div></td>
                   <td>{g.manager || "—"}</td>
                   <td>{g.uncovered.map((l) => <div key={l.serviceKey}>{l.name} <span className="muted">{l.included ? "included in package" : `${gbp(pence(l.price))} ${freqLabel(l.frequency).toLowerCase()}`}</span></div>)}</td>
-                  <td><span className={`chip ${STATE[g.state][0]}`}>{STATE[g.state][1]}</span>{g.reason && g.state !== "no-fee" && <div className="muted" style={{ fontSize: 12 }}>{g.reason}</div>}{g.warnings.map((w) => <div key={w} className="muted" style={{ fontSize: 12 }}>{w}</div>)}</td>
+                  <td><span className={`chip ${STATE[g.state][0]}`}>{STATE[g.state][1]}</span>{g.reason && g.state !== "no-fee" && <div className="muted" style={{ fontSize: 13 }}>{g.reason}</div>}{g.warnings.map((w) => <div key={w} className="muted" style={{ fontSize: 13 }}>{w}</div>)}</td>
                 </tr>
               ))}</tbody>
             </table>

@@ -133,7 +133,7 @@ export function DoneView() {
               </tbody>
             </table>
           </div>
-          {shown.length > 300 && <p className="muted" style={{ fontSize: 12, padding: "0 16px 12px" }}>{shown.length - 300} older ones not shown; narrow the dates or search.</p>}
+          {shown.length > 300 && <p className="muted" style={{ fontSize: 13, padding: "0 16px 12px" }}>{shown.length - 300} older ones not shown; narrow the dates or search.</p>}
         </section>
       ) : (
         <div className="card empty">Nothing completed in that time.</div>

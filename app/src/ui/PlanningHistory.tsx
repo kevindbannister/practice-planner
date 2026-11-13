@@ -68,7 +68,7 @@ export function PlanningHistory() {
                     <li key={x.key} className="today-row" style={{ opacity: isActive(x) ? 1 : 0.85 }}>
                       <span className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
                         <strong className="ellipsis">{clientName(x) || x.title}{clientName(x) ? <span className="muted" style={{ fontWeight: 400 }}> · {x.title}</span> : null}</strong>
-                        <span className="muted" style={{ fontSize: 12 }}>
+                        <span className="muted" style={{ fontSize: 13 }}>
                           {fmtHours(x.minutes / 60)} planned · {fmtHours(x.actualMinutes / 60) || "0h"} worked
                           {to ? ` · moved to ${fmtDate(to.date, { weekday: true, year: false })}` : ""}
                           {x.originalKey ? " · carried over from an earlier session" : ""}
@@ -92,9 +92,9 @@ export function PlanningHistory() {
             <li key={b.batch} className="today-row">
               <span className="stack" style={{ gap: 2, minWidth: 0, flex: 1 }}>
                 <strong className="ellipsis">{describe(b)}</strong>
-                <span className="muted" style={{ fontSize: 12 }}>{ago(b.at)}{b.by ? ` · ${b.by}` : ""}{b.list.find((e) => e.reason)?.reason ? ` · ${b.list.find((e) => e.reason)!.reason}` : ""}</span>
+                <span className="muted" style={{ fontSize: 13 }}>{ago(b.at)}{b.by ? ` · ${b.by}` : ""}{b.list.find((e) => e.reason)?.reason ? ` · ${b.list.find((e) => e.reason)!.reason}` : ""}</span>
               </span>
-              {b.list[0].type === "undo" ? <span className="muted" style={{ fontSize: 12 }}>Reversal</span> : undoable(b.batch, pl.events) ? <button type="button" className="btn small" disabled={busy} onClick={() => void undo(b.batch)}>Undo</button> : <span className="muted" style={{ fontSize: 12 }}>Undone</span>}
+              {b.list[0].type === "undo" ? <span className="muted" style={{ fontSize: 13 }}>Reversal</span> : undoable(b.batch, pl.events) ? <button type="button" className="btn small" disabled={busy} onClick={() => void undo(b.batch)}>Undo</button> : <span className="muted" style={{ fontSize: 13 }}>Undone</span>}
             </li>
           ))}
           {!batches.length && <li className="muted" style={{ padding: "0 16px 16px" }}>No planning changes yet.</li>}

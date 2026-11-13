@@ -58,7 +58,7 @@ export function SalesSettings() {
                   <button type="button" className="btn small" aria-label={`Remove ${st.label}`} onClick={() => remove(i)}>Remove</button>
                 </>
               )}
-              {inUse(st.key) > 0 && <span className="muted" style={{ fontSize: 12 }}>{inUse(st.key)} in this stage</span>}
+              {inUse(st.key) > 0 && <span className="muted" style={{ fontSize: 13 }}>{inUse(st.key)} in this stage</span>}
             </li>
           ))}
         </ol>

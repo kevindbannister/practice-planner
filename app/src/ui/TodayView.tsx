@@ -59,9 +59,9 @@ export function TodayView() {
         <span className={`today-dot ${l.level}`} aria-hidden="true" />
         <span className="stack" style={{ gap: 2, minWidth: 0 }}>
           <strong className="ellipsis">{l.client || l.projectTitle || l.title}{l.client || l.projectTitle ? <span className="muted" style={{ fontWeight: 400 }}> · {l.title}</span> : null}</strong>
-          <span className="muted" style={{ fontSize: 12 }}>{l.reasons.join(" · ")}</span>
+          <span className="muted" style={{ fontSize: 13 }}>{l.reasons.join(" · ")}</span>
         </span>
-        <span className="mono muted" style={{ fontSize: 12 }}>{fmtHours(l.hours)}</span>
+        <span className="mono muted" style={{ fontSize: 13 }}>{fmtHours(l.hours)}</span>
       </button>
       {action && <button type="button" className="btn small" disabled={busy} onClick={action.on}>{action.label}</button>}
     </li>
@@ -104,7 +104,7 @@ export function TodayView() {
           <div className="card-head"><h2 id="td-meet">Fixed today</h2><span className="muted" style={{ fontSize: 13 }}>from your calendar</span></div>
           <ul className="home-list">
             {meetings.map((e) => (
-              <li key={e.id}><span style={{ display: "flex", gap: 12, padding: "6px 16px", fontSize: 14 }}>
+              <li key={e.id}><span style={{ display: "flex", gap: 12, padding: "6px 16px", fontSize: 15 }}>
                 <span className="mono muted">{hhmm(e.start)}–{hhmm(e.end)}</span><span>{e.subject || "Busy"}</span></span></li>
             ))}
           </ul>

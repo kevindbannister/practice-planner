@@ -29,7 +29,7 @@ export function ClientMessages({ client }: { client: Client }) {
   return (
     <section className="card pad stack" aria-labelledby="mg-h">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 id="mg-h" style={{ margin: 0, fontSize: 16 }}>Messages with {client.Title}{unread ? ` (${unread} waiting for you)` : ""}</h2>
+        <h2 id="mg-h" style={{ margin: 0, fontSize: 17 }}>Messages with {client.Title}{unread ? ` (${unread} waiting for you)` : ""}</h2>
         <button type="button" className="btn small primary" onClick={() => { setComposing(!composing); setOpenId(""); }}>{composing ? "Close" : "New message"}</button>
       </div>
       {composing && <Compose client={client} onSent={(id) => { setComposing(false); setOpenId(id); void load(); }} />}

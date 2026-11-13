@@ -190,8 +190,8 @@ export function Timesheet() {
             </tbody>
             <tfoot>
               <tr><th scope="row" style={{ textAlign: "left" }}>Total</th>{g.dayTotals.map((m, i) => <td key={i} style={{ textAlign: "center", fontWeight: 600 }}>{mins(m)}</td>)}<td style={{ textAlign: "right", fontWeight: 700 }}>{mins(g.total)}</td></tr>
-              <tr><th scope="row" style={{ textAlign: "left", fontWeight: 400 }} className="muted">Capacity</th>{g.days.map((d) => <td key={d} className="muted" style={{ textAlign: "center", fontSize: 12 }}>{cap(d) ? fmtHours(cap(d)) : "–"}</td>)}<td /></tr>
-              <tr><th scope="row" style={{ textAlign: "left", fontWeight: 400 }} className="muted">Not yet recorded</th>{g.days.map((d, i) => <td key={d} className="muted" style={{ textAlign: "center", fontSize: 12 }}>{d <= today && cap(d) ? mins(unaccounted(g.dayTotals[i], cap(d))) || "–" : ""}</td>)}<td /></tr>
+              <tr><th scope="row" style={{ textAlign: "left", fontWeight: 400 }} className="muted">Capacity</th>{g.days.map((d) => <td key={d} className="muted" style={{ textAlign: "center", fontSize: 13 }}>{cap(d) ? fmtHours(cap(d)) : "–"}</td>)}<td /></tr>
+              <tr><th scope="row" style={{ textAlign: "left", fontWeight: 400 }} className="muted">Not yet recorded</th>{g.days.map((d, i) => <td key={d} className="muted" style={{ textAlign: "center", fontSize: 13 }}>{d <= today && cap(d) ? mins(unaccounted(g.dayTotals[i], cap(d))) || "–" : ""}</td>)}<td /></tr>
             </tfoot>
           </table>
         </div>
@@ -228,7 +228,7 @@ export function Timesheet() {
                 const done = entries.filter((e) => e.sessionKey === x.key).reduce((t, e) => t + entryMinutes(e, now), 0);
                 return (
                   <li key={x.key} className="today-row">
-                    <span className="stack" style={{ gap: 2, flex: 1 }}><strong>{client(x.clientKey) || x.title}{client(x.clientKey) ? <span className="muted" style={{ fontWeight: 400 }}> · {x.title}</span> : null}</strong><span className="muted" style={{ fontSize: 12 }}>{fmtHours(x.minutes / 60)} planned · {fmtHours(done / 60) || "0h"} recorded · {done >= x.minutes ? `${fmtHours((done - x.minutes) / 60) || "0h"} over` : `${fmtHours((x.minutes - done) / 60)} to go`}</span></span>
+                    <span className="stack" style={{ gap: 2, flex: 1 }}><strong>{client(x.clientKey) || x.title}{client(x.clientKey) ? <span className="muted" style={{ fontWeight: 400 }}> · {x.title}</span> : null}</strong><span className="muted" style={{ fontSize: 13 }}>{fmtHours(x.minutes / 60)} planned · {fmtHours(done / 60) || "0h"} recorded · {done >= x.minutes ? `${fmtHours((done - x.minutes) / 60) || "0h"} over` : `${fmtHours((x.minutes - done) / 60)} to go`}</span></span>
                     <button type="button" className="btn small" disabled={busy} onClick={() => void startTimer({ clientKey: x.clientKey, jobKey: x.kind === "job" ? x.itemKey : "", taskKey: x.kind === "task" ? x.itemKey : "", activityKey: "" }, x.key)}>Start timer</button>
                     <button type="button" className="btn small" disabled={busy} onClick={() => void addEntry({ date: day, minutes: Math.max(15, x.minutes - done), clientKey: x.clientKey, jobKey: x.kind === "job" ? x.itemKey : "", taskKey: x.kind === "task" ? x.itemKey : "", sessionKey: x.key })}>Log the {fmtHours(Math.max(15, x.minutes - done) / 60)}</button>
                   </li>

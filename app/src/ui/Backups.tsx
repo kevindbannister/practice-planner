@@ -152,9 +152,9 @@ export function BackupSettings() {
         OneDrive. It happens by itself the first time you open the planner each day, so there's a copy from every day you've made
         changes. Your live data stays in SharePoint, which also keeps a version history of every record.
       </p>
-      {state.running && <p role="status" style={{ margin: 0, fontSize: 14 }}>{state.step}</p>}
+      {state.running && <p role="status" style={{ margin: 0, fontSize: 15 }}>{state.step}</p>}
       {!state.running && (
-        <div role="status" className="stack" style={{ gap: 4, fontSize: 14 }}>
+        <div role="status" className="stack" style={{ gap: 4, fontSize: 15 }}>
           {last ? (
             <>
               <span>

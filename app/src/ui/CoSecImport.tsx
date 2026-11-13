@@ -127,13 +127,13 @@ export function ImportHistory({ client }: { client: Row }) {
               return (
                 <tr key={i.id} style={i.status === "excluded" ? { opacity: 0.5 } : undefined}>
                   <td><select className="input" aria-label="Decision" value={i.status} onChange={(e) => edit(i.id, { status: e.target.value as ImportItem["status"] })} style={{ width: "auto" }}><option value="pending">To decide</option><option value="accepted" disabled={v.errors.length > 0}>Accept</option><option value="excluded">Exclude</option></select></td>
-                  <td style={{ fontSize: 12 }}>{proposedRecord(i)}<div><span className={`chip ${i.confidence === "supplied" ? "green" : i.confidence === "extracted" ? "amber" : "red"}`}>{i.confidence === "supplied" ? "From your data" : i.confidence === "extracted" ? "Read from text" : "Low confidence"}</span></div></td>
+                  <td style={{ fontSize: 13 }}>{proposedRecord(i)}<div><span className={`chip ${i.confidence === "supplied" ? "green" : i.confidence === "extracted" ? "amber" : "red"}`}>{i.confidence === "supplied" ? "From your data" : i.confidence === "extracted" ? "Read from text" : "Low confidence"}</span></div></td>
                   {cols.map((f) => <td key={f.key}><input className="input" aria-label={f.label} value={i.fields[f.key] || ""} onChange={(e) => edit(i.id, {}, [f.key, e.target.value])} style={{ minWidth: /date|On$/.test(f.key) ? 110 : 90 }} placeholder={/date|On$/.test(f.key) ? "yyyy-mm-dd" : ""} /></td>)}
-                  <td style={{ fontSize: 12 }}>{i.source.doc}{i.source.page ? `, page ${i.source.page}` : i.source.row ? `, row ${i.source.row}` : ""}{i.source.text && <div className="muted" title={i.source.text}>"{i.source.text.slice(0, 50)}{i.source.text.length > 50 ? "…" : ""}"</div>}</td>
-                  <td style={{ fontSize: 12, minWidth: 200 }}>
+                  <td style={{ fontSize: 13 }}>{i.source.doc}{i.source.page ? `, page ${i.source.page}` : i.source.row ? `, row ${i.source.row}` : ""}{i.source.text && <div className="muted" title={i.source.text}>"{i.source.text.slice(0, 50)}{i.source.text.length > 50 ? "…" : ""}"</div>}</td>
+                  <td style={{ fontSize: 13, minWidth: 200 }}>
                     {v.errors.map((m, n) => <div key={"e" + n} className="error-text">{m}</div>)}
                     {v.warnings.map((m, n) => <div key={"w" + n} className="muted">{m}</div>)}
-                    {kind !== "ledger" && people.some((p) => norm(nameOf(p)) === norm(i.fields.name || "")) && <label className="row-wrap" style={{ fontSize: 12 }}>Merge into <select className="input" value={i.mergeWith || ""} onChange={(e) => edit(i.id, { mergeWith: e.target.value || undefined })} style={{ width: "auto" }}><option value="">Keep separate</option>{people.filter((p) => norm(nameOf(p)) === norm(i.fields.name || "")).map((p) => <option key={s(p.Key)} value={s(p.Key)}>{nameOf(p)} ({s(p.Status)})</option>)}</select></label>}
+                    {kind !== "ledger" && people.some((p) => norm(nameOf(p)) === norm(i.fields.name || "")) && <label className="row-wrap" style={{ fontSize: 13 }}>Merge into <select className="input" value={i.mergeWith || ""} onChange={(e) => edit(i.id, { mergeWith: e.target.value || undefined })} style={{ width: "auto" }}><option value="">Keep separate</option>{people.filter((p) => norm(nameOf(p)) === norm(i.fields.name || "")).map((p) => <option key={s(p.Key)} value={s(p.Key)}>{nameOf(p)} ({s(p.Status)})</option>)}</select></label>}
                   </td>
                 </tr>);
             })}</tbody>

@@ -206,7 +206,7 @@ function AssistantPanel({ onClose }: { onClose: () => void }) {
           )}
           {msgs.length === 0 && (
             <div className="stack" style={{ gap: 8 }}>
-              <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+              <p className="muted" style={{ margin: 0, fontSize: 15 }}>
                 Tell me what's changed or ask what to do. I suggest changes; nothing happens until you press Apply, and you can undo anything.
                 {privacy.names ? " Client names are sent to the AI so it knows who you mean." : " Client names are kept from the AI."}
                 {isDemo() ? " (Demo: simple answers only.)" : ""}
@@ -279,16 +279,16 @@ export function AssistantSettings() {
         The "Ask" button at the top asks OpenAI, using the same key as AI writing. Each question sends a snapshot of your open work
         (titles, dates and hours, plus today's plan) so it can answer. It proposes changes; you approve each one.
       </p>
-      <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
+      <label className="row-wrap" style={{ gap: 8, fontSize: 15 }}>
         <input type="checkbox" checked={privacy.names} onChange={(e) => void saveSetting("ai.assist", { ...privacy, names: e.target.checked })} />
         Send client names with each question (switch off to send only client codes; names are put back in the answers). Task titles you've typed are sent as written, so a name in a task title still goes.
       </label>
-      <h3 style={{ margin: "6px 0 0", fontSize: 14 }}>What it was asked, and what you approved</h3>
+      <h3 style={{ margin: "6px 0 0", fontSize: 15 }}>What it was asked, and what you approved</h3>
       {log.length === 0 ? <p className="muted" style={{ margin: 0 }}>Nothing yet.</p> : (
         <ul className="assist-log">
           {log.slice(0, shown).map((e) => (
             <li key={e.at}>
-              <span className="muted" style={{ fontSize: 12 }}>{new Date(e.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {e.names ? "names sent" : "names kept back"}</span>
+              <span className="muted" style={{ fontSize: 13 }}>{new Date(e.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {e.names ? "names sent" : "names kept back"}</span>
               <span><strong>You:</strong> {e.asked}</span>
               <span className="muted">{e.applied.length ? `Applied: ${e.applied.join("; ")}` : "Nothing applied"}{e.undone?.length ? ` · Undone: ${e.undone.join("; ")}` : ""}</span>
             </li>

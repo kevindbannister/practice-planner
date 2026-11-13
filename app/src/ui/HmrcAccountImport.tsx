@@ -236,7 +236,7 @@ export function HmrcAccountDialog({ client, onClose }: { client: Client; onClose
               )}
 
               {newYears.length > 0 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>A blank return is started for {newYears.map(yearLabel).join(", ")}, where there isn't one yet.</p>}
-              <p className="muted" style={{ margin: 0, fontSize: 12 }}>Lines already in a return aren't added again. To remove a payment that is already in a return, use its Remove button on the return's payments.</p>
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>Lines already in a return aren't added again. To remove a payment that is already in a return, use its Remove button on the return's payments.</p>
             </div>
             <div className="row-wrap" style={{ gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
               <button type="button" className="btn" onClick={onClose} disabled={saving}>Cancel</button>

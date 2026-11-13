@@ -25,8 +25,8 @@ export function PortfolioSummary({ rows, active, onPick }: { rows: PortfolioRow[
   const tile = (label: string, value: number, tone = "", title?: string, tag?: Tag) => {
     const on = !!tag && active === tag;
     const body = (<>
-      <div className="muted" style={{ fontSize: 12 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 600 }}>{value}{value > 0 && tone ? <span className={`chip ${tone}`} style={{ marginLeft: 8, fontSize: 11 }}>{tone === "red" ? "act" : "soon"}</span> : null}</div>
+      <div className="muted" style={{ fontSize: 13 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 600 }}>{value}{value > 0 && tone ? <span className={`chip ${tone}`} style={{ marginLeft: 8, fontSize: 11 }}>{tone === "red" ? "act" : "soon"}</span> : null}</div>
     </>);
     const style = { minWidth: 130, flex: "1 1 130px", ...(on ? { outline: "2px solid var(--accent, #2563eb)" } : {}) };
     if (!tag || !onPick) return <div className="card pad" style={style} title={title}>{body}</div>;
@@ -254,7 +254,7 @@ export function Ledger({ client }: { client: Row }) {
             <tbody>{[...entries].sort((a, b) => b.date.localeCompare(a.date) || b.created.localeCompare(a.created)).map((e) => (
               <tr key={e.key} style={e.active ? undefined : { opacity: 0.55 }}>
                 <td className="mono">{fmtDate(e.date)}</td><td>{ENTRY_LABEL[e.type]}{!e.active && <span className="chip" style={{ marginLeft: 6 }}>Corrected</span>}</td><td>{e.cls}</td><td style={{ textAlign: "right" }}>{e.number.toLocaleString("en-GB")}</td><td>{e.from}</td><td>{e.to}</td>
-                <td style={{ fontSize: 12 }}>{e.supersedes ? `Corrects an earlier entry: ${e.reason}` : e.notes}{e.consideration ? ` Consideration: ${e.consideration}.` : ""}</td>
+                <td style={{ fontSize: 13 }}>{e.supersedes ? `Corrects an earlier entry: ${e.reason}` : e.notes}{e.consideration ? ` Consideration: ${e.consideration}.` : ""}</td>
                 <td>{e.active && canEdit && <button type="button" className="linkbtn" onClick={() => setFixing(e)}>Correct</button>}</td>
               </tr>))}</tbody>
           </table></div>

@@ -244,7 +244,7 @@ export function XeroSettings() {
                 </table>
               </div>
             )}
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
               To add a client's organisation, press Connect again and tick it at Xero (you need access to it as an adviser). Then open the client's working papers and use Import from Xero.
             </p>
             <div><button type="button" className="linkbtn" disabled={!!busy} onClick={() => void disconnectAll()}>Disconnect from Xero</button></div>
@@ -262,7 +262,7 @@ export function XeroSettings() {
                 onChange={(e) => setOpts({ ...opts, groups: e.target.checked ? [...opts.groups, g.key] : opts.groups.filter((k) => k !== g.key) })} />
               <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
                 <span>{g.label}{g.required ? " (always)" : ""}</span>
-                {g.note && <span className="muted" style={{ fontSize: 12 }}>{g.note}</span>}
+                {g.note && <span className="muted" style={{ fontSize: 13 }}>{g.note}</span>}
               </span>
             </label>
           ))}
@@ -270,7 +270,7 @@ export function XeroSettings() {
             <input type="checkbox" style={{ width: 18, height: 18, marginTop: 2 }} checked={opts.classic} onChange={(e) => setOpts({ ...opts, classic: e.target.checked })} />
             <span className="stack" style={{ gap: 2, flex: 1, minWidth: 0 }}>
               <span>My Xero app was made before 2 March 2026</span>
-              <span className="muted" style={{ fontSize: 12 }}>Older apps can still use Xero's broad permissions until September 2027. Leave this off for a new app.</span>
+              <span className="muted" style={{ fontSize: 13 }}>Older apps can still use Xero's broad permissions until September 2027. Leave this off for a new app.</span>
             </span>
           </label>
         </div>
@@ -295,14 +295,14 @@ export function XeroSettings() {
           </li>
           <li>Come back here and press <strong>Connect to Xero</strong>. At Xero, tick each organisation to read (your practice's clients that you have adviser access to) and allow access.</li>
         </ol>
-        <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           Xero's developer pricing (from 2 March 2026) lets a free app connect 5 organisations, with 1,000 calls a day each. Integrations an accounting practice builds for its own use are exempt from the fees; ask Xero to confirm yours (Developer portal › Manage plan › Get in touch) before connecting more than five clients.
         </p>
-        <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           The connection lapses if it isn't used for 60 days; connect again when it does. The Xero sign-in is kept sealed: only the app's server can open it.
         </p>
       </section>
-      <p className="muted" style={{ fontSize: 12 }}><a href={href("papers")}>Go to the working papers</a></p>
+      <p className="muted" style={{ fontSize: 13 }}><a href={href("papers")}>Go to the working papers</a></p>
     </div>
   );
 }

@@ -30,7 +30,7 @@ export function ClientRequests({ client }: { client: Client }) {
   return (
     <section className="card pad stack" aria-labelledby="rq-h">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 id="rq-h" style={{ margin: 0, fontSize: 16 }}>Information requests for {client.Title}</h2>
+        <h2 id="rq-h" style={{ margin: 0, fontSize: 17 }}>Information requests for {client.Title}</h2>
         <button type="button" className="btn small primary" onClick={() => setAdding(!adding)}>{adding ? "Close" : "Ask for information"}</button>
       </div>
       {adding && (
@@ -104,7 +104,7 @@ export function RemindersTab() {
     <div className="stack">
       <section className="card pad stack" aria-labelledby="rm-h">
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-          <h2 id="rm-h" style={{ margin: 0, fontSize: 16 }}>Reminders</h2>
+          <h2 id="rm-h" style={{ margin: 0, fontSize: 17 }}>Reminders</h2>
           <div className="row-wrap">
             <label className="row-wrap"><input type="checkbox" checked={o.paused} onChange={(e) => void act(() => portal.run((a) => a.reminderSettings({ paused: e.target.checked })))} /> Pause all reminders</label>
             <button type="button" className="btn small" onClick={() => void act(async () => { const r = await portal.run((a) => a.runReminders()); return r.skipped ? `Nothing sent: ${r.skipped}.` : `Done. ${r.sent} ${r.sent === 1 ? "reminder" : "reminders"} sent to ${r.people} ${r.people === 1 ? "person" : "people"}; ${r.identity.requested} identity renewals asked for.`; })}>Run now</button>
@@ -116,12 +116,12 @@ export function RemindersTab() {
         {err && <p className="import-list warn" role="alert">{err}</p>}
       </section>
       <section className="card pad stack" aria-labelledby="rp-h">
-        <h2 id="rp-h" style={{ margin: 0, fontSize: 16 }}>How often</h2>
+        <h2 id="rp-h" style={{ margin: 0, fontSize: 17 }}>How often</h2>
         {(Object.entries(o.kinds) as [string, ReminderKind][]).map(([k, v]) => <Policy key={k} kind={k} v={v} onSave={(patch) => act(() => portal.run((a) => a.reminderSettings({ kinds: { [k]: patch } })).then(() => "Saved."))} />)}
         <p className="muted" style={{ margin: 0 }}>{o.identityNote}</p>
       </section>
       <section className="card pad stack" aria-labelledby="ri-h">
-        <h2 id="ri-h" style={{ margin: 0, fontSize: 16 }}>What is being chased</h2>
+        <h2 id="ri-h" style={{ margin: 0, fontSize: 17 }}>What is being chased</h2>
         {!o.items.length && <p className="muted" style={{ margin: 0 }}>Nothing is waiting on a client right now.</p>}
         {o.items.map((i) => (
           <div key={i.key} className="stack" style={{ gap: 4, borderTop: "1px solid var(--line)", paddingTop: 8 }}>

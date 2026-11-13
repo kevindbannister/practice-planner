@@ -32,14 +32,14 @@ export function DevRoadmap() {
               <div className="row-wrap">{p.issue && <a className="chip blue" href={issueUrl(p.issue)} target="_blank" rel="noreferrer">Issue #{p.issue}</a>}<span className="chip">{idx === 0 ? "Work on now" : `Priority ${idx + 1}`}</span></div>
             </div>
             <Bar parts={statusParts(pr.byStatus)} label={`${p.title}: ${pr.complete} of ${pr.total} verified complete, ${pr.pastBuild} built`} />
-            <div className="muted" style={{ fontSize: 12 }}>{pr.complete} of {pr.total} features verified complete · {pr.pastBuild} built and past development · {blocked.length} blocked or broken</div>
+            <div className="muted" style={{ fontSize: 13 }}>{pr.complete} of {pr.total} features verified complete · {pr.pastBuild} built and past development · {blocked.length} blocked or broken</div>
             <div className="dh-roadmap-items">
               {p.items.map((it) => {
                 const fs = featuresUnder(hub.features, it.features);
                 const ip = progressOf(fs);
                 return (
                   <div key={it.name} className="dh-ritem">
-                    <div className="row-wrap" style={{ justifyContent: "space-between", gap: 6 }}><strong style={{ fontSize: 13 }}>{it.name}</strong><span className="muted" style={{ fontSize: 12 }}>{fs.length ? `${ip.complete}/${fs.length}` : "no features"}</span></div>
+                    <div className="row-wrap" style={{ justifyContent: "space-between", gap: 6 }}><strong style={{ fontSize: 13 }}>{it.name}</strong><span className="muted" style={{ fontSize: 13 }}>{fs.length ? `${ip.complete}/${fs.length}` : "no features"}</span></div>
                     {fs.length ? <Bar parts={statusParts(ip.byStatus)} label={`${it.name}: ${ip.complete} of ${fs.length} verified complete`} /> : <div className="dh-bar empty" />}
                     <div className="row-wrap" style={{ gap: 4 }}>{fs.slice(0, 4).map((f) => <a key={f.id} className="dh-mini" href={`#/devhub/map/${f.id}`} title={`${f.name}: ${f.status}`}><i style={{ background: STATUS_COLOR[f.status] }} />{f.name}</a>)}{fs.length > 4 && <span className="muted" style={{ fontSize: 11 }}>+{fs.length - 4}</span>}</div>
                   </div>
@@ -71,8 +71,8 @@ function MilestoneCard({ m }: { m: Milestone }) {
       <Bar parts={[{ n: done, color: STATUS_COLOR.Complete, title: "Done" }, { n: m.items.length - done, color: "#d1d1d6", title: "To do" }]} label={`${done} of ${m.items.length} steps done`} />
       <ul className="dh-list">{m.items.map((it, i) => <li key={i}><label className="row-wrap" style={{ gap: 6 }}><input type="checkbox" checked={it.done} onChange={() => void save({ ...m, items: m.items.map((x, j) => (j === i ? { ...x, done: !x.done } : x)) })} />{it.text}</label></li>)}</ul>
       <div className="row-wrap"><input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a step" aria-label="Add a step" /><button type="button" className="btn small" disabled={!text.trim()} onClick={() => { void save({ ...m, items: [...m.items, { text: text.trim(), done: false }] }); setText(""); }}>Add</button>
-        <label className="row-wrap" style={{ gap: 6, fontSize: 12 }}>Target date <input className="input" type="date" defaultValue={m.target || ""} onBlur={(e) => void save({ ...m, target: e.target.value || undefined })} /></label></div>
-      {m.notes && <p className="muted" style={{ margin: 0, fontSize: 12 }}>{m.notes}</p>}
+        <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>Target date <input className="input" type="date" defaultValue={m.target || ""} onBlur={(e) => void save({ ...m, target: e.target.value || undefined })} /></label></div>
+      {m.notes && <p className="muted" style={{ margin: 0, fontSize: 13 }}>{m.notes}</p>}
     </div>
   );
 }
@@ -122,7 +122,7 @@ export function DevIntegrations() {
               <td data-label="Status"><span className={`chip ${STATUS_CHIP[i.status] || ""}`}>{i.status}</span></td>
               <td data-label="Applied">{i.submitted || "—"}</td>
               <td data-label="Expected reply">{i.expected || "—"}</td>
-              <td data-label="Next action" style={{ minWidth: 220 }}>{i.next}{i.blockers ? <div className="muted" style={{ fontSize: 12 }}>Blocker: {i.blockers}</div> : null}</td>
+              <td data-label="Next action" style={{ minWidth: 220 }}>{i.next}{i.blockers ? <div className="muted" style={{ fontSize: 13 }}>Blocker: {i.blockers}</div> : null}</td>
               <td data-label="Follow up">{i.followUp ? <span className={i.followUp <= today() ? "chip amber" : ""}>{i.followUp}</span> : "—"}</td>
               <td><button type="button" className="btn small" onClick={() => setEdit(i.id)}>Update</button></td>
             </tr>
@@ -171,7 +171,7 @@ function IntegrationForm({ i, isNew, onClose }: { i: Integration; isNew: boolean
       <label>Official documentation link<input className="input" value={v.docs} onChange={(e) => set("docs", e.target.value)} /></label>
       {v.docs && /^https:\/\//.test(v.docs) && <a href={v.docs} target="_blank" rel="noreferrer">Open the official documentation</a>}
       {(v.features.length > 0 || v.tasks.length > 0) && <div className="row-wrap" style={{ gap: 6 }}>{v.features.map((id) => { const f = hub.features.find((x) => x.id === id); return f ? <a key={id} className="chip blue" href={`#/devhub/map/${id}`}>{f.name}</a> : null; })}{v.tasks.map((n) => <a key={n} className="chip" href={issueUrl(n)} target="_blank" rel="noreferrer">#{n}</a>)}</div>}
-      {(i.history || []).length > 0 && <div className="muted" style={{ fontSize: 12 }}>History: {(i.history || []).map((h) => `${h.on} → ${h.status}`).join("; ")}</div>}
+      {(i.history || []).length > 0 && <div className="muted" style={{ fontSize: 13 }}>History: {(i.history || []).map((h) => `${h.on} → ${h.status}`).join("; ")}</div>}
       {err && <div className="alert red" role="alert"><span>{err}</span></div>}
       <div className="row-wrap"><button type="button" className="btn primary small" onClick={() => void save()}>Save</button><button type="button" className="btn small" onClick={onClose}>Cancel</button></div>
     </div>
@@ -197,15 +197,15 @@ export function DevDecisions() {
             <div className="row-wrap"><span className={`chip ${d.current.status === "Accepted" ? "green" : d.current.status === "Superseded" || d.current.status === "Rejected" ? "" : "amber"}`}>{d.current.status}</span><span className="chip">{d.current.on}</span></div>
           </div>
           <p style={{ margin: 0 }}>{d.current.decision}</p>
-          {d.current.why && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Changed because: {d.current.why}</p>}
+          {d.current.why && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Changed because: {d.current.why}</p>}
           <div className="row-wrap"><button type="button" className="linkbtn" aria-expanded={open === d.id} onClick={() => setOpen(open === d.id ? "" : d.id)}>{open === d.id ? "Hide detail" : "Rationale, alternatives and consequences"}</button><button type="button" className="linkbtn" onClick={() => setForm({ d, isNew: false })}>Revise</button></div>
           {open === d.id && (
             <div className="stack" style={{ gap: 6 }}>
               <div><h3 className="dh-h">Rationale</h3><p style={{ margin: 0 }}>{d.current.rationale}</p></div>
               <div><h3 className="dh-h">Alternatives considered</h3><p style={{ margin: 0 }}>{d.current.alternatives || "None recorded."}</p></div>
               <div><h3 className="dh-h">Consequences</h3><p style={{ margin: 0 }}>{d.current.consequences}</p></div>
-              <div className="muted" style={{ fontSize: 12 }}>Recorded by {d.current.by || "unknown"}.</div>
-              <div><h3 className="dh-h">History</h3>{d.history.length ? <ul className="dh-list">{d.history.map((h, i) => <li key={i}><strong>{h.on}</strong> ({h.status}): {h.decision}{h.why ? <div className="muted" style={{ fontSize: 12 }}>Changed because: {h.why}</div> : null}</li>)}</ul> : <p className="muted" style={{ margin: 0 }}>No earlier versions.</p>}</div>
+              <div className="muted" style={{ fontSize: 13 }}>Recorded by {d.current.by || "unknown"}.</div>
+              <div><h3 className="dh-h">History</h3>{d.history.length ? <ul className="dh-list">{d.history.map((h, i) => <li key={i}><strong>{h.on}</strong> ({h.status}): {h.decision}{h.why ? <div className="muted" style={{ fontSize: 13 }}>Changed because: {h.why}</div> : null}</li>)}</ul> : <p className="muted" style={{ margin: 0 }}>No earlier versions.</p>}</div>
             </div>
           )}
         </div>

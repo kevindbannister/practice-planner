@@ -318,7 +318,7 @@ function HolderPicker({ company, value, valueKey, onPick }: { company: Row; valu
           {shown.map((o) => (
             <li key={o.key || o.name} role="option" aria-selected={o.key === valueKey && o.name === value}>
               <button type="button" className="linkbtn" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 0, padding: "6px 8px", textAlign: "left" }} onMouseDown={(e) => e.preventDefault()} onClick={() => { onPick(o.name, o.key); setOpen(false); }}>
-                <span>{o.name}</span><span className="muted" style={{ fontSize: 12 }}>{o.tag}</span>
+                <span>{o.name}</span><span className="muted" style={{ fontSize: 13 }}>{o.tag}</span>
               </button>
             </li>
           ))}

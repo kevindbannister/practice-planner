@@ -115,12 +115,12 @@ export function XeroInvoices({ client }: { client: Client }) {
             <tbody>
               {shown.map((r) => (
                 <tr key={r.id}>
-                  <td><strong>{r.number}</strong>{r.reference ? <div className="muted" style={{ fontSize: 12 }}>{r.reference}</div> : null}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>{fmtDate(r.date)}<div className="muted" style={{ fontSize: 12 }}>{ageLabel(r.date, today)}</div></td>
+                  <td><strong>{r.number}</strong>{r.reference ? <div className="muted" style={{ fontSize: 13 }}>{r.reference}</div> : null}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{fmtDate(r.date)}<div className="muted" style={{ fontSize: 13 }}>{ageLabel(r.date, today)}</div></td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{money(r.total, r.currency)}</td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{r.state === "paid" ? <span className="muted">—</span> : money(r.balance, r.currency)}</td>
-                  <td><span className={`chip ${STATE_CHIP[r.state as InvoiceState]}`}>{STATE_LABEL[r.state as InvoiceState]}</span>{r.state === "paid" && r.paidOn ? <div className="muted" style={{ fontSize: 12 }}>{fmtDate(r.paidOn)}</div> : null}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>{r.due ? fmtDate(r.due) : ""}{r.state === "overdue" ? <div className="muted" style={{ fontSize: 12 }}>{ageLabel(r.due, today).replace(" ago", "")} late</div> : null}</td>
+                  <td><span className={`chip ${STATE_CHIP[r.state as InvoiceState]}`}>{STATE_LABEL[r.state as InvoiceState]}</span>{r.state === "paid" && r.paidOn ? <div className="muted" style={{ fontSize: 13 }}>{fmtDate(r.paidOn)}</div> : null}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{r.due ? fmtDate(r.due) : ""}{r.state === "overdue" ? <div className="muted" style={{ fontSize: 13 }}>{ageLabel(r.due, today).replace(" ago", "")} late</div> : null}</td>
                   <td>{r.url && <a className="linkbtn" href={r.url} target="_blank" rel="noopener noreferrer">View in Xero</a>}</td>
                 </tr>
               ))}
@@ -128,7 +128,7 @@ export function XeroInvoices({ client }: { client: Client }) {
           </table>
         </div>
       ) : <div className="card empty">{rows.length ? "No invoices match these filters." : `No invoices to ${contact.name} were found in Xero.`}</div>)}
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>Read from {practice.tenantName}. This view only reads: raise, edit, email and chase invoices in Xero.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Read from {practice.tenantName}. This view only reads: raise, edit, email and chase invoices in Xero.</p>
     </div>
   );
 }

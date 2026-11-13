@@ -101,7 +101,7 @@ export function DisengageTab({ client }: { client: Client }) {
         </div>
         {jobs.length > 0 && (
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="muted" style={{ fontSize: 12 }}>Open work that stays with the client (untick any to leave out)</legend>
+            <legend className="muted" style={{ fontSize: 13 }}>Open work that stays with the client (untick any to leave out)</legend>
             {jobs.map((j) => (
               <label key={String(j.Key)} className="row-wrap"><input type="checkbox" checked={!skip.has(String(j.Key))} onChange={(e) => { const n = new Set(skip); if (e.target.checked) n.delete(String(j.Key)); else n.add(String(j.Key)); setSkip(n); }} /> {String(j.Title)}{j.Deadline ? <span className="muted"> · due {fmtDate(String(j.Deadline))}</span> : null}</label>
             ))}

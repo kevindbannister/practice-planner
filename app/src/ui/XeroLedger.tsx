@@ -149,7 +149,7 @@ export function LedgerTable({ book, accountKey, name, normal, extras = {} }: { b
         </table>
       </div>
       {check && check.diff !== 0 && (
-        <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           {book.source === "rebuilt"
             ? "The ledger was rebuilt from Xero's documents, which leaves out payroll postings, fixed asset depreciation, currency revaluations and conversion balances. The difference is likely one of those."
             : "The transactions don't reach the trial balance figure. Check for entries dated outside the year, or import again."}
@@ -171,7 +171,7 @@ export function LedgerTable({ book, accountKey, name, normal, extras = {} }: { b
               </tfoot>
             </table>
           </div>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Balance per the bank statement = balance per Xero, less money in and plus money out not yet on the statement. These are items Xero still shows as unreconciled today.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Balance per the bank statement = balance per Xero, less money in and plus money out not yet on the statement. These are items Xero still shows as unreconciled today.</p>
         </div>
       )}
       </>}
@@ -251,7 +251,7 @@ function ControlView({ lines, kind, opening, closing, hasTb, rebuilt }: { lines:
           )}
         </table>
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
         {kind === "debtors" ? "Amounts owed by customers." : "Amounts owed to suppliers."} The customers or suppliers behind the closing balance are in the {kind === "debtors" ? "Trade debtors" : "Trade creditors"} listing.
         {rebuilt && r.difference ? " The ledger was rebuilt from Xero's documents, so a difference can be a journal posted straight to this account." : ""}
       </p>
@@ -283,7 +283,7 @@ function VatView({ book, lines, opening, accountKey, extras }: { book: XeroBook;
           </tbody>
         </table>
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
         Owed is a credit balance on the VAT account (positive here); a negative figure is VAT due back from HMRC. "Other" is journals and anything else on the account.
         {has ? "" : " No VAT return schedule has been filled in for this year, so there is nothing to compare with yet: import VAT by quarter from Xero or type the returns in."}
       </p>
@@ -319,7 +319,7 @@ function PayeView({ book, lines, opening, closing, extras }: { book: XeroBook; l
           )}
         </table>
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
         Due is PAYE, employee NI and employer NI from the Wages records for the month's pay; payments to HMRC usually fall in the month after, so compare the running balances.
         {has ? "" : " There are no Wages records for this year yet: import payroll from Xero to fill in what's due."}
         {!showLedger ? " The ledger was rebuilt from documents, so it has no payroll postings; the payroll figures are compared with the trial balance instead." : ""}

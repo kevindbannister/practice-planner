@@ -88,7 +88,7 @@ export function PlanCard({
         <span className="pcard-top">
           {on("type") ? <span className="pcard-tag">{i.tag}</span> : <span />}
           <span className="row-wrap" style={{ gap: 6, flexWrap: "nowrap" }}>
-            {on("hours") && <span className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{fmtHours(i.hours)}</span>}
+            {on("hours") && <span className="mono" style={{ fontSize: 13, color: "var(--muted)" }}>{fmtHours(i.hours)}</span>}
             {dragProps && <span className="pcard-grip" aria-hidden="true" title="Drag to plan"><Icon name="grip" /></span>}
           </span>
         </span>
@@ -137,13 +137,13 @@ export function PlanCard({
       {i.held && (
         <span className="pcard-foot">
           <span className="chip hold">{holdLabel(i.row)}</span>
-          {(i.row.HoldReason as string) && <span style={{ fontSize: 12 }}>{i.row.HoldReason as string}</span>}
+          {(i.row.HoldReason as string) && <span style={{ fontSize: 13 }}>{i.row.HoldReason as string}</span>}
         </span>
       )}
       {late && <span className="pcard-foot"><span className="chip red" title={`Planned for ${fmtDate(late.planned, { weekday: true, year: false })}, but due ${fmtDate(late.deadline, { weekday: true, year: false })}`}>Planned {late.days}d after the deadline</span></span>}
       {(showDeadline || flags) && (
         <span className="pcard-foot">
-          {showDeadline && <span className="mono" style={{ fontSize: 12 }}>Due {fmtDate(i.deadline!, { year: i.deadline!.slice(0, 4) !== today.slice(0, 4) })}</span>}
+          {showDeadline && <span className="mono" style={{ fontSize: 13 }}>Due {fmtDate(i.deadline!, { year: i.deadline!.slice(0, 4) !== today.slice(0, 4) })}</span>}
           {on("flags") && i.urgent && <span className="chip red">Urgent</span>}
           {on("flags") && !i.held && st.state === "overdue" && <span className="chip red">{-st.days!}d late</span>}
           {on("flags") && !i.held && st.state === "tight" && <span className="chip amber">Tight · {st.days}d</span>}
@@ -299,7 +299,7 @@ export function UnplannedTray({ tray, today, narrow, dropOver, card, wide }: { t
         <input type="search" placeholder="Search" value={tray.search} onChange={(e) => tray.setSearch(e.target.value)} />
       </label>
       <TypeFilter options={tray.typeOptions} selected={tray.types} onChange={tray.setTypes} />
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
         {narrow
           ? "Hold a card, or drag its handle, onto a day above to plan it. Hold it at the screen's edge to change week. Tap a card to open it. Swipe the days left or right to change week."
           : "Drag onto a day to plan it, or hold it at the screen's left or right edge to change week. Open a card to pick a date."}
@@ -310,7 +310,7 @@ export function UnplannedTray({ tray, today, narrow, dropOver, card, wide }: { t
             With the client ({tray.withClient.length})
             {tray.speakDue > 0 && <span className="chip amber" style={{ marginLeft: 6 }}>{tray.speakDue} to speak to</span>}
           </summary>
-          <p className="muted" style={{ margin: "6px 0", fontSize: 12 }}>
+          <p className="muted" style={{ margin: "6px 0", fontSize: 13 }}>
             Prepared and waiting for approval. Drag one onto a day to plan the finalising.
           </p>
           <div className="stack held-cards wait-cards" style={{ gap: 8 }}>{tray.withClient.map((i) => card(i))}</div>
@@ -324,13 +324,13 @@ export function UnplannedTray({ tray, today, narrow, dropOver, card, wide }: { t
               <span className="chip amber" style={{ marginLeft: 6 }}>{tray.held.filter((i) => holdAlert(i.row, i.deadline, today)).length} to look at</span>
             )}
           </summary>
-          <p className="muted" style={{ margin: "6px 0", fontSize: 12 }}>Drag one onto a day to take it off hold and plan it.</p>
+          <p className="muted" style={{ margin: "6px 0", fontSize: 13 }}>Drag one onto a day to take it off hold and plan it.</p>
           <div className="stack held-cards" style={{ gap: 8 }}>{tray.held.map((i) => card(i))}</div>
         </details>
       )}
       <div className="tray-list">
         {tray.unplanned.slice(0, 80).map((i) => card(i))}
-        {tray.unplanned.length > 80 && <p className="muted" style={{ fontSize: 12 }}>{tray.unplanned.length - 80} more; narrow the dates or search.</p>}
+        {tray.unplanned.length > 80 && <p className="muted" style={{ fontSize: 13 }}>{tray.unplanned.length - 80} more; narrow the dates or search.</p>}
         {!tray.unplanned.length && <p className="muted" style={{ fontSize: 13 }}>Nothing waiting to be planned.</p>}
       </div>
 </aside>

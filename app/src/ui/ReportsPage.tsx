@@ -39,7 +39,7 @@ export function ReportsPage() {
       <section className="card pad stack" aria-label="Sales funnel">
         <h2 className="sec-h">Sales funnel</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10 }}>
-          {([["Leads", f.leads], ["Opportunities", f.opportunities], ["Proposals made", f.proposalsMade], ["Proposals sent", f.proposalsSent], ["Accepted", f.proposalsAccepted], ["Onboarding started", f.onboardingStarted], ["Activated", f.activated]] as [string, number][]).map(([k, v]) => <div key={k} className="card" style={{ padding: 12 }}><div className="muted" style={{ fontSize: 12 }}>{k}</div><div style={{ fontSize: 22, fontWeight: 700 }}>{v}</div></div>)}
+          {([["Leads", f.leads], ["Opportunities", f.opportunities], ["Proposals made", f.proposalsMade], ["Proposals sent", f.proposalsSent], ["Accepted", f.proposalsAccepted], ["Onboarding started", f.onboardingStarted], ["Activated", f.activated]] as [string, number][]).map(([k, v]) => <div key={k} className="card" style={{ padding: 12 }}><div className="muted" style={{ fontSize: 13 }}>{k}</div><div style={{ fontSize: 20, fontWeight: 700 }}>{v}</div></div>)}
         </div>
         <p style={{ margin: 0 }}>Opportunities won {pc(sr.rates.oppWon)} of those decided · proposals accepted {pc(sr.rates.proposalAccepted)} of those decided · leads reaching activation {pc(sr.rates.leadToActivated)}.</p>
         <p style={{ margin: 0 }}>Average {sr.timing.daysOppToAccepted ?? "—"} days from opportunity to accepted proposal; {sr.timing.daysAcceptedToActivated ?? "—"} days from accepted to activated. Accepted proposals agreed {gbp(sr.acceptedValue.recurring)} a year recurring and {gbp(sr.acceptedValue.oneOff)} one-off.</p>

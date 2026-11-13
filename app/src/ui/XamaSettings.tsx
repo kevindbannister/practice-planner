@@ -96,7 +96,7 @@ export function XamaSettings() {
         </label>
         <label className="field" style={{ display: "grid", gap: 6, marginTop: 12, maxWidth: 460 }}>
           <span>Show "Review due" when an approved Xama risk assessment is older than (months, 0 = never)</span>
-          <span className="muted" style={{ fontSize: 12 }}>How often clients are re-screened for sanctions and PEPs, by risk, and whether Xama keeps monitoring them, is set in your AML policy (Sanctions screening step) and shown in the AML client tracker.</span>
+          <span className="muted" style={{ fontSize: 13 }}>How often clients are re-screened for sanctions and PEPs, by risk, and whether Xama keeps monitoring them, is set in your AML policy (Sanctions screening step) and shown in the AML client tracker.</span>
           <input className="input" type="number" min={0} max={120} value={cfg.staleMonths} onChange={(e) => set("staleMonths", e.target.value)} />
         </label>
         <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
@@ -109,7 +109,7 @@ export function XamaSettings() {
               <li key={i} style={{ marginBottom: 10 }}>
                 <b>{s.ok ? "✓" : "✗"} {s.name}</b>
                 <div className={s.ok ? "" : "error-text"}>{s.message}</div>
-                {s.sample && <pre style={{ maxHeight: 220, overflow: "auto", fontSize: 12, background: "var(--surface)", padding: 10, borderRadius: 8, whiteSpace: "pre-wrap" }}>{s.sample}</pre>}
+                {s.sample && <pre style={{ maxHeight: 220, overflow: "auto", fontSize: 13, background: "var(--surface)", padding: 10, borderRadius: 8, whiteSpace: "pre-wrap" }}>{s.sample}</pre>}
               </li>
             ))}
           </ul>

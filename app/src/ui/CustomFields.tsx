@@ -40,9 +40,9 @@ export function CustomFieldSettings() {
             <thead><tr><th scope="col">Name</th><th scope="col">On</th><th scope="col">Type</th><th scope="col">Merge field</th><th scope="col"><span className="sr-only">Remove</span></th></tr></thead>
             <tbody>{defs.map((d) => (
               <tr key={`${d.appliesTo}.${d.key}`}>
-                <td><strong>{d.label}</strong>{d.type === "choice" && <span className="muted" style={{ display: "block", fontSize: 12 }}>{d.options.join(" · ")}</span>}</td>
+                <td><strong>{d.label}</strong>{d.type === "choice" && <span className="muted" style={{ display: "block", fontSize: 13 }}>{d.options.join(" · ")}</span>}</td>
                 <td>{d.appliesTo === "client" ? "Clients" : "Jobs"}</td><td>{FIELD_TYPE_LABEL[d.type]}</td>
-                <td className="mono" style={{ fontSize: 12 }}>{`{{${d.appliesTo}.custom.${d.key}}}`}</td>
+                <td className="mono" style={{ fontSize: 13 }}>{`{{${d.appliesTo}.custom.${d.key}}}`}</td>
                 <td><button type="button" className="linkbtn danger-link" disabled={busy} onClick={() => { if (window.confirm(`Remove "${d.label}"? What was entered is kept, and comes back if you add a field with the same name.`)) void save(removeDef(defs, d.appliesTo, d.key)); }}>Remove</button></td>
               </tr>
             ))}</tbody>
@@ -100,7 +100,7 @@ export function CustomValuesEditor({ kind, entityKey, clientKey }: { kind: Appli
           ) : (
             <input className="input" type={d.type === "date" ? "date" : "text"} inputMode={d.type === "number" ? "decimal" : undefined} value={shown(d.key)} onChange={(e) => setDraft({ ...draft, [d.key]: e.target.value })} onBlur={(e) => void commit(d.key, e.target.value)} />
           )}
-          {d.help && <span className="muted" style={{ fontSize: 12 }}>{d.help}</span>}
+          {d.help && <span className="muted" style={{ fontSize: 13 }}>{d.help}</span>}
         </label>
       ))}
       {err && <p className="error-text" role="alert" style={{ margin: 0 }}>{err}</p>}

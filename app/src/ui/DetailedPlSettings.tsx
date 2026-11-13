@@ -69,7 +69,7 @@ export function DetailedPlSettings() {
         <button type="button" className="btn small" disabled={busy} onClick={() => void write({ lines: undefined, items: "name" })}>Lines A to Z</button>
         
         <button type="button" className="btn small" disabled={!saved || busy} onClick={() => void write({})}>Put back IRIS number order</button>
-        <span className="muted" aria-live="polite" style={{ fontSize: 12 }}>{state === "saving" ? "Saving…" : state === "saved" ? "Saved." : state === "error" ? "That didn't save. Try again." : ""}</span>
+        <span className="muted" aria-live="polite" style={{ fontSize: 13 }}>{state === "saving" ? "Saving…" : state === "saved" ? "Saved." : state === "error" ? "That didn't save. Try again." : ""}</span>
       </div>
     </section>
   );

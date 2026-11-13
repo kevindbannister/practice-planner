@@ -71,7 +71,7 @@ export function ServicesEditor({ client, onClose, onSaved }: { client: Row; onCl
           <div key={l.key} className="row-wrap" style={{ gap: 10, alignItems: "center", padding: "3px 0", borderBottom: "1px solid var(--line-2)", opacity: l.typical || e.on ? 1 : 0.6 }}>
             <label className="row-wrap" style={{ gap: 8, flex: "1 1 220px", minWidth: 200 }}>
               <input type="checkbox" checked={e.on} onChange={(ev) => toggle(l, ev.target.checked)} aria-label={`${l.name}: this client has it`} />
-              <span>{l.name}{!l.typical && <span className="muted" style={{ fontSize: 12 }}> · not usually for this type</span>}</span>
+              <span>{l.name}{!l.typical && <span className="muted" style={{ fontSize: 13 }}> · not usually for this type</span>}</span>
             </label>
             <label className="row-wrap" style={{ gap: 4 }}>
               <span className="sr-only">Fee for {l.name}</span>
@@ -81,9 +81,9 @@ export function ServicesEditor({ client, onClose, onSaved }: { client: Row; onCl
             <select className="input" style={{ width: 118 }} aria-label={`How often ${l.name} is charged`} value={e.period} disabled={!canFees || !e.on} onChange={(ev) => set(l.key, { period: ev.target.value })}>
               {PERIOD_OPTIONS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
             </select>
-            <span className="muted mono" style={{ width: 92, textAlign: "right", fontSize: 12 }}>{e.on && Number(e.fee) > 0 && periodsPerYear(e.period) ? `${gbp(Number(e.fee) * periodsPerYear(e.period))} a year` : ""}</span>
-            <span style={{ width: 130, fontSize: 12 }} className="muted">
-              {canFees && l.suggested > 0 ? (e.fee === String(l.suggested) ? `list ${gbp(l.suggested)}` : <button type="button" className="linkbtn" style={{ minHeight: 0, padding: 0, fontSize: 12 }} disabled={!e.on} onClick={() => set(l.key, { fee: String(l.suggested), period: l.suggestedPeriod || e.period })}>Use list {gbp(l.suggested)}</button>) : ""}
+            <span className="muted mono" style={{ width: 92, textAlign: "right", fontSize: 13 }}>{e.on && Number(e.fee) > 0 && periodsPerYear(e.period) ? `${gbp(Number(e.fee) * periodsPerYear(e.period))} a year` : ""}</span>
+            <span style={{ width: 130, fontSize: 13 }} className="muted">
+              {canFees && l.suggested > 0 ? (e.fee === String(l.suggested) ? `list ${gbp(l.suggested)}` : <button type="button" className="linkbtn" style={{ minHeight: 0, padding: 0, fontSize: 13 }} disabled={!e.on} onClick={() => set(l.key, { fee: String(l.suggested), period: l.suggestedPeriod || e.period })}>Use list {gbp(l.suggested)}</button>) : ""}
             </span>
           </div>
         );

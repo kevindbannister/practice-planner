@@ -65,7 +65,7 @@ function Overview() {
     <>
       <div className="grid-stats" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 16 }}>
         {[["Open opportunities", String(t.open)], ["Pipeline value", money(t.value) || "£0"], ["Follow-ups overdue", String(t.overdue)], ["Won", String(t.won)], ["Lost", String(t.lost)], ["Deferred", String(t.deferred)]].map(([k, v]) => (
-          <div className="card" key={k} style={{ padding: 14 }}><div className="muted" style={{ fontSize: 12 }}>{k}</div><div style={{ fontSize: 24, fontWeight: 700 }}>{v}</div></div>
+          <div className="card" key={k} style={{ padding: 14 }}><div className="muted" style={{ fontSize: 13 }}>{k}</div><div style={{ fontSize: 26, fontWeight: 700 }}>{v}</div></div>
         ))}
       </div>
       <div className="card" style={{ padding: 14, marginBottom: 16 }}>
@@ -117,7 +117,7 @@ function Leads() {
           <thead><tr><th>Name</th><th>Source</th><th>Received</th><th>Owner</th><th>Opportunities</th><th>Status</th></tr></thead>
           <tbody>{rows.map((l) => (
             <tr key={l.Key}>
-              <td><a href={href("sales", "lead", l.Key)}>{l.Title}</a><div className="muted" style={{ fontSize: 12 }}>{[l.ContactName, l.Email].filter(Boolean).join(" · ")}</div></td>
+              <td><a href={href("sales", "lead", l.Key)}>{l.Title}</a><div className="muted" style={{ fontSize: 13 }}>{[l.ContactName, l.Email].filter(Boolean).join(" · ")}</div></td>
               <td>{String(l.Source || "")}</td><td>{l.Received ? fmtDate(String(l.Received)) : ""}</td><td>{String(l.Owner || "")}</td>
               <td>{s.opps.filter((o) => o.LeadKey === l.Key && isOpenOpp(o)).length}</td>
               <td>{l.Status === "converted" ? <span className="chip green">Client</span> : l.Status === "closed" ? <span className="chip">Closed</span> : <span className="chip blue">Open</span>}</td>
@@ -253,7 +253,7 @@ function LeadDetail({ leadKey }: { leadKey: string }) {
               <button type="button" className="btn" disabled={!pick} onClick={link}>Link</button>
               <button type="button" className="btn" onClick={() => run(() => s.edit("Leads", lead, { Status: lead.Status === "closed" ? "open" : "closed" }))}>{lead.Status === "closed" ? "Reopen lead" : "Close lead"}</button>
             </div>
-            <p className="muted" style={{ fontSize: 12, margin: "6px 0 0" }}>Linking moves this lead's opportunities and history onto the client. Clients themselves are added by import, so nothing is copied.</p>
+            <p className="muted" style={{ fontSize: 13, margin: "6px 0 0" }}>Linking moves this lead's opportunities and history onto the client. Clients themselves are added by import, so nothing is copied.</p>
           </div>
         )}
       </div>
@@ -343,9 +343,9 @@ function Pipeline() {
             <section key={st.key} role="listitem" aria-label={st.label} data-drop={`stage:${st.key}`} data-order="" className={`kcol${dropTarget === `stage:${st.key}` ? " drop" : ""}`}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                 <h2 style={{ margin: 0, fontSize: 15 }}>{st.label}</h2>
-                <span className="mono" style={{ fontSize: 12 }}>{list.length}{money(value) ? ` · ${money(value)}` : ""}</span>
+                <span className="mono" style={{ fontSize: 13 }}>{list.length}{money(value) ? ` · ${money(value)}` : ""}</span>
               </div>
-              <div className="stack" style={{ gap: 8, marginTop: 8 }}>{out.length ? out : <span className="muted" style={{ fontSize: 12 }}>Nothing here</span>}</div>
+              <div className="stack" style={{ gap: 8, marginTop: 8 }}>{out.length ? out : <span className="muted" style={{ fontSize: 13 }}>Nothing here</span>}</div>
             </section>
           );
         })}
@@ -366,12 +366,12 @@ function OppCard({ opp: o, dragging, props }: { opp: Opp; dragging: boolean; pro
   return (
     <a href={href("sales", "opp", o.Key)} className={`pcard${dragging ? " dragging" : ""}`} data-card={o.Key} draggable={false} {...props}>
       <strong>{o.Title}</strong>
-      <span className="muted" style={{ fontSize: 12 }}>{s.nameOf(o)}</span>
+      <span className="muted" style={{ fontSize: 13 }}>{s.nameOf(o)}</span>
       <span className="row-wrap" style={{ gap: 6 }}>
         {money(o.Value) && <span className="chip">{money(o.Value)}</span>}
         {o.FollowUp && <span className={`chip${late ? " red" : ""}`}>{late ? "Overdue " : "Follow up "}{fmtDate(String(o.FollowUp), { year: false })}</span>}
         {outcomeOf(o) === "won" && <span className="chip green">Won</span>}
-        {o.Owner && <span className="muted" style={{ fontSize: 12 }}>{String(o.Owner)}</span>}
+        {o.Owner && <span className="muted" style={{ fontSize: 13 }}>{String(o.Owner)}</span>}
       </span>
     </a>
   );
@@ -475,7 +475,7 @@ function OppDetail({ oppKey }: { oppKey: string }) {
             <li key={String(a.Key)} style={{ marginBottom: 8 }}>
               <span className="chip">{info?.label || String(a.Type)}</span> <strong>{String(a.Title || "")}</strong>
               {a.Summary ? <div>{String(a.Summary)}</div> : null}
-              <div className="muted" style={{ fontSize: 12 }}>{fmtDate(String(a.At).slice(0, 10))} · {String(a.Actor || "")}{a.FollowUp ? ` · follow up ${fmtDate(String(a.FollowUp))}` : ""}</div>
+              <div className="muted" style={{ fontSize: 13 }}>{fmtDate(String(a.At).slice(0, 10))} · {String(a.Actor || "")}{a.FollowUp ? ` · follow up ${fmtDate(String(a.FollowUp))}` : ""}</div>
             </li>
           );
         })}</ul> : <p className="muted">Nothing logged yet.</p>}
@@ -514,7 +514,7 @@ export function ClientOpportunities({ clientKey }: { clientKey: string }) {
       {err && <p role="alert" style={{ color: "var(--red-ink)" }}>{err}</p>}
       <OppList opps={mine} />
       <ProposalLinks clientKey={clientKey} opps={mine} />
-      {leads.length > 0 && <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>Came in as a lead: {leads.map((l) => <a key={l.Key} href={href("sales", "lead", l.Key)}>{l.Title}</a>)}</p>}
+      {leads.length > 0 && <p className="muted" style={{ fontSize: 13, marginBottom: 0 }}>Came in as a lead: {leads.map((l) => <a key={l.Key} href={href("sales", "lead", l.Key)}>{l.Title}</a>)}</p>}
     </section>
   );
 }

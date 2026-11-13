@@ -119,7 +119,7 @@ export function OpeningBalances({ client, period }: { client: Client; period: st
       </p>
 
       <div className="stack" style={{ gap: 8 }}>
-        <strong style={{ fontSize: 14 }}>{old.length ? `Trial balance for the year to ${dmy(prior)}` : `Last year's trial balance (year to ${dmy(prior)})`}</strong>
+        <strong style={{ fontSize: 15 }}>{old.length ? `Trial balance for the year to ${dmy(prior)}` : `Last year's trial balance (year to ${dmy(prior)})`}</strong>
         {old.length > 0 && <span className="muted" style={{ fontSize: 13 }}>{old.length} accounts{info.from ? ` from ${info.from}` : " in last year's working papers"}. Reading in another replaces them.</span>}
         <div className="row-wrap" style={{ gap: 10 }}>
           <input ref={file} type="file" accept=".xlsx,.csv,.txt" aria-label="Last year's trial balance file" disabled={busy} onChange={(e) => void read(e.target.files)} />
@@ -137,7 +137,7 @@ export function OpeningBalances({ client, period }: { client: Client; period: st
 
       {plan && (
         <div className="stack" style={{ gap: 8 }}>
-          <strong style={{ fontSize: 14 }}>Read from {plan.name}: {plan.lines.length} accounts</strong>
+          <strong style={{ fontSize: 15 }}>Read from {plan.name}: {plan.lines.length} accounts</strong>
           <table className="bank-table">
             <thead><tr><th>Account</th><th>Goes to</th><th className="num">Debit</th><th className="num">Credit</th></tr></thead>
             <tbody>
@@ -167,7 +167,7 @@ export function OpeningBalances({ client, period }: { client: Client; period: st
 
       {opening ? (
         <div className="stack" style={{ gap: 6 }}>
-          <strong style={{ fontSize: 14 }}>Opening balances for the year to {dmy(period)}</strong>
+          <strong style={{ fontSize: 15 }}>Opening balances for the year to {dmy(period)}</strong>
           <table className="bank-table">
             <thead><tr><th>Account</th><th>Goes to</th><th className="num">Debit</th><th className="num">Credit</th><th /></tr></thead>
             <tbody>
@@ -193,13 +193,13 @@ export function OpeningBalances({ client, period }: { client: Client; period: st
           <div className="row-wrap" style={{ gap: 10 }}>
             <button type="button" className="btn small" onClick={() => void saveRows([...accounts, { Code: "", Detail: "New account", balance: 0, iris: "", dest: "debtors/other" }])}>Add an account</button>
             {opening.custom && <button type="button" className="btn small" onClick={() => void w.writeSetup("openbal/main", { custom: undefined })}>Go back to last year's figures</button>}
-            {opening.custom && <span className="muted" style={{ fontSize: 12 }}>Changed by hand: these no longer follow last year's trial balance.</span>}
+            {opening.custom && <span className="muted" style={{ fontSize: 13 }}>Changed by hand: these no longer follow last year's trial balance.</span>}
           </div>
           <ul className="import-list">
             <li>Last year's result: {opening.result >= 0 ? "profit" : "loss"} of {money(Math.abs(opening.result))} after tax, dividends of {money(opening.dividends)}. Together they {opening.toReserves >= 0 ? "added" : "took"} {money(Math.abs(opening.toReserves))} {opening.toReserves >= 0 ? "to" : "from"} reserves.</li>
             {Math.abs(accounts.reduce((a, x) => a + x.balance, 0)) > 0.004 && <li style={{ color: "var(--red-ink)" }}>The opening balances don't balance: they're out by {money(Math.abs(accounts.reduce((a, x) => a + x.balance, 0)))}.</li>}
           </ul>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Change an account's name, where it goes or its balance, add one, or remove one. Edits are saved as you leave each box. These balances are used when the Accounts working papers create this year's trial balance.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Change an account's name, where it goes or its balance, add one, or remove one. Edits are saved as you leave each box. These balances are used when the Accounts working papers create this year's trial balance.</p>
         </div>
       ) : (
         <p className="muted" style={{ margin: 0 }}>No trial balance for last year yet, so there are no opening balances. Read one in above.</p>

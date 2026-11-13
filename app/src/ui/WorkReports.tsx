@@ -46,13 +46,13 @@ export function WorkReports() {
       </div>
       {groups.map((g) => (
         <section key={g.key} className="card pad stack" aria-labelledby={`wr-${g.key}`}>
-          <h2 id={`wr-${g.key}`} style={{ margin: 0, fontSize: 16 }}>{g.title}</h2>
+          <h2 id={`wr-${g.key}`} style={{ margin: 0, fontSize: 17 }}>{g.title}</h2>
           <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 12, margin: 0 }}>
             {g.metrics.map((m) => (
               <div key={m.key}>
-                <dt className="muted" style={{ fontSize: 12 }}>{m.label}</dt>
+                <dt className="muted" style={{ fontSize: 13 }}>{m.label}</dt>
                 <dd style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{fmt(m)} <span className="chip" title={BASIS_NOTE[m.basis]} style={{ fontSize: 11, fontWeight: 400 }}>{BADGE[m.basis]}</span></dd>
-                {(m.note || m.unknown) ? <dd className="muted" style={{ margin: 0, fontSize: 12 }}>{m.note}{m.unknown ? `${m.note ? ". " : ""}${m.unknown} left out (can't be worked out).` : ""}</dd> : null}
+                {(m.note || m.unknown) ? <dd className="muted" style={{ margin: 0, fontSize: 13 }}>{m.note}{m.unknown ? `${m.note ? ". " : ""}${m.unknown} left out (can't be worked out).` : ""}</dd> : null}
               </div>
             ))}
           </dl>

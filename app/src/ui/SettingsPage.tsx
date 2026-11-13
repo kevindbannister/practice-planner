@@ -203,7 +203,7 @@ function DayTypesCard() {
         ))}
       </div>
       {over && <p className="error-text" role="alert" style={{ margin: 0 }}>Client and business shares can't add up to more than 100%.</p>}
-      <h3 style={{ margin: "6px 0 0", fontSize: 14 }}>Your usual week</h3>
+      <h3 style={{ margin: "6px 0 0", fontSize: 15 }}>Your usual week</h3>
       <div className="form" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
         {DAYS.map(([k, label]) => (
           <label key={k}>
@@ -234,7 +234,7 @@ function AppearanceCard() {
     <section className="card pad stack" aria-labelledby="look-h" style={{ maxWidth: 560 }}>
       <h2 id="look-h">Appearance and account</h2>
       <div className="stack" style={{ gap: 6 }}>
-        <span className="muted" style={{ fontSize: 12 }} id="look-l">Light or dark (remembered on this device)</span>
+        <span className="muted" style={{ fontSize: 13 }} id="look-l">Light or dark (remembered on this device)</span>
         <div className="seg" role="group" aria-labelledby="look-l" style={{ alignSelf: "flex-start", maxWidth: "100%" }}>
           {options.map(([k, label]) => (
             <button key={k} type="button" aria-pressed={choice === k} onClick={() => set(k)}>{label}</button>
@@ -244,7 +244,7 @@ function AppearanceCard() {
       <ProblemsList />
       {!__DEMO__ && (
         <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-          <span style={{ fontSize: 14 }}>Signed in{user ? ` as ${user}` : ""}</span>
+          <span style={{ fontSize: 15 }}>Signed in{user ? ` as ${user}` : ""}</span>
           <button type="button" className="btn small" onClick={signOut}>Sign out</button>
         </div>
       )}
@@ -305,7 +305,7 @@ function TypesOfWork() {
               <li key={s.Key as string}>
                 <a href={`#/settings/work?type=${encodeURIComponent(s.Key as string)}`} aria-current={s.Key === selectedKey ? "true" : undefined}>
                   <span style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}><span className={`svc-dot ${svcClass(s.Key as string)}`} aria-hidden="true" />{s.Title as string}</span>
-                  <span className="muted" style={{ fontSize: 12 }}>
+                  <span className="muted" style={{ fontSize: 13 }}>
                     {describeRule(ruleFor(s.Key as string, data.services)).split(" · ")[0]}
                     {open ? ` · ${open} open` : ""}
                   </span>
@@ -422,7 +422,7 @@ function RuleCard({ service: s }: { service: Row }) {
           Time to finalise after the client approves (default {fmtHours(finaliseDefault(s.Key as string, []))})
           <input className="input" type="number" step="0.25" min="0" value={finalise} placeholder={String(finaliseDefault(s.Key as string, []))}
             onChange={(e) => setFinalise(e.target.value)} />
-          {!hasWait && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>Used once a stage below is marked "With client".</span>}
+          {!hasWait && <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>Used once a stage below is marked "With client".</span>}
         </label>
       </div>
 
@@ -522,7 +522,7 @@ function RuleCard({ service: s }: { service: Row }) {
             ? <>For example: period to {fmtDate(samplePe)} is due {fmtDate(sampleDeadline)}. When it's completed, the next job is period to {fmtDate(next.PeriodEnd)}, due {fmtDate(next.Deadline)}.</>
             : <>Completing one of these jobs doesn't create another.</>}
         </span>
-        {sampleJob && <span className="muted" style={{ fontSize: 12 }}>Example uses {idx.clientByKey.get(sampleJob.ClientKey)?.Title}'s current job.</span>}
+        {sampleJob && <span className="muted" style={{ fontSize: 13 }}>Example uses {idx.clientByKey.get(sampleJob.ClientKey)?.Title}'s current job.</span>}
       </div>
 
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>

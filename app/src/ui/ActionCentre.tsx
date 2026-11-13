@@ -152,7 +152,7 @@ export function ActionCentrePage() {
                     <div className="stack" style={{ gap: 2, flex: 1, minWidth: 240 }}>
                       <button type="button" className="linkbtn" style={{ textAlign: "left", fontWeight: 600 }} onClick={() => go(x)}>{x.title}</button>
                       {x.detail && <span className="muted">{x.detail}</span>}
-                      <span className="muted" style={{ fontSize: 12 }}>{x.clientName ? `${x.clientName} · ` : ""}{x.assignee ? `Assigned to ${x.assignee}` : "Unassigned"}{x.due ? ` · due ${fmtDate(x.due)}` : ""}</span>
+                      <span className="muted" style={{ fontSize: 13 }}>{x.clientName ? `${x.clientName} · ` : ""}{x.assignee ? `Assigned to ${x.assignee}` : "Unassigned"}{x.due ? ` · due ${fmtDate(x.due)}` : ""}</span>
                     </div>
                     <div className="row-wrap">
                       <span className={`chip ${PRI_CHIP[x.priority]}`}>{PRIORITY_LABEL[x.priority]}</span>
@@ -163,7 +163,7 @@ export function ActionCentrePage() {
                     </div>
                   </div>
                   {expanded === x.key && (
-                    <ul className="plain muted" style={{ margin: "6px 0 0", fontSize: 12 }}>
+                    <ul className="plain muted" style={{ margin: "6px 0 0", fontSize: 13 }}>
                       {x.history.map((h, i) => <li key={i}>{h.at.slice(0, 16).replace("T", " ")} · {h.by} · {h.what}{h.note ? `: ${h.note}` : ""}</li>)}
                       {!x.history.length && <li>No history recorded.</li>}
                     </ul>

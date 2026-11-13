@@ -72,7 +72,7 @@ function AdvisoryHome() {
 
       <section className="card pad row-wrap" aria-label="Start a Freedom Plan" style={{ gap: 12 }}>
         <label className="field" style={{ flex: "1 1 280px", maxWidth: 420 }}>
-          <span className="muted" style={{ fontSize: 12 }}>Start a Freedom Plan for</span>
+          <span className="muted" style={{ fontSize: 13 }}>Start a Freedom Plan for</span>
           <select className="input" value={pick} onChange={(e) => setPick(e.target.value)}>
             <option value="">Choose a client…</option>
             {available.map((c) => <option key={String(c.Key)} value={String(c.Key)}>{String(c.Title)}</option>)}
@@ -97,7 +97,7 @@ function AdvisoryHome() {
               {plans.map(({ row, client, g, why }) => (
                 <tr key={String(row.Key)}>
                   <td>
-                    <a href={href("advisory", String(client.Key))} className="adv-client"><ClientBadge client={client as unknown as Client} /><span><strong>{String(client.Title)}</strong>{why && <span className="muted" style={{ display: "block", fontSize: 12 }}>“{why}”</span>}</span></a>
+                    <a href={href("advisory", String(client.Key))} className="adv-client"><ClientBadge client={client as unknown as Client} /><span><strong>{String(client.Title)}</strong>{why && <span className="muted" style={{ display: "block", fontSize: 13 }}>“{why}”</span>}</span></a>
                   </td>
                   <td className="num mono">{g.total.need > 0 ? gbp(g.total.need) : "–"}</td>
                   <td className="num mono">{gbp(g.total.now)}{g.total.metNow !== undefined && <span className="muted"> · {pct(g.total.metNow)}</span>}</td>

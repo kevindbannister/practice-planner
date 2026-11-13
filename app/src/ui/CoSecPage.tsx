@@ -135,7 +135,7 @@ function Portfolio() {
   return (
     <section className="card pad stack" aria-label="Portfolio">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 className="sec-h">Portfolio <span className="muted" style={{ fontSize: 14, fontWeight: 400 }}>{current.length} {current.length === 1 ? "company" : "companies"}</span></h2>
+        <h2 className="sec-h">Portfolio <span className="muted" style={{ fontSize: 15, fontWeight: 400 }}>{current.length} {current.length === 1 ? "company" : "companies"}</span></h2>
         <span className="row-wrap">
           <select className="input" aria-label="Filter by the practice's role" value={level} onChange={(e) => setLevelFilter(e.target.value as Level | "")} style={{ width: "auto" }}><option value="">All roles</option>{LEVELS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}</select>
           <input className="input" placeholder="Find by name, number or VAT" aria-label="Find a company" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />

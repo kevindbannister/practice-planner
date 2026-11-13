@@ -81,7 +81,7 @@ export function ClientFees({ client }: { client: Row }) {
             <tbody>{lines.map(({ row, line }) => (
               <tr key={line.key}>
                 <td>{f.svcName(line.serviceKey)}</td>
-                <td>{line.status === "included" ? <span className="muted">Included</span> : gbp(line.fee)}{line.discount && line.listFee !== line.fee ? <div className="muted">was {gbp(line.listFee)}</div> : null}{(() => { const d = feeDrift(row, f.data.feeHistory as Row[]); return d ? <div style={{ fontSize: 12, color: "var(--red-ink, #b42318)", fontWeight: 600 }} title="The fee doesn't match the last change recorded in the planner, so it was probably changed directly in SharePoint.">Changed outside the planner: last recorded {gbp(d.recorded)}{d.at ? ` on ${fmtDate(d.at)}` : ""}</div> : null; })()}</td>
+                <td>{line.status === "included" ? <span className="muted">Included</span> : gbp(line.fee)}{line.discount && line.listFee !== line.fee ? <div className="muted">was {gbp(line.listFee)}</div> : null}{(() => { const d = feeDrift(row, f.data.feeHistory as Row[]); return d ? <div style={{ fontSize: 13, color: "var(--red-ink, #b42318)", fontWeight: 600 }} title="The fee doesn't match the last change recorded in the planner, so it was probably changed directly in SharePoint.">Changed outside the planner: last recorded {gbp(d.recorded)}{d.at ? ` on ${fmtDate(d.at)}` : ""}</div> : null; })()}</td>
                 <td>{line.oneOff ? "One-off" : periodLabel(line.period)}</td>
                 <td>{line.effectiveFrom ? fmtDate(line.effectiveFrom) : <span className="muted">not recorded</span>}</td>
                 <td>{line.nextReview ? <span className={line.nextReview < today ? "chip red" : ""}>{fmtDate(line.nextReview)}</span> : "—"}</td>
@@ -243,7 +243,7 @@ export function RevenuePage() {
       <div className="import-list" role="note"><strong>Contracted, not collected.</strong> {CAVEAT} Held services are shown apart, and ended services are left out.</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12 }}>
         {([["Monthly recurring (MRR)", r.mrr], ["Annualised recurring (ARR)", r.arr], ["One-off agreed fees", r.oneOff], ["Total agreed fees", r.total]] as [string, number][]).map(([k, v]) => (
-          <div className="card" key={k} style={{ padding: 14 }}><div className="muted" style={{ fontSize: 12 }}>{k}</div><div style={{ fontSize: 24, fontWeight: 700 }}>{gbp(v)}</div></div>
+          <div className="card" key={k} style={{ padding: 14 }}><div className="muted" style={{ fontSize: 13 }}>{k}</div><div style={{ fontSize: 26, fontWeight: 700 }}>{gbp(v)}</div></div>
         ))}
       </div>
       <p className="muted" style={{ margin: 0 }}>Total agreed fees = annualised recurring fees + one-off agreed fees. Invoiced and cash received: not tracked in the planner.{r.heldArr ? ` ${gbp(r.heldArr)} a year more is agreed but held (work not started).` : ""}{r.includedCount ? ` ${r.includedCount} service${r.includedCount === 1 ? " is" : "s are"} included in a package at no separate fee.` : ""}{noHistory ? ` ${noHistory} fee line${noHistory === 1 ? " has" : "s have"} no start date because ${noHistory === 1 ? "it was" : "they were"} imported before fee schedules.` : ""}</p>

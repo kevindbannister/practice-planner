@@ -73,13 +73,13 @@ export function TypeFilter({ options, selected, onChange }: { options: TypeOptio
                   <input type="checkbox" checked={active.includes(o.key)} onChange={() => toggle(o.key)} />
                   <span className={`svc-dot ${svcClass(o.key)}`} aria-hidden="true" />
                   <span className="typefilter-name">{o.name}</span>
-                  <span className="muted mono" style={{ fontSize: 12 }}>{o.count}</span>
+                  <span className="muted mono" style={{ fontSize: 13 }}>{o.count}</span>
                 </label>
               </li>
             ))}
             {!options.length && <li className="muted" style={{ padding: 8, fontSize: 13 }}>Nothing to filter.</li>}
           </ul>
-          <p className="muted" style={{ margin: 0, padding: "6px 10px 10px", fontSize: 12 }}>Tick none to show everything.</p>
+          <p className="muted" style={{ margin: 0, padding: "6px 10px 10px", fontSize: 13 }}>Tick none to show everything.</p>
         </div>
       )}
     </div>

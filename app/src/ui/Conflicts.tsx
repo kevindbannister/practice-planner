@@ -35,8 +35,8 @@ export function ConflictCard({ c, busy, onMake }: { c: Conflict; busy: boolean; 
   return (
     <section className="card pad stack today-conflict" aria-label={`Deadline ${fmtDate(c.deadline)} won't fit`}>
       <h3 className="with-icon" style={{ margin: 0 }}><span className="h-icon hue-red" aria-hidden="true"><Icon name="alert" size={15} /></span>Work due {fmtDate(c.deadline, { weekday: true, year: false })} won't fit</h3>
-      <p style={{ margin: 0, fontSize: 14 }}>{c.text}</p>
-      <span className="muted" style={{ fontSize: 12 }}>{c.due.join(" · ")}</span>
+      <p style={{ margin: 0, fontSize: 15 }}>{c.text}</p>
+      <span className="muted" style={{ fontSize: 13 }}>{c.due.join(" · ")}</span>
       {c.days.map((d) => (
         <div key={d.date} className="row-wrap" style={{ gap: 8, fontSize: 13 }}>
           <span><strong>{fmtDate(d.date, { weekday: true, year: false })}</strong> is a {d.typeName.toLowerCase()} (+{fmtHours(d.hours)} for clients)
@@ -48,7 +48,7 @@ export function ConflictCard({ c, busy, onMake }: { c: Conflict; busy: boolean; 
           <button type="button" className="btn small primary" disabled={busy} onClick={() => onMake(c.days.map((d) => d.date))}>
             Yes, make {c.days.length === 1 ? "it" : "them"} client {c.days.length === 1 ? "day" : "days"}
           </button>
-          <span className="muted" style={{ fontSize: 12 }}>Nothing changes unless you press this.</span>
+          <span className="muted" style={{ fontSize: 13 }}>Nothing changes unless you press this.</span>
         </div>
       )}
     </section>

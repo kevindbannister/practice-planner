@@ -107,7 +107,7 @@ export function CommsList({ clientKey }: { clientKey?: string }) {
             <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>{k === "all" ? "All" : k === "letter" ? "Letters" : "Emails"}</button>
           ))}
         </div>
-        <label className="row-wrap" style={{ gap: 6, fontSize: 14 }}>
+        <label className="row-wrap" style={{ gap: 6, fontSize: 15 }}>
           <input type="checkbox" checked={drafts} onChange={(e) => setDrafts(e.target.checked)} style={{ width: 18, height: 18 }} /> Drafts only
         </label>
         <label className="search" style={{ flex: "1 1 200px", maxWidth: 360 }}>
@@ -497,7 +497,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
                 </select>
               </label>
             )}
-            {job && <span className="muted" style={{ fontSize: 12 }}><span className={`svc-dot ${svcClass(job.ServiceKey)}`} aria-hidden="true" /> The AI is told this job's dates and stage.</span>}
+            {job && <span className="muted" style={{ fontSize: 13 }}><span className={`svc-dot ${svcClass(job.ServiceKey)}`} aria-hidden="true" /> The AI is told this job's dates and stage.</span>}
           </section>
 
           <section className="card pad stack ai-card" aria-labelledby="ai-h">
@@ -537,7 +537,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
                 </div>
               </div>
             )}
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
               The AI is sent the client's name, contact, address greeting and open work (no tax references). Always read it before it goes out.
             </p>
           </section>
@@ -589,7 +589,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
                       <textarea className="input" rows={8} value={pasted} autoFocus onChange={(e) => setPasted(e.target.value)} />
                     </label>
                     {pastedParts && (
-                      <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+                      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
                         Found: {[pastedParts.date && "date", pastedParts.address && "address", pastedParts.salutation && "greeting", pastedParts.subject && "subject", pastedParts.body && "body", pastedParts.signOff && "sign-off"].filter(Boolean).join(", ") || "nothing yet"}
                         {!pastedParts.salutation && pastedParts.body ? ' (no "Dear …" line, so it will all go in the body)' : ""}
                       </p>
@@ -619,7 +619,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
                 placeholder={aiReady ? "Write here, or describe it on the left and let the AI write it." : "Write here."}
                 onChange={(v) => set({ Body: v })}
               />
-              <span className="muted" style={{ fontSize: 12 }}>A blank line starts a new paragraph. Lines starting with "- " become bullet points; **words** in stars are bold. Paste a table from Excel or Word (cells separated by tabs) and it becomes a table.</span>
+              <span className="muted" style={{ fontSize: 13 }}>A blank line starts a new paragraph. Lines starting with "- " become bullet points; **words** in stars are bold. Paste a table from Excel or Word (cells separated by tabs) and it becomes a table.</span>
             </div>
             {isLetter ? (
               <div className="doc-signoff">
@@ -665,7 +665,7 @@ function Composer({ commKey, initial }: { commKey?: string; initial?: { clientKe
             </div>
           </div>
           {needsMail && (
-            <p className="muted" style={{ margin: 0, fontSize: 12, textAlign: "right" }}>
+            <p className="muted" style={{ margin: 0, fontSize: 13, textAlign: "right" }}>
               The first time, Microsoft asks you to let the planner create Outlook drafts. It never sends anything itself.
             </p>
           )}
@@ -811,7 +811,7 @@ export function CommsSettings() {
         )}
         <input ref={fileRef} type="file" accept=".docx,.dotx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={(e) => onFile(e.target.files?.[0])} aria-label="Letterhead file" />
         {upload.state === "error" && <p className="error-text" role="alert" style={{ margin: 0 }}>{upload.message}</p>}
-        {!prefs.letterhead && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Until you upload one, letters are plain (no letterhead).</p>}
+        {!prefs.letterhead && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Until you upload one, letters are plain (no letterhead).</p>}
       </section>
 
       <section className="card pad stack" aria-labelledby="sig-h">
@@ -833,14 +833,14 @@ export function CommsSettings() {
             {aiStatus.keyAccepted === false ? "The OpenAI key is in Azure, but OpenAI didn't accept it." : `Connected · using ${aiStatus.model}`}
           </p>
         ) : (
-          <div className="stack" style={{ gap: 6, fontSize: 14 }}>
+          <div className="stack" style={{ gap: 6, fontSize: 15 }}>
             <p style={{ margin: 0, fontWeight: 600 }}>Not set up yet. To add it:</p>
             <ol style={{ margin: 0, paddingLeft: 20 }}>
               <li>At <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">platform.openai.com › API keys</a>, create a secret key, and add some credit under Billing.</li>
               <li>In the Azure portal, open the Practice Planner static web app › Settings › Environment variables, and add <span className="mono">OPENAI_API_KEY</span> with the key as its value. Save.</li>
               <li>Come back here and refresh.</li>
             </ol>
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>The key stays in Azure; it's never in the app or your browser.</p>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>The key stays in Azure; it's never in the app or your browser.</p>
           </div>
         )}
         <div className="form" style={{ gridTemplateColumns: "1fr" }}>
@@ -862,7 +862,7 @@ export function CommsSettings() {
               <option value="medium">Medium: more careful, slower</option>
               <option value="high">High: most careful, slowest</option>
             </select>
-            <span className="muted" style={{ fontSize: 12 }}>How hard the model thinks before answering. Used for letters, emails, Ask and bank statements. Only models that reason (the gpt-5 family and similar) use it; others ignore it. Higher effort costs more and can take a minute or two.</span>
+            <span className="muted" style={{ fontSize: 13 }}>How hard the model thinks before answering. Used for letters, emails, Ask and bank statements. Only models that reason (the gpt-5 family and similar) use it; others ignore it. Higher effort costs more and can take a minute or two.</span>
           </label>
           <label>
             House style for the AI (optional)
@@ -870,7 +870,7 @@ export function CommsSettings() {
               placeholder={"e.g. We're a small friendly practice in Leeds. Use first names. Keep letters to one page. Always offer a call if they have questions."} />
           </label>
         </div>
-        <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           What's sent to OpenAI: what you ask for, the text being changed, and the client's name, contact, greeting, address and open work. Tax
           references, NI numbers and dates of birth aren't sent. OpenAI doesn't use API data to train its models.
         </p>
@@ -878,7 +878,7 @@ export function CommsSettings() {
 
       <section className="card pad stack" aria-labelledby="ol-h">
         <h2 id="ol-h">Outlook</h2>
-        <p style={{ margin: 0, fontSize: 14 }}>
+        <p style={{ margin: 0, fontSize: 15 }}>
           {canMail
             ? "Emails go into your Outlook drafts, ready for you to check and send."
             : "Emails go into your Outlook drafts. Microsoft asks you to allow this the first time; the planner never sends anything itself."}

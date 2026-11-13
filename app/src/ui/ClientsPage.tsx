@@ -255,13 +255,13 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
               <div key={j.Key}>
                 <div>
                   <div style={{ fontWeight: 600 }}><span className={`svc-dot ${svcClass(j.ServiceKey)}`} aria-hidden="true" style={{ marginRight: 7, verticalAlign: "-1px" }} />{j.Title}</div>
-                  <div className="muted" style={{ fontSize: 12 }}>
+                  <div className="muted" style={{ fontSize: 13 }}>
                     {j.PeriodEnd ? `Period to ${fmtDate(j.PeriodEnd)} · ` : ""}
                     {isOnHold(j) ? holdLabel(j).toLowerCase() : j.PlannedDate ? `planned ${fmtDate(j.PlannedDate, { year: false })}` : "not planned"}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div className="mono" style={{ fontSize: 12 }}>{fmtDate(j.Deadline)}</div>
+                  <div className="mono" style={{ fontSize: 13 }}>{fmtDate(j.Deadline)}</div>
                   <DeadlineChip job={j} today={today} />
                 </div>
               </div>
@@ -277,7 +277,7 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <div>
             <div style={{ fontWeight: 600 }}>{contactName(c) || c.Title}</div>
-            {c.ContactPreference && <div className="muted" style={{ fontSize: 12 }}>Prefers {String(c.ContactPreference).toLowerCase()}</div>}
+            {c.ContactPreference && <div className="muted" style={{ fontSize: 13 }}>Prefers {String(c.ContactPreference).toLowerCase()}</div>}
           </div>
           <div className="row-wrap" style={{ gap: 6 }}>
             {c.Email && <a className="btn small" href={`mailto:${c.Email}`}>Email</a>}
@@ -287,10 +287,10 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
       </div>
 
       <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, paddingTop: 14, borderTop: "1px solid var(--line-2)" }}>
-        <div><dt className="muted" style={{ fontSize: 12 }}>Fees per year</dt><dd style={{ margin: "2px 0 0" }} className="mono">{fmtMoney(c.AnnualFees) || "—"}</dd></div>
-        <div><dt className="muted" style={{ fontSize: 12 }}>Partner</dt><dd style={{ margin: "2px 0 0" }}>{(c.Partner as string) || "—"}</dd></div>
-        <div><dt className="muted" style={{ fontSize: 12 }}>Group</dt><dd style={{ margin: "2px 0 0" }}>{groups.map((g) => g.Title).join(", ") || "—"}</dd></div>
-        <div><dt className="muted" style={{ fontSize: 12 }}>Engagement letter</dt><dd style={{ margin: "2px 0 0" }}>{loe.text}</dd></div>
+        <div><dt className="muted" style={{ fontSize: 13 }}>Fees per year</dt><dd style={{ margin: "2px 0 0" }} className="mono">{fmtMoney(c.AnnualFees) || "—"}</dd></div>
+        <div><dt className="muted" style={{ fontSize: 13 }}>Partner</dt><dd style={{ margin: "2px 0 0" }}>{(c.Partner as string) || "—"}</dd></div>
+        <div><dt className="muted" style={{ fontSize: 13 }}>Group</dt><dd style={{ margin: "2px 0 0" }}>{groups.map((g) => g.Title).join(", ") || "—"}</dd></div>
+        <div><dt className="muted" style={{ fontSize: 13 }}>Engagement letter</dt><dd style={{ margin: "2px 0 0" }}>{loe.text}</dd></div>
       </dl>
 
       <div className="stack" style={{ gap: 8, marginTop: "auto" }}>

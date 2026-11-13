@@ -313,7 +313,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
           <button type="button" className="btn small" onClick={() => save({ PlannedDate: job.SuggestedSlot, DayOrder: "" })}>Plan for then</button>
         </div>
       )}
-      <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
+      <label className="row-wrap" style={{ gap: 8, fontSize: 15 }}>
         <input type="checkbox" checked={job.Priority === "urgent"} onChange={(e) => save({ Priority: e.target.checked ? "urgent" : "" })} style={{ width: 18, height: 18 }} />
         Urgent
       </label>
@@ -415,7 +415,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
               </div>
             </div>
           ) : (
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
               Click the stage you're on when it's done, and the next one starts. Click any other stage to move the job straight to it.
             </p>
           )}
@@ -583,7 +583,7 @@ function HoldSection({ item, deadline, save, what }: { item: Job | Task; deadlin
         <div className="stack" style={{ gap: 2 }}>
           <strong>{holdLabel(item)}{item.HeldOn ? ` since ${fmtDate(item.HeldOn as string)}` : ""}</strong>
           {item.HoldReason ? <span>{item.HoldReason as string}</span> : <span className="muted">No reason given</span>}
-          <span className="muted" style={{ fontSize: 12 }}>
+          <span className="muted" style={{ fontSize: 13 }}>
             {item.HoldKind
               ? (item.HoldUntil ? `Chase on ${fmtDate(item.HoldUntil as string, { weekday: true })}` : "No date to chase")
               : (item.HoldUntil ? `Look again on ${fmtDate(item.HoldUntil as string, { weekday: true })}` : "No date to look again")}
@@ -703,7 +703,7 @@ function ProjectPanel({ projectKey, onClose }: { projectKey?: string; onClose: (
                 <li key={t.Key as string}>
                   <button type="button" className="task-row" onClick={() => open({ kind: "task", key: t.Key as string })}>
                     <span style={{ fontWeight: 600, textDecoration: isOpen(t) ? "none" : "line-through" }}>{t.Title as string}</span>
-                    <span className="muted" style={{ fontSize: 12 }}>
+                    <span className="muted" style={{ fontSize: 13 }}>
                       {isOpen(t) ? (t.PlannedDate ? `planned ${fmtDate(t.PlannedDate as string, { weekday: true, year: false })}` : "not planned") : `done ${fmtDate(t.CompletedDate as string, { year: false })}`}
                       {t.EstimateHours ? ` · ${fmtHours(Number(t.EstimateHours))}` : ""}
                     </span>
@@ -1009,8 +1009,8 @@ function PeriodSection({ job, rule, save }: { job: Job; rule: ReturnType<typeof 
         <input type="checkbox" checked={recalc} onChange={(e) => setRecalc(e.target.checked)} />
         Also work out the deadline again ({describeRule(rule).toLowerCase()}){change?.Deadline ? `: ${fmtDate(change.Deadline)}` : ""}
       </label>
-      {!recalc && job.Deadline && <p className="muted" style={{ margin: 0, fontSize: 12 }}>The deadline stays {fmtDate(job.Deadline)}.</p>}
-      {job.DeadlineSource === "Companies House" && <p className="muted" style={{ margin: 0, fontSize: 12 }}>This job's dates come from Companies House, so the next refresh may suggest putting them back.</p>}
+      {!recalc && job.Deadline && <p className="muted" style={{ margin: 0, fontSize: 13 }}>The deadline stays {fmtDate(job.Deadline)}.</p>}
+      {job.DeadlineSource === "Companies House" && <p className="muted" style={{ margin: 0, fontSize: 13 }}>This job's dates come from Companies House, so the next refresh may suggest putting them back.</p>}
       {err && <p role="alert" style={{ margin: 0, color: "var(--red-ink)" }}>{err}</p>}
       <div className="form-actions">
         <button type="button" className="btn" onClick={() => setOpen(false)}>Cancel</button>

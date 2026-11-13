@@ -26,7 +26,7 @@ export function ClientDocuments({ client }: { client: Client }) {
   return (
     <section className="card pad stack" aria-labelledby="pd-h">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 id="pd-h" style={{ margin: 0, fontSize: 16 }}>Documents shared with {client.Title}</h2>
+        <h2 id="pd-h" style={{ margin: 0, fontSize: 17 }}>Documents shared with {client.Title}</h2>
         <button type="button" className="btn small primary" onClick={() => setAdding(!adding)}>{adding ? "Close" : "Add a document"}</button>
       </div>
       <p className="muted" style={{ margin: 0 }}>Only published documents are visible to the client in the portal. Drafts and your internal notes never are.</p>

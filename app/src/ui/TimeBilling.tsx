@@ -33,7 +33,7 @@ export function TimeBilling({ m }: { m: Model }) {
         <h2 id="bt-h">Where time stands</h2>
         <div className="row-wrap" style={{ gap: 16 }}>
           {(["unbilled", "pending", "billed", "written_down", "written_off"] as BillState[]).map((s) => (
-            <div key={s}><div className="muted" style={{ fontSize: 12 }}>{BILL_LABEL[s]}</div><strong>{penceToPounds(totals[s].pence)}</strong> <span className="muted" style={{ fontSize: 12 }}>{fmtHours(totals[s].minutes / 60) || "0h"}</span></div>
+            <div key={s}><div className="muted" style={{ fontSize: 13 }}>{BILL_LABEL[s]}</div><strong>{penceToPounds(totals[s].pence)}</strong> <span className="muted" style={{ fontSize: 13 }}>{fmtHours(totals[s].minutes / 60) || "0h"}</span></div>
           ))}
         </div>
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>Net of VAT, at the charge-out rates. Written off shows what was given up. Only time on jobs without a fixed fee, and marked billable, is billed by the hour.</p>

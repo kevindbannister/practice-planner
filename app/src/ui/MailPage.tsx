@@ -250,7 +250,7 @@ export function MailPage() {
                 {so?.clientKey && (
                   <div className="row-wrap" style={{ gap: 8 }}>
                     <a className="chip blue" href={`#/clients/${so.clientKey}`}>Client: {clientName(so.clientKey)}</a>
-                    <span className="muted" style={{ fontSize: 12 }}>Matched by {WHY[so.by || "address"]}</span>
+                    <span className="muted" style={{ fontSize: 13 }}>Matched by {WHY[so.by || "address"]}</span>
                   </div>
                 )}
                 <div className="row-wrap" style={{ gap: 8 }}>

@@ -133,7 +133,7 @@ function RequestCard({ row, client, open, onToggle }: { row: Row; client: Client
 
 function Question({ f, value, onChange }: { f: Field; value: string; onChange: (v: string) => void }) {
   const label = <span>{f.label}{f.required ? <span aria-hidden="true" style={{ color: "var(--red-ink, #b42318)" }}> *</span> : null}</span>;
-  const help = f.help ? <span className="muted" style={{ fontSize: 12 }}>{f.help}</span> : null;
+  const help = f.help ? <span className="muted" style={{ fontSize: 13 }}>{f.help}</span> : null;
   if (f.type === "tick") return <label className="row-wrap"><input type="checkbox" checked={value === "yes"} onChange={(e) => onChange(e.target.checked ? "yes" : "")} /> {label}</label>;
   if (f.type === "yesno") return <div className="doc-field">{label}<span className="row-wrap">{["yes", "no"].map((v) => <label key={v} className="row-wrap"><input type="radio" name={f.id} checked={value === v} onChange={() => onChange(v)} /> {v === "yes" ? "Yes" : "No"}</label>)}</span>{help}</div>;
   return (

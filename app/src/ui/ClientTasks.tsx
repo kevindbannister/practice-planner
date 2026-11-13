@@ -36,11 +36,11 @@ export function ClientTasks({ client }: { client: Row }) {
       <UndoBar undo={k.undo} error={k.error} onUndo={() => void k.undoNow()} onClose={k.dismissUndo} />
       {shown.length === 0 ? <div className="card empty">{filter === "outstanding" ? "Nothing outstanding for this client." : "Nothing in this view."}</div> : groups.map((g) => (
         <section key={g.key} className="card pad" aria-label={g.label || "Tasks"}>
-          {g.label && <h3 style={{ margin: "0 0 4px", fontSize: 14 }}>{g.label} <span className="chip">{g.tasks.length}</span></h3>}
+          {g.label && <h3 style={{ margin: "0 0 4px", fontSize: 15 }}>{g.label} <span className="chip">{g.tasks.length}</span></h3>}
           <ul className="plain" style={{ margin: 0 }}>{g.tasks.map((t) => <span key={t.key} style={{ display: "contents" }}>{line(t)}{by === "none" && kids(t.key).map((c) => line(c, true))}</span>)}</ul>
         </section>
       ))}
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>Counts are tasks, not jobs. A task can appear under more than one filter.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Counts are tasks, not jobs. A task can appear under more than one filter.</p>
       <BulkAdd context={{ clientKey: ck }} />
     </div>
   );

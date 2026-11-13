@@ -134,7 +134,7 @@ function Approval({ m }: { m: Model }) {
           <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 13 }}>{log.map((e) => <li key={e.key} style={{ marginBottom: 2 }}>{TIME_EVENT_LABEL[e.type] || e.type} · {m.who(e.createdBy)} · {new Date(e.created).toLocaleString("en-GB")}{e.reason ? ` · ${e.reason}` : ""}</li>)}</ul>
         </details>
       )}
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>States: {Object.values(APPROVAL_LABEL).join(", ")}.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>States: {Object.values(APPROVAL_LABEL).join(", ")}.</p>
     </section>
   );
 }
@@ -184,7 +184,7 @@ function Team({ m }: { m: Model }) {
       <details><summary>What each role can do</summary>
         <div style={{ overflowX: "auto", marginTop: 8 }}><table className="table"><thead><tr><th scope="col" style={{ textAlign: "left" }}>Permission</th>{ROLES.map((r) => <th key={r} scope="col">{ROLE_LABEL[r]}</th>)}</tr></thead>
           <tbody>{ACTIONS.map(([a, label]) => <tr key={a}><td>{label}</td>{ROLES.map((r) => <td key={r} style={{ textAlign: "center" }}><input type="checkbox" aria-label={`${ROLE_LABEL[r]}: ${label}`} checked={roles[r].includes(a)} disabled={!manage || r === "owner"} onChange={(e) => void toggle(r, a, e.target.checked)} /></td>)}</tr>)}</tbody></table></div>
-        <p className="muted" style={{ fontSize: 12 }}>Suggested defaults: {ROLES.map((r) => `${ROLE_LABEL[r]} ${DEFAULT_ROLES[r].length}`).join(", ")} permissions. An owner always has all of them.</p>
+        <p className="muted" style={{ fontSize: 13 }}>Suggested defaults: {ROLES.map((r) => `${ROLE_LABEL[r]} ${DEFAULT_ROLES[r].length}`).join(", ")} permissions. An owner always has all of them.</p>
       </details>
     </section>
   );
@@ -224,7 +224,7 @@ function Check({ m }: { m: Model }) {
       <div className="card-title-row"><h2 id="dc-h">Data check</h2><button type="button" className="btn small" onClick={csv}>Download CSV</button></div>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>Reads {r.counts.entries} time entries and {r.counts.sessions} planned sessions and changes nothing. Run it before and after bringing in old hours.</p>
       {r.issues.length === 0 ? <div className="alert" role="status"><strong>No problems found.</strong></div> : (
-        <ul style={{ margin: 0, paddingLeft: 18 }}>{r.issues.map((i) => <li key={i.code} style={{ marginBottom: 4 }}><strong style={{ color: i.severity === "error" ? "var(--red)" : undefined }}>{i.severity === "error" ? "Fix: " : i.severity === "warning" ? "Check: " : "Note: "}</strong>{i.message} <span className="muted" style={{ fontSize: 12 }}>({i.keys.slice(0, 3).join(", ")}{i.keys.length > 3 ? "…" : ""})</span></li>)}</ul>
+        <ul style={{ margin: 0, paddingLeft: 18 }}>{r.issues.map((i) => <li key={i.code} style={{ marginBottom: 4 }}><strong style={{ color: i.severity === "error" ? "var(--red)" : undefined }}>{i.severity === "error" ? "Fix: " : i.severity === "warning" ? "Check: " : "Note: "}</strong>{i.message} <span className="muted" style={{ fontSize: 13 }}>({i.keys.slice(0, 3).join(", ")}{i.keys.length > 3 ? "…" : ""})</span></li>)}</ul>
       )}
       <h3 style={{ margin: "8px 0 0" }}>Typed hours against recorded time</h3>
       <p style={{ margin: 0 }}>Typed on jobs and tasks: <strong>{r.reconciliation.typedTotal}h</strong> · in time entries: <strong>{r.reconciliation.recordedTotal}h</strong> · bringing the rest in would add <strong>{r.reconciliation.wouldImportHours}h</strong> (a dry run: nothing has been added).</p>

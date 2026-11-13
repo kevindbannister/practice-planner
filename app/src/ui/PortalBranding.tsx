@@ -98,7 +98,7 @@ export function BrandingTab() {
       <div className="stack" style={{ minWidth: 0 }}>
         <section className="card pad stack" aria-labelledby="bd-h">
           <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-            <h2 id="bd-h" style={{ margin: 0, fontSize: 16 }}>Portal branding</h2>
+            <h2 id="bd-h" style={{ margin: 0, fontSize: 17 }}>Portal branding</h2>
             <button type="button" className="btn small" onClick={fromDocuments}>Start from my document branding</button>
           </div>
           <p className="muted" style={{ margin: 0 }}>{o.saved ? `Saved ${o.updatedAt ? new Date(o.updatedAt).toLocaleDateString("en-GB") : ""}${o.updatedBy ? ` by ${o.updatedBy}` : ""}.` : "Nothing saved yet: clients see the standard look."} Changes show in the preview straight away and reach clients when you save.</p>
@@ -108,7 +108,7 @@ export function BrandingTab() {
           {text("welcome", "Welcome message", { rows: 3, max: 600, hint: "Shown on the sign-in page and at the top of each client's home page. Plain text." })}
         </section>
         <section className="card pad stack" aria-labelledby="bc-h">
-          <h2 id="bc-h" style={{ margin: 0, fontSize: 16 }}>Colours</h2>
+          <h2 id="bc-h" style={{ margin: 0, fontSize: 17 }}>Colours</h2>
           <div className="pt-colours">
             {(Object.keys(DEFAULT_COLOURS) as (keyof Colours)[]).map((k) => (
               <div key={k} className="stack" style={{ gap: 4 }}>
@@ -128,7 +128,7 @@ export function BrandingTab() {
           </div>
         </section>
         <section className="card pad stack" aria-labelledby="bk-h">
-          <h2 id="bk-h" style={{ margin: 0, fontSize: 16 }}>Contact details and email</h2>
+          <h2 id="bk-h" style={{ margin: 0, fontSize: 17 }}>Contact details and email</h2>
           {text("supportEmail", "Support email address", { type: "email", max: 120, hint: "Clients are shown it, and replies to portal emails go to it." })}
           {text("phone", "Telephone", { max: 40 })}
           {text("hours", "Opening hours", { max: 120 })}

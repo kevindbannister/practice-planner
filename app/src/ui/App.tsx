@@ -473,7 +473,7 @@ function Alerts() {
         <div className="alerts-panel" role="region" aria-label="Alerts" ref={panelRef} style={{ zIndex: 70, ...pos }}>
           <div className="alerts-head">
             <strong>Needs attention</strong>
-            <span className="muted" style={{ fontSize: 12 }}>
+            <span className="muted" style={{ fontSize: 13 }}>
               {[
                 `${alerts.filter((a) => (a.kind === "job" || a.kind === "task") && !isHoldText(a.detail) && a.level === "red").length} late`,
                 `${alerts.filter((a) => (a.kind === "job" || a.kind === "task") && !isHoldText(a.detail) && a.level === "amber").length} due this week, unplanned`,
@@ -497,7 +497,7 @@ function Alerts() {
                     <span className={`dot ${a.level}`} aria-hidden="true" />
                     <span className="stack" style={{ gap: 2 }}>
                       <span style={{ fontWeight: 600 }}>{a.title}</span>
-                      <span className="muted" style={{ fontSize: 12 }}>{a.detail}</span>
+                      <span className="muted" style={{ fontSize: 13 }}>{a.detail}</span>
                     </span>
                   </button>
                 </li>

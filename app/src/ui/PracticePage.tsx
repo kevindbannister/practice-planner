@@ -81,13 +81,13 @@ export function PracticePage() {
           {v.capacity.lateHours > 0 && <p className="import-list warn" role="note" style={{ margin: 0 }}>{fmtHours(v.capacity.lateHours)} of work is already late.</p>}
           {v.capacity.months.map((m) => <div key={m.key} className="row-wrap" style={{ gap: 8, flexWrap: "nowrap" }}><span style={{ width: 70 }}>{monthLabel(m.key)}</span><div style={{ flex: 1 }}><Bar pct={Math.min(100, m.pct)} over={m.pct > 100} label={`${m.pct}% of capacity`} /></div><span className={m.pct > 100 ? "warn" : "muted"} style={{ width: 190, textAlign: "right", whiteSpace: "nowrap" }}>{fmtHours(m.due) || "0h"} of {fmtHours(m.capacity) || "0h"} ({m.pct}%)</span></div>)}
           {v.capacity.peak && v.capacity.peak.pct > 100 && <p className="muted" style={{ margin: 0 }}>{monthLabel(v.capacity.peak.key)} is the most over-committed month, at {v.capacity.peak.pct}% of the hours available.</p>}
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Counts open jobs by deadline and the recurring jobs still to come, against your working hours and leave.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Counts open jobs by deadline and the recurring jobs still to come, against your working hours and leave.</p>
         </Card>
 
         <Card title="Who carries what">
           <div className="table-wrap"><table className="grid"><thead><tr><th>Manager or partner</th><th className="num">Clients</th>{money && <th className="num">Fees a year</th>}<th className="num">Open jobs</th><th className="num">Overdue</th></tr></thead>
             <tbody>{v.team.map((t) => <tr key={t.owner}><td>{t.owner}</td><td className="num">{t.clients}</td>{money && <td className="num">{gbp(t.arr)}</td>}<td className="num">{t.open}</td><td className="num">{t.overdue ? <span className="chip red">{t.overdue}</span> : "0"}</td></tr>)}</tbody></table></div>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>By the client's manager, or partner where there is none. Jobs aren't assigned to people, so this is by client.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>By the client's manager, or partner where there is none. Jobs aren't assigned to people, so this is by client.</p>
         </Card>
 
         {money && (
@@ -103,7 +103,7 @@ export function PracticePage() {
               {v.money.billing.draft > 0 && <a className="chip amber" href="#/sales/billing">{v.money.billing.draft} drafts to start</a>}
             </div>
             {v.money.noFee.length > 0 && <p className="import-list warn" role="note" style={{ margin: 0 }}><span><strong>Open work, no fee on file:</strong> {v.money.noFee.map((c, i) => <span key={c.clientKey}>{i ? ", " : ""}<a href={href("clients", c.clientKey)}>{name(c.clientKey)}</a> ({plural(c.openJobs, "job")})</span>)}.</span></p>}
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>What is owed and overdue is on the <a href="#/sales/billing">Billing</a> tab, because it is read from Xero.</p>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>What is owed and overdue is on the <a href="#/sales/billing">Billing</a> tab, because it is read from Xero.</p>
           </Card>
         )}
 
@@ -119,7 +119,7 @@ export function PracticePage() {
               <div className="table-wrap"><table className="grid"><thead><tr><th>Client (lowest first)</th><th className="num">Fees a year</th><th className="num">Hours</th><th className="num">An hour</th></tr></thead>
                 <tbody>{v.profit.rows.slice(0, 10).map((r) => <tr key={r.clientKey}><td><a href={href("clients", r.clientKey)}>{name(r.clientKey)}</a></td><td className="num">{gbp(r.arr)}</td><td className="num">{r.hours}</td><td className="num">{r.below ? <span className="chip amber">{gbp2(r.rate)}</span> : gbp2(r.rate)}</td></tr>)}</tbody></table></div>
             )}
-            <p className="muted" style={{ margin: 0, fontSize: 12 }}>Recurring fees over hours recorded in the last 12 months. {v.profit.rated} of {v.profit.withFees} clients with fees have enough time recorded to rate. Time that hasn't been recorded counts for nothing, so treat this as a guide, not a verdict.</p>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>Recurring fees over hours recorded in the last 12 months. {v.profit.rated} of {v.profit.withFees} clients with fees have enough time recorded to rate. Time that hasn't been recorded counts for nothing, so treat this as a guide, not a verdict.</p>
           </Card>
         )}
 

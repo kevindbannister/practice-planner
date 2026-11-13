@@ -404,7 +404,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
                 {offered.map((x) => <option key={x.key} value={x.key}>{x.name}</option>)}
               </select>
               <button type="button" className="btn" onClick={() => change({ lines: [...content.lines, customLine(newKey("ln"))] })}>+ Custom line</button>
-              {!offered.length && <span className="muted" style={{ fontSize: 12 }}>Nothing is offered yet for {typeLabel(type).toLowerCase()}. Set services up under Settings › Services & pricing.</span>}
+              {!offered.length && <span className="muted" style={{ fontSize: 13 }}>Nothing is offered yet for {typeLabel(type).toLowerCase()}. Set services up under Settings › Services & pricing.</span>}
             </div>
           )}
           <label className="doc-field"><span>Internal notes (never shown to the client)</span><textarea className="input" rows={2} disabled={!editable} value={content.notes} onChange={(e) => change({ notes: e.target.value })} /></label>
@@ -414,7 +414,7 @@ export function ProposalDetail({ propKey }: { propKey: string }) {
           <h2 className="sec-h">Totals</h2>
           <TotalsTable t={totals} />
           {optionalLines(content).length > 0 && <><h3 style={{ marginBottom: 0 }}>Optional services (not included above)</h3><TotalsTable t={optTotals} /></>}
-          <p className="muted" style={{ fontSize: 12, margin: 0 }}>Amounts excluding VAT are shown as "net". VAT is worked out at {Math.round(content.vatRate * 1000) / 10}% on standard-rated services. These are agreed fees, not invoices or money received.</p>
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>Amounts excluding VAT are shown as "net". VAT is worked out at {Math.round(content.vatRate * 1000) / 10}% on standard-rated services. These are agreed fees, not invoices or money received.</p>
         </aside>
       </div>
     </>
@@ -450,7 +450,7 @@ function LineEditor({ line: l, editable, rate, onChange, onRemove, onMove, first
         <label className="row-wrap" style={{ gap: 6 }}><input type="checkbox" disabled={!editable} checked={!!l.optional} onChange={(e) => onChange({ optional: e.target.checked || undefined })} /> Optional</label>
         <span className="muted" style={{ marginLeft: "auto", fontSize: 13 }}>{gbp(calcLine(l, rate).net)} net {l.frequency === "one-off" || l.frequency === "fixed" ? "once" : freqLabel(l.frequency).toLowerCase()}{calcLine(l, rate).annualNet ? ` · ${gbp(calcLine(l, rate).annualNet)} a year` : ""}</span>
       </div>
-      {overridden && <p className="muted" style={{ margin: "6px 0 0", fontSize: 12 }}>Catalogue price is £{l.catalogPrice}. This proposal changes it.</p>}
+      {overridden && <p className="muted" style={{ margin: "6px 0 0", fontSize: 13 }}>Catalogue price is £{l.catalogPrice}. This proposal changes it.</p>}
       <details style={{ marginTop: 8 }}>
         <summary style={{ cursor: "pointer" }}>Wording, scope and responsibilities</summary>
         {([["description", "What the client reads"], ["scope", "Included (one per line)"], ["exclusions", "Not included (one per line)"], ["clientResp", "Client responsibilities"], ["practiceResp", "Our responsibilities"]] as [keyof Line, string][]).map(([k, label]) => (
@@ -538,7 +538,7 @@ function SecureLinkStatus({ api, proposalKey, version, canWithdraw, tick }: { ap
           {l.status === "open" && canWithdraw && <button type="button" className="btn small" disabled={busy} onClick={() => void withdraw(l.id)}>Withdraw</button>}
         </div>
       ))}
-      {mine.length > 0 && <p className="muted" style={{ margin: "8px 0 0", fontSize: 12 }}>An open can also come from an email security scanner, so treat it as a sign of interest, not proof it was read.</p>}
+      {mine.length > 0 && <p className="muted" style={{ margin: "8px 0 0", fontSize: 13 }}>An open can also come from an email security scanner, so treat it as a sign of interest, not proof it was read.</p>}
     </div>
   );
 }

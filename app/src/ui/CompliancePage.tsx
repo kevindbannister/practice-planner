@@ -90,7 +90,7 @@ function Obligations({ today }: { today: string }) {
             <thead><tr><th align="left">What</th><th align="left">Due</th><th align="left">Repeats</th><th align="left">Who</th><th align="left">Last done</th><th /></tr></thead>
             <tbody>{rows.map(({ r, o, st }) => (
               <tr key={o.key} style={o.status !== "active" ? { opacity: 0.6 } : undefined}>
-                <td><strong>{o.title}</strong>{o.notes && <div className="muted" style={{ fontSize: 12 }}>{o.notes}</div>}</td>
+                <td><strong>{o.title}</strong>{o.notes && <div className="muted" style={{ fontSize: 13 }}>{o.notes}</div>}</td>
                 <td>{can && o.status === "active" ? <input className="input" type="date" aria-label={`Due date for ${o.title}`} value={o.due} onChange={(e) => run(c.setObligation(r, { due: e.target.value }, sales.pcan))} /> : fmt(o.due)}{" "}
                   {st.state === "overdue" && <span className="chip red">{-st.days} days late</span>}{st.state === "soon" && <span className="chip amber">{st.days} days</span>}{st.state === "undated" && <span className="chip">Set a date</span>}</td>
                 <td>{c.REPEATS.find(([k]) => k === o.repeat)?.[1]}</td>
@@ -137,12 +137,12 @@ function Requests({ today, name }: { today: string; name: (k: string) => string 
               {c.breachUndecided(e) && <span className="chip red">ICO decision needed</span>}
             </div>
             <div>{e.summary}</div>
-            <div className="muted" style={{ fontSize: 12 }}>Received {fmt(e.opened)} · looked after by {e.owner || "nobody yet"}{e.kind === "breach" && e.reported ? ` · ${e.reported === "yes" ? "ICO told" : "ICO not told: people unlikely to be harmed"}` : ""}{e.outcome ? ` · ${e.outcome}` : ""}</div>
+            <div className="muted" style={{ fontSize: 13 }}>Received {fmt(e.opened)} · looked after by {e.owner || "nobody yet"}{e.kind === "breach" && e.reported ? ` · ${e.reported === "yes" ? "ICO told" : "ICO not told: people unlikely to be harmed"}` : ""}{e.outcome ? ` · ${e.outcome}` : ""}</div>
             {can && e.status === "open" && closing !== e.key && (
               <div className="row-wrap" style={{ gap: 8 }}>
                 <button className="btn small" type="button" onClick={() => { setClosing(e.key); setOutcome(""); setReported(e.reported); }}>Close</button>
-                <label className="muted" style={{ fontSize: 12 }}>Deadline <input className="input" type="date" value={e.due} onChange={(ev) => run(c.changeDue(r, ev.target.value, sales.pcan))} /></label>
-                {e.kind === "breach" && <label className="muted" style={{ fontSize: 12 }}>ICO <select className="input" value={e.reported} onChange={(ev) => run(c.setReported(r, ev.target.value as c.Reported, sales.pcan))}><option value="">Not decided</option><option value="yes">Told the ICO</option><option value="no-risk">Not needed</option></select></label>}
+                <label className="muted" style={{ fontSize: 13 }}>Deadline <input className="input" type="date" value={e.due} onChange={(ev) => run(c.changeDue(r, ev.target.value, sales.pcan))} /></label>
+                {e.kind === "breach" && <label className="muted" style={{ fontSize: 13 }}>ICO <select className="input" value={e.reported} onChange={(ev) => run(c.setReported(r, ev.target.value as c.Reported, sales.pcan))}><option value="">Not decided</option><option value="yes">Told the ICO</option><option value="no-risk">Not needed</option></select></label>}
               </div>
             )}
             {closing === e.key && (
@@ -196,7 +196,7 @@ function Retention({ today, years, name }: { today: string; years: number; name:
                 <span className={`chip ${r.state === "due" ? "red" : r.state === "soon" || r.state === "approved" ? "amber" : r.state === "done" ? "green" : ""}`}>{label[r.state]}</span>
                 <span className="muted">Left {fmt(r.ceasedOn)} ({r.reason}) · {r.years} years · review {fmt(r.reviewOn)}</span>
               </div>
-              {r.note && <div className="muted" style={{ fontSize: 12 }}>{r.decidedBy} on {fmt(r.decidedOn)}: {r.note}</div>}
+              {r.note && <div className="muted" style={{ fontSize: 13 }}>{r.decidedBy} on {fmt(r.decidedOn)}: {r.note}</div>}
               {can && r.state !== "done" && open !== r.clientKey && <div className="row-wrap" style={{ gap: 8 }}>
                 {r.state === "approved" ? <button className="btn small" type="button" onClick={() => run(c.retentionDecision(client, r, "deleted", { note: "", reviewOn: "" }, today, sales.pcan, sales.ctx()))}>Mark as deleted</button> : (r.state === "due" || r.state === "soon") && <button className="btn small" type="button" onClick={() => { setOpen(r.clientKey); setNote(""); setReviewOn(""); }}>Review</button>}
               </div>}
@@ -218,7 +218,7 @@ function Retention({ today, years, name }: { today: string; years: number; name:
         })}
         <Err text={error} />
       </Panel>
-      {can && <Panel title="Retention period"><label className="field" style={{ maxWidth: 240 }}><span>Years to keep records after a client leaves</span><input className="input" type="number" min={c.MIN_RETENTION_YEARS} max={30} defaultValue={years} onBlur={(e) => saveSetting(c.RETENTION_KEY, c.readRetentionYears(e.target.value))} /></label><p className="muted" style={{ margin: 0, fontSize: 12 }}>A single client can have their own period on their client page. Nothing under {c.MIN_RETENTION_YEARS} is accepted.</p></Panel>}
+      {can && <Panel title="Retention period"><label className="field" style={{ maxWidth: 240 }}><span>Years to keep records after a client leaves</span><input className="input" type="number" min={c.MIN_RETENTION_YEARS} max={30} defaultValue={years} onBlur={(e) => saveSetting(c.RETENTION_KEY, c.readRetentionYears(e.target.value))} /></label><p className="muted" style={{ margin: 0, fontSize: 13 }}>A single client can have their own period on their client page. Nothing under {c.MIN_RETENTION_YEARS} is accepted.</p></Panel>}
     </div>
   );
 }

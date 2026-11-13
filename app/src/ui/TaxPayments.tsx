@@ -79,7 +79,7 @@ export function TaxPaymentsTab({ client: c }: { client: Client }) {
         </div>
         <div className="tile">
           <div className="label">Next payment</div>
-          <div className="value" style={{ fontSize: 18 }}>
+          <div className="value" style={{ fontSize: 20 }}>
             {nextDue[0] ? <>{money(nextDue.filter((p) => p.DueDate === nextDue[0].DueDate).reduce((t, p) => t + Number(p.Amount), 0))} <span className="muted" style={{ fontSize: 13 }}>by {fmtDate(String(nextDue[0].DueDate))}</span></> : "Nothing due"}
           </div>
         </div>
@@ -89,7 +89,7 @@ export function TaxPaymentsTab({ client: c }: { client: Client }) {
         <button type="button" className="btn primary" onClick={() => setAdding("sa")}><Icon name="plus" />Self Assessment year</button>
         <button type="button" className="btn" onClick={() => setAdding("ct")}><Icon name="plus" />Corporation tax</button>
         <button type="button" className="btn" onClick={() => setAdding("other")}><Icon name="plus" />Other payment</button>
-        <span className="muted" style={{ fontSize: 12, flex: "1 1 220px" }}>
+        <span className="muted" style={{ fontSize: 13, flex: "1 1 220px" }}>
           These feed the payment reminders (Comms › Payment reminders), and the AI knows them when writing letters and emails.
         </span>
       </div>
@@ -246,7 +246,7 @@ function SaYearForm({ client: c, year, onDone }: { client: Client; year?: string
         <label>
           Payments on account already made for {label}
           <input className="input mono" inputMode="decimal" placeholder="0.00" value={poaPaid} onChange={(e) => { setPoaPaid(e.target.value); setManual({}); }} />
-          {defaultPoa > 0 && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>From last year's record: {money(defaultPoa)}</span>}
+          {defaultPoa > 0 && <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>From last year's record: {money(defaultPoa)}</span>}
         </label>
         <label className="radio" style={{ alignSelf: "end" }}>
           <input type="checkbox" checked={atSource} onChange={(e) => { setAtSource(e.target.checked); setManual({}); }} />
@@ -262,7 +262,7 @@ function SaYearForm({ client: c, year, onDone }: { client: Client; year?: string
         {field("poa1", `${taxYearLabel(start + 1)} first payment on account`, d.poa1)}
         {field("poa2", `${taxYearLabel(start + 1)} second payment on account`, d.poa2)}
       </div>
-      <p style={{ margin: 0, fontSize: 14 }}>
+      <p style={{ margin: 0, fontSize: 15 }}>
         By {fmtDate(d.balancing)}: <strong>{money(val("balancing") + val("poa1"))}</strong> · by {fmtDate(d.poa2)}: <strong>{money(val("poa2"))}</strong>
       </p>
       {error && <p className="error-text" role="alert" style={{ margin: 0 }}>{error}</p>}

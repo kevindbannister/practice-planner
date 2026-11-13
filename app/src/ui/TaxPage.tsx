@@ -85,12 +85,12 @@ function TaxList() {
           <tbody>
             {rows.map(({ c, job, comp, state, imported, owed, late }) => (
               <tr key={c.Key} className="clickable" onClick={() => (window.location.hash = href("tax", String(c.Key), String(year)))}>
-                <td><a href={href("tax", String(c.Key), String(year))} onClick={(e) => e.stopPropagation()}>{c.Title}</a>{c.UTR ? <div className="muted mono" style={{ fontSize: 12 }}>{String(c.UTR)}</div> : null}</td>
-                <td>{state ? <span className={`chip${state === "submitted" ? " green" : state === "final" ? " blue" : ""}`}>{STATE_LABEL[state]}</span> : <span className="muted">Not started</span>}{imported && <span className="muted" style={{ fontSize: 12, marginLeft: 6 }}>from IRIS</span>}</td>
+                <td><a href={href("tax", String(c.Key), String(year))} onClick={(e) => e.stopPropagation()}>{c.Title}</a>{c.UTR ? <div className="muted mono" style={{ fontSize: 13 }}>{String(c.UTR)}</div> : null}</td>
+                <td>{state ? <span className={`chip${state === "submitted" ? " green" : state === "final" ? " blue" : ""}`}>{STATE_LABEL[state]}</span> : <span className="muted">Not started</span>}{imported && <span className="muted" style={{ fontSize: 13, marginLeft: 6 }}>from IRIS</span>}</td>
                 <td className="num mono">{comp ? gbp(comp.totalLiability) : "-"}</td>
                 <td className="num mono">{comp ? (comp.balancing >= 0 ? gbp(comp.balancing) : `${gbp(-comp.balancing)} back`) : "-"}</td>
                 <td className="num mono">{comp?.poaNext ? `2 × ${gbp(comp.poaNext)}` : "-"}</td>
-                <td className={`num mono${late ? " red-ink" : ""}`}>{owed ? gbp(owed) : state ? "Nothing" : "-"}{late ? <div style={{ fontSize: 12 }}>overdue</div> : null}</td>
+                <td className={`num mono${late ? " red-ink" : ""}`}>{owed ? gbp(owed) : state ? "Nothing" : "-"}{late ? <div style={{ fontSize: 13 }}>overdue</div> : null}</td>
                 <td>{job?.Deadline ? fmtDate(job.Deadline) : fmtDate(`${year + 1}-01-31`)}</td>
               </tr>
             ))}
@@ -418,7 +418,7 @@ function TaxScreen({ client: c, year, view, setView, start, frozen }: { client: 
           <div className="paper-side-head">
             <button type="button" className="quick-journal-btn" title="Add a section" aria-label="Add a section" onClick={() => setAdding(true)}><Icon name="plus" size={16} /></button>
             <strong>{done} of {items.length} done</strong>
-            <span className="muted" style={{ fontSize: 12, marginLeft: "auto" }}>{w.busy ? "Saving…" : savedAt ? `Saved ${savedAt}` : ""}</span>
+            <span className="muted" style={{ fontSize: 13, marginLeft: "auto" }}>{w.busy ? "Saving…" : savedAt ? `Saved ${savedAt}` : ""}</span>
             <span className="paper-bar" aria-hidden="true"><span style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} /></span>
           </div>
           {["Return", ...TABS].map((t) => {
@@ -456,10 +456,10 @@ function TaxScreen({ client: c, year, view, setView, start, frozen }: { client: 
                 <button type="button" className="btn" onClick={() => setImporting(true)}><Icon name="download" size={15} /> Bring in from IRIS</button>
                 <button type="button" className="btn danger" style={{ marginLeft: "auto" }} onClick={resetAll}><Icon name="refresh" size={15} /> Reset</button>
               </div>
-              {!prevRet && <p className="muted" style={{ margin: 0, fontSize: 12 }}>No {yearLabel(year - 1)} return here to bring forward. Start one with New return (it can be brought in from IRIS).</p>}
-              {prevRet && prevRet.status?.state !== "submitted" && <p className="warn" style={{ margin: 0, fontSize: 12 }}>The {yearLabel(year - 1)} return isn't marked as submitted yet.</p>}
-              {ret.broughtForward && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Brought forward from {yearLabel(ret.broughtForward.from)} on {fmtDate(ret.broughtForward.on)}.</p>}
-              {ret.imported && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Brought in from {ret.imported.from} on {fmtDate(ret.imported.on)}.</p>}
+              {!prevRet && <p className="muted" style={{ margin: 0, fontSize: 13 }}>No {yearLabel(year - 1)} return here to bring forward. Start one with New return (it can be brought in from IRIS).</p>}
+              {prevRet && prevRet.status?.state !== "submitted" && <p className="warn" style={{ margin: 0, fontSize: 13 }}>The {yearLabel(year - 1)} return isn't marked as submitted yet.</p>}
+              {ret.broughtForward && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Brought forward from {yearLabel(ret.broughtForward.from)} on {fmtDate(ret.broughtForward.on)}.</p>}
+              {ret.imported && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Brought in from {ret.imported.from} on {fmtDate(ret.imported.on)}.</p>}
             </div>
           )}
           <div className="card pad stack tax-form">
@@ -651,7 +651,7 @@ function PaymentLines({ ret, year, update }: { ret: TaxReturn; year: number; upd
       <div className="row-wrap" style={{ gap: 8 }}>
         <button type="button" className="btn small" onClick={() => setLines((ls) => [...ls, { id: newId(), kind: "other", label: "", date: today, amount: undefined, paid: false }])}><Icon name="plus" size={14} /> Add a payment</button>
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>Ticked payments come off the tax on the summary. Change the date to the day it was paid. If it was paid late, enter the interest or penalty under late payment increase.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>Ticked payments come off the tax on the summary. Change the date to the day it was paid. If it was paid late, enter the interest or penalty under late payment increase.</p>
     </div></div>
   );
 }
@@ -684,7 +684,7 @@ function PaymentSources({ lines, year }: { lines: PaymentLine[]; year: number })
                 <span className="mono">{gbp(here)} to {yearLabel(year)}{rest > 0.004 ? `, ${gbp(rest)} to another year` : ""}</span>
               </div>
               <table className="grid"><tbody>{g.lines.map((l) => <tr key={l.id}><td>{l.label}</td><td className="num mono">{gbp(l.amount)}</td></tr>)}</tbody></table>
-              {rest > 0.004 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>{gbp(rest)} of this payment was allocated to another tax year. Paste that year's breakdown to see which.</p>}
+              {rest > 0.004 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>{gbp(rest)} of this payment was allocated to another tax year. Paste that year's breakdown to see which.</p>}
             </div>
           );
         })}
@@ -738,7 +738,7 @@ function CosecDividendsPanel({ clientKey, year, ret, update }: { clientKey: stri
   return (
     <div className="stack" style={{ gap: 6, marginBottom: 12 }}>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <strong style={{ fontSize: 14 }}>From Company Secretarial, {from.split("-").reverse().join("/")} to {to.split("-").reverse().join("/")}</strong>
+        <strong style={{ fontSize: 15 }}>From Company Secretarial, {from.split("-").reverse().join("/")} to {to.split("-").reverse().join("/")}</strong>
         {pending.length > 0 && <button type="button" className="btn small" onClick={bringIn}>Bring in {pending.length} dividend{pending.length === 1 ? "" : "s"}</button>}
       </div>
       {!items.length
@@ -1203,7 +1203,7 @@ function SummaryView({ client: c, year, ret, comp, update }: { client: Client; y
                 ))}
               </tbody>
             </table>
-            <p className="muted" style={{ margin: "8px 0 0", fontSize: 12 }}>Interest and repayments are not part of the tax.</p>
+            <p className="muted" style={{ margin: "8px 0 0", fontSize: 13 }}>Interest and repayments are not part of the tax.</p>
           </section>
         )}
       </div>

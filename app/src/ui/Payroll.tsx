@@ -142,7 +142,7 @@ function PayrollList() {
             <label className="field"><span>Paid</span><select className="input" value={f.freq} onChange={(e) => setF({ ...f, freq: e.target.value as Freq })}>{(Object.keys(FREQ_LABEL) as Freq[]).map((k) => <option key={k} value={k}>{FREQ_LABEL[k]}</option>)}</select></label>
           </div>
           <label className="row-wrap"><input type="checkbox" checked={f.ea} onChange={(e) => setF({ ...f, ea: e.target.checked })} /> Claim Employment Allowance (sent on an EPS with the first payment of the year)</label>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>{f.kind === "directors" ? "Directors' payroll: people are added as directors on the annual NI basis and paid planned amounts (from the agreed tax plan, monthly or at the year end)." : "Standard payroll: employees paid a salary or by the hour each period, with auto-enrolment and statutory pay."}</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>{f.kind === "directors" ? "Directors' payroll: people are added as directors on the annual NI basis and paid planned amounts (from the agreed tax plan, monthly or at the year end)." : "Standard payroll: employees paid a salary or by the hour each period, with auto-enrolment and statutory pay."}</p>
           <div className="row-wrap" style={{ gap: 8 }}><button className="btn primary" type="button" onClick={add}>Set up payroll</button><span role="status" className="warn">{msg}</span></div>
         </section>
       )}
@@ -260,7 +260,7 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
         <label className="row-wrap" style={{ gap: 6, fontSize: 13 }}>First period run here
           <select className="input" style={{ width: "auto" }} disabled={!can || locked.size > 0} value={startPeriod} onChange={(e) => setStartPeriod(Number(e.target.value))}>{paydays.map((_, i) => <option key={i} value={i + 1}>{i + 1 === 1 ? "1 (the whole year)" : `${i + 1} (earlier periods were run in FreshPay)`}</option>)}</select>
         </label>
-        {startPeriod > 1 && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Enter each person's year to date from FreshPay under People ("Brought forward"), and their FreshPay payroll ID, so the tax and the FPS carry on correctly.</p>}
+        {startPeriod > 1 && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Enter each person's year to date from FreshPay under People ("Brought forward"), and their FreshPay payroll ID, so the tax and the FPS carry on correctly.</p>}
         <div className="row-wrap" style={{ gap: 8 }}>
           {paydays.map((d, i) => (
             <label key={i} className="field" style={{ width: 150 }}><span>{scheme.freq === "M1" ? `Month ${i + 1}` : `Week ${i + 1}`}{locked.has(i + 1) ? " (approved)" : ""}</span>
@@ -314,7 +314,7 @@ function YearTab({ P, scheme, people, y, yearRow, view }: { P: PP; scheme: rec.S
             <tr><td colSpan={2}><strong>Year</strong></td>{(["gross", "tax", "ee", "er", "sl", "net", "due"] as const).map((k) => <td key={k} className="num"><strong>{gbp(preview.periods.reduce((a, p) => a + p.totals[k], 0))}</strong></td>)}<td /></tr>
           </tbody>
         </table></div>
-        <p className="muted" style={{ margin: 0, fontSize: 12 }}>The client pays HMRC by the 22nd after each tax month (the 19th by post). Employer NI shown before any Employment Allowance.</p>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>The client pays HMRC by the 22nd after each tax month (the 19th by post). Employer NI shown before any Employment Allowance.</p>
       </section>
     </div>
   );
@@ -420,9 +420,9 @@ function PensionsTab({ P, scheme, people, view, year }: { P: PP; scheme: rec.Sch
         <thead><tr><th>Person</th><th>Status</th><th>Assessment</th><th /></tr></thead>
         <tbody>{report.map((r) => (
           <tr key={r.person.key}>
-            <td>{rec.fullName(r.person)}{r.person.pension.kind === "none" && <div className="muted" style={{ fontSize: 12 }}>No pension scheme set on People</div>}</td>
-            <td>{AE_LABEL[r.person.ae.status]}{r.person.ae.enrolDate ? <div className="muted" style={{ fontSize: 12 }}>from {fmt(r.person.ae.enrolDate)}</div> : null}{r.person.ae.optOutDate ? <div className="muted" style={{ fontSize: 12 }}>opted out {fmt(r.person.ae.optOutDate)}</div> : null}</td>
-            <td><span className={`chip ${r.action === "enrol" ? "amber" : r.category === "exempt" || r.action === "none" ? "" : ""}`}>{r.category}</span> <span style={{ fontSize: 12 }}>{r.text}</span></td>
+            <td>{rec.fullName(r.person)}{r.person.pension.kind === "none" && <div className="muted" style={{ fontSize: 13 }}>No pension scheme set on People</div>}</td>
+            <td>{AE_LABEL[r.person.ae.status]}{r.person.ae.enrolDate ? <div className="muted" style={{ fontSize: 13 }}>from {fmt(r.person.ae.enrolDate)}</div> : null}{r.person.ae.optOutDate ? <div className="muted" style={{ fontSize: 13 }}>opted out {fmt(r.person.ae.optOutDate)}</div> : null}</td>
+            <td><span className={`chip ${r.action === "enrol" ? "amber" : r.category === "exempt" || r.action === "none" ? "" : ""}`}>{r.category}</span> <span style={{ fontSize: 13 }}>{r.text}</span></td>
             <td style={{ whiteSpace: "nowrap" }}>{can && <>
               {r.action === "enrol" && r.payday && <button className="linkbtn" type="button" onClick={() => set(r.person, { AeStatus: "enrolled", AeDate: r.payday })}>Enrol from {fmt(r.payday)}</button>}
               {r.action === "enrol" && r.payday && <> <button className="linkbtn" type="button" onClick={() => set(r.person, { AeStatus: "postponed", AePostpone: addMonths(r.payday, 3) })}>Postpone 3 months</button></>}
@@ -512,9 +512,9 @@ function Payslip({ scheme, period, line, person, year, onClose }: { scheme: rec.
   return (
     <section className="card pad stack payslip" aria-label="Payslip" style={{ maxWidth: 620 }}>
       <div className="card-title-row"><h2 className="sec-h">Payslip</h2><div className="row-wrap" style={{ gap: 6 }}><button className="btn small" type="button" onClick={() => window.print()}>Print</button><button className="btn small" type="button" onClick={onClose}>Close</button></div></div>
-      <div className="row-wrap" style={{ justifyContent: "space-between" }}><div><strong>{scheme.name}</strong><div className="muted" style={{ fontSize: 12 }}>PAYE {scheme.officeNo}/{scheme.payeRef}</div></div><div style={{ textAlign: "right" }}><strong>{line.name}</strong><div className="muted" style={{ fontSize: 12 }}>{person?.nino || ""} · Tax code {l.code.regime}{l.code.fps}{l.code.nonCum ? " M1" : ""} · NI {person?.niLetter || "A"}</div></div></div>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}><div><strong>{scheme.name}</strong><div className="muted" style={{ fontSize: 13 }}>PAYE {scheme.officeNo}/{scheme.payeRef}</div></div><div style={{ textAlign: "right" }}><strong>{line.name}</strong><div className="muted" style={{ fontSize: 13 }}>{person?.nino || ""} · Tax code {l.code.regime}{l.code.fps}{l.code.nonCum ? " M1" : ""} · NI {person?.niLetter || "A"}</div></div></div>
       <div className="muted" style={{ fontSize: 13 }}>Paid {fmt(period.payday)} · {yearLabel(year)} period {period.period}</div>
-      {l.benefits ? <p className="muted" style={{ margin: 0, fontSize: 12 }}>Includes £{l.benefits.toFixed(2)} of benefits taxed through the payroll (not paid in cash).</p> : null}
+      {l.benefits ? <p className="muted" style={{ margin: 0, fontSize: 13 }}>Includes £{l.benefits.toFixed(2)} of benefits taxed through the payroll (not paid in cash).</p> : null}
       <table className="grid"><tbody>{rows.map(([k, v]) => <tr key={k}><td>{k}</td><td className="num">{gbp(v)}</td></tr>)}<tr><td><strong>Net pay</strong></td><td className="num"><strong>{gbp(l.net)}</strong></td></tr></tbody></table>
       <table className="grid"><thead><tr><th>Year to date</th><th className="num" /></tr></thead><tbody>
         <tr><td>Taxable pay</td><td className="num">{gbp(l.ytd.taxablePay)}</td></tr><tr><td>Tax</td><td className="num">{gbp(l.ytd.tax)}</td></tr><tr><td>Employee NI</td><td className="num">{gbp(l.ytd.ee)}</td></tr>
@@ -641,13 +641,13 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
                 <label className="field"><span>What (for example, company car)</span><input className="input" value={mine?.label || ""} onChange={(e) => setEdit({ ...edit, Benefits: JSON.stringify([...list.filter((b) => b.year !== year), { year, label: e.target.value, annual: mine?.annual || 0 }]) })} /></label>
                 <label className="field"><span>Cash equivalent for {yearLabel(year)} (£)</span><input className="input" inputMode="decimal" value={mine?.annual || ""} onChange={(e) => setEdit({ ...edit, Benefits: JSON.stringify([...list.filter((b) => b.year !== year), { year, label: mine?.label || "", annual: Number(e.target.value.replace(/[£,\s]/g, "")) || 0 }]) })} /></label>
               </div>; })()}
-            <p className="muted" style={{ fontSize: 12, margin: "4px 0" }}>Spread evenly over the year's pay periods. Register with HMRC to payroll benefits before the tax year starts; Class 1A for 2026-27 is still paid with the P11D(b).</p>
+            <p className="muted" style={{ fontSize: 13, margin: "4px 0" }}>Spread evenly over the year's pay periods. Register with HMRC to payroll benefits before the tax year starts; Class 1A for 2026-27 is still paid with the P11D(b).</p>
           </details>
           <details open={readOrders(edit.Orders).length > 0}><summary style={{ fontSize: 13 }}>Court and council orders</summary>
             <OrdersEditor value={readOrders(edit.Orders)} onChange={(v) => setEdit({ ...edit, Orders: JSON.stringify(v) })} />
           </details>
           <details open={!!s(edit.OpeningYtd)}><summary style={{ fontSize: 13 }}>Brought forward from FreshPay (moving part-way through the year)</summary>
-            <p className="muted" style={{ fontSize: 12, margin: "6px 0" }}>The year-to-date figures from the person's last FreshPay payslip or the FreshPay year-to-date report, for {yearLabel(year)}. The old payroll ID is sent once on the first FPS from here so HMRC doesn't think it is a new job.</p>
+            <p className="muted" style={{ fontSize: 13, margin: "6px 0" }}>The year-to-date figures from the person's last FreshPay payslip or the FreshPay year-to-date report, for {yearLabel(year)}. The old payroll ID is sent once on the first FPS from here so HMRC doesn't think it is a new job.</p>
             <div className="cf-grid">
               {field("OldPayId", "FreshPay payroll ID")}
               {([["gross", "Gross pay"], ["taxablePay", "Taxable pay"], ["tax", "Tax"], ["niEarnings", "Earnings for NI"], ["ee", "Employee NI"], ["er", "Employer NI"], ["atLel", "Earnings at LEL"], ["lelToPt", "LEL to PT"], ["ptToUel", "PT to UEL"], ["sl", "Student loan"], ["pgl", "Postgraduate loan"], ["eePension", "Employee pension (net pay)"]] as [string, string][]).map(([k, label]) => {
@@ -711,7 +711,7 @@ function HmrcTab({ P, scheme, people, y, runs, subs }: { P: PP; scheme: rec.Sche
                   <td>{fmt(s(r.SendOn))}</td>
                   <td><strong>{s(r.Kind)}</strong> {s(r.Summary)}{open === s(r.Key) && <pre style={{ whiteSpace: "pre-wrap", fontSize: 11, maxHeight: 240, overflow: "auto" }}>{s(r.Body).replace(/></g, ">\n<")}</pre>}</td>
                   <td><span className={`chip ${STATUS_CHIP[st] || ""}`}>{STATUS_WORD[st] || st}</span>{r.Live === "no" && st === "accepted" ? <div className="muted" style={{ fontSize: 11 }}>test service</div> : null}</td>
-                  <td style={{ fontSize: 12 }}>{s(r.CorrelationID) && <div className="mono">{s(r.CorrelationID)}</div>}{errs.map((e, i) => <div key={i} className="warn">{e.number ? `${e.number}: ` : ""}{e.text}</div>)}{st === "accepted" && s(r.Response) ? <div className="muted">{s(r.Response).slice(0, 200)}</div> : null}</td>
+                  <td style={{ fontSize: 13 }}>{s(r.CorrelationID) && <div className="mono">{s(r.CorrelationID)}</div>}{errs.map((e, i) => <div key={i} className="warn">{e.number ? `${e.number}: ` : ""}{e.text}</div>)}{st === "accepted" && s(r.Response) ? <div className="muted">{s(r.Response).slice(0, 200)}</div> : null}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     <button className="linkbtn" type="button" onClick={() => setOpen(open === s(r.Key) ? "" : s(r.Key))}>{open === s(r.Key) ? "Hide" : "View"}</button>
                     {can && st === "queued" && <> <button className="linkbtn" type="button" disabled={!!busy} onClick={() => sendNow(r)}>{busy === s(r.Key) ? "Sending…" : "Send now"}</button> <button className="linkbtn" type="button" onClick={() => cancel(r)}>Cancel</button></>}
@@ -777,7 +777,7 @@ function OrdersEditor({ value, onChange }: { value: Order[]; onChange: (v: Order
         </div>
       ))}
       <div><button className="btn small" type="button" onClick={() => onChange([...value, { id: `o${Date.now().toString(36)}`, kind: "aeo", ref: "", normal: 0, protected: 0, carryArrears: false, fee: true, start: todayIso(), end: "", cap: 0 }])}>Add an order</button></div>
-      <p className="muted" style={{ fontSize: 12, margin: 0 }}>Taken from pay after tax, NI and pension. Council tax orders use the England table of percentages. Always follow the order's own wording.</p>
+      <p className="muted" style={{ fontSize: 13, margin: 0 }}>Taken from pay after tax, NI and pension. Council tax orders use the England table of percentages. Always follow the order's own wording.</p>
     </div>
   );
 }

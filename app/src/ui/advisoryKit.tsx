@@ -123,7 +123,7 @@ export function usePlan(clientKey: string): PlanState {
 
 export function SaveNote({ s }: { s: PlanState }) {
   if (s.state === "error") return <span className="chip red" role="alert">Not saved: {s.error}</span>;
-  if (s.state === "saving") return <span className="muted" style={{ fontSize: 12 }}>Saving…</span>;
-  if (s.state === "saved") return <span className="muted" style={{ fontSize: 12 }}>Saved</span>;
+  if (s.state === "saving") return <span className="muted" style={{ fontSize: 13 }}>Saving…</span>;
+  if (s.state === "saved") return <span className="muted" style={{ fontSize: 13 }}>Saved</span>;
   return null;
 }

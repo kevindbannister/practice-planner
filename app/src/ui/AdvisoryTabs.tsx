@@ -20,7 +20,7 @@ export function FreedomTab({ plan, edit }: Tab) {
             <p className="muted tip" style={{ margin: "2px 0 0", fontSize: 13 }}>What their life costs each month. Rows left at nothing are ignored.</p>
           </div>
           <div style={{ textAlign: "right" }}>
-            <strong className="mono" style={{ fontSize: 18 }}>{gbp(livingMonthly(plan))}</strong> <span className="muted" style={{ fontSize: 13 }}>a month</span>
+            <strong className="mono" style={{ fontSize: 20 }}>{gbp(livingMonthly(plan))}</strong> <span className="muted" style={{ fontSize: 13 }}>a month</span>
             <div className="muted mono" style={{ fontSize: 13 }}>{gbp(livingYearly(plan))} a year</div>
           </div>
         </div>
@@ -96,9 +96,9 @@ export function FreedomTab({ plan, edit }: Tab) {
           </p>
         </div>
         <div className="row-wrap" style={{ gap: 20 }}>
-          <label className="field"><span className="muted" style={{ fontSize: 12 }}>Personal tax rate</span><Num label="Personal tax rate" suffix="%" max={90} width={110} value={plan.personalTax} onChange={(n) => edit((p) => ({ ...p, personalTax: n }))} /></label>
-          <label className="field"><span className="muted" style={{ fontSize: 12 }}>Business tax rate</span><Num label="Business tax rate" suffix="%" max={90} width={110} value={plan.businessTax} onChange={(n) => edit((p) => ({ ...p, businessTax: n }))} /></label>
-          <label className="field"><span className="muted" style={{ fontSize: 12 }}>Cost of living rises each year by</span><Num label="Cost of living rise each year" suffix="%" max={50} width={110} value={plan.inflation} onChange={(n) => edit((p) => ({ ...p, inflation: n }))} /></label>
+          <label className="field"><span className="muted" style={{ fontSize: 13 }}>Personal tax rate</span><Num label="Personal tax rate" suffix="%" max={90} width={110} value={plan.personalTax} onChange={(n) => edit((p) => ({ ...p, personalTax: n }))} /></label>
+          <label className="field"><span className="muted" style={{ fontSize: 13 }}>Business tax rate</span><Num label="Business tax rate" suffix="%" max={90} width={110} value={plan.businessTax} onChange={(n) => edit((p) => ({ ...p, businessTax: n }))} /></label>
+          <label className="field"><span className="muted" style={{ fontSize: 13 }}>Cost of living rises each year by</span><Num label="Cost of living rise each year" suffix="%" max={50} width={110} value={plan.inflation} onChange={(n) => edit((p) => ({ ...p, inflation: n }))} /></label>
         </div>
       </section>
 
@@ -166,12 +166,12 @@ export function NowTab({ plan, edit }: Tab) {
           <p className="muted tip" style={{ margin: "2px 0 0", fontSize: 13 }}>Income the business already has coming in every month, such as retainers and subscriptions. It carries on at the same level in every year.</p>
         </div>
         <div className="row-wrap" style={{ gap: 20, alignItems: "flex-end" }}>
-          <label className="field"><span className="muted" style={{ fontSize: 12 }}>Monthly recurring revenue</span><Num label="Monthly recurring revenue" prefix="£" width={140} value={plan.base.revenue} onChange={(n) => edit((p) => ({ ...p, base: { ...p.base, revenue: n } }))} /></label>
+          <label className="field"><span className="muted" style={{ fontSize: 13 }}>Monthly recurring revenue</span><Num label="Monthly recurring revenue" prefix="£" width={140} value={plan.base.revenue} onChange={(n) => edit((p) => ({ ...p, base: { ...p.base, revenue: n } }))} /></label>
           <span className="muted" aria-hidden="true">−</span>
-          <label className="field"><span className="muted" style={{ fontSize: 12 }}>Monthly recurring costs</span><Num label="Monthly recurring costs" prefix="£" width={140} value={plan.base.costs} onChange={(n) => edit((p) => ({ ...p, base: { ...p.base, costs: n } }))} /></label>
+          <label className="field"><span className="muted" style={{ fontSize: 13 }}>Monthly recurring costs</span><Num label="Monthly recurring costs" prefix="£" width={140} value={plan.base.costs} onChange={(n) => edit((p) => ({ ...p, base: { ...p.base, costs: n } }))} /></label>
           <span className="muted" aria-hidden="true">=</span>
-          <div className="adv-result"><span className="muted" style={{ fontSize: 12 }}>Monthly recurring profit</span><strong className="mono">{gbp(baseMonthly)}</strong></div>
-          <div className="adv-result"><span className="muted" style={{ fontSize: 12 }}>Yearly profit</span><strong className="mono">{gbp(now.base)}</strong></div>
+          <div className="adv-result"><span className="muted" style={{ fontSize: 13 }}>Monthly recurring profit</span><strong className="mono">{gbp(baseMonthly)}</strong></div>
+          <div className="adv-result"><span className="muted" style={{ fontSize: 13 }}>Yearly profit</span><strong className="mono">{gbp(now.base)}</strong></div>
         </div>
       </section>
 
@@ -211,7 +211,7 @@ export function NowTab({ plan, edit }: Tab) {
           </table>
         </div>
         <div className="row-wrap" style={{ gap: 10 }}>
-          <label className="field"><span className="muted" style={{ fontSize: 12 }}>Recurring customers lost each month</span><Num label="Recurring customers lost each month" suffix="%" max={100} width={110} value={plan.churn} onChange={(n) => edit((p) => ({ ...p, churn: n }))} /></label>
+          <label className="field"><span className="muted" style={{ fontSize: 13 }}>Recurring customers lost each month</span><Num label="Recurring customers lost each month" suffix="%" max={100} width={110} value={plan.churn} onChange={(n) => edit((p) => ({ ...p, churn: n }))} /></label>
           <span className="muted" style={{ fontSize: 13, maxWidth: 520 }}>Leave at 0% if nobody leaves. At 100% a recurring product behaves like a one-off.</span>
         </div>
       </section>
@@ -277,8 +277,8 @@ export function LeversTab({ plan, edit }: Tab) {
               <div className="row-wrap" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
                 <h3>{pr.name} <span className={`chip ${pr.kind === "recurring" ? "blue" : ""}`}>{pr.kind === "recurring" ? "Recurring" : "One-off"}</span></h3>
                 <div style={{ textAlign: "right" }}>
-                  <span className="muted" style={{ fontSize: 12 }}>Profit, first 12 months</span>
-                  <div><strong className="mono" style={{ fontSize: 18 }}>{gbp(yearLev)}</strong> <span className={`mono ${yearLev - yearNow >= 0 ? "adv-up" : "adv-down"}`} style={{ fontSize: 13 }}>{signed(yearLev - yearNow)}</span></div>
+                  <span className="muted" style={{ fontSize: 13 }}>Profit, first 12 months</span>
+                  <div><strong className="mono" style={{ fontSize: 20 }}>{gbp(yearLev)}</strong> <span className={`mono ${yearLev - yearNow >= 0 ? "adv-up" : "adv-down"}`} style={{ fontSize: 13 }}>{signed(yearLev - yearNow)}</span></div>
                 </div>
               </div>
               {idle && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing set up here yet. Move a slider to try a new idea, or fill it in on Where you are now.</p>}
@@ -361,7 +361,7 @@ export function GapTab({ plan }: { plan: Plan }) {
                 <span className="adv-bar-now" style={{ height: h(y.now) }} title={`Now ${gbp(y.now)}`} />
                 <span className="adv-bar-levers" style={{ height: h(y.levers) }} title={`With levers ${gbp(y.levers)}`} />
               </div>
-              <span className="muted" style={{ fontSize: 12 }}>{yearLabels[i]}</span>
+              <span className="muted" style={{ fontSize: 13 }}>{yearLabels[i]}</span>
             </div>
           ))}
         </div>
@@ -407,7 +407,7 @@ function Progress({ label, met, amount, need, tone }: { label: string; met?: num
 export function Stat({ label, value, strong, tone }: { label: string; value: string; strong?: boolean; tone?: "good" | "bad" }) {
   return (
     <div className="adv-stat">
-      <span className="muted" style={{ fontSize: 12 }}>{label}</span>
+      <span className="muted" style={{ fontSize: 13 }}>{label}</span>
       <strong className={`mono ${tone === "good" ? "adv-up" : tone === "bad" ? "adv-down" : ""}`} style={{ fontSize: strong ? 20 : 18 }}>{value}</strong>
     </div>
   );

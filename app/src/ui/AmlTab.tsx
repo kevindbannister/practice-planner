@@ -85,7 +85,7 @@ export function AmlTab({ client }: { client: Client }) {
         {pos.source && <div className="kv"><span>Source</span><span>{pos.source === "onboarding" ? "Approved during onboarding" : pos.source === "client record" ? "Review date on the client record only" : "Recorded here"}</span></div>}
         {error && <p className="error-text" role="alert">{error}</p>}
         {!open && canEdit && <div className="row-wrap">
-          <label className="stack" style={{ gap: 2 }}><span className="muted" style={{ fontSize: 12 }}>Why is this being done?</span>
+          <label className="stack" style={{ gap: 2 }}><span className="muted" style={{ fontSize: 13 }}>Why is this being done?</span>
             <select className="input" aria-label="Reason for the assessment" value={reason} onChange={(e) => setReason(e.target.value)}>{REASONS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}</select></label>
           <button type="button" className="btn primary" disabled={busy} onClick={() => void go(startAssessment(clientRow(), data.amlAssessments, s.ctx(), reason))}>{pos.current || pos.source === "onboarding" || pos.source === "client record" ? "Start a full review" : "Start an assessment"}</button>
           {pos.current && <button type="button" className="btn" disabled={busy} onClick={() => setShortOn(!shortOn)}>{shortOn ? "Close short review" : "Short review"}</button>}
@@ -181,7 +181,7 @@ export function AmlTab({ client }: { client: Client }) {
           {mine.filter((r) => asStatus(r.Status) === "approved").map((r) => <WithdrawRow key={String(r.Key)} row={r} s={s} clientRow={clientRow()} onGo={go} />)}
         </section>
       )}
-      <p className="muted" style={{ fontSize: 12, margin: 0 }}>Review periods and triggers come from your <a href={href("aml", "policies")}>AML policy</a> (monitoring step). {onboardingCan(s.cfg, s.me, "approve") ? "" : "Approving AML work needs a manager or partner."}</p>
+      <p className="muted" style={{ fontSize: 13, margin: 0 }}>Review periods and triggers come from your <a href={href("aml", "policies")}>AML policy</a> (monitoring step). {onboardingCan(s.cfg, s.me, "approve") ? "" : "Approving AML work needs a manager or partner."}</p>
     </div>
   );
 }
@@ -216,14 +216,14 @@ function ShortReviewForm({ client, cur, rows, settings, independent, changes, se
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>A quick look at the current assessment, without redoing it. If everything is still right, record it and the next review moves on. If anything isn't, answer No and a full assessment is opened.{independent ? " Independent review is on, so this needs someone with approval rights." : ""}</p>
       {qs.map((q) => (
         <div key={q.k} className="row-wrap" style={{ justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <span style={{ flex: "1 1 320px" }}>{q.label}{q.help && <span className="muted" style={{ display: "block", fontSize: 12 }}>{q.help}</span>}
+          <span style={{ flex: "1 1 320px" }}>{q.label}{q.help && <span className="muted" style={{ display: "block", fontSize: 13 }}>{q.help}</span>}
             {(facts[q.k] || []).length > 0 && <span className="muted" style={{ display: "block", fontSize: 13, marginTop: 4 }}><strong>The planner knows:</strong> {(facts[q.k] || []).map((t, i) => <span key={i} style={{ display: "block" }}>· {t}</span>)}</span>}</span>
           <Choice label={q.label} options={["Yes", "No"]} value={ans[q.k] === undefined ? "" : ans[q.k] ? "Yes" : "No"} onChange={(x) => setAns({ ...ans, [q.k]: x === "" ? undefined : x === "Yes" })} />
         </div>
       ))}
       <div className="row-wrap">
-        <label className="stack" style={{ gap: 2 }}><span className="muted" style={{ fontSize: 12 }}>Date of review</span><input type="date" className="input" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label>
-        <label className="stack" style={{ gap: 2, flex: "1 1 260px" }}><span className="muted" style={{ fontSize: 12 }}>Notes (optional). Don't record details of a suspicion</span><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+        <label className="stack" style={{ gap: 2 }}><span className="muted" style={{ fontSize: 13 }}>Date of review</span><input type="date" className="input" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></label>
+        <label className="stack" style={{ gap: 2, flex: "1 1 260px" }}><span className="muted" style={{ fontSize: 13 }}>Notes (optional). Don't record details of a suspicion</span><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
       </div>
       {blockers.length > 0 && <div className="import-list warn"><strong>Before this review can be completed:</strong><ul className="plain">{blockers.map((b) => <li key={b}>{b}</li>)}</ul><span className="muted" style={{ fontSize: 13 }}>Answering No to a question still records the review and opens a full assessment.</span></div>}
       {err && <p className="error-text" role="alert">{err}</p>}
@@ -365,9 +365,9 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
             {!co.hasData ? <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing is recorded for this company in Company Secretarial yet (shareholdings, directors or people with significant control).</p> : (
               <>
                 <table className="table"><thead><tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col">Shares</th><th scope="col">Votes</th><th scope="col">Companies House ID</th></tr></thead>
-                  <tbody>{co.people.map((p) => <tr key={p.name}><td>{p.name}</td><td>{p.roles.join(", ")}{p.natures ? <div className="muted" style={{ fontSize: 12 }}>{p.natures}</div> : null}</td><td>{p.sharePercent !== null ? `${p.sharePercent}%` : "—"}</td><td>{p.votePercent !== null ? `${p.votePercent}%` : "—"}</td><td>{p.corporate ? "—" : p.id === "verified" ? `Verified${p.idOn ? ` ${fmtDate(p.idOn)}` : ""}` : p.id === "exempt" ? "Exempt" : p.id === "pending" ? "Not yet verified" : "Not recorded"}</td></tr>)}</tbody></table>
+                  <tbody>{co.people.map((p) => <tr key={p.name}><td>{p.name}</td><td>{p.roles.join(", ")}{p.natures ? <div className="muted" style={{ fontSize: 13 }}>{p.natures}</div> : null}</td><td>{p.sharePercent !== null ? `${p.sharePercent}%` : "—"}</td><td>{p.votePercent !== null ? `${p.votePercent}%` : "—"}</td><td>{p.corporate ? "—" : p.id === "verified" ? `Verified${p.idOn ? ` ${fmtDate(p.idOn)}` : ""}` : p.id === "exempt" ? "Exempt" : p.id === "pending" ? "Not yet verified" : "Not recorded"}</td></tr>)}</tbody></table>
                 {co.findings.length > 0 && <div className="import-list warn"><strong>Check these:</strong><ul className="plain">{co.findings.map((x) => <li key={x}>{x}</li>)}</ul></div>}
-                {co.suggested.length > 0 && <div><button type="button" className="btn small" onClick={() => setOwners(mergeOwners(owners.filter((o) => o.name.trim()), co.suggested))}>Add these as beneficial owners ({co.suggested.length})</button> <span className="muted" style={{ fontSize: 12 }}>People with significant control and anyone over 25% of shares or votes. Direct holdings only: you judge control through other companies or other means.</span></div>}
+                {co.suggested.length > 0 && <div><button type="button" className="btn small" onClick={() => setOwners(mergeOwners(owners.filter((o) => o.name.trim()), co.suggested))}>Add these as beneficial owners ({co.suggested.length})</button> <span className="muted" style={{ fontSize: 13 }}>People with significant control and anyone over 25% of shares or votes. Direct holdings only: you judge control through other companies or other means.</span></div>}
               </>
             )}
           </div>
@@ -415,7 +415,7 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
                 <input className="input" aria-label="Public role" placeholder={p.kind === "pep" ? "Public role (for example MP, senior official, judge, board of a state-owned company)" : "The PEP they are connected to, and that person's public role"} value={p.role} onChange={(e) => setPerson(i, { role: e.target.value })} />
                 <textarea spellCheck lang="en-GB" className="input" rows={2} aria-label="Source of wealth" placeholder="Source of wealth: how they built up their overall wealth, and the evidence seen" value={p.sow} onChange={(e) => setPerson(i, { sow: e.target.value })} />
                 <textarea spellCheck lang="en-GB" className="input" rows={2} aria-label="Source of funds" placeholder="Source of funds: where the money in this relationship comes from, and the evidence seen" value={p.sof} onChange={(e) => setPerson(i, { sof: e.target.value })} />
-                {pepUntil(p.left) && <span className="muted" style={{ fontSize: 12 }}>Left office {fmtDate(p.left)}: PEP measures continue until at least {fmtDate(pepUntil(p.left))}.</span>}
+                {pepUntil(p.left) && <span className="muted" style={{ fontSize: 13 }}>Left office {fmtDate(p.left)}: PEP measures continue until at least {fmtDate(pepUntil(p.left))}.</span>}
               </div>
             ))}
             <datalist id="aml-pep-names">{[String(client.Title), ...cleanOwners.map((o) => o.name)].map((n) => <option key={n} value={n} />)}</datalist>
@@ -523,7 +523,7 @@ function KycCard({ client }: { client: Row }) {
         <>
           <div className="row-wrap" style={{ gap: 8 }}><span className={`chip ${STATUS_CHIP[r.status]}`}>{STATUS_LABEL[r.status]}</span><span className="muted" style={{ fontSize: 13 }}>Sent {fmtDate(r.createdAt.slice(0, 10))}{r.due ? `, due ${fmtDate(r.due)}` : ""} · <a href={href("clients", String(client.Key), "forms")}>Open in Forms</a></span></div>
           {r.status === "complete" ? (
-            <dl className="kv-list" style={{ margin: 0 }}>{r.fields.filter((f) => String(r.answers[f.id] ?? "").trim()).map((f) => <div key={f.id} style={{ marginBottom: 6 }}><dt className="muted" style={{ fontSize: 12 }}>{f.label}</dt><dd style={{ margin: 0, whiteSpace: "pre-wrap" }}>{f.type === "tick" ? "Confirmed" : String(r.answers[f.id])}</dd></div>)}</dl>
+            <dl className="kv-list" style={{ margin: 0 }}>{r.fields.filter((f) => String(r.answers[f.id] ?? "").trim()).map((f) => <div key={f.id} style={{ marginBottom: 6 }}><dt className="muted" style={{ fontSize: 13 }}>{f.label}</dt><dd style={{ margin: 0, whiteSpace: "pre-wrap" }}>{f.type === "tick" ? "Confirmed" : String(r.answers[f.id])}</dd></div>)}</dl>
           ) : <p className="muted" style={{ margin: 0, fontSize: 13 }}>Waiting for the client's answers.</p>}
         </>
       )}

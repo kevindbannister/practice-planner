@@ -85,10 +85,10 @@ export function SigningRequests({ client }: { client: Client }) {
             <tbody>
               {shown.map((r) => (
                 <tr key={r.id}>
-                  <td><strong>{r.title}</strong><div className="muted" style={{ fontSize: 12 }}>{KIND_LABEL[r.kind]}{r.ref ? ` · ${r.ref}` : ""}</div></td>
-                  <td style={{ whiteSpace: "nowrap" }}>{when(r.createdAt)}<div className="muted" style={{ fontSize: 12 }}>{r.creator}</div></td>
+                  <td><strong>{r.title}</strong><div className="muted" style={{ fontSize: 13 }}>{KIND_LABEL[r.kind]}{r.ref ? ` · ${r.ref}` : ""}</div></td>
+                  <td style={{ whiteSpace: "nowrap" }}>{when(r.createdAt)}<div className="muted" style={{ fontSize: 13 }}>{r.creator}</div></td>
                   <td>{r.signees.length ? r.signees.map((x) => <div key={x.name}>{x.name}</div>) : <span className="muted">{r.kind === "approval" ? client.Title : "—"}</span>}</td>
-                  <td><span className={`chip ${STATE_CHIP[r.state]}`}>{STATE_LABEL[r.state]}</span><div className="muted" style={{ fontSize: 12 }}>{r.text}{r.state === "waiting" && waitingDays(r, today) ? ` · ${waitingDays(r, today)} days` : ""}</div></td>
+                  <td><span className={`chip ${STATE_CHIP[r.state]}`}>{STATE_LABEL[r.state]}</span><div className="muted" style={{ fontSize: 13 }}>{r.text}{r.state === "waiting" && waitingDays(r, today) ? ` · ${waitingDays(r, today)} days` : ""}</div></td>
                   <td style={{ whiteSpace: "nowrap" }}>{when(r.doneAt)}</td>
                   <td>
                     <span className="row-wrap">

@@ -187,10 +187,10 @@ export function DeadlinesView() {
           <span className="sr-only">Search deadlines</span>
           <input type="search" placeholder="Client or work" value={search} onChange={(e) => setSearch(e.target.value)} />
         </label>
-        <label className="row-wrap" style={{ gap: 6, fontSize: 14 }}>
+        <label className="row-wrap" style={{ gap: 6, fontSize: 15 }}>
           <input type="checkbox" checked={tasks} onChange={(e) => setTasks(e.target.checked)} style={{ width: 18, height: 18 }} /> Tasks
         </label>
-        <label className="row-wrap" style={{ gap: 6, fontSize: 14 }}>
+        <label className="row-wrap" style={{ gap: 6, fontSize: 15 }}>
           <input type="checkbox" checked={held} onChange={(e) => setHeld(e.target.checked)} style={{ width: 18, height: 18 }} /> On hold
         </label>
         <div className="row-wrap" style={{ marginLeft: "auto" }}>

@@ -310,7 +310,7 @@ export function CompaniesHouseSettings() {
             <div className="progress" aria-hidden="true"><span style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }} /></div>
           </div>
         ) : (
-          <p style={{ margin: 0, fontSize: 14 }} role="status">
+          <p style={{ margin: 0, fontSize: 15 }} role="status">
             Last checked <strong>{fmtWhen(ch.lastRun?.at)}</strong>
             {ch.lastRun ? ` · ${ch.lastRun.checked} of ${ch.lastRun.companies} companies` : ""}
             {p.finished ? " · just now" : ""}
@@ -365,7 +365,7 @@ export function CompaniesHouseSettings() {
 
       <section className="card pad stack" aria-labelledby="ch-what-h">
         <h2 id="ch-what-h">What's checked</h2>
-        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6, fontSize: 14 }}>
+        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6, fontSize: 15 }}>
           <li>Accounts and confirmation statements filed while the job is still open (apply to tick it off and set up the next one)</li>
           <li>Period ends and due dates that differ from the planner, and filings Companies House is missing</li>
           <li>Overdue filings, strike-off notices and other status changes</li>
@@ -373,7 +373,7 @@ export function CompaniesHouseSettings() {
           <li>Directors, officers and people with significant control joining or leaving (from the second check on)</li>
         </ul>
         <h3 style={{ margin: "8px 0 0", fontSize: 15 }}>Planner checks (every time you open the planner)</h3>
-        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6, fontSize: 14 }}>
+        <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6, fontSize: 15 }}>
           <li>Job deadlines that differ from the statutory date, are missing, or fall before the period end</li>
           <li>The same job on the planner twice for one period</li>
           <li>A deadline rule in Settings that no longer matches the statutory one</li>
@@ -417,9 +417,9 @@ function FlagRow({ flag: f, past }: { flag: Row; past?: boolean }) {
             {!past && <span className={`chip ${sev}`}>{f.Severity === "red" ? "Important" : isPlannerType(f.Type) ? "Planner check" : f.Severity === "amber" ? "Planner" : "For info"}</span>}
             {past && <span className={`chip ${statusChip}`}>{f.Status} {f.Resolved ? fmtDate(f.Resolved as string, { year: false }) : ""}</span>}
           </div>
-          <strong style={{ fontSize: 14 }}>{f.Title}</strong>
+          <strong style={{ fontSize: 15 }}>{f.Title}</strong>
           <span style={{ fontSize: 13 }}>{f.Detail}</span>
-          {f.Current && <span className="muted" style={{ fontSize: 12 }}>Planner now: {f.Current}</span>}
+          {f.Current && <span className="muted" style={{ fontSize: 13 }}>Planner now: {f.Current}</span>}
           {error && <span className="error-text" role="alert">{error}</span>}
         </div>
       </div>

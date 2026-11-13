@@ -82,7 +82,7 @@ function Shell() {
 // ------------------------------------------------------------------ overview
 
 function Tile({ label, value, sub, to, tone }: { label: string; value: number | string; sub?: string; to?: string; tone?: string }) {
-  const body = (<><div className="label">{label}</div><div className="value">{value}</div>{sub && <div className="muted" style={{ fontSize: 12 }}>{sub}</div>}</>);
+  const body = (<><div className="label">{label}</div><div className="value">{value}</div>{sub && <div className="muted" style={{ fontSize: 13 }}>{sub}</div>}</>);
   return to ? <a className={`tile dh-tile ${tone || ""}`} href={to} style={{ textDecoration: "none", color: "inherit" }}>{body}</a> : <div className={`tile dh-tile ${tone || ""}`}>{body}</div>;
 }
 
@@ -130,12 +130,12 @@ function Overview() {
             </div>
           );
         })}
-        {groups.Access.length > 0 && <div className="muted" style={{ fontSize: 12 }}>External approvals run in parallel with all of these.</div>}
+        {groups.Access.length > 0 && <div className="muted" style={{ fontSize: 13 }}>External approvals run in parallel with all of these.</div>}
       </div>
       <div className="dh-two">
         <div className="card pad stack" style={{ gap: 8 }}>
           <h3 className="sec-h" style={{ fontSize: 17 }}>Work on next</h3>
-          <p className="muted tip" style={{ margin: 0, fontSize: 12 }}>Priority 1 first. Open issues, then the features that most need attention.</p>
+          <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>Priority 1 first. Open issues, then the features that most need attention.</p>
           {upNext.length ? <ul className="dh-list">{upNext.map((t) => <li key={t.number}><PriorityChip p={t.priority} /> <a href="#/devhub/board">#{t.number} {t.title.replace(/^\s*\[[^\]]*\]\s*/, "")}</a> <span className="chip">{t.column}</span></li>)}</ul> : <p className="muted" style={{ margin: 0 }}>No open prioritised issues.</p>}
           <h4 className="dh-h" style={{ marginTop: 6 }}>Features needing attention</h4>
           <ul className="dh-list">{next.map((f) => <li key={f.id}><a href={`#/devhub/map/${f.id}`}>{f.name}</a> <StatusChip status={f.status} /> <PriorityChip p={f.priority} /></li>)}</ul>
@@ -197,7 +197,7 @@ function Inventory({ selected }: { selected: string }) {
         <select className="input" aria-label="Area" value={area} onChange={(e) => setArea(e.target.value)}><option value="">All areas</option>{tree.map((a) => <option key={a.f.id} value={a.f.id}>{a.f.name}</option>)}</select>
         <select className="input" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value as Status | "")}><option value="">Any status</option>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
         <select className="input" aria-label="Priority" value={prio} onChange={(e) => setPrio(e.target.value as Priority | "")}><option value="">Any priority</option>{PRIORITIES.map((p) => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}</select>
-        <span className="muted" style={{ fontSize: 12 }}>{rows.length} rows (features, with the modules that hold them)</span>
+        <span className="muted" style={{ fontSize: 13 }}>{rows.length} rows (features, with the modules that hold them)</span>
       </div>
       {adding && <AddFeature onClose={() => setAdding(false)} />}
       <div className={selected ? "dh-split" : ""}>
@@ -210,7 +210,7 @@ function Inventory({ selected }: { selected: string }) {
                 const group = parents.has(f.id);
                 return (
                   <tr key={f.id} className={`clickable${selected === f.id ? " selected" : ""}`} onClick={() => { window.location.hash = href("devhub", "inventory", f.id); }}>
-                    <td data-label="Feature"><strong>{f.name}</strong><div className="muted" style={{ fontSize: 12 }}>{crumb(f)}{n && n.kind === "module" ? "" : ""}</div></td>
+                    <td data-label="Feature"><strong>{f.name}</strong><div className="muted" style={{ fontSize: 13 }}>{crumb(f)}{n && n.kind === "module" ? "" : ""}</div></td>
                     <td data-label="Status" onClick={(e) => e.stopPropagation()}>
                       {group ? <StatusChip status={n ? rollup(n) : f.status} /> : (
                         <select className="input" aria-label={`Status of ${f.name}`} value={f.status} onChange={(e) => { const s = e.target.value as Status; if (s === "Complete") { window.location.hash = href("devhub", "inventory", f.id); return; } void hub.editFeature(f.id, { status: s, reviewed: todayIso(), live: f.live ? null : undefined }, `${f.name}: ${f.status} → ${s}`); }}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
@@ -307,7 +307,7 @@ function Group({ title, items, show, empty }: { title: string; items: Feature[];
   return (
     <div className="card pad stack" style={{ gap: 6 }}>
       <h3 className="sec-h" style={{ fontSize: 17 }}>{title} <span className="chip">{items.length}</span></h3>
-      {items.length ? <ul className="dh-list">{items.map((f) => <li key={f.id}><a href={`#/devhub/map/${f.id}`}>{f.name}</a> <StatusChip status={f.status} /> <PriorityChip p={f.priority} /><div className="muted" style={{ fontSize: 12 }}>{show(f)}</div></li>)}</ul> : <p className="muted" style={{ margin: 0 }}>{empty}</p>}
+      {items.length ? <ul className="dh-list">{items.map((f) => <li key={f.id}><a href={`#/devhub/map/${f.id}`}>{f.name}</a> <StatusChip status={f.status} /> <PriorityChip p={f.priority} /><div className="muted" style={{ fontSize: 13 }}>{show(f)}</div></li>)}</ul> : <p className="muted" style={{ margin: 0 }}>{empty}</p>}
     </div>
   );
 }

@@ -400,7 +400,7 @@ function PeopleCard({ client: c }: { client: Client }) {
               <span>{String(o.Role || "Director")}{o.AppointedOn ? <span className="muted"> · since {fmtDate(String(o.AppointedOn))}</span> : null}</span>
             </div>
           ))}
-          {pscs.length > 0 && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Significant control</div>}
+          {pscs.length > 0 && <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>Significant control</div>}
           {pscs.map((p) => (
             <div className="kv" key={String(p.Key)}>
               <span>{pscName(p)}</span>
@@ -426,7 +426,7 @@ function AddressesCard({ client: c }: { client: Client }) {
         const held = fs.filter(([k]) => c[k]);
         const shown = held.length ? held : fs;
         return <>{shown.map(([k, label]) => (
-          <div key={k}><div className="muted" style={{ fontSize: 12 }}>{label}</div><div>{(c[k] as string) || "—"}</div></div>
+          <div key={k}><div className="muted" style={{ fontSize: 13 }}>{label}</div><div>{(c[k] as string) || "—"}</div></div>
         ))}</>;
       }}
     />
@@ -597,7 +597,7 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
                 <li key={t.Key}>
                   <button type="button" className="task-row" onClick={() => open({ kind: "task", key: t.Key })}>
                     <span style={{ fontWeight: 600 }}>{t.Title}{isOnHold(t) && <span className="chip hold" style={{ marginLeft: 6 }}>{holdLabel(t)}</span>}</span>
-                    <span className="muted" style={{ fontSize: 12 }}>
+                    <span className="muted" style={{ fontSize: 13 }}>
                       {t.Type}{isOnHold(t) ? (t.HoldReason ? ` · ${t.HoldReason}` : "") : t.PlannedDate ? ` · planned ${fmtDate(t.PlannedDate, { weekday: true, year: false })}` : " · not planned"}
                       {t.DueDate ? ` · due ${fmtDate(t.DueDate, { year: false })}` : ""}
                     </span>
@@ -615,7 +615,7 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
                 <li key={String(w.job.Key)}>
                   <button type="button" className="task-row" onClick={() => open({ kind: "job", key: String(w.job.Key) })}>
                     <span style={{ fontWeight: 600 }}>{w.job.Title}</span>
-                    <span className="muted" style={{ fontSize: 12 }}>
+                    <span className="muted" style={{ fontSize: 13 }}>
                       {w.reason}{w.since ? ` since ${fmtDate(w.since, { year: false })}` : ""}{w.chaseOn ? ` · ${w.reason.startsWith("Records") ? "expected" : "chase on"} ${fmtDate(w.chaseOn, { year: false })}` : ""}
                     </span>
                   </button>
@@ -675,7 +675,7 @@ function JobCard({ job: j }: { job: Job }) {
           </div>
           {(j.CardNote as string) && <span className="pcard-note" style={{ alignSelf: "flex-start" }}>{j.CardNote as string}</span>}
           {isOnHold(j) && (
-            <span style={{ fontSize: 12 }}>
+            <span style={{ fontSize: 13 }}>
               {(j.HoldReason as string) || holdLabel(j)}
               {j.HoldUntil ? <span className="muted"> · {j.HoldKind ? "chase" : "look again"} {fmtDate(j.HoldUntil as string, { year: false })}</span> : null}
             </span>
@@ -926,7 +926,7 @@ function ServicesCard({ client: c, jobs }: { client: Client; jobs: Job[] }) {
                     <td>
                       {asking === k ? (
                         <div className="stack" style={{ gap: 6, maxWidth: 260 }}>
-                          <span style={{ fontSize: 12 }}>
+                          <span style={{ fontSize: 13 }}>
                             Stop {name(k).toLowerCase()} for {c.Title}?{" "}
                             {openJob ? "The open job stays until you complete it; no next one will be created." : "No new jobs will be created."}
                           </span>

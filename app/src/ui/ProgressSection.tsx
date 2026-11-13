@@ -77,7 +77,7 @@ export function ProgressSection({ item, kind, estimate, save }: { item: Row; kin
             <label className="field" style={{ flex: 1, minWidth: 180 }}>The rest waits for<input value={note} onChange={(e) => setNote(e.target.value)} placeholder="the bank statements, HMRC reply…" /></label>
             <button type="button" className="btn" disabled={busy} onClick={() => void go()}>Save</button>
           </div>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Your figure for what is left replaces the estimate less time recorded. Only the part that can be done now takes planning time. To park the whole job or wait on someone, use the hold below.</p>
+          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Your figure for what is left replaces the estimate less time recorded. Only the part that can be done now takes planning time. To park the whole job or wait on someone, use the hold below.</p>
           {err && <div className="alert red" role="alert"><strong>{err}</strong></div>}
         </div>
       )}

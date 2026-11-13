@@ -86,10 +86,10 @@ function Card({ t, onOpen }: { t: Task; onOpen: () => void }) {
   return (
     <div className={`dh-card${t.synced ? "" : " unsynced"}`} draggable onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(t.number)); e.dataTransfer.effectAllowed = "move"; }}
       tabIndex={0} role="button" aria-label={`Issue ${t.number}: ${t.title}`} onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}>
-      <div className="row-wrap" style={{ gap: 6, justifyContent: "space-between" }}><a href={issueUrl(t.number)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="mono" style={{ fontSize: 12 }}>#{t.number}</a>{t.priority !== "None" && <PriorityChip p={t.priority} />}</div>
+      <div className="row-wrap" style={{ gap: 6, justifyContent: "space-between" }}><a href={issueUrl(t.number)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="mono" style={{ fontSize: 13 }}>#{t.number}</a>{t.priority !== "None" && <PriorityChip p={t.priority} />}</div>
       <div className="dh-card-title">{t.title.replace(/^\s*\[[^\]]*\]\s*/, "")}</div>
-      {first && <div className="muted" style={{ fontSize: 12 }}>Feature: {first.name}{feats.length > 1 ? ` +${feats.length - 1}` : ""}</div>}
-      <div className="row-wrap" style={{ gap: 6, fontSize: 12 }}>
+      {first && <div className="muted" style={{ fontSize: 13 }}>Feature: {first.name}{feats.length > 1 ? ` +${feats.length - 1}` : ""}</div>}
+      <div className="row-wrap" style={{ gap: 6, fontSize: 13 }}>
         {t.meta.assignee || t.assignee ? <span className="chip">{t.meta.assignee || t.assignee}</span> : null}
         {t.meta.target && <span className="chip">due {t.meta.target}</span>}
         {t.meta.deps?.length ? <span className="chip">needs {t.meta.deps.map((d) => `#${d}`).join(", ")}</span> : null}
@@ -131,7 +131,7 @@ function TaskDetail({ t, onClose }: { t: Task; onClose: () => void }) {
         <div className="row-wrap">
           <button type="button" className="btn small primary" disabled={!ready || (title === t.title && body === t.body)} onClick={() => void run(hub.updateIssue(t.number, { title, body }))}>Save to GitHub</button>
           {t.state === "open" ? <button type="button" className="btn small" disabled={!ready} onClick={() => void run(hub.updateIssue(t.number, { state: "closed" }))}>Close issue</button> : <button type="button" className="btn small" disabled={!ready} onClick={() => void run(hub.updateIssue(t.number, { state: "open" }))}>Reopen</button>}
-          {!ready && <span className="muted" style={{ fontSize: 12 }}>Editing needs the GitHub connection.</span>}
+          {!ready && <span className="muted" style={{ fontSize: 13 }}>Editing needs the GitHub connection.</span>}
         </div>
         {msg && <div className="alert" role="status"><span>{msg}</span></div>}
 

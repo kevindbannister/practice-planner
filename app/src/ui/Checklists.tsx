@@ -121,7 +121,7 @@ export function ChecklistsHomeCard() {
   const tiles: [Filter, string, number][] = [["mandatory", "Mandatory items open", n("mandatory")], ["review", "Ready for review", n("review")], ["client", "Waiting for client", n("client")], ["blocked", "Blocked", n("blocked")], ["overdue", "Overdue", n("overdue")], ["ready", "Ready to complete", n("ready")]];
   return (
     <section className="card pad stack" aria-labelledby="cl-home-h">
-      <div className="row-wrap"><h2 id="cl-home-h" style={{ margin: 0, fontSize: 16 }}>Checklists</h2><span style={{ flex: 1 }} /><a href="#/checklists">All checklists →</a></div>
+      <div className="row-wrap"><h2 id="cl-home-h" style={{ margin: 0, fontSize: 17 }}>Checklists</h2><span style={{ flex: 1 }} /><a href="#/checklists">All checklists →</a></div>
       <div className="cl-tiles">{tiles.map(([k, label, v]) => <a key={k} className="tl-sum" href="#/checklists"><span className="tl-sum-label">{label}</span><strong className={v && (k === "blocked" || k === "overdue") ? "warn" : ""}>{v}</strong><span className="muted tl-sum-sub">job{v === 1 ? "" : "s"}</span></a>)}</div>
     </section>
   );

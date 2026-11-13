@@ -37,7 +37,7 @@ export function ClientPapers({ client: c, jobs }: { client: Client; jobs: Job[] 
     <div className="stack" style={{ gap: 12 }} aria-label="Working papers for this client">
       <div className="row-wrap" style={{ justifyContent: "space-between", gap: 12 }}>
         <div>
-          <strong style={{ fontSize: 16 }}>Working papers</strong>
+          <strong style={{ fontSize: 17 }}>Working papers</strong>
           <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>Each year's papers. Open one to work on it; last year's lines come across as each schedule is opened.</p>
         </div>
         <a className="btn small" href={href("papers")}>All working papers</a>
@@ -63,7 +63,7 @@ export function ClientPapers({ client: c, jobs }: { client: Client; jobs: Job[] 
                   <td className="mono">{r.prepared} / {r.total}</td>
                   <td className="mono">{r.reviewed} / {r.total}</td>
                   <td>{r.job?.Deadline ? fmtDate(String(r.job.Deadline), { year: false }) : <span className="muted">–</span>}</td>
-                  <td>{r.xero ? <span className="muted" style={{ fontSize: 12 }}>Read {fmtDate(r.xero)}</span> : <span className="muted">–</span>}</td>
+                  <td>{r.xero ? <span className="muted" style={{ fontSize: 13 }}>Read {fmtDate(r.xero)}</span> : <span className="muted">–</span>}</td>
                   <td style={{ textAlign: "right" }}><a className="btn small" href={openHref(r.period)}>{r.status === "Not started" ? "Start" : "Open"}</a></td>
                 </tr>
               ))}
@@ -73,9 +73,9 @@ export function ClientPapers({ client: c, jobs }: { client: Client; jobs: Job[] 
       )}
 
       <div className="card pad stack" style={{ gap: 8 }}>
-        <strong style={{ fontSize: 14 }}>Start another year</strong>
+        <strong style={{ fontSize: 15 }}>Start another year</strong>
         <div className="row-wrap" style={{ gap: 8, alignItems: "flex-end" }}>
-          <label className="stack" style={{ gap: 4, fontSize: 12 }}>
+          <label className="stack" style={{ gap: 4, fontSize: 13 }}>
             <span className="muted">Year to</span>
             <input className="input" type="date" value={start} onChange={(e) => setStart(e.target.value)} style={{ width: "auto" }} />
           </label>

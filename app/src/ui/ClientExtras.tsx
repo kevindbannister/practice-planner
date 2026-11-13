@@ -55,7 +55,7 @@ export function MemosCard({ client }: { client: Client }) {
         <div key={String(m.Key)} style={{ borderTop: "1px solid var(--line)", paddingTop: 6 }}>
           <div>{String(m.Title)}</div>
           {m.Summary ? <div className="muted" style={{ fontSize: 13 }}>{String(m.Summary)}</div> : null}
-          <div className="muted" style={{ fontSize: 12 }}>{fmtDate(String(m.At).slice(0, 10))}{m.Actor ? ` · ${String(m.Actor)}` : ""}</div>
+          <div className="muted" style={{ fontSize: 13 }}>{fmtDate(String(m.At).slice(0, 10))}{m.Actor ? ` · ${String(m.Actor)}` : ""}</div>
         </div>
       )) : !adding && <p className="muted" style={{ margin: 0 }}>No memos yet.</p>}
       {memos.length > 3 && <div><button type="button" className="linkbtn" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${memos.length}`}</button></div>}

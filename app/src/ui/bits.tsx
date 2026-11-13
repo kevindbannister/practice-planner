@@ -44,7 +44,7 @@ export function DeadlineChip({ job, today = todayIso() }: { job: Job; today?: st
   const { state, days } = jobState(job, today);
   if (state === "overdue") return <span className="chip red">{deadlineLabel(days)}</span>;
   if (state === "tight") return <span className="chip amber">{deadlineLabel(days)}</span>;
-  if (state === "ok") return <span className="muted" style={{ fontSize: 12 }}>{deadlineLabel(days)}</span>;
+  if (state === "ok") return <span className="muted" style={{ fontSize: 13 }}>{deadlineLabel(days)}</span>;
   return null;
 }
 
@@ -189,7 +189,7 @@ export const PlanEmbed = createContext(false);
 export function PlanSection({ title, id, open, count, children }: { title: string; id: string; open: boolean; count?: number; children: ReactNode }) {
   return (
     <details id={id} className="card pad plan-section" open={open} style={{ marginTop: 12 }}>
-      <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 16 }}>{title}{count ? <span className="chip amber" style={{ marginLeft: 8 }}>{count}</span> : null}</summary>
+      <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 17 }}>{title}{count ? <span className="chip amber" style={{ marginLeft: 8 }}>{count}</span> : null}</summary>
       <div style={{ marginTop: 10 }}><PlanEmbed.Provider value={true}>{children}</PlanEmbed.Provider></div>
     </details>
   );

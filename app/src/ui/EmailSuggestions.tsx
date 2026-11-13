@@ -114,7 +114,7 @@ export function EmailSuggestions() {
         </span>
       </div>
       {state.error && <p className="error-text" role="alert" style={{ margin: "0 16px 8px" }}>{state.error}</p>}
-      {state.aiNote && <p className="muted" style={{ margin: "0 16px 8px", fontSize: 12 }}>{state.aiNote}</p>}
+      {state.aiNote && <p className="muted" style={{ margin: "0 16px 8px", fontSize: 13 }}>{state.aiNote}</p>}
       {list.length > 0 && (
         <ul className="today-list">
           {list.map((s) => (
@@ -123,7 +123,7 @@ export function EmailSuggestions() {
                 <span className="today-dot amber" aria-hidden="true" />
                 <span className="stack" style={{ gap: 2, minWidth: 0 }}>
                   <strong className="ellipsis">{s.title}</strong>
-                  <span className="muted" style={{ fontSize: 12 }}>
+                  <span className="muted" style={{ fontSize: 13 }}>
                     {s.mail.from}{clientName(s.clientKey) ? ` (${clientName(s.clientKey)})` : ""} · {fmtDate(s.mail.received.slice(0, 10), { weekday: true, year: false })} · {s.why}
                     {s.mail.link ? <> · <a href={s.mail.link} target="_blank" rel="noreferrer">Open in Outlook</a></> : null}
                   </span>
@@ -150,21 +150,21 @@ export function EmailSettings() {
         The planner reads your recent inbox and suggests tasks from emails that look like they need action, on the Today screen. You add or dismiss each one.
         It only reads your mail; it never changes, moves or sends anything. It uses the same Outlook permission as drafting letters.
       </p>
-      <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
+      <label className="row-wrap" style={{ gap: 8, fontSize: 15 }}>
         <input type="checkbox" checked={prefs.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
         Suggest tasks from my email{isDemo() ? " (demo inbox)" : ""}
       </label>
-      <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
+      <label className="row-wrap" style={{ gap: 8, fontSize: 15 }}>
         Look back
         <select className="input" style={{ width: "auto" }} value={prefs.days} onChange={(e) => set({ days: Number(e.target.value) })} aria-label="How many days back">
           {[1, 2, 3, 5, 7].map((n) => <option key={n} value={n}>{n} day{n === 1 ? "" : "s"}</option>)}
         </select>
       </label>
-      <label className="row-wrap" style={{ gap: 8, fontSize: 14 }}>
+      <label className="row-wrap" style={{ gap: 8, fontSize: 15 }}>
         <input type="checkbox" checked={prefs.ai} disabled={!prefs.enabled} onChange={(e) => set({ ai: e.target.checked })} />
         Let the AI judge them better. This sends the subject and the first lines of each possible email (up to 20 at a time) to OpenAI, with sender names only if the assistant is set to send names.
       </label>
-      <p className="muted" style={{ margin: 0, fontSize: 12 }}>With this off, emails are picked by simple rules on your computer: from a known client, flagged, or asking for something. Nothing leaves the app.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>With this off, emails are picked by simple rules on your computer: from a known client, flagged, or asking for something. Nothing leaves the app.</p>
     </section>
   );
 }

@@ -116,7 +116,7 @@ export function EndOfDay() {
             <div className="row-wrap" style={{ justifyContent: "space-between", gap: 8 }}>
               <span className="stack" style={{ gap: 2, minWidth: 0 }}>
                 <strong className="ellipsis">{clientName(x) || x.title}{clientName(x) ? <span className="muted" style={{ fontWeight: 400 }}> · {x.title}</span> : null}</strong>
-                <span className="muted" style={{ fontSize: 12 }}>{fmtHours(x.minutes / 60)} planned{recorded(x) ? ` · ${fmtHours(recorded(x) / 60)} recorded on the timesheet` : ""}{x.date < today ? ` for ${fmtDate(x.date, { weekday: true, year: false })}, still open` : ""}{x.originalKey ? " · moved from an earlier day" : ""}</span>
+                <span className="muted" style={{ fontSize: 13 }}>{fmtHours(x.minutes / 60)} planned{recorded(x) ? ` · ${fmtHours(recorded(x) / 60)} recorded on the timesheet` : ""}{x.date < today ? ` for ${fmtDate(x.date, { weekday: true, year: false })}, still open` : ""}{x.originalKey ? " · moved from an earlier day" : ""}</span>
               </span>
               <button type="button" className="btn small" onClick={() => (open === x.key ? setOpen(undefined) : start(x))}>{open === x.key ? "Close" : "How did it go?"}</button>
             </div>
