@@ -1,6 +1,6 @@
-# Co Sec: change of accounting reference date on request, and no assumed dormant accounts
+# Co Sec: change of accounting reference date on request, and no assumed dormant accounts (V26.1)
 
-Branch `cosec-aa01-on-demand` (not merged to main, nothing deployed).
+Version 26.1. Merged to main on 13 November 2026.
 
 ## What changed
 
