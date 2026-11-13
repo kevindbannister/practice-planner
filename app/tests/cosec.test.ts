@@ -88,7 +88,7 @@ test("changes made at Companies House or through Co Sec prepare no filing", () =
   edit("C1", { RegisteredOffice: "1 New Street, London, EC1A 1BB" }, "ch-sync");
   edit("C1", { YearEnd: "30 June" }, "cosec");
   assert.equal(s.txs.length, 0);
-  assert.deepEqual(s.events.map((e) => e.Outcome), ["info", "info"]);
+  assert.deepEqual(s.events.map((e) => e.Outcome), ["info", "ignored"]);
 });
 
 test("an address Companies House already shows is not filed again", () => {
@@ -105,7 +105,7 @@ test("the other watched company fields: name, accounting date, SIC", () => {
   edit("C1", { Title: "Acme Holdings Ltd" });
   edit("C1", { YearEnd: "30 June" });
   edit("C1", { SIC: "62012" });
-  assert.deepEqual(txsFor(s).map((t) => t.Form).sort(), ["AA01", "NM01"]);
+  assert.deepEqual(txsFor(s).map((t) => t.Form).sort(), ["NM01"], "a year end change is never drafted automatically");
   assert.match(txsFor(s, "NM01")[0].History, /special resolution/);
   assert.ok(s.events.some((e) => e.Field === "SIC" && e.Outcome === "info"), "SIC is flagged for the confirmation statement, not filed");
 });
@@ -273,7 +273,7 @@ test("a rejected filing stays actionable and keeps its draft", () => {
 test("the Action Centre list covers review, approval, submission, queries, rejections and Companies House differences", () => {
   const { s, edit, apply } = world();
   edit("C1", { RegisteredOffice: "25 Market Road, London, N1 9GU" });
-  edit("C1", { YearEnd: "30 June" });
+  edit("C1", { Title: "Acme Holdings Ltd" });
   apply(act(s.txs[1], "clarify", { note: "Which year?" }, cfg, ctx(), s) as any);
   const flags = [{ Key: "F1", ClientKey: "C1", Type: "officers", Title: "Officer differs", Detail: "x", Status: "open" }];
   const groups = coSecItems(s.txs, s.clients, [{ ...flags[0], ClientKey: "C2" }], "2026-10-27").map((i) => i.group).sort();

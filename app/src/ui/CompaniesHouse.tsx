@@ -13,6 +13,7 @@ import { BUILT_IN_RULES, addDays, newKey, rollForward, ruleFields, ruleFor } fro
 import { Row } from "../lib/schema";
 import { ClientBadge, companiesHouseUrl, href } from "./bits";
 import { verifiedFrom, verifiedOf } from "../lib/cosec";
+import { filingsFrom } from "../lib/cosecHistory";
 import { useData, useIndex } from "./data";
 
 const DAY_GAP_MS = 20 * 60 * 60 * 1000; // check again after 20 hours
@@ -122,9 +123,10 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
           const st = profile ? statusText(profile) : "Not found at Companies House";
           if (c.CHStatus !== st || !c.CHChecked) await update("Clients", c, { CHStatus: st, CHChecked: true });
           if (profile) { // what Companies House shows now, kept apart from the planner's own record (Co Sec compares the two)
-            const seen = verifiedFrom(profile, new Date().toISOString());
+            const history = await orNull(get(`company/${num}/filing-history?items_per_page=100`));
+            const seen = verifiedFrom(profile, new Date().toISOString(), history ? filingsFrom(history) : verifiedOf(c).history);
             const was = verifiedOf(c);
-            if (seen.name !== was.name || seen.office !== was.office || seen.ard !== was.ard || seen.sic !== was.sic || seen.accDue !== was.accDue || seen.accTo !== was.accTo || seen.csDue !== was.csDue || seen.csTo !== was.csTo || seen.status !== was.status) await update("Clients", c, { CHVerified: JSON.stringify(seen) }, { source: "ch-sync" });
+            if (seen.name !== was.name || seen.office !== was.office || seen.ard !== was.ard || seen.sic !== was.sic || seen.accDue !== was.accDue || seen.accTo !== was.accTo || seen.csDue !== was.csDue || seen.csTo !== was.csTo || seen.status !== was.status || JSON.stringify(seen.history || []) !== JSON.stringify(was.history || [])) await update("Clients", c, { CHVerified: JSON.stringify(seen) }, { source: "ch-sync" });
           }
           for (const { job, CHDeadline } of chDeadlines(profile, jobs)) await update("Jobs", job, { CHDeadline });
         } catch (e) {

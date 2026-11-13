@@ -2,7 +2,8 @@
 // Everything that changes a record goes through lib/cosec.ts, which also writes the audit line and the timeline entry.
 import { useMemo, useState } from "react";
 import { fmtDate , todayIso } from "../lib/domain";
-import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, verifiedFrom, TxAction, TxInput, Verified } from "../lib/cosec";
+import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, verifiedFrom, verifiedOf, TxAction, TxInput, Verified } from "../lib/cosec";
+import { filingRows, filingsFrom } from "../lib/cosecHistory";
 import { regenerate, resetPlan } from "../lib/cosecReset";
 import { chNumber } from "../lib/companiesHouse";
 import { Addr, BLANK_ADDR, addrIssues, addrText, formTitle, formDef } from "../lib/cosecForms";
@@ -175,28 +176,31 @@ function Portfolio() {
 
 function FilingsList() {
   const k = useCoSec();
-  const [show, setShow] = useState<"open" | "all" | TxStatus>("open");
-  const rows = useMemo(() => k.data.cosecTx.filter((t) => (show === "all" ? true : show === "open" ? isOpenTx(t) : txStatus(t) === show)).sort((a, b) => String(b.Created).localeCompare(String(a.Created))), [k.data.cosecTx, show]);
+  const [show, setShow] = useState<"all" | "system" | "ch">("all");
+  const [closed, setClosed] = useState(false);
+  const all = useMemo(() => filingRows(k.data.cosecTx, k.companies, verifiedOf, { showClosed: closed }), [k.data.cosecTx, k.companies, closed]);
+  const rows = all.filter((r) => show === "all" || r.source === show);
   return (
     <section className="card pad stack" aria-label="Filings">
       <ResetFilings />
+      <p className="muted" style={{ margin: 0 }}>Filings are what Companies House shows for each company, and have no status. Only filings being prepared here show a status: draft, or approved and waiting to be filed.</p>
       <div className="row-wrap">
         <select className="input" aria-label="Which filings" value={show} onChange={(e) => setShow(e.target.value as typeof show)}>
-          <option value="open">Needing attention</option><option value="all">All</option>
-          {(Object.keys(STATUS_LABEL) as TxStatus[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+          <option value="all">Everything</option><option value="system">Being prepared here</option><option value="ch">Filed at Companies House</option>
         </select>
+        <label className="row-wrap"><input type="checkbox" checked={closed} onChange={(e) => setClosed(e.target.checked)} /> Include closed filings prepared here</label>
         <span className="muted">{rows.length} filing{rows.length === 1 ? "" : "s"}</span>
       </div>
-      {!rows.length ? <p className="muted">No filings to show.</p> : (
+      {!rows.length ? <p className="muted">No filings to show. Companies House's filing history comes in when a company is checked.</p> : (
         <div className="table-wrap"><table className="grid" style={{ minWidth: 720 }}>
-          <thead><tr><th scope="col">Ref</th><th scope="col">Company</th><th scope="col">Form</th><th scope="col">What</th><th scope="col">Status</th><th scope="col">Prepared</th></tr></thead>
-          <tbody>{rows.map((t) => (
-            <tr key={String(t.Key)}>
-              <td><a href={href("cosec", "filing", String(t.Key))}>{String(t.Ref)}</a></td>
-              <td><a href={href("cosec", "company", String(t.ClientKey))}>{nameOfClient(k.data, t.ClientKey)}</a></td>
-              <td>{String(t.Form)}</td><td>{String(t.Title)}</td>
-              <td><span className={`chip ${chipFor(txStatus(t))}`}>{STATUS_LABEL[txStatus(t)]}</span></td>
-              <td>{fmtDate(String(t.Created).slice(0, 10))}</td>
+          <thead><tr><th scope="col">Date</th><th scope="col">Company</th><th scope="col">Form</th><th scope="col">What</th><th scope="col">Status</th></tr></thead>
+          <tbody>{rows.slice(0, 400).map((r) => (
+            <tr key={r.key}>
+              <td>{fmtDate(r.date)}</td>
+              <td><a href={href("cosec", "company", r.clientKey)}>{r.clientName}</a></td>
+              <td>{r.form}</td>
+              <td>{r.source === "system" ? <a href={href("cosec", "filing", String(r.txKey))}>{r.ref} · {r.what}</a> : r.what}</td>
+              <td>{r.source === "system" ? <span className={`chip ${chipFor(r.status as any)}`}>{STATUS_LABEL[r.status as TxStatus]}</span> : ""}</td>
             </tr>))}</tbody>
         </table></div>
       )}
@@ -229,7 +233,12 @@ function ResetFilings() {
       let i = 0;
       for (const c of companies) {
         setProgress(`Reading Companies House: ${++i} of ${companies.length}`);
-        try { verified[String(c.Key)] = verifiedFrom(await ch.get(`company/${chNumber(c as any)}`), now); } catch { failed.push(String(c.Title)); }
+        try {
+          const num = chNumber(c as any);
+          const profile = await ch.get(`company/${num}`);
+          const history = await ch.get(`company/${num}/filing-history?items_per_page=100`).catch(() => null);
+          verified[String(c.Key)] = verifiedFrom(profile, now, history ? filingsFrom(history) : verifiedOf(c).history);
+        } catch { failed.push(String(c.Title)); }
       }
       setProgress("Removing the old drafts");
       const { plan: done, write } = regenerate(snap, verified, k.ctx());

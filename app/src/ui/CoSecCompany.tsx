@@ -2,6 +2,7 @@
 // waiting to be filed), officers, persons with significant control, shares, the printable registers and its filings.
 import { useMemo, useState } from "react";
 import { fmtDate , todayIso } from "../lib/domain";
+import { filingRows, FilingRow } from "../lib/cosecHistory";
 import { PENDING_TARGET, STATUS_LABEL, appointPerson, allotShares, changePerson, companyKind, isOpenTx, officersFromCh, pendingFor, pscsFromCh, terminatePerson, prepareTransfer, txStatus, verifiedFrom, verifiedOf } from "../lib/cosec";
 import { OFFICER_ROLES, PSC_KINDS, officerName, pscName } from "../lib/cosecForms";
 import { chNumber } from "../lib/companiesHouse";
@@ -84,7 +85,8 @@ function Details({ client }: { client: Row }) {
   const checkNow = () => run(async () => {
     const num = chNumber(client as any);
     const profile = await ch.get(`company/${num}`);
-    const seen = verifiedFrom(profile, new Date().toISOString());
+    const history = await ch.get(`company/${num}/filing-history?items_per_page=100`).catch(() => null);
+    const seen = verifiedFrom(profile, new Date().toISOString(), history ? filingsFrom(history) : verifiedOf(client).history);
     await k.update("Clients", client, { CHVerified: JSON.stringify(seen) }, { source: "ch-sync" });
     const found = await k.scan();
     return found ? `Checked. ${found} difference${found === 1 ? "" : "s"} from the planner's record: draft${found === 1 ? "" : "s"} prepared.` : "Checked. Companies House agrees with the planner's record, or the differences are already being dealt with.";
@@ -420,17 +422,25 @@ function ShareClasses({ client }: { client: Row }) {
 
 function Filings({ client }: { client: Row }) {
   const k = useCoSec();
-  const rows = useMemo(() => k.data.cosecTx.filter((t) => t.ClientKey === client.Key).sort((a, b) => s(b.Created).localeCompare(s(a.Created))), [k.data.cosecTx, client.Key]);
+  const [closed, setClosed] = useState(false);
+  const rows = useMemo(() => filingRows(k.data.cosecTx.filter((t) => t.ClientKey === client.Key), [client], verifiedOf, { showClosed: closed }), [k.data.cosecTx, client, closed]);
+  const has = !!verifiedOf(client).history;
   return (
     <section className="card pad stack" aria-label="Company filings">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <h3 style={{ margin: 0 }}>Filings</h3>
         <a className="btn" href={`#/cosec/company/${s(client.Key)}/ard`}>Change accounting reference date</a>
       </div>
-      {!rows.length ? <p className="muted">No filings prepared for this company.</p> : <ul className="plain">{rows.map((t) => (
-        <li key={s(t.Key)}><a href={href("cosec", "filing", s(t.Key))}>{s(t.Ref)} · {s(t.Form)} · {s(t.Title)}</a> <span className={`chip ${chipFor(txStatus(t))}`}>{STATUS_LABEL[txStatus(t)]}</span></li>
-      ))}</ul>}
+      <p className="muted" style={{ margin: 0 }}>What Companies House shows as filed has no status. Only filings being prepared here show a status (draft, or approved and waiting to be filed).</p>
+      <label className="row-wrap"><input type="checkbox" checked={closed} onChange={(e) => setClosed(e.target.checked)} /> Also show earlier filings prepared here that are closed</label>
+      {!has && <p className="muted">Companies House's filing history has not been read yet. Use Check Companies House on the Details tab.</p>}
+      {!rows.length ? <p className="muted">No filings to show.</p> : <ul className="plain">{rows.map((r) => <FilingLine key={r.key} r={r} />)}</ul>}
     </section>
   );
+}
+function FilingLine({ r }: { r: FilingRow }) {
+  return r.source === "system"
+    ? <li><a href={href("cosec", "filing", s(r.txKey))}>{r.ref} · {r.form} · {r.what}</a> <span className={`chip ${chipFor(r.status as any)}`}>{STATUS_LABEL[r.status as keyof typeof STATUS_LABEL]}</span></li>
+    : <li>{fmtDate(r.date)} · {r.form} · {r.what}{r.paper ? " (paper)" : ""}</li>;
 }
 export { isOpenTx };

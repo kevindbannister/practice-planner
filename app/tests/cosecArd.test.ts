@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ardAdvice, ardDeadline, ardForm, ardIssues, ardPayloadIssues, ardPrefill, dayMonth, direction, latestExtension, ArdInput } from "../src/lib/cosecArd.ts";
-import { act, detectClientChange, prepareArdChange, txIssues, txStatus, Snapshot } from "../src/lib/cosec.ts";
+import { act, detectClientChange, prepareArdChange, scanDifferences, txIssues, txStatus, Snapshot } from "../src/lib/cosec.ts";
 import { formDef } from "../src/lib/cosecForms.ts";
 
 let n = 0;
@@ -170,15 +170,17 @@ test("approval is held back by the rules, not just by missing fields", () => {
   assert.deepEqual(ardPayloadIssues({}), ["The new accounting reference date"]);
 });
 
-test("editing the client's year end still drafts the right form for the kind of company", () => {
+test("editing the client's year end prepares nothing: an AA01 is only ever started by a person", () => {
   const s = snapOf([{ ...ltd }, { ...llp }]);
   for (const key of ["C1", "C2"]) {
     const client = s.clients.find((c: any) => c.Key === key)!;
     const w = detectClientChange({ client: { ...client }, patch: { YearEnd: "30 June" }, source: "client", changeId: `${key}:ye` }, s, ctx());
     save(s, w);
   }
-  assert.deepEqual(s.txs.map((t) => t.Form).sort(), ["AA01", "LLAA01"]);
-  assert.deepEqual(txIssues(s.txs[0]), [], "its payload has only the new date, which is enough");
+  assert.deepEqual(s.txs, []);
+  // and a year end that differs from Companies House's is not drafted back either
+  s.clients[0].CHVerified = JSON.stringify({ ard: "31 March" });
+  assert.equal(scanDifferences(s, ctx()).found, 0);
 });
 
 test("when it is filed and recorded, Companies House's record and the planner's year end both follow", () => {

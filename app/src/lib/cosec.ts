@@ -12,6 +12,7 @@ import { blankCs01, buildCs01, cs01Issues, readCs01 } from "./cosecCs01";
 import { DEFAULT_FEES } from "./cosecFees";
 import { NewEntry, readEntry, record } from "./shareLedger";
 import { sameAddress, sameName } from "./companiesHouse";
+import type { ChFiling } from "./cosecHistory";
 import { Addr, CompanyKind, OfficerOp, addrIssues, addrText, formDef, formTitle, officerForm, officerName, parseAddress, pscForm, pscName } from "./cosecForms";
 import { ProposalAction, proposalCan } from "./proposals";
 import { Row } from "./schema";
@@ -72,7 +73,7 @@ const responsible = (client: Row): string => str(client.Manager) || str(client.P
 export type Snapshot = { clients: Row[]; officers: Row[]; pscs: Row[]; shares: Row[]; /** share classes the company has set up; when given, shares can only be allotted in one of them */ classes?: Row[]; /** the share ledger, so completing a share transaction can be checked against it and written to it */ ledger?: Row[]; txs: Row[]; events: Row[] };
 
 /** What Companies House last showed, as kept in Clients.CHVerified. */
-export type Verified = { at?: string; name?: string; office?: string; sic?: string; ard?: string; /** accounts due and the period they cover, confirmation statement due and the date it is made up to (all as Companies House shows them) */ accDue?: string; accTo?: string; csDue?: string; csTo?: string; status?: string };
+export type Verified = { at?: string; name?: string; office?: string; sic?: string; ard?: string; /** accounts due and the period they cover, confirmation statement due and the date it is made up to (all as Companies House shows them) */ accDue?: string; accTo?: string; csDue?: string; csTo?: string; status?: string; /** Companies House's own filing history (most recent first), as read with the last check */ history?: ChFiling[] };
 export const verifiedOf = (client: Row): Verified => json<Verified>(client.CHVerified, {});
 
 // ------------------------------------------------------------------ preparing a draft (the shared core)
@@ -169,13 +170,9 @@ export const RULES: Rule[] = [
     if (verified.name && sameName(verified.name, after)) return { kind: "ignore", why: "Companies House already shows this name." };
     return { kind: "draft", form: "NM01", target: "client:Name", title: `Company name: ${after}`, payload: { newName: after, previous: before }, before, after, note: "A change of name needs a special resolution and the company's decision. Start the name-change process; this is not a simple update." };
   } },
-  { field: "YearEnd", assess: ({ client, before, after, kind, verified }) => {
-    if (!kind || !hasCompanyNumber(client)) return { kind: "ignore", why: "Not a registered company." };
-    if (!before.trim()) return { kind: "ignore", why: "Year end recorded for the first time." };
-    if (norm(before) === norm(after)) return { kind: "ignore", why: "No change." };
-    if (verified.ard && norm(verified.ard) === norm(after)) return { kind: "ignore", why: "Companies House already shows this date." };
-    return { kind: "draft", form: ardForm(kind), target: "client:AccountingReferenceDate", title: `Accounting reference date: ${after}`, payload: { newDate: after, previous: before }, before, after, note: "Check the extension and shortening rules before filing. Use Change accounting reference date on the company to give the period's dates and have them checked." };
-  } },
+  // A year end is not prepared automatically. Companies House's own filing history shows what has been filed, and a change of accounting
+  // reference date (AA01, or LL AA01) is only ever started by a person, from the company, with Change accounting reference date.
+  { field: "YearEnd", assess: ({ kind, client }) => (kind && hasCompanyNumber(client) ? { kind: "ignore", why: "A change of year end is only filed when a person starts it with Change accounting reference date. Nothing is prepared automatically." } : { kind: "ignore", why: "Not a registered company." }) },
   { field: "SIC", assess: ({ client, kind }) => (kind && hasCompanyNumber(client) ? { kind: "info", why: "SIC codes are changed when the confirmation statement is filed. Flagged for that review." } : { kind: "ignore", why: "Not a registered company." }) },
   { field: "TradingAddress", assess: () => ({ kind: "ignore", why: "The trading address is not a statutory address." }) },
   { field: "CorrespondenceAddress", assess: () => ({ kind: "ignore", why: "The correspondence address is not a statutory address." }) },
@@ -718,7 +715,7 @@ export function coSecItems(txs: Row[], clients: Row[], flags: Row[], today: stri
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 /** What Companies House shows, in the shape kept on the client (Clients.CHVerified). */
-export function verifiedFrom(profile: { company_name?: string; registered_office_address?: Record<string, string | undefined>; sic_codes?: string[]; accounts?: { accounting_reference_date?: { day?: string; month?: string }; next_due?: string; next_made_up_to?: string; next_accounts?: { due_on?: string; period_end_on?: string } }; confirmation_statement?: { next_due?: string; next_made_up_to?: string }; company_status?: string; company_status_detail?: string }, now: string): Verified {
+export function verifiedFrom(profile: { company_name?: string; registered_office_address?: Record<string, string | undefined>; sic_codes?: string[]; accounts?: { accounting_reference_date?: { day?: string; month?: string }; next_due?: string; next_made_up_to?: string; next_accounts?: { due_on?: string; period_end_on?: string } }; confirmation_statement?: { next_due?: string; next_made_up_to?: string }; company_status?: string; company_status_detail?: string }, now: string, history?: ChFiling[]): Verified {
   const a = profile.registered_office_address;
   const first = a ? [a.premises, a.address_line_1].filter(Boolean).join(" ") : "";
   const ard = profile.accounts?.accounting_reference_date;
@@ -729,6 +726,7 @@ export function verifiedFrom(profile: { company_name?: string; registered_office
     accDue: profile.accounts?.next_due || profile.accounts?.next_accounts?.due_on || "", accTo: profile.accounts?.next_made_up_to || profile.accounts?.next_accounts?.period_end_on || "",
     csDue: profile.confirmation_statement?.next_due || "", csTo: profile.confirmation_statement?.next_made_up_to || "",
     status: [profile.company_status, profile.company_status_detail].filter(Boolean).join(", "),
+    ...(history ? { history } : {}),
   };
 }
 
@@ -748,7 +746,6 @@ export function scanDifferences(snap: Snapshot, o: Ctx, source: Source = "other"
     const pairs: [string, string | undefined, boolean][] = [
       ["RegisteredOffice", v.office, !!v.office && !!str(client.RegisteredOffice).trim() && !sameAddress(v.office, str(client.RegisteredOffice))],
       ["Title", v.name, !!v.name && !sameName(v.name, str(client.Title))],
-      ["YearEnd", v.ard, !!v.ard && !!str(client.YearEnd).trim() && norm(v.ard) !== norm(client.YearEnd)],
     ];
     for (const [field, official, differs] of pairs) {
       if (!differs) continue;

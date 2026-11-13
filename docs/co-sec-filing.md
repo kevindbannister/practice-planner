@@ -60,3 +60,9 @@ Co Sec uses the planner's existing staff roles. Managers and partners can approv
 - **Sent through the gateway:** AD01 only. The other forms (AP01 to AP04, TM01, TM02, CH01 to CH04, LL forms, PSC01 to PSC07, SH01, AA01 for companies, LL AA01 for LLPs, NM01) are prepared, reviewed and approved in Co Sec but filed at Companies House by you, then recorded as filed externally. To add a form to the gateway, add it to `api/cosec/lib/forms.js` and to the gateway list in `app/src/lib/cosecForms.ts`, and test it the same way.
 - Confirmation statements (CS01), accounts, PSC statements, share reorganisations, dividend vouchers, share certificates, minutes and resolutions, name-change documents, charges, strike-off, company formation, and a document library.
 - Residential addresses are not available from Companies House, so they are entered by hand.
+
+## Filings list shows Companies House's history (V26.3)
+
+- Each company's Companies House filing history (up to 40 most recent, `lib/cosecHistory.ts`) is read with the normal Companies House check, the Check Companies House button and the temporary reset, and kept on the company's `CHVerified` record.
+- Filings screens (all companies, and per company) list those filings with **no status**. Only filings being prepared in the system show a status: draft, or approved and waiting to be filed. Closed ones are hidden unless ticked, because Companies House's history is the record of what was filed.
+- A difference in year end is never drafted as an AA01 any more (the year end rule and the Companies House comparison both ignore it). A change of accounting reference date is only started by a person with Change accounting reference date.

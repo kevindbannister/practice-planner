@@ -36,14 +36,14 @@ test("the reset removes stale drafts and the records behind them, and prepares t
   const s = world([mk()]);
   // a stale draft from a past edit that Companies House never agreed with
   edit(s, "C1", { RegisteredOffice: "25 Market Road, London, N1 9GU" });
-  edit(s, "C1", { YearEnd: "30 June" });
+  edit(s, "C1", { Title: "Acme Holdings Ltd" });
   assert.equal(s.txs.length, 2);
   assert.ok(s.events.length >= 2);
   const before = resetPlan(s);
   assert.equal(before.txs.length, 2);
   assert.ok(before.events.length >= 2);
   // the planner's record was later corrected to match Companies House, so adding it fresh would need no filing
-  Object.assign(s.clients[0], { RegisteredOffice: "10 High Street, London, E1 5NF", YearEnd: "31 March" });
+  Object.assign(s.clients[0], { RegisteredOffice: "10 High Street, London, E1 5NF", Title: "Acme Ltd" });
   const r = regenerate(s, { C1: JSON.parse(ch({})) }, ctx());
   assert.equal(r.plan.txs.length, 2);
   assert.equal(r.write.found, 0, "Companies House and the planner agree: nothing to file");
@@ -82,8 +82,8 @@ test("a declined draft is cleared too, so the difference can come back", () => {
 
 test("filings that were sent or started by hand are kept, and stop duplicates", () => {
   const s = world([mk()]);
-  // a year end change that was filed and accepted
-  edit(s, "C1", { YearEnd: "30 June" });
+  // a name change that was filed and accepted
+  edit(s, "C1", { Title: "Acme Holdings Ltd" });
   assert.equal(s.txs.length, 1);
   s.txs[0].Status = "accepted";
   // a change of accounting reference date a person started
@@ -92,7 +92,7 @@ test("filings that were sent or started by hand are kept, and stop duplicates", 
   const handKey = s.txs.find((t: any) => t.Source === "cosec")!.Key;
   const plan = resetPlan(s);
   assert.equal(plan.txs.length, 0, "nothing qualifies for removal");
-  const r = regenerate(s, { C1: JSON.parse(ch({ ard: "30 June" })) }, ctx());
+  const r = regenerate(s, { C1: JSON.parse(ch({ name: "Acme Holdings Ltd" })) }, ctx());
   assert.equal(r.plan.txs.length, 0);
   assert.equal(r.write.found, 0);
   assert.ok(s.txs.some((t: any) => t.Key === handKey), "the hand-started filing is still there");
