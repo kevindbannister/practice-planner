@@ -176,7 +176,7 @@ function Portfolio() {
 
 function FilingsList() {
   const k = useCoSec();
-  const [show, setShow] = useState<"all" | "system" | "ch">("all");
+  const [show, setShow] = useState<"all" | "system" | "ch">("system");
   const [closed, setClosed] = useState(false);
   const all = useMemo(() => filingRows(k.data.cosecTx, k.companies, verifiedOf, { showClosed: closed }), [k.data.cosecTx, k.companies, closed]);
   const rows = all.filter((r) => show === "all" || r.source === show);

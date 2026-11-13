@@ -434,13 +434,19 @@ function Filings({ client }: { client: Row }) {
       <p className="muted" style={{ margin: 0 }}>What Companies House shows as filed has no status. Only filings being prepared here show a status (draft, or approved and waiting to be filed).</p>
       <label className="row-wrap"><input type="checkbox" checked={closed} onChange={(e) => setClosed(e.target.checked)} /> Also show earlier filings prepared here that are closed</label>
       {!has && <p className="muted">Companies House's filing history has not been read yet. Use Check Companies House on the Details tab.</p>}
-      {!rows.length ? <p className="muted">No filings to show.</p> : <ul className="plain">{rows.map((r) => <FilingLine key={r.key} r={r} />)}</ul>}
+      {!rows.length ? <p className="muted">No filings to show.</p> : (
+        <div className="table-wrap"><table className="grid" style={{ minWidth: 560 }}>
+          <thead><tr><th scope="col">Date</th><th scope="col">Form</th><th scope="col">What</th><th scope="col">Status</th></tr></thead>
+          <tbody>{rows.map((r) => (
+            <tr key={r.key}>
+              <td>{fmtDate(r.date)}</td>
+              <td>{r.form}</td>
+              <td>{r.source === "system" ? <a href={href("cosec", "filing", s(r.txKey))}>{r.ref} · {r.what}</a> : <>{r.what}{r.paper ? " (paper)" : ""}</>}</td>
+              <td>{r.source === "system" ? <span className={`chip ${chipFor(r.status as any)}`}>{STATUS_LABEL[r.status as keyof typeof STATUS_LABEL]}</span> : ""}</td>
+            </tr>))}</tbody>
+        </table></div>
+      )}
     </section>
   );
-}
-function FilingLine({ r }: { r: FilingRow }) {
-  return r.source === "system"
-    ? <li><a href={href("cosec", "filing", s(r.txKey))}>{r.ref} · {r.form} · {r.what}</a> <span className={`chip ${chipFor(r.status as any)}`}>{STATUS_LABEL[r.status as keyof typeof STATUS_LABEL]}</span></li>
-    : <li>{fmtDate(r.date)} · {r.form} · {r.what}{r.paper ? " (paper)" : ""}</li>;
 }
 export { isOpenTx };
