@@ -3657,3 +3657,21 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
   .topbar .topbar-left { flex: 1 1 auto; min-width: 0; }
   .topbar.scrolls { position: relative; top: 0; }
 }
+
+/* V28.7: one colour for each type of work, shown the same way everywhere: a soft tint of the work's colour with a
+   matching hairline (the planner's look), on plan and tray cards, month items, client job cards and Home's lists */
+.pcard[class*="svc-"], .job[class*="svc-"], .work-row[class*="svc-"] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--svc) 16%, transparent), color-mix(in srgb, var(--svc) 8%, transparent)), var(--surface);
+  border: 1px solid color-mix(in srgb, var(--svc) 24%, transparent);
+  box-shadow: 0 4px 12px rgba(16, 43, 72, 0.06);
+}
+.pcard[class*="svc-"] { padding-left: 12px; }
+.pcard[class*="svc-"]:hover, .work-row[class*="svc-"]:hover { box-shadow: 0 6px 16px rgba(16, 43, 72, 0.10); }
+.pcard.svc-0, .job.svc-0, .work-row.svc-0 { background: var(--surface); border-color: var(--line); }
+.pcard.planned-late[class*="svc-"] { border: 1.5px solid var(--red-solid); }
+.job[class*="svc-"].late { border-color: color-mix(in srgb, var(--red-solid) 55%, transparent); }
+.work-row[class*="svc-"] { border-radius: 14px; margin: 4px 12px; width: calc(100% - 24px); }
+.month-item[class*="svc-"] { background: color-mix(in srgb, var(--svc) 13%, transparent); padding: 1px 6px; margin-bottom: 2px; border-radius: 6px; }
+.month-item[class*="svc-"]:hover, .month-item[class*="svc-"]:focus-visible { background: color-mix(in srgb, var(--svc) 22%, transparent); }
+.month-item.svc-0 { background: none; }
+.svc-group { border-left: 0; border: 1px solid color-mix(in srgb, var(--svc) 24%, transparent); border-radius: 14px; background: linear-gradient(180deg, color-mix(in srgb, var(--svc) 14%, transparent), color-mix(in srgb, var(--svc) 6%, transparent)), var(--surface); }

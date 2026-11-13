@@ -429,7 +429,7 @@ function WorkRow({ w, today, onOpen, show, inGroup }: { w: Work; today: string; 
     : (w.client ? w.title : w.kind === "task" ? "Task" : "");
   return (
     <li>
-      <button type="button" onClick={onOpen}>
+      <button type="button" className={inGroup ? undefined : `work-row ${svcClass(w.serviceKey)}`} onClick={onOpen}>
         {!inGroup && <span className={`svc-dot ${svcClass(w.serviceKey)}`} aria-hidden="true" style={{ alignSelf: "center" }} />}
         <span className="stack" style={{ gap: 1, minWidth: 0 }}>
           <strong className="ellipsis">{w.client || w.title}</strong>
