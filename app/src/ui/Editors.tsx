@@ -296,20 +296,11 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <DeadlineChip job={job} today={today} />
         {!isOpen(job) && <span className="chip green">Complete</span>}
       </div>
-      {isOpen(job) && <PeriodSection job={job} rule={rule} save={save} />}
-      {isOpen(job) && <HoldSection item={job} deadline={job.Deadline} save={save} what="job" />}
-      <ProgressSection item={job} kind="job" estimate={jobHours(job as never, data.services)} save={save} />
-      <DependencyPanel kind="job" id={job.Key as string} />
-
+      {/* the everyday fields first; everything else is under More details */}
       <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-        <div style={{ gridColumn: "1 / -1" }}>
-          <Field label="Note on card" value={job.CardNote as string} placeholder="A short note shown on the planner card" onSave={(v) => save({ CardNote: v })} />
-        </div>
         <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v, DayOrder: "", StartTime: "" })} />
         <TimeField value={job.StartTime as string} disabled={!job.PlannedDate} onSave={(v) => save({ StartTime: v })} />
         <Field label="Deadline" type="date" value={job.Deadline} onSave={(v) => save({ Deadline: v, DeadlineSource: "Manual" })} />
-        <Field label="Records expected" type="date" value={job.RecordsExpected as string} onSave={(v) => save({ RecordsExpected: v })} />
-        <Field label="Records received" type="date" value={job.RecordsReceived} onSave={(v) => save({ RecordsReceived: v })} />
         <Field
           label={`Your hours (default ${fmtHours(jobHours({ ServiceKey: job.ServiceKey }, data.services))})`}
           type="number" step="0.25" value={job.EstimateHours}
@@ -326,6 +317,22 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <input type="checkbox" checked={job.Priority === "urgent"} onChange={(e) => save({ Priority: e.target.checked ? "urgent" : "" })} style={{ width: 18, height: 18 }} />
         Urgent
       </label>
+      <details className="more-details">
+        <summary><span><strong>More details</strong><span className="muted">Period, records, on hold, time spent, links and note</span></span></summary>
+        <div className="more-details-body">
+          <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Field label="Note on card" value={job.CardNote as string} placeholder="A short note shown on the planner card" onSave={(v) => save({ CardNote: v })} />
+            </div>
+            <Field label="Records expected" type="date" value={job.RecordsExpected as string} onSave={(v) => save({ RecordsExpected: v })} />
+            <Field label="Records received" type="date" value={job.RecordsReceived} onSave={(v) => save({ RecordsReceived: v })} />
+          </div>
+          {isOpen(job) && <PeriodSection job={job} rule={rule} save={save} />}
+          {isOpen(job) && <HoldSection item={job} deadline={job.Deadline} save={save} what="job" />}
+          <ProgressSection item={job} kind="job" estimate={jobHours(job as never, data.services)} save={save} />
+          <DependencyPanel kind="job" id={job.Key as string} />
+        </div>
+      </details>
 
       {inFinalise(job) && isOpen(job) && (
         <section className="wait-box" aria-labelledby="wait-h">

@@ -528,11 +528,16 @@ function Payslip({ scheme, period, line, person, year, onClose }: { scheme: rec.
 // ------------------------------------------------------------------ people
 
 const blankPerson = { Title: "", First: "", Middle: "", Last: "", NINO: "", DOB: "", Gender: "", Address: "", Postcode: "", PayId: "", StartDate: "", StartDec: "", LeavingDate: "", Director: "no", NicMethod: "AN", AppointedOn: "", TaxCode: "1257L", NiLetter: "A", StudentPlan: "", Postgrad: "no", Pension: JSON.stringify({ kind: "none", eePct: 5, erPct: 3, basis: "qualifying" }), Hours: "D", PayBasis: "salary", AnnualSalary: 0, HourlyRate: 0, UsualHours: 0, PersonClientKey: "" };
+/** Adding or editing a person goes one step at a time. */
+const PERSON_STEPS = ["About them", "Tax and NI", "Pay", "Pension", "Extras"];
+
 function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; people: rec.PersonRec[]; year: number }) {
   const { data, create, update, can, ctx } = P;
   const idx = useIndex();
   const [edit, setEdit] = useState<Row | null>(null);
   const [msg, setMsg] = useState("");
+  const [step, setStep] = useState(0);
+  useEffect(() => { if (!edit) setStep(0); }, [edit]);
   const officers = data.cosecOfficers.filter((o) => o.ClientKey === scheme.clientKey && String(o.Role) === "director" && String(o.Status) !== "resigned" && !o.ResignedOn);
   const startEdit = (r?: Row) => setEdit(r ? { ...r } : { ...blankPerson, PayId: String(people.length + 1).padStart(3, "0"), ...(scheme.kind === "directors" ? { Director: "yes", NicMethod: "AN", Hours: "E", PayBasis: "plan" } : {}) });
   const fromOfficer = (o: Row) => {
@@ -574,6 +579,12 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
       {edit && (
         <section className="card pad stack" aria-label="Person">
           <h2 className="sec-h">{edit.Key ? "Edit" : "Add"} a person</h2>
+          <ol className="pay-steps" aria-label="Steps">
+            {PERSON_STEPS.map((label, i) => (
+              <li key={label}><button type="button" className="step-btn" aria-current={step === i ? "step" : undefined} onClick={() => setStep(i)}><span className="step-num">{i + 1}</span>{label}</button></li>
+            ))}
+          </ol>
+          {step === 0 && (<>
           <div className="cf-grid">
             {field("Title", "Title")}{field("First", "First name")}{field("Middle", "Middle name")}{field("Last", "Surname")}
             {field("NINO", "NI number")}{field("DOB", "Date of birth", "date")}
@@ -584,6 +595,8 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
           <div className="cf-grid">{field("Postcode", "Postcode")}{field("StartDate", "Start date", "date")}
             <label className="field"><span>Starter declaration</span><select className="input" value={s(edit.StartDec)} onChange={(e) => setEdit({ ...edit, StartDec: e.target.value })}><option value="">Not needed / P45</option><option value="A">A: first job since 6 April</option><option value="B">B: only job now</option><option value="C">C: another job or pension</option></select></label>
             {field("LeavingDate", "Leaving date", "date")}</div>
+          </>)}
+          {step === 1 && (<>
           <div className="cf-grid">
             {field("TaxCode", "Tax code")}
             <label className="field"><span>NI category</span><select className="input" value={s(edit.NiLetter)} onChange={(e) => setEdit({ ...edit, NiLetter: e.target.value })}>{Object.entries(LETTERS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select></label>
@@ -596,12 +609,16 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
             {edit.Director === "yes" && field("AppointedOn", "Appointed director on", "date")}
             <label className="field"><span>Hours worked a week</span><select className="input" value={s(edit.Hours)} onChange={(e) => setEdit({ ...edit, Hours: e.target.value })}><option value="A">Under 16</option><option value="B">16 to 23.99</option><option value="C">24 to 29.99</option><option value="D">30 or more</option><option value="E">Other (directors, irregular)</option></select></label>
           </div>
+          </>)}
+          {step === 2 && (<>
           <div className="cf-grid">
             <label className="field"><span>Pay</span><select className="input" value={s(edit.PayBasis)} onChange={(e) => setEdit({ ...edit, PayBasis: e.target.value })}><option value="salary">Annual salary</option><option value="hourly">Hourly</option><option value="plan">Planned amounts (set on The year)</option></select></label>
             {edit.PayBasis === "salary" && field("AnnualSalary", "Annual salary (£)", "number")}
             {edit.PayBasis === "hourly" && field("HourlyRate", "Hourly rate (£)", "number")}
             {edit.PayBasis === "hourly" && field("UsualHours", `Hours each ${scheme.freq === "M1" ? "month" : "pay period"}`, "number")}
           </div>
+          </>)}
+          {step === 3 && (<>
           <div className="cf-grid">
             <label className="field"><span>Workplace pension</span><select className="input" value={pension.kind || "none"} onChange={(e) => setEdit({ ...edit, Pension: JSON.stringify({ ...pension, kind: e.target.value }) })}><option value="none">None</option><option value="netpay">Net pay arrangement</option><option value="ras">Relief at source</option></select></label>
             {pension.kind && pension.kind !== "none" && <>
@@ -616,6 +633,8 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
             {s(edit.AeStatus) === "postponed" && field("AePostpone", "Postponed until", "date")}
             {edit.Director === "yes" && <label className="field"><span>Contract of employment</span><select className="input" value={s(edit.HasContract) || "no"} onChange={(e) => setEdit({ ...edit, HasContract: e.target.value })}><option value="no">No</option><option value="yes">Yes</option></select></label>}
           </div>
+          </>)}
+          {step === 4 && (<>
           <details open={!!s(edit.Benefits) && s(edit.Benefits) !== "[]"}><summary style={{ fontSize: 13 }}>Benefits taxed through the payroll</summary>
             {(() => { const list: { year: number; label: string; annual: number }[] = (() => { try { return JSON.parse(s(edit.Benefits) || "[]"); } catch { return []; } })(); const mine = list.find((b) => b.year === year);
               return <div className="cf-grid" style={{ marginTop: 6 }}>
@@ -637,7 +656,8 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
               })}
             </div>
           </details>
-          <div className="row-wrap" style={{ gap: 8 }}><button className="btn primary" type="button" onClick={save}>Save</button><button className="linkbtn" type="button" onClick={() => setEdit(null)}>Cancel</button>
+          </>)}
+          <div className="row-wrap" style={{ gap: 8 }}>{step > 0 && <button className="btn" type="button" onClick={() => setStep(step - 1)}>Back</button>}{step < PERSON_STEPS.length - 1 && <button className="btn" type="button" onClick={() => setStep(step + 1)}>Next: {PERSON_STEPS[step + 1]}</button>}<button className="btn primary" type="button" onClick={save}>Save</button><button className="linkbtn" type="button" onClick={() => setEdit(null)}>Cancel</button>
             {edit.Key && <button className="linkbtn" type="button" onClick={async () => { await update("PayrollPeople", data.payrollPeople.find((x) => x.Key === edit.Key)!, { Status: "removed" }); setEdit(null); }}>Remove from payroll</button>}</div>
         </section>
       )}

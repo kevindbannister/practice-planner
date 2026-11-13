@@ -3675,3 +3675,20 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
 .month-item[class*="svc-"]:hover, .month-item[class*="svc-"]:focus-visible { background: color-mix(in srgb, var(--svc) 22%, transparent); }
 .month-item.svc-0 { background: none; }
 .svc-group { border-left: 0; border: 1px solid color-mix(in srgb, var(--svc) 24%, transparent); border-radius: 14px; background: linear-gradient(180deg, color-mix(in srgb, var(--svc) 14%, transparent), color-mix(in srgb, var(--svc) 6%, transparent)), var(--surface); }
+
+/* V28.8: job editor shows the everyday fields; the rest folds away under More details */
+.more-details { border: 1px solid var(--pill-line); border-radius: 16px; background: var(--pill-bg); }
+.more-details > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 0 16px; }
+.more-details > summary::-webkit-details-marker { display: none; }
+.more-details > summary > span { display: flex; flex-direction: column; }
+.more-details > summary .muted { font-size: 13px; }
+.more-details > summary::after { content: ""; width: 9px; height: 9px; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); transform: rotate(45deg); margin: -4px 4px 0 0; transition: transform .15s; flex: none; }
+.more-details[open] > summary::after { transform: rotate(225deg); margin-top: 4px; }
+.more-details-body { display: flex; flex-direction: column; gap: 16px; padding: 4px 16px 16px; }
+
+/* V28.8: payroll person form, one step at a time */
+.pay-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.step-btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 6px; border-radius: 999px; border: 1px solid var(--pill-line); background: var(--pill-bg); color: var(--ink-2); font: 600 14px var(--sans); cursor: pointer; }
+.step-btn .step-num { width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--line-2); color: var(--ink-2); font-size: 13px; font-weight: 700; }
+.step-btn[aria-current="step"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+.step-btn[aria-current="step"] .step-num { background: rgba(255, 255, 255, 0.2); color: #fff; }

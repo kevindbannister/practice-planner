@@ -201,8 +201,8 @@ export function PlanTabs({ current }: { current: "today" | "month" | "rolling" |
   const T = (key: string, label: string, to: string): TabItem => ({ key, label, to });
   const groups: TabGroup[] = [
     { label: "Today", items: [T("today", "Today", "#/plan/today")] },
-    { label: "Calendar", items: [T("week", "Week", "#/plan"), T("month", "Month", "#/plan/month"), T("rolling", "6 weeks", "#/plan/rolling"), T("months", "Months ahead", "#/plan/months"), T("deadlines", "Deadlines", "#/plan/deadlines")] },
-    { label: "Work", items: [T("overview", "Overview", "#/plan/overview"), T("projects", "Projects", "#/plan/projects"), T("done", "Done", "#/plan/done"), T("reports", "Reports", "#/plan/reports")] },
+    { label: "Calendar", items: [T("week", "Week", "#/plan"), T("month", "Month", "#/plan/month"), T("rolling", "6 weeks", "#/plan/rolling")] },
+    { label: "List", items: [T("deadlines", "Deadlines", "#/plan/deadlines"), T("months", "Months ahead", "#/plan/months"), T("projects", "Projects", "#/plan/projects"), T("done", "Done", "#/plan/done"), T("overview", "Overview", "#/plan/overview"), T("reports", "Reports", "#/plan/reports")] },
     { label: "Time", items: [T("timesheet", "Timesheet", "#/plan/timesheet"), T("time", "Time reports", "#/plan/time")] },
   ];
   return <GroupedTabs groups={groups} current={PLAN_ALIAS[current] || current} label="Plan" heading="Plan" />;
