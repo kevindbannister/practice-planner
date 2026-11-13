@@ -3515,3 +3515,10 @@ table.deadlines .c-kind { white-space: nowrap; }
 .month-unplanned { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: grab; touch-action: manipulation; } .month-unplanned.dragging { opacity: .45; }
 .month-un-main { display: grid; gap: 1px; text-align: left; width: 100%; border: 0; background: none; padding: 7px 9px; font-size: 13px; cursor: inherit; color: var(--ink); }
 .month-late { color: #c0392b; font-weight: 600; }
+
+/* Plan: fit to screen. A tighter header and no legend, so the whole day of hours fits in the window. */
+.plan.fit { gap: 8px; padding-bottom: 8px; }
+.plan.fit .plan-head { gap: 8px; padding-top: 10px; }
+.plan.fit .plan-head .plan-title h1 { font-size: 22px; }
+.plan.fit .hours-legend { display: none; }
+.plan.fit .hours-head { padding-bottom: 4px; }

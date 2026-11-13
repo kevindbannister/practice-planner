@@ -3,7 +3,7 @@
 // in your free time in the order you've set (or at the time you dropped it). Drag work to a
 // time to pin it there; drag its top or bottom edge to change how long it takes (the top edge
 // also sets its start time); click an empty time to add a task there.
-import { PointerEvent as ReactPointerEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { PointerEvent as ReactPointerEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CalEvent, CalendarPrefs, hhmm, mins } from "../lib/calendar";
 import { clock, gridRange, layoutDay, offHours } from "../lib/dayGrid";
 import { fmtHours } from "../lib/domain";
@@ -22,6 +22,8 @@ type Props = {
   today: string;
   shownDay: string;
   narrow: boolean;
+  /** Squeeze the hours so the whole day fits in the window without scrolling the page. */
+  fit?: boolean;
   prefs: CalendarPrefs;
   cardsFor: (day: string) => HourCard[];
   eventsOn: (day: string) => CalEvent[];
@@ -93,8 +95,13 @@ function useNow(): Date {
 
 type Resize = { key: string; day: string; edge: "top" | "bottom"; y0: number; delta: number; start: number; hours: number };
 
+const PPM_MIN = 0.6; // the smallest the hours are squeezed to when fitting (36px an hour)
+
 export function HoursView(p: Props) {
-  const ppm = p.narrow ? PPM_PHONE : PPM;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [fitPpm, setFitPpm] = useState<number | null>(null);
+  const fitting = !!p.fit && !p.narrow;
+  const ppm = p.narrow ? PPM_PHONE : fitting && fitPpm ? fitPpm : PPM;
   const [resize, setResize] = useState<Resize | null>(null);
   const resizeRef = useRef<Resize | null>(null);
   const justResized = useRef(false);
@@ -175,8 +182,32 @@ export function HoursView(p: Props) {
   for (let m = range[0]; m < range[1]; m += 60) hours.push(m);
   const shade = offHours(p.prefs, range);
 
+  // fit to screen: the room left under the page header and above whatever sits below the grid, shared out over the hours shown
+  const unfitSig = perDay.map((x) => x.layout.unfitted.length + x.cards.filter((c) => c.unplaced).length).join(",");
+  useLayoutEffect(() => {
+    if (!fitting) { setFitPpm(null); return; }
+    const measure = () => {
+      const root = rootRef.current;
+      const body = root?.querySelector<HTMLElement>(".hours-body");
+      if (!root || !body) return;
+      const foot = root.querySelector<HTMLElement>(".hours-foot");
+      const legend = root.querySelector<HTMLElement>(".hours-legend");
+      const docTop = body.getBoundingClientRect().top + window.scrollY; // where the grid starts with the page scrolled to the top
+      const below = (foot ? foot.offsetHeight + 8 : 0) + (legend && getComputedStyle(legend).display !== "none" ? legend.offsetHeight + 10 : 0);
+      const room = window.innerHeight - docTop - below - 16;
+      const next = Math.round(Math.min(PPM, Math.max(PPM_MIN, room / (range[1] - range[0]))) * 100) / 100;
+      setFitPpm((cur) => (cur !== null && Math.abs(cur - next) < 0.01 ? cur : next));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    // the header above can change height (a notice appears, a box opens): measure again
+    const watch = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    watch?.observe(document.body);
+    return () => { window.removeEventListener("resize", measure); watch?.disconnect(); };
+  }, [fitting, range[0], range[1], unfitSig, p.shownDay]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div className={`hours${p.narrow ? " one" : ""}${p.className ? ` ${p.className}` : ""}`} style={{ ["--hour-px" as string]: `${60 * ppm}px` }} {...(p.swipe || {})}>
+    <div ref={rootRef} className={`hours${p.narrow ? " one" : ""}${p.className ? ` ${p.className}` : ""}`} style={{ ["--hour-px" as string]: `${60 * ppm}px` }} {...(p.swipe || {})}>
       <div className="hours-head">
         <div className="hours-corner" aria-hidden="true" />
         {perDay.map((x) => (

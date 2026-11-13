@@ -124,6 +124,9 @@ function WeekView() {
       /* this visit only */
     }
   };
+  // "Fit to screen": the hours are squeezed so a whole day fits without scrolling the page (on by default; the choice is remembered)
+  const [fit, setFitState] = useState<boolean>(() => { try { return localStorage.getItem("pp.plan.fit") !== "0"; } catch { return true; } });
+  const setFit = (v: boolean) => { setFitState(v); try { localStorage.setItem("pp.plan.fit", v ? "1" : "0"); } catch { /* this visit only */ } };
   const [fields, toggleField, resetFields] = useCardFields();
   const [showDone, setShowDoneState] = useState<boolean>(() => {
     try {
@@ -498,7 +501,7 @@ function WeekView() {
   );
 
   return (
-    <div className="plan">
+    <div className={`plan${fit && view === "hours" && !narrow ? " fit" : ""}`}>
       <section className="plan-head">
         <div className="plan-head-top">
           <PlanTabs current="week" />
@@ -539,6 +542,12 @@ function WeekView() {
             <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} style={{ width: 18, height: 18 }} />
             <span>Completed</span>
           </label>
+          {view === "hours" && !narrow && (
+            <label className="row-wrap show-done" style={{ gap: 6, fontSize: 14 }} title="Make the hours smaller so the whole day fits on screen without scrolling">
+              <input type="checkbox" checked={fit} onChange={(e) => setFit(e.target.checked)} style={{ width: 18, height: 18 }} />
+              <span>Fit to screen</span>
+            </label>
+          )}
           {view === "cards" && <CardOptions fields={fields} toggle={toggleField} reset={resetFields} />}
           <div className="toolbar-actions">
             {cal.prefs.enabled ? (
@@ -679,6 +688,7 @@ function WeekView() {
             today={today}
             shownDay={shownDay}
             narrow={narrow}
+            fit={fit}
             prefs={cal.prefs}
             connected={cal.prefs.enabled}
             cardsFor={hourCards}
