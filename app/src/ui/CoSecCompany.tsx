@@ -18,12 +18,13 @@ import { Cs01Tab } from "./CoSecCs01";
 import { OwnershipChart } from "./CoSecChart";
 import { Overview } from "./CoSecOverview";
 import { AccountsTab } from "./CoSecAccounts";
+import { ArdTab } from "./CoSecArd";
 import { CertificatesTab, DividendsTab, OwnershipCheck } from "./CoSecCapital";
 import { ID_LABEL, IdStatus, idOf } from "../lib/cosecCs01";
 
 const TABS: [string, string][] = [["overview", "Overview"], ["officers", "Officers"], ["shares", "Shareholders"], ["chart", "Ownership chart"], ["pscs", "People with significant control"], ["registers", "Registers"], ["filings", "Filings"]];
 /** Screens opened from buttons on the overview rather than from the tab bar. */
-const SCREENS: Record<string, string> = { classes: "Share classes and ownership", ledger: "Share ledger", certificates: "Share certificates", dividends: "Dividends", accounts: "Dormant accounts", cs01: "Confirmation statement", import: "Import history" };
+const SCREENS: Record<string, string> = { classes: "Share classes and ownership", ledger: "Share ledger", certificates: "Share certificates", dividends: "Dividends", accounts: "Dormant accounts (earlier jobs)", ard: "Change accounting reference date", cs01: "Confirmation statement", import: "Import history" };
 const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 
 export function CoSecCompany({ clientKey, tab: tabIn }: { clientKey: string; tab: string }) {
@@ -55,6 +56,7 @@ export function CoSecCompany({ clientKey, tab: tabIn }: { clientKey: string; tab
       {tab === "certificates" && kind === "limited" && <CertificatesTab client={client} />}
       {tab === "dividends" && kind === "limited" && <DividendsTab client={client} />}
       {tab === "accounts" && kind === "limited" && <AccountsTab client={client} />}
+      {tab === "ard" && <ArdTab client={client} />}
       {tab === "ledger" && kind === "limited" && <Ledger client={client} />}
       {tab === "registers" && <RegistersTab client={client} />}
       {tab === "import" && <ImportHistory client={client} />}
@@ -421,7 +423,10 @@ function Filings({ client }: { client: Row }) {
   const rows = useMemo(() => k.data.cosecTx.filter((t) => t.ClientKey === client.Key).sort((a, b) => s(b.Created).localeCompare(s(a.Created))), [k.data.cosecTx, client.Key]);
   return (
     <section className="card pad stack" aria-label="Company filings">
-      <h3 style={{ margin: 0 }}>Filings</h3>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <h3 style={{ margin: 0 }}>Filings</h3>
+        <a className="btn" href={`#/cosec/company/${s(client.Key)}/ard`}>Change accounting reference date</a>
+      </div>
       {!rows.length ? <p className="muted">No filings prepared for this company.</p> : <ul className="plain">{rows.map((t) => (
         <li key={s(t.Key)}><a href={href("cosec", "filing", s(t.Key))}>{s(t.Ref)} · {s(t.Form)} · {s(t.Title)}</a> <span className={`chip ${chipFor(txStatus(t))}`}>{STATUS_LABEL[txStatus(t)]}</span></li>
       ))}</ul>}

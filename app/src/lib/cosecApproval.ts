@@ -23,7 +23,7 @@ const MANDATORY: Record<string, string> = {
 export function defaultApproval(form: string): { required: boolean; mandatory: boolean; reason: string } {
   const mandatory = !!MANDATORY[form];
   if (mandatory) return { required: true, mandatory, reason: MANDATORY[form] };
-  if (/^(AP|LLAP|TM|LLTM|CH|LLCH|PSC)/.test(form) || form === "AD01" || form === "AA01" || form === "CS01") return { required: true, mandatory: false, reason: "The company is making this change, so its directors normally confirm it first." };
+  if (/^(AP|LLAP|TM|LLTM|CH|LLCH|PSC)/.test(form) || form === "AD01" || form === "AA01" || form === "LLAA01" || form === "CS01") return { required: true, mandatory: false, reason: "The company is making this change, so its directors normally confirm it first." };
   return { required: false, mandatory: false, reason: "" };
 }
 

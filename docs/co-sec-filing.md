@@ -57,6 +57,6 @@ Co Sec uses the planner's existing staff roles. Managers and partners can approv
 
 ## What is not built yet
 
-- **Sent through the gateway:** AD01 only. The other forms (AP01 to AP04, TM01, TM02, CH01 to CH04, LL forms, PSC01 to PSC07, SH01, AA01, NM01) are prepared, reviewed and approved in Co Sec but filed at Companies House by you, then recorded as filed externally. To add a form to the gateway, add it to `api/cosec/lib/forms.js` and to the gateway list in `app/src/lib/cosecForms.ts`, and test it the same way.
+- **Sent through the gateway:** AD01 only. The other forms (AP01 to AP04, TM01, TM02, CH01 to CH04, LL forms, PSC01 to PSC07, SH01, AA01 for companies, LL AA01 for LLPs, NM01) are prepared, reviewed and approved in Co Sec but filed at Companies House by you, then recorded as filed externally. To add a form to the gateway, add it to `api/cosec/lib/forms.js` and to the gateway list in `app/src/lib/cosecForms.ts`, and test it the same way.
 - Confirmation statements (CS01), accounts, PSC statements, share reorganisations, dividend vouchers, share certificates, minutes and resolutions, name-change documents, charges, strike-off, company formation, and a document library.
 - Residential addresses are not available from Companies House, so they are entered by hand.

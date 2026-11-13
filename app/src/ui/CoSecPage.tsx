@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { fmtDate , todayIso } from "../lib/domain";
 import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, TxAction, TxInput } from "../lib/cosec";
 import { Addr, BLANK_ADDR, addrIssues, addrText, formTitle, formDef } from "../lib/cosecForms";
+import { ArdInput, EXTENSION_REASONS, WHICH_LABEL, ardAdvice, ardFromPayload, dayMonth, isArdForm, isoOk } from "../lib/cosecArd";
 import { GatewayError } from "../lib/cosecGateway";
 import { Row } from "../lib/schema";
 import { href, useRoute } from "./bits";
@@ -231,6 +232,38 @@ const Field = ({ label, value, onChange, disabled, type = "text", wide }: { labe
   <label className="doc-field" style={wide ? { gridColumn: "1 / -1" } : undefined}><span>{label}</span><input className="input" type={type} disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} /></label>
 );
 
+/** The details of a change of accounting reference date. A draft made by editing the client's year end has only the new date; one started from the company also has the period's dates, which the extension and shortening rules are checked against. */
+function ArdDraftFields({ p, disabled, setP }: { p: Record<string, any>; disabled: boolean; setP: (patch: Record<string, unknown>) => void }) {
+  const { structured, input } = ardFromPayload(p);
+  if (!structured) return (
+    <>
+      <Field label="New accounting reference date (for example 30 June)" value={String(p.newDate || "")} disabled={disabled} onChange={(v) => setP({ newDate: v })} />
+      <p className="muted" style={{ margin: 0 }}>This draft has only the new date. To have the extension and shortening rules checked, prepare it from the company's Filings tab with Change accounting reference date, which keeps the period's dates.</p>
+    </>
+  );
+  const extending = isoOk(String(input.periodEnd)) && isoOk(String(input.newEnd)) && String(input.newEnd) > String(input.periodEnd);
+  const advice = ardAdvice({ which: input.which || "current", periodStart: String(input.periodStart), periodEnd: String(input.periodEnd), newEnd: String(input.newEnd), extendedWithinFiveYears: input.extendedWithinFiveYears, extensionReason: input.extensionReason } as ArdInput, todayIso());
+  const five = input.extendedWithinFiveYears === true ? "yes" : input.extendedWithinFiveYears === false ? "no" : "";
+  return (
+    <div className="stack" style={{ gap: 10 }}>
+      <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+        <div className="doc-field"><span>Period being changed</span><strong>{WHICH_LABEL[input.which || "current"]}</strong></div>
+        <Field label="Period started" type="date" value={String(input.periodStart)} disabled={disabled} onChange={(v) => setP({ periodStart: v })} />
+        <Field label="Period currently ends" type="date" value={String(input.periodEnd)} disabled={disabled} onChange={(v) => setP({ periodEnd: v })} />
+        <Field label="Period will now end" type="date" value={String(input.newEnd)} disabled={disabled} onChange={(v) => setP({ newPeriodEnd: v, newDate: dayMonth(v) })} />
+      </div>
+      {extending && (
+        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
+          <label className="doc-field"><span>Extended an accounting period in the last five years?</span>
+            <select className="input" disabled={disabled} value={five} onChange={(e) => setP({ extendedWithinFiveYears: e.target.value === "" ? null : e.target.value === "yes" })}><option value="">Not answered</option><option value="no">No</option><option value="yes">Yes</option></select></label>
+          <label className="doc-field"><span>Exception that applies, if any</span>
+            <select className="input" disabled={disabled} value={String(input.extensionReason || "")} onChange={(e) => setP({ extensionReason: e.target.value })}><option value="">None</option>{EXTENSION_REASONS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+        </div>)}
+      {advice.length > 0 && <ul className="plain muted" aria-label="Before you file" style={{ margin: 0 }}>{advice.map((x) => <li key={x}>{x}</li>)}</ul>}
+    </div>
+  );
+}
+
 export function AddressEditor({ value, onChange, disabled }: { value: Partial<Addr>; onChange: (a: Addr) => void; disabled?: boolean }) {
   const a = { ...BLANK_ADDR, ...value };
   const set = (f: keyof Addr, v: string) => onChange({ ...a, [f]: v });
@@ -283,7 +316,7 @@ function FilingDetail({ txKey }: { txKey: string }) {
     await k.apply(w); setPayload(null); setNote(""); setMsg({ ok: true, text: ok });
   });
   const save = () => run(async () => {
-    const w = act(tx, "edit", { payload: p }, k.cfg, k.ctx(), k.snap());
+    const w = act(tx, "edit", { payload: p, ...(isArdForm(form) && String(p.newDate || "").trim() ? { after: String(p.newDate) } : {}) }, k.cfg, k.ctx(), k.snap());
     if ("error" in w) return setMsg({ ok: false, text: w.error });
     await k.apply(w); setPayload(null); setMsg({ ok: true, text: "Saved. It needs approving again." });
   });
@@ -336,7 +369,7 @@ function FilingDetail({ txKey }: { txKey: string }) {
         <h3 style={{ margin: 0 }}>Draft details</h3>
         {form === "AD01" && <AddressEditor value={p.address || {}} disabled={!editable} onChange={(a) => setP({ address: a })} />}
         {form === "NM01" && <Field label="New company name" value={String(p.newName || "")} disabled={!editable} onChange={(v) => setP({ newName: v })} />}
-        {form === "AA01" && <Field label="New accounting reference date (for example 30 June)" value={String(p.newDate || "")} disabled={!editable} onChange={(v) => setP({ newDate: v })} />}
+        {isArdForm(form) && <ArdDraftFields p={p} disabled={!editable} setP={setP} />}
         {(form.startsWith("AP") || form.startsWith("LLAP") || form === "SH01" || form.startsWith("PSC0") && p.op === "appoint") && (
           <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 10 }}>
             <Field label="Date" type="date" value={String(p.date || "")} disabled={!editable} onChange={(v) => setP({ date: v })} />

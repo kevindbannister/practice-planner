@@ -1,5 +1,6 @@
 // The company overview in Co Sec: who the directors and shareholders are, dividends for this year and last, and buttons that open the
-// other screens (confirmation statement, dividends, certificates, dormant accounts and so on), so the tab bar can stay short.
+// other screens (confirmation statement, dividends, certificates, change of accounting reference date and so on), so the tab bar can stay short.
+// Accounts themselves are not prepared here: they are done in Working Papers and Accounts Production.
 import { useMemo } from "react";
 import { fmtDate, todayIso } from "../lib/domain";
 import { companyKind, isOpenTx, verifiedOf } from "../lib/cosec";
@@ -21,18 +22,21 @@ export function Overview({ client, base, children }: { client: Row; base: string
   const sh = useMemo(() => shareholders(k.data.cosecLedger.map(readEntry), k.data.cosecShareClasses, k.data.cosecShares, ck, today), [k.data, ck, today]);
   const dv = useMemo(() => dividendYears(k.data.cosecDividends, ck, ver.accTo, today), [k.data.cosecDividends, ck, ver.accTo, today]);
   const open = k.data.cosecTx.filter((t) => s(t.ClientKey) === ck && isOpenTx(t));
-  const accountsJobs = k.data.cosecAccounts.filter((r) => s(r.ClientKey) === ck && !["complete", "cancelled"].includes(s(r.Status)));
+  // Dormant accounts jobs started here before accounts moved to Accounts Production. They stay reachable; no new one can be started from Co Sec.
+  const earlierJobs = k.data.cosecAccounts.filter((r) => s(r.ClientKey) === ck);
+  const openJobs = earlierJobs.filter((r) => !["complete", "cancelled"].includes(s(r.Status)));
   const certs = k.data.cosecCertificates.filter((r) => s(r.ClientKey) === ck && s(r.Status) === "issued").length;
   const go = (tab: string) => `${base}/${tab}`;
   const actions: [string, string, string][] = [
     ["Confirmation statement", "cs01", ver.csDue ? `Due ${fmtDate(ver.csDue)}` : "Prepare and check"],
+    ["Change accounting reference date", "ard", kind === "llp" ? "Prepare an LL AA01" : "Prepare an AA01"],
     ...(limited ? [
       ["Dividends", "dividends", "Declare and record"],
       ["Share certificates", "certificates", certs ? `${certs} in force` : "Issue and replace"],
-      ["Dormant accounts", "accounts", accountsJobs.length ? "In progress" : ver.accDue ? `Accounts due ${fmtDate(ver.accDue)}` : "Never traded companies"],
       ["Share classes and ownership", "classes", "Rights, votes, PSC check"],
       ["Share ledger", "ledger", "Every allotment and transfer"],
     ] as [string, string, string][] : []),
+    ...(limited && earlierJobs.length ? [["Dormant accounts (earlier jobs)", "accounts", openJobs.length ? "In progress" : `${earlierJobs.length} on record`]] as [string, string, string][] : []),
     ["Import history", "import", "Bring in past records"],
   ];
   return (

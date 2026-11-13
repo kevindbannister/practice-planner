@@ -1,4 +1,5 @@
-// Dormant (never traded) accounts for one company: a guided job from eligibility to acceptance by Companies House. Nothing here files accounts;
+// Dormant (never traded) accounts jobs that were started in Co Sec for one company, kept so they can be finished or looked up. Co Sec no longer starts them:
+// accounts are prepared in Working Papers and Accounts Production. Nothing here files accounts;
 // the job only finishes when Companies House has accepted them, never because a PDF was produced. The rules are in lib/cosecDormant.
 import { useMemo, useState } from "react";
 import { fmtDate, todayIso } from "../lib/domain";
@@ -19,33 +20,13 @@ const color = (st: D.CheckState) => (st === "ok" ? "var(--green)" : st === "bloc
 
 export function AccountsTab({ client }: { client: Row }) {
   const k = useCoSec(); const ck = s(client.Key);
-  const { create } = useData();
-  const ver = verifiedOf(client);
   const rows = k.data.cosecAccounts.filter((r) => r.ClientKey === ck).sort((a, b) => s(b.PeriodEnd).localeCompare(s(a.PeriodEnd)));
-  const inc = s(client.Incorporated).slice(0, 10);
-  const guessEnd = ver.accTo || "";
-  const guessStart = guessEnd ? (() => { const st = D.addMonths(guessEnd, -12); const d = new Date(`${st}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); const x = d.toISOString().slice(0, 10); return inc && x < inc ? inc : x; })() : "";
-  const [start, setStart] = useState(guessStart); const [end, setEnd] = useState(guessEnd);
-  const [msg, setMsg] = useState<Msg>(); const [busy, setBusy] = useState(false);
-  const begin = async () => {
-    const w = D.start(client, { start, end, incorporated: inc }, k.data.cosecAccounts, k.me, new Date().toISOString());
-    if (w.error) return setMsg({ ok: false, text: w.error });
-    setBusy(true); setMsg(undefined);
-    try { for (const r of w.creates) await create("CoSecAccounts", { ...r, PracticeId: k.ctx().pid }); } catch (e) { setMsg({ ok: false, text: say(e) }); } finally { setBusy(false); }
-  };
   return (
     <div className="stack" style={{ gap: 14 }}>
       <section className="card pad stack" aria-label="Dormant accounts">
-        <h3 style={{ margin: 0 }}>Dormant accounts</h3>
-        <p className="muted" style={{ margin: 0 }}>For a company that has never traded. This prepares the accounts for a director to sign and tracks the job until Companies House accepts them. It doesn't file anything, and it isn't for companies that have traded.</p>
-        {k.can("edit") && !rows.some((r) => D.isOpen(D.readDormant(r))) && (
-          <div className="row-wrap" style={{ alignItems: "flex-end" }}>
-            <label className="doc-field"><span>Period starts</span><input className="input" type="date" value={start} onChange={(e) => setStart(e.target.value)} /></label>
-            <label className="doc-field"><span>Period ends</span><input className="input" type="date" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
-            <button type="button" className="btn primary" disabled={busy} onClick={() => void begin()}>Start the accounts</button>
-          </div>)}
-        {!ver.accTo && <p className="muted" style={{ margin: 0 }}>Companies House's expected period isn't recorded for this company. Refresh it from Companies House on the Details tab to prefill the dates.</p>}
-        <Note m={msg} />
+        <h3 style={{ margin: 0 }}>Dormant accounts started in Co Sec</h3>
+        <p className="muted" style={{ margin: 0 }}>Accounts are prepared in Working Papers and Accounts Production, and not every company needs dormant accounts, so Co Sec no longer starts them. These jobs were started here earlier. They are kept so they can be finished or looked up.</p>
+        {!rows.length && <p style={{ margin: 0 }}>None were started for this company.</p>}
       </section>
       {rows.map((r) => <Job key={s(r.Key)} row={r} client={client} />)}
     </div>

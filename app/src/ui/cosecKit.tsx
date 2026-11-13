@@ -32,6 +32,7 @@ export function useCoSec() {
     for (const p of w.patches) by.set(p.list, [...(by.get(p.list) || []), { row: p.row, patch: p.patch }]);
     for (const [list, changes] of by) await updateMany(list as ListKey, changes);
     if (w.verified) { const c = data.clients.find((x) => x.Key === w.verified!.clientKey); if (c) await update("Clients", c, { CHVerified: JSON.stringify(w.verified.value) }, { source: "ch-sync" }); }
+    if (w.clientPatch) { const c = data.clients.find((x) => x.Key === w.clientPatch!.clientKey); if (c) await update("Clients", c, w.clientPatch.patch, { source: "cosec" }); }
     for (const l of w.log) await create("SalesLog", l);
     for (const a of w.activities) await create("Activities", a);
   };

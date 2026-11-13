@@ -6,6 +6,7 @@
 // the client's own records, and the four pictures of a company are kept apart: the planner's current data, the proposed
 // change (the draft), what Companies House last showed (Clients.CHVerified), and the internal registers (CoSec lists).
 import { Config } from "./checklist";
+import { ArdInput, ardForm, ardIssues, ardPayload, ardPayloadIssues, dayMonth, dmy, isArdForm, isoOk } from "./cosecArd";
 import { approvalGate, approvalOf } from "./cosecApproval";
 import { blankCs01, buildCs01, cs01Issues, readCs01 } from "./cosecCs01";
 import { DEFAULT_FEES } from "./cosecFees";
@@ -138,7 +139,7 @@ export function prepare(p: Proposed, snap: Pick<Snapshot, "txs" | "events">, o: 
   return { ...w, outcome: "draft", tx };
 }
 
-const mergeV = (a: Written, b: CoSecWritten): CoSecWritten => ({ ...merge(a, b), verified: b.verified });
+const mergeV = (a: Written, b: CoSecWritten): CoSecWritten => ({ ...merge(a, b), verified: b.verified, clientPatch: b.clientPatch });
 const merge = (a: Written, b: Written): Written => ({ patches: [...a.patches, ...b.patches], log: [...a.log, ...b.log], activities: [...a.activities, ...b.activities], creates: [...(a.creates || []), ...(b.creates || [])] });
 
 // ------------------------------------------------------------------ rules: what a change in a client record means
@@ -173,7 +174,7 @@ export const RULES: Rule[] = [
     if (!before.trim()) return { kind: "ignore", why: "Year end recorded for the first time." };
     if (norm(before) === norm(after)) return { kind: "ignore", why: "No change." };
     if (verified.ard && norm(verified.ard) === norm(after)) return { kind: "ignore", why: "Companies House already shows this date." };
-    return { kind: "draft", form: "AA01", target: "client:AccountingReferenceDate", title: `Accounting reference date: ${after}`, payload: { newDate: after, previous: before }, before, after, note: "Check the extension and shortening rules before filing." };
+    return { kind: "draft", form: ardForm(kind), target: "client:AccountingReferenceDate", title: `Accounting reference date: ${after}`, payload: { newDate: after, previous: before }, before, after, note: "Check the extension and shortening rules before filing. Use Change accounting reference date on the company to give the period's dates and have them checked." };
   } },
   { field: "SIC", assess: ({ client, kind }) => (kind && hasCompanyNumber(client) ? { kind: "info", why: "SIC codes are changed when the confirmation statement is filed. Flagged for that review." } : { kind: "ignore", why: "Not a registered company." }) },
   { field: "TradingAddress", assess: () => ({ kind: "ignore", why: "The trading address is not a statutory address." }) },
@@ -412,7 +413,7 @@ export function transferShares(company: Row, from: Row, to: { holder: string; ho
 // ------------------------------------------------------------------ working a draft: review, approval, filing
 
 /** What the planner must also record: the client's last-verified Companies House data. */
-export type CoSecWritten = Written & { verified?: { clientKey: string; value: Verified } };
+export type CoSecWritten = Written & { verified?: { clientKey: string; value: Verified }; /** A change to the client's own record that Co Sec made, saved so it prepares no filing of its own. */ clientPatch?: { clientKey: string; patch: Row } };
 export type TxAction = "complete" | "edit" | "clarify" | "answer" | "approve" | "decline" | "external" | "cancel" | "reopen" | "submitted" | "result";
 export type TxInput = { payload?: Record<string, unknown>; after?: string; note?: string; ref?: string; gatewayRef?: string; result?: { status: "accepted" | "rejected" | "pending"; chRef?: string; reason?: string } };
 
@@ -423,7 +424,7 @@ export function txIssues(tx: Row): string[] {
   switch (str(tx.Form)) {
     case "AD01": out.push(...addrIssues(p.address || {}, "New registered office")); break;
     case "NM01": if (!str(p.newName).trim()) out.push("The new company name"); break;
-    case "AA01": if (!/^\d{1,2}[ /-]/.test(str(p.newDate).trim()) && !str(p.newDate).trim()) out.push("The new accounting reference date"); break;
+    case "AA01": case "LLAA01": out.push(...ardPayloadIssues(p)); break;
     case "AP01": case "AP02": case "AP03": case "AP04": case "LLAP01": case "LLAP02": {
       const d = p.details || {};
       if (!str(p.date).trim()) out.push("Date of appointment");
@@ -568,6 +569,43 @@ export function prepareCs01(company: Row, madeUpTo: string, snap: Snapshot, can:
   return directDraft(p, snap, o);
 }
 
+/**
+ * Start a change of accounting reference date (AA01, or LL AA01 for an LLP) because a person asked for it. Nothing is filed. Nothing else
+ * in Co Sec starts one on its own account, and it has nothing to do with preparing accounts. The draft keeps the period's dates so the
+ * extension and shortening rules can be checked and read again at review. One draft is open per company: starting another updates it.
+ */
+export function prepareArdChange(company: Row, i: ArdInput, snap: Snapshot, can: boolean, o: Ctx): Prepared | { error: string } {
+  if (!can) return { error: "You can't prepare filings." };
+  const kind = companyKind(company);
+  if (!kind) return { error: "Only companies and LLPs have an accounting reference date to change." };
+  if (!hasCompanyNumber(company)) return { error: "This company has no company number, so there is nothing registered to change." };
+  if (!isoOk(i.newEnd)) return { error: "Enter the date the accounting period will now end." };
+  if (!isoOk(i.periodEnd)) return { error: "Enter the date the period currently ends. Check Companies House on the Details tab to fill it in." };
+  const rule = ardIssues(i);
+  if (rule.length) return { error: `Not ready to prepare: ${rule.join("; ")}.` };
+  const form = ardForm(kind);
+  const after = dayMonth(i.newEnd);
+  const before = str(verifiedOf(company).ard) || str(company.YearEnd);
+  const target = "client:AccountingReferenceDate";
+  const title = `Accounting reference date: ${after} (period to ${dmy(i.newEnd)})`;
+  const payload = { ...ardPayload(i), previous: before };
+  const done = snap.txs.find((t) => str(t.ClientKey) === str(company.Key) && str(t.Target) === target && txStatus(t) === "submitted");
+  const open = snap.txs.find((t) => str(t.ClientKey) === str(company.Key) && str(t.Target) === target && EDITABLE.includes(txStatus(t)));
+  if (done) return { error: `A change of accounting reference date (${str(done.Ref)}) is already with Companies House. Wait for its answer first.` };
+  if (open) {
+    const refs = { clientKey: str(company.Key) };
+    const reset = approvalOf(open) === "approved" || approvalOf(open) === "awaiting";
+    const patch: Row = { Form: form, Title: title, After: after, Payload: JSON.stringify(payload), Status: "draft", ApprovedBy: "", ApprovedAt: "", ...(reset ? { ApprovalState: "required", ApprovalSigningId: "", ApprovalBy: "", ApprovalAt: "", ApprovalEvidence: "" } : {}), History: pushHistory(open, o, "updated", `Period to ${dmy(i.newEnd)}`), Updated: o.now };
+    const w = empty();
+    w.patches.push({ list: "CoSecTransactions", row: open, patch });
+    w.log.push(logRow(o, "updated", "cosec", str(open.Key), refs, { form, after }));
+    return { ...w, outcome: "updated", tx: { ...open, ...patch } };
+  }
+  const key = o.newKey("CA");
+  const p: Proposed = { clientKey: str(company.Key), clientName: str(company.Title), form, target, title, before, after, payload, source: "cosec", sourceKey: key, eventKey: `cosec:ard:${key}`, assignee: responsible(company), entity: "company", entityKey: str(company.Key), field: "accounting-reference-date", note: "Started by a person from the company. Check the extension and shortening rules before filing." };
+  return directDraft(p, snap, o);
+}
+
 /** The ledger entry a share transaction stands for: an allotment (SH01) or a transfer (STT). Other transactions don't touch the ledger. */
 export function ledgerEntryFor(tx: Row): NewEntry | undefined {
   const p = json<Record<string, any>>(tx.Payload, {});
@@ -627,11 +665,14 @@ export function reconcile(tx: Row, o: Ctx, snap?: Pick<Snapshot, "officers" | "p
     }
   }
   // what Companies House now shows: the planner's refresh (when it can reach Companies House) replaces this with the official record
-  const field = form === "AD01" ? "office" : form === "NM01" ? "name" : form === "AA01" ? "ard" : "";
+  const field = form === "AD01" ? "office" : form === "NM01" ? "name" : isArdForm(form) ? "ard" : "";
   if (field) {
     const client = snap?.clients.find((c) => c.Key === tx.ClientKey);
     w.verified = { clientKey: str(tx.ClientKey), value: { ...(client ? verifiedOf(client) : {}), [field]: str(tx.After), at: o.now } };
+    // The planner's own year end follows, or the next comparison with Companies House would see a difference and draft the change back.
+    if (isArdForm(form) && client && norm(client.YearEnd) !== norm(tx.After)) w.clientPatch = { clientKey: str(tx.ClientKey), patch: { YearEnd: str(tx.After) } };
   }
+  if (isArdForm(form)) w.activities.push(activityRow(o, "cosec-flag", `${form}: the accounts and tax dates for ${str(snap?.clients.find((c) => c.Key === tx.ClientKey)?.Title) || "this company"} may have moved`, undefined, { clientKey: str(tx.ClientKey) }, "Check Companies House on the Details tab to bring the accounts due date up to date, then check the corporation tax and accounts jobs and their deadlines.", `cosec:ard-dates:${str(tx.Key)}`));
   w.activities.push(activityRow(o, "cosec-completed", `${form} complete: ${str(tx.Title)}`, undefined, { clientKey: str(tx.ClientKey) }, "The statutory record is up to date.", `cosec:completed:${str(tx.Key)}`));
   return w;
 }

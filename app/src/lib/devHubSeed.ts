@@ -227,7 +227,8 @@ f("deliver.cosec.ledger", "deliver.cosec", "Share ledger and registers", "Source
 f("deliver.cosec.certs", "deliver.cosec", "Share certificates", "Numbered certificates, never reused.", ["lib:cosecCertificates", "lib:cosecDocs", "test:cosecCertificates"]);
 f("deliver.cosec.div", "deliver.cosec", "Dividends", "Dividend calculations in whole pence.", ["lib:cosecDividends", "test:cosecDividends"]);
 f("deliver.cosec.cs01", "deliver.cosec", "Confirmation statement review", "Guided CS01 review from the company's records.", ["ui:CoSecCs01", "lib:cosecCs01", "test:cosecCs01"]);
-f("deliver.cosec.dormant", "deliver.cosec", "Dormant accounts", "Prepare and track dormant company accounts.", ["ui:CoSecAccounts", "lib:cosecDormant", "test:cosecDormant"]);
+f("deliver.cosec.dormant", "deliver.cosec", "Dormant accounts (parked)", "No longer started from Co Sec: accounts are prepared in Working Papers and Accounts Production. Earlier jobs stay readable.", ["ui:CoSecAccounts", "lib:cosecDormant", "test:cosecDormant"]);
+f("deliver.cosec.ard", "deliver.cosec", "Change of accounting reference date", "AA01 (LL AA01 for an LLP), started on request with the extension and shortening rules checked.", ["ui:CoSecArd", "lib:cosecArd", "test:cosecArd"]);
 f("deliver.cosec.approval", "deliver.cosec", "Client approval of transactions", "Approval through the portal.", ["ui:CoSecApproval", "lib:cosecApproval", "test:cosecApproval"]);
 f("deliver.cosec.import", "deliver.cosec", "Historical imports", "From spreadsheets, CSV and register PDFs.", ["ui:CoSecImport", "lib:cosecImport", "test:cosecImport"]);
 f("deliver.cosec.chart", "deliver.cosec", "Ownership chart", "Drawn from the share ledger.", ["ui:CoSecChart", "lib:ownershipChart", "test:ownershipChart"]);
