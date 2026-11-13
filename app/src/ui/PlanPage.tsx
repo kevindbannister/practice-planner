@@ -344,9 +344,10 @@ function WeekView() {
   };
 
   const move = async (key: string, date?: string, quiet = false, at?: number, kind?: "index" | "time") => {
-    const item = items.find((i) => i.key === key);
+    const item = items.find((i) => i.key === key) || doneItems.find((i) => i.key === key);
     if (!item) return;
     if (date && kind === "time" && at !== undefined) return moveToTime(item, date, at, quiet);
+    if (item.done) return; // finished work can be put at a time in the hours view, but isn't re-planned or put back in the tray
     const sameDay = (item.planned || undefined) === date;
     if (sameDay && (!date || at === undefined)) return;
     const before = item.planned;
@@ -420,11 +421,11 @@ function WeekView() {
 
   /** A block's edge dragged in the hours view: new length, and maybe a new start time. */
   const resizeItem = async (key: string, change: { hours: number; start?: string }) => {
-    const item = items.find((i) => i.key === key);
+    const item = items.find((i) => i.key === key) || doneItems.find((i) => i.key === key);
     if (!item) return;
     const list = item.kind === "job" ? "Jobs" : "Tasks";
-    // a job being finalised keeps its finalising time; otherwise it's the job's hours
-    const field = item.kind === "job" && item.finalise ? "FinaliseHours" : "EstimateHours";
+    // a job being finalised keeps its finalising time; finished work changes the time it took; otherwise it's the job's hours
+    const field = item.done ? "ActualHours" : item.kind === "job" && item.finalise ? "FinaliseHours" : "EstimateHours";
     const hours = Math.max(0.25, Math.round(change.hours * 4) / 4);
     const before: Row = { [field]: item.row[field] ?? "", StartTime: (item.row.StartTime as string) || "" };
     setError(undefined);
@@ -520,7 +521,8 @@ function WeekView() {
     return [
       ...preparedOn(d).map((i) => toCard(i, { key: `p-${i.key}`, hours: Number((i.row as Job).PreparedHours) || 0.25, prepared: true, start: undefined, flags: [] })),
       ...(byDay.get(d) || []).map((i) => toCard(i)),
-      ...(showDone ? doneOn(d).map((i) => toCard(i, { done: true, flags: [] })) : []),
+      // finished work: where it was put in the hours view, or (with no time set) tagged under the day so the grid stays free for planned work
+      ...(showDone ? doneOn(d).map((i) => toCard(i, { done: true, flags: [], hours: Number(i.row.ActualHours) || i.hours, unplaced: !i.row.StartTime })) : []),
       ...suggestedOn(d).map(({ s, item }) => toCard(item, { suggested: s.reason, start: undefined })),
     ];
   };
@@ -816,7 +818,7 @@ function WeekView() {
             eventsOn={cal.eventsOn}
             busyOn={cal.busyOn}
             dragKey={dragKey}
-            dragHours={items.find((i) => i.key === dragKey)?.hours}
+            dragHours={items.find((i) => i.key === dragKey)?.hours ?? (() => { const d = doneItems.find((i) => i.key === dragKey); return d ? Number(d.row.ActualHours) || d.hours : undefined; })()}
             dropTarget={dropTarget}
             insertAt={insertAt}
             dropKind={dropKind}
@@ -828,6 +830,7 @@ function WeekView() {
               if (it) open(it.kind === "job" ? { kind: "job", key: k } : { kind: "task", key: k });
             }}
             onAdd={(d, time) => open({ kind: "task", plannedDate: d, startTime: time })}
+            onPlace={(k, d, time) => { const it = doneItems.find((i) => i.key === k); if (it && /^\d{1,2}:\d{2}$/.test(time)) void moveToTime(it, d, Number(time.split(":")[0]) * 60 + Number(time.split(":")[1])); }}
             onResize={resizeItem}
             head={dayHeadFor}
             className={slide ? `slide-${slide}` : ""}

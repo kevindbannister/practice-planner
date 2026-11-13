@@ -13,6 +13,8 @@ export type HourCard = {
   key: string; title: string; client: string; tag: string; hours: number; svc: string; start?: string; biz?: boolean; cat?: string;
   flags: string[]; // "late", "tight", "urgent", "held"
   suggested?: string; prepared?: boolean; subtasks?: string; task?: boolean; done?: boolean;
+  /** Finished work with no time set: not laid out in the grid, listed under the day to be put at a time. */
+  unplaced?: boolean;
 };
 
 type Props = {
@@ -34,6 +36,8 @@ type Props = {
   cardProps: (key: string) => Record<string, unknown>;
   onOpen: (key: string) => void;
   onAdd: (day: string, time: string) => void;
+  /** Finished work put at a time from the list under the day (as an alternative to dragging it). */
+  onPlace?: (key: string, day: string, time: string) => void;
   /** A block's edge was dragged: the new length, and (top edge) the new start time. */
   onResize: (key: string, change: { hours: number; start?: string }) => void;
   head: (day: string) => ReactNode;
@@ -157,7 +161,7 @@ export function HoursView(p: Props) {
     });
     const events = p.eventsOn(d);
     const timed = events.filter((e) => !e.allDay);
-    const layout = layoutDay(cards.map((c) => ({ key: c.key, hours: c.hours, start: c.start })), p.prefs, p.busyOn(d));
+    const layout = layoutDay(cards.filter((c) => !c.unplaced).map((c) => ({ key: c.key, hours: c.hours, start: c.start })), p.prefs, p.busyOn(d));
     return { d, cards, events, timed, allDay: events.filter((e) => e.allDay), layout };
   });
   const extra: [number, number][] = perDay.flatMap((x) => [
@@ -248,7 +252,7 @@ export function HoursView(p: Props) {
               })}
               {x.layout.placed.flatMap((pl) => {
                 const c = byKey.get(pl.key)!;
-                const canEdit = c.suggested === undefined && !c.prepared && !c.done;
+                const canEdit = c.suggested === undefined && !c.prepared; // finished work too: it can be dragged to a time and resized
                 const original = p.cardsFor(x.d).find((cc) => cc.key === c.key);
                 return pl.segments.map(([s, f], n) => {
                   const h = (f - s) * ppm;
@@ -306,11 +310,26 @@ export function HoursView(p: Props) {
           );
         })}
       </div>
-      {perDay.some((x) => x.layout.unfitted.length) && (
+      {perDay.some((x) => x.layout.unfitted.length || x.cards.some((c) => c.unplaced)) && (
         <div className="hours-foot">
           <div className="hours-corner" aria-hidden="true" />
           {perDay.map((x) => (
             <div key={x.d} className="hours-unfit">
+              {x.cards.some((c) => c.unplaced) && (
+                <>
+                  <span className="hours-unfit-h" title="Finished work with no time set. Drag it into the day, or pick a time, to show it in the hours.">Completed, not in the hours view</span>
+                  {x.cards.filter((c) => c.unplaced).map((c) => (
+                    <div key={c.key} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <button type="button" style={{ ["--cat" as string]: c.cat }} className={`hblock unfit done ${c.svc}${c.task ? " task" : ""}${c.biz ? " biz" : ""}`}
+                        {...p.cardProps(c.key)} onClick={() => p.onOpen(c.key)}>
+                        <span className="hb-top"><strong>✓ {c.client || c.title}</strong><span className="mono">{fmtHours(c.hours)}</span></span>
+                        <span className="hb-sub">{c.client ? c.title : c.tag}</span>
+                      </button>
+                      {p.onPlace && <label className="muted" style={{ fontSize: 11, display: "flex", gap: 4, alignItems: "center" }}>Put at <input type="time" step={900} aria-label={`Put ${c.client || c.title} at a time`} onChange={(e) => { if (e.target.value) p.onPlace!(c.key, x.d, e.target.value); }} style={{ font: "inherit", maxWidth: 96 }} /></label>}
+                    </div>
+                  ))}
+                </>
+              )}
               {x.layout.unfitted.length > 0 && (
                 <>
                   <span className="hours-unfit-h">Doesn't fit in the day</span>
