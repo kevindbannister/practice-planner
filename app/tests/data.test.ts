@@ -86,7 +86,7 @@ test("import loads a bundle in order and skips rows already there", async () => 
 
 test("import rejects files that aren't bundles", () => {
   assert.throws(() => parseBundle("{nope"), /isn't valid JSON/);
-  assert.throws(() => parseBundle(JSON.stringify({ format: "x" })), /isn't a Practice Planner import bundle/);
+  assert.throws(() => parseBundle(JSON.stringify({ format: "x" })), /isn.t an Xproflow import bundle/);
   assert.throws(
     () => parseBundle(JSON.stringify({ format: "practice-planner-import", version: 1, lists: { Clients: [{ Title: "x" }] } })),
     /needs a Key/,

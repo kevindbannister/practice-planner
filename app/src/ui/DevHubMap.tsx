@@ -64,7 +64,7 @@ export function FeatureMap({ selected, onSelect }: { selected: string; onSelect:
     const rootOpen = open.has("root") || filtering || blocked;
     let rootY = 0;
     if (rootOpen) { const ys = tree.map((r) => lay(r, 1, "root")); rootY = (ys[0] + ys[ys.length - 1]) / 2; } else row = 1;
-    out.push({ id: "root", name: "Practice Planner", kind: "root", x: 0, y: rootY, status: null, kids: tree.length, open: rootOpen, leaf: false });
+    out.push({ id: "root", name: "Xproflow", kind: "root", x: 0, y: rootY, status: null, kids: tree.length, open: rootOpen, leaf: false });
     return out;
   }, [tree, open, filtering, path, blocked, hot]);
   const byId = useMemo(() => new Map(placed.map((p) => [p.id, p])), [placed]);

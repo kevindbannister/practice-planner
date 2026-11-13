@@ -1,4 +1,4 @@
-// Development Hub bridge for Practice Planner: reads and manages the project's GitHub issues, pull requests and commits.
+// Development Hub bridge for Xproflow: reads and manages the project's GitHub issues, pull requests and commits.
 //
 // The GitHub token lives in the Azure setting GITHUB_TOKEN (a fine-grained token limited to this one repository, with
 // Issues read/write, Pull requests read and Contents read) and never reaches the browser. The repository is fixed by
@@ -90,7 +90,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
 
     let ok = false;
     try { ok = await signedIn(req); } catch { ok = false; }
-    if (!ok) { context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." }); return; }
+    if (!ok) { context.res = reply(401, { error: "unauthorised", message: "Sign in to Xproflow again." }); return; }
     let admin = false;
     try { admin = await isAdmin(req); } catch { admin = false; }
     if (!admin) { context.res = reply(403, { error: "not-admin", message: "The Development Hub is only open to development administrators." }); return; }

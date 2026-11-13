@@ -1,5 +1,5 @@
 // The client's Invoices tab: what the practice has billed the client, read from the practice's own
-// Xero organisation. Read only. Nothing is kept in Practice Planner except which Xero contact is
+// Xero organisation. Read only. Nothing is kept in Xproflow except which Xero contact is
 // the client (setting xero.contacts).
 import { XeroApi, XeroTenant, xDate } from "./xero";
 

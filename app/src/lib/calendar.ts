@@ -221,7 +221,7 @@ export function eventBody(b: Block, prefs: CalendarPrefs) {
     showAs: prefs.showAs,
     categories: [CATEGORY],
     isReminderOn: false,
-    body: { contentType: "text", content: `${b.note}\n\nPlanned in Practice Planner. Change it there; this block moves with it.` },
+    body: { contentType: "text", content: `${b.note}\n\nPlanned in Xproflow. Change it there; this block moves with it.` },
     singleValueExtendedProperties: [{ id: BLOCK_PROP, value: b.id }],
   };
 }

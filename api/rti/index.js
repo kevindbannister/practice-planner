@@ -1,4 +1,4 @@
-// PAYE Real Time Information filing bridge for Practice Planner. The planner builds each FPS and EPS; this adds the GovTalk envelope
+// PAYE Real Time Information filing bridge for Xproflow. The planner builds each FPS and EPS; this adds the GovTalk envelope
 // and the agent's Government Gateway sign-in (kept only in Azure settings), works out the IRmark, sends it to HMRC and reads the answer.
 //
 //   GET  /api/rti/info                                   -> { configured, live, missing }
@@ -72,7 +72,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
     let ok = false;
     try { ok = await signedIn(req); } catch { ok = false; }
-    if (!ok) { context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." }); return; }
+    if (!ok) { context.res = reply(401, { error: "unauthorised", message: "Sign in to Xproflow again." }); return; }
     const s = gt.settings(env);
     if (path === "info" && req.method === "GET") { context.res = reply(200, { configured: !s.missing.length, live: s.live, missing: s.missing }); return; }
     if (req.method !== "POST") { context.res = reply(405, { error: "bad-request" }); return; }

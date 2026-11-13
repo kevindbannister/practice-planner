@@ -1,5 +1,5 @@
 import { todayIso } from "../lib/domain";
-// Development Hub: the one place to see what Practice Planner contains, how far each part has really got, and what to work on next.
+// Development Hub: the one place to see what Xproflow contains, how far each part has really got, and what to work on next.
 // Route: #/devhub/<section>[/<feature id>]. Only development administrators get in; it is not part of the client portal.
 import React, { useMemo, useState } from "react";
 import {
@@ -35,14 +35,14 @@ function Shell() {
       <div className="page">
         <div className="page-head"><h1>Development Hub</h1></div>
         <div className="alert red" role="alert"><strong>This is for development administrators</strong><span>You aren't on the administrators list{hub.user ? ` (signed in as ${hub.user})` : ""}. Ask an administrator to add you.</span></div>
-        <a className="btn" href="#/home">Back to Practice Planner</a>
+        <a className="btn" href="#/home">Back to Xproflow</a>
       </div>
     );
   }
   return (
     <>
       <header className="paper-top">
-        <a className="paper-top-icon" href="#/home" title="Back to Practice Planner" aria-label="Back to Practice Planner"><Icon name="left" size={20} /></a>
+        <a className="paper-top-icon" href="#/home" title="Back to Xproflow" aria-label="Back to Xproflow"><Icon name="left" size={20} /></a>
         <h1>Development Hub</h1>
         <span className="chip">{hub.features.length ? leaves(hub.features).length : 0} features</span>
         <span className={`chip ${hub.gh.state === "ready" ? "green" : hub.gh.state === "error" ? "red" : "amber"}`}>{hub.gh.state === "ready" ? "GitHub connected" : hub.gh.state === "loading" ? "Reading GitHub…" : hub.gh.state === "demo" ? "Demo: GitHub not called" : hub.gh.state === "off" ? "GitHub not connected" : "GitHub error"}</span>

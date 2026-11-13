@@ -492,9 +492,9 @@ export async function renderPdf(lib: PdfLib, input: RenderInput): Promise<Uint8A
     if (design.cover.enabled) coverPage(c, design, dv);
   } else furniture(c, pg.pages);
   doc.setTitle(input.title || input.reference || "Document");
-  doc.setAuthor(input.author || displayName(input.branding) || "XProFlow");
-  doc.setProducer("XProFlow");
-  doc.setCreator("XProFlow");
+  doc.setAuthor(input.author || displayName(input.branding) || "Xproflow");
+  doc.setProducer("Xproflow");
+  doc.setCreator("Xproflow");
   const when = input.created || new Date();
   doc.setCreationDate(when);
   doc.setModificationDate(when);

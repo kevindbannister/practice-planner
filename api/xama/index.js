@@ -1,4 +1,4 @@
-// Xama bridge for Practice Planner (AML checks).
+// Xama bridge for Xproflow (AML checks).
 //
 // Follows Xama's published API guide (https://apidocs.xamatech.com): OAuth2 client credentials,
 // with the credentials, grant type and audience sent as a JSON body to the token address.
@@ -202,7 +202,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
 
     if (method !== "POST" || !["test", "call", "write"].includes(action)) return reply(404, { error: "not-found" });
-    if (!(await signedIn(req))) return reply(401, { error: "signin", message: "Sign in to Practice Planner again." });
+    if (!(await signedIn(req))) return reply(401, { error: "signin", message: "Sign in to Xproflow again." });
     const s = settings(env);
     if (s.missing.length) return reply(200, { error: "not-configured", message: `Not set up in Azure yet: ${s.missing.join(", ")}.`, missing: s.missing });
     const b = body(req);

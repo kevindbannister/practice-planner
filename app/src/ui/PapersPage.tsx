@@ -6,7 +6,6 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useXeroLinks } from "./XeroSettings";
 import { sectionIcon } from "./paperIcons";
 import { AccountsProductionPage, AccountsStatusSelect } from "./AccountsProduction";
-import { BannerMenu } from "./BannerMenu";
 import { QuickJournalButton } from "./QuickJournal";
 import { ClientDeck } from "./ClientDeck";
 import { AccountsFigures, AccountsScreen } from "./AccountsScreen";
@@ -231,7 +230,6 @@ function PaperView({ clientKey, period: periodParam }: { clientKey: string; peri
           </select>
         </label>
         {tools}
-        <BannerMenu />
       </div>
     </header>
   );

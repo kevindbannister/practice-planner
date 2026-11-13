@@ -5,7 +5,7 @@ import { TaxReturn } from "./tax";
 import { Validation } from "./hmrcFiling";
 
 const NINO = /^(?!BG|GB|KN|NK|NT|TN|ZZ)[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z]\d{6}[A-D]$/;
-export const SCHEMA_LABEL = "Practice Planner checks (not HMRC's own validation)";
+export const SCHEMA_LABEL = "Xproflow checks (not HMRC's own validation)";
 
 /** The checks that can be made from the return itself. Errors stop it being validated; warnings are shown but don't. */
 export function preflight(r: TaxReturn, year: number, at: string, payloadHash: string, extra: { codivs?: number } = {}): Validation {

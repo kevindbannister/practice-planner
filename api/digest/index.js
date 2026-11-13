@@ -57,7 +57,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     if (String(req.method || "").toUpperCase() !== "POST" || !["run", "preview", "test"].includes(action)) return reply(404, { error: "not-found" });
     if (action === "run") {
       if (!String(env.DIGEST_KEY || "") || !sameKey(header(req, "x-digest-key"), env.DIGEST_KEY)) return reply(401, { error: "key" });
-    } else if (!(await signedIn(req))) return reply(401, { error: "signin", message: "Sign in to Practice Planner again." });
+    } else if (!(await signedIn(req))) return reply(401, { error: "signin", message: "Sign in to Xproflow again." });
     if (missing().length) return reply(503, { error: "not-configured", message: `The morning email isn't set up in Azure yet: ${missing().join(", ")}.` });
     const L = rules(), d = await data(), today = london(now());
     const ds = read(d.settings, SETTINGS_KEY) || {};

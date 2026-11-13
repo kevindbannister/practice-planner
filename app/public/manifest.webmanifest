@@ -1,6 +1,6 @@
 {
-  "name": "xproflow",
-  "short_name": "xproflow",
+  "name": "Xproflow",
+  "short_name": "Xproflow",
   "description": "Practice management: plan, capture tasks and keep client work moving.",
   "start_url": "/#/plan/inbox",
   "scope": "/",

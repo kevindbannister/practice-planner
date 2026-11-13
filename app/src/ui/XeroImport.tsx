@@ -133,7 +133,7 @@ export function XeroImport({ client, period, open, onClose }: { client: Client; 
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>
         <h3 style={{ margin: 0 }}>Import from Xero: {tenant.tenantName}</h3>
         <span className="row-wrap" style={{ gap: 12 }}>
-          <a className="btn small" href="#/settings/xero" title="Change what Practice Planner may read from Xero, reconnect, or link companies to organisations">Xero settings</a>
+          <a className="btn small" href="#/settings/xero" title="Change what Xproflow may read from Xero, reconnect, or link companies to organisations">Xero settings</a>
           <button type="button" className="linkbtn" onClick={() => { onClose(); setResult(undefined); }}>Close</button>
         </span>
       </div>

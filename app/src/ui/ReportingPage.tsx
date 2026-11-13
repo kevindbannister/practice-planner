@@ -4,7 +4,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Compare, Detail, PeriodKind, bsStatement, monthLong, periodCols, plStatement } from "../lib/reportData";
 import { Icon, IconName, href, useRoute } from "./bits";
-import { BannerMenu } from "./BannerMenu";
 import { useData } from "./data";
 import { KpiExplorer } from "./ReportingExplorer";
 import { CashFlowScreen, GoalseekScreen, GrowthScreen, TrendScreen } from "./ReportingAnalysis";
@@ -151,7 +150,6 @@ export function ReportingPage() {
           <select className="input" aria-label="Client" value={clientKey} style={{ width: "auto", minHeight: 32, padding: "2px 8px" }} onChange={(e) => { window.location.hash = href("reporting", e.target.value, tool); }}>
             {clients.map((c) => <option key={c.Key} value={c.Key}>{c.Title}</option>)}
           </select>
-          <BannerMenu />
         </div>
       </header>
       <div className="page paper-page">

@@ -2,7 +2,7 @@
 declare const __DEMO__: boolean;
 import { QuickAddProvider, useQuickAdd } from "./QuickAdd";
 import { VERSION } from "../version";
-import { AreaMenu, AreaPicker, TwoLineAreas, TwoLineModules, useMenuKind } from "./AreaMenu";
+import { AreaMenu } from "./AreaMenu";
 import { PortalProvider, usePortal } from "./portalKit";
 import { Suspense, lazy, useEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
 import { createPortal } from "react-dom";
@@ -114,7 +114,7 @@ export function App({ demo }: { demo: boolean }) {
     body = (
       <div className="center">
         <div className="panel" role="alert">
-          <h1>Couldn't load xproflow</h1>
+          <h1>Couldn't load Xproflow</h1>
           <p style={{ margin: 0 }}>{error}</p>
           <div><button type="button" className="btn primary" onClick={reload}>Try again</button></div>
         </div>
@@ -184,7 +184,7 @@ export function App({ demo }: { demo: boolean }) {
             <AssistantProvider>
               <>
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
-                {!(section === "devhub" || (section === "advisory" || section === "papers" || section === "tax" || section === "taxplan" || section === "reporting") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} />}
+                {!(section === "devhub" || (section === "advisory" || section === "taxplan") && parts[1] && parts[1] !== "production") && <TopBar section={section} demo={demo} ready={status === "ready"} scrolls={(section === "papers" || section === "tax" || section === "reporting") && !!parts[1]} />}
                 <span className="version-badge" title={`Prototype, version ${VERSION}`}>P V{VERSION}</span>
                 {status === "ready" && <ActionSync />}
                 {status === "ready" && !__DEMO__ && <NotificationWatcher />}
@@ -206,15 +206,12 @@ export function App({ demo }: { demo: boolean }) {
   );
 }
 
-function TopBar({ section, demo, ready }: { section: string; demo: boolean; ready: boolean }) {
+function TopBar({ section, demo, ready, scrolls = false }: { section: string; demo: boolean; ready: boolean; scrolls?: boolean }) {
   const { save, user } = useData();
   const quick = useQuickAdd();
   const chase = useChaseCount();
   const assistant = useAssistant();
   const portalWaiting = usePortal().overview?.attention.length || 0;
-  const [menuKind] = useMenuKind();
-  const two = menuKind === "two";
-  const pick = menuKind === "pick";
   const here = areaOf(section);
   const [picked, setPicked] = useState<AreaId | undefined>(() => { try { const v = localStorage.getItem("pp.nav.area"); return isAreaId(v) ? v : undefined; } catch { return undefined; } });
   const [shown, setShown] = useState<AreaId | undefined>(undefined);
@@ -226,10 +223,10 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
   const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
   const AREA_ICONS: Record<AreaId, IconName> = { run: "layout", deliver: "check", grow: "chart" };
   return (
-    <header className={`topbar${two ? " two" : ""}`}>
+    <header className={`topbar${scrolls ? " scrolls" : ""}`}>
       <div className="topbar-left">
         <Brand />
-        <div className="hide-phone">{two ? <TwoLineAreas section={section} area={area} onPick={pickArea} /> : pick ? <AreaPicker section={section} area={area} onPick={pickArea} chase={ready ? chase : 0} /> : <AreaMenu section={section} rename={menuKind === "named"} chase={ready ? chase : 0} />}</div>
+        <div className="hide-phone"><AreaMenu section={section} chase={ready ? chase : 0} /></div>
         <div className="phone-nav">
         <div className="areas" role="group" aria-label="Areas">
           {AREAS.map((a) => (
@@ -271,7 +268,6 @@ function TopBar({ section, demo, ready }: { section: string; demo: boolean; read
         </div>
         <ProfileMenu user={user} demo={demo} waiting={ready ? portalWaiting : 0} />
       </div>
-      {two && <TwoLineModules section={section} area={area} chase={ready ? chase : 0} />}
     </header>
   );
 }
@@ -285,7 +281,6 @@ const initialsOf = (name?: string) => {
 function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean; waiting?: number }) {
   const { save } = useData();
   const { dark, set } = useTheme();
-  const [menuKind, setMenuKind] = useMenuKind();
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -316,12 +311,6 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
           </button>
           <a role="menuitem" href="#/settings" onClick={() => setShown(false)}><Icon name="settings" size={16} /> Settings{waiting > 0 && <span className="nav-count" aria-label={`${waiting} waiting in the portal`}>{waiting}</span>}</a>
           <a role="menuitem" href="#/devhub" onClick={() => setShown(false)}><Icon name="cog" size={16} /> Development Hub</a>
-          <div className="profile-sub">Menu style</div>
-          {([["drop", "Drop-down areas"], ["named", "Drop-down, shows where you are"], ["two", "Two lines"], ["pick", "Area picker"]] as const).map(([k, label]) => (
-            <button key={k} type="button" role="menuitemradio" aria-checked={menuKind === k} onClick={() => { setMenuKind(k); setShown(false); }}>
-              <Icon name={menuKind === k ? "check" : "layout"} size={16} /> {label}
-            </button>
-          ))}
           {!demo && <button type="button" role="menuitem" onClick={signOut}><Icon name="left" size={16} /> Sign out</button>}
         </div>
       )}

@@ -1,4 +1,4 @@
-// The unified client timeline. One event shape, built from records XProFlow already keeps: letters
+// The unified client timeline. One event shape, built from records Xproflow already keeps: letters
 // and emails (Communications), documents, meetings and calls, jobs, tasks, working papers, tax
 // reminders, chase logs and the client's Outlook mail. Those records stay the source of truth; nothing
 // is copied from them. Only things with no record of their own are stored, in the Activities list:

@@ -33,7 +33,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     const method = String(req.method || "GET").toUpperCase();
     if (method === "GET" && action === "status") return reply(200, { configured: !missing().length, missing: missing() });
     if (method !== "POST" || !["aml", "cosec", "verify"].includes(action)) return reply(404, { error: "not-found" });
-    if (!(await signedIn(req))) return reply(401, { error: "signin", message: "Sign in to Practice Planner again." });
+    if (!(await signedIn(req))) return reply(401, { error: "signin", message: "Sign in to Xproflow again." });
     if (missing().length) return reply(503, { error: "not-configured", message: `Server approvals aren't set up in Azure yet: ${missing().join(", ")}.` });
     const p = store(), L = rules(), key = env.APPROVAL_SEAL_KEY;
 

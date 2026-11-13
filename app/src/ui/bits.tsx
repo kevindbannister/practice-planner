@@ -146,8 +146,8 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
 
 export function Brand() {
   return (
-    <a className="brand" href="#/home" aria-label="xproflow, home">
-      <span className="brand-logo" role="img" aria-label="xproflow" />
+    <a className="brand" href="#/home" aria-label="Xproflow, home">
+      <span className="brand-logo" role="img" aria-label="Xproflow" />
     </a>
   );
 }

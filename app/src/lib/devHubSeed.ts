@@ -35,7 +35,7 @@ const mod = (id: string, parent: string, name: string, desc: string, p: Priority
 const f = (id: string, parent: string, name: string, desc: string, files: string[], o?: Opt) => node(id, parent, name, desc, files, o);
 
 // =================================================================== RUN PRACTICE
-area("run", "Practise", "Planning, clients, communication, sales, billing and the running of the practice itself.");
+area("run", "Practice", "Planning, clients, communication, sales, billing and the running of the practice itself.");
 
 mod("run.dash", "run", "Dashboard", "What needs doing today and how the practice is doing.", "P3");
 f("run.dash.home", "run.dash", "Home dashboard", "The first screen: today's work, deadlines, alerts and shortcuts.", ["ui:HomePage", "ui:OverviewGrid", "lib:overviewLayout", "test:overviewLayout"]);

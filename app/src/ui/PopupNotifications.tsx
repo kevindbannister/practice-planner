@@ -42,7 +42,7 @@ export function PopupNotificationSettings() {
     setMsg("On for this device. What is already waiting won't pop up; new actions will.");
   };
   const test = async () => {
-    setMsg("Sending..."); const r = await showDetailed({ tag: "test-" + Date.now(), title: "Practice Planner", body: "Pop-ups are working on this device.", href: "#/actions" });
+    setMsg("Sending..."); const r = await showDetailed({ tag: "test-" + Date.now(), title: "Xproflow", body: "Pop-ups are working on this device.", href: "#/actions" });
     setInfo(await diagnose());
     setMsg(r.ok ? `The browser accepted the test (${r.via}). If nothing appeared, the device is hiding it: check that notifications are allowed for this browser in the device settings, and that Focus, Do Not Disturb or battery saver isn't on. On a computer, also check the browser isn't in full-screen presentation.` : `Couldn't show a test pop-up. ${r.error || ""}`);
   };

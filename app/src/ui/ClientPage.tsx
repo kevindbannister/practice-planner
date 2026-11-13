@@ -504,7 +504,7 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   const { open } = useEditor();
   const today = todayIso();
   const tasks = idx.tasksByClient.get(c.Key) || [];
-  // finished work: imported history plus jobs completed in Practice Planner
+  // finished work: imported history plus jobs completed in Xproflow
   const history = [
     ...data.history.filter((h) => h.ClientKey === c.Key).map((h) => ({
       key: h.Key as string, title: (h.ServiceKey !== "TASK" && idx.serviceName.get(h.ServiceKey as string)) || (h.Title as string),

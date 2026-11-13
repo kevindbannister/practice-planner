@@ -1,4 +1,4 @@
-// Company secretarial filing bridge for Practice Planner.
+// Company secretarial filing bridge for Xproflow.
 //
 // The browser never talks to Companies House and never holds the presenter details. The practice's Companies House presenter ID
 // and authentication code live in Azure settings. Every call needs the signed-in person's Microsoft sign-in for this app.
@@ -22,7 +22,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     const action = String((context.bindingData && context.bindingData.action) || (req.params && req.params.action) || "").replace(/\//g, "");
     let ok = false;
     try { ok = await signedIn(req); } catch { ok = false; }
-    if (!ok) { context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." }); return; }
+    if (!ok) { context.res = reply(401, { error: "unauthorised", message: "Sign in to Xproflow again." }); return; }
 
     const s = settings(env);
     if (action === "info" && req.method === "GET") {

@@ -1,4 +1,4 @@
-// AI writing bridge for Practice Planner: drafts and amends letters and emails with OpenAI.
+// AI writing bridge for Xproflow: drafts and amends letters and emails with OpenAI.
 //
 // The OpenAI key lives in the Azure setting OPENAI_API_KEY and never reaches the browser.
 // Only Kevin's Microsoft sign-in for this app can use it (see ../shared/signin.js).
@@ -35,7 +35,7 @@ const SYSTEM = [
 ].join("\n");
 
 const SYSTEM_ASSIST = [
-  "You are the assistant inside Practice Planner, the planner a sole UK accountant uses to run his day. You answer questions about his work and propose changes to the planner.",
+  "You are the assistant inside Xproflow, the planner a sole UK accountant uses to run his day. You answer questions about his work and propose changes to the planner.",
   "You are given a JSON snapshot: today's date, today's kind of day, his plan for today with reasons, open jobs and tasks (each with a key), clients, business projects, kinds of day, and recently finished work.",
   "Use British English. Be brief and direct. Use only the snapshot: never invent work, clients, dates or figures. If you aren't sure which item is meant, ask in your reply instead of guessing.",
   "Propose changes only when he asks for something to be changed or created. He approves each one before anything happens, so propose exactly what he asked for and no more.",
@@ -423,7 +423,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       ok = false;
     }
     if (!ok) {
-      context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." });
+      context.res = reply(401, { error: "unauthorised", message: "Sign in to Xproflow again." });
       return;
     }
 

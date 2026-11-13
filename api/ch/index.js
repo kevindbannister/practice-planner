@@ -1,4 +1,4 @@
-// Companies House bridge for Practice Planner.
+// Companies House bridge for Xproflow.
 //
 // The browser can't call Companies House directly: the API key would be visible to anyone,
 // and Companies House doesn't allow calls from web pages. So the app calls
@@ -37,7 +37,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       ok = false;
     }
     if (!ok) {
-      context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." });
+      context.res = reply(401, { error: "unauthorised", message: "Sign in to Xproflow again." });
       return;
     }
 

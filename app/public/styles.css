@@ -3649,3 +3649,11 @@ section[aria-labelledby="soon-h"] .home-day { border: 1px solid var(--pill-line)
 section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); border-bottom: 1px solid var(--sep); }
 .btn.danger:hover:not([disabled]) { color: var(--red-ink); }
 .tax-confirm .btn.danger:hover:not([disabled]), .tax-add-card .btn.danger:hover:not([disabled]) { color: #fff; background: var(--red-ink); }
+
+/* V28.6: the menu bar runs the full width (it was sized to its contents), and on a working paper, tax return or
+   report it scrolls away so the document's own banner can stay pinned at the top */
+@media (min-width: 721px) {
+  .topbar { width: auto; max-width: none; margin: 13px 24px 0; }
+  .topbar .topbar-left { flex: 1 1 auto; min-width: 0; }
+  .topbar.scrolls { position: relative; top: 0; }
+}

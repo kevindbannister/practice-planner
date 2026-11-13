@@ -20,7 +20,7 @@ export function parseBundle(text: string): Bundle {
     throw new Error("That file isn't an import bundle (it isn't valid JSON).");
   }
   if (data?.format !== "practice-planner-import" || data?.version !== 1 || typeof data.lists !== "object") {
-    throw new Error("That file isn't a Practice Planner import bundle.");
+    throw new Error("That file isn't an Xproflow import bundle.");
   }
   for (const [list, rows] of Object.entries(data.lists)) {
     if (!IMPORT_ORDER.includes(list as ListKey)) throw new Error(`The bundle has an unknown list: ${list}`);

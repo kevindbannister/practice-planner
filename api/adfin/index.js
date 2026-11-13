@@ -1,4 +1,4 @@
-// Adfin bridge for Practice Planner: recurring invoices, customers and direct debit mandates.
+// Adfin bridge for Xproflow: recurring invoices, customers and direct debit mandates.
 //
 // Adfin's client ID and secret live in the Azure settings ADFIN_CLIENT_ID and ADFIN_CLIENT_SECRET and never
 // reach the browser. ADFIN_ENV is "staging" (the default) or "production": nothing reaches the live Adfin until
@@ -168,7 +168,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     let ok = false;
     try { ok = await signedIn(req); } catch { ok = false; }
     if (!ok) {
-      context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." });
+      context.res = reply(401, { error: "unauthorised", message: "Sign in to Xproflow again." });
       return;
     }
     const b = body(req);

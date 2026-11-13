@@ -1,4 +1,4 @@
-// Xero bridge for Practice Planner.
+// Xero bridge for Xproflow.
 //
 // Xero doesn't allow web pages to call its API or to sign in without a server ("single page apps
 // are not supported"), so the app goes through here. The Xero app's client ID and secret live in
@@ -207,7 +207,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
       ok = false;
     }
     if (!ok) {
-      context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." });
+      context.res = reply(401, { error: "unauthorised", message: "Sign in to Xproflow again." });
       return;
     }
     const b = body(req);

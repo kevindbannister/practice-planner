@@ -178,7 +178,7 @@ function NewLead({ onClose }: { onClose: () => void }) {
       <label className="doc-field" style={{ marginTop: 12 }}><span>Notes</span><textarea className="input" rows={3} value={f.notes} onChange={set("notes")} /></label>
       {dups && (
         <div className="card" role="alert" style={{ padding: 12, marginTop: 12, borderColor: "var(--amber-ink)" }}>
-          <strong>This may already be in xproflow</strong>
+          <strong>This may already be in Xproflow</strong>
           <ul className="plain" style={{ margin: "8px 0" }}>
             {dups.map((m) => (
               <li key={m.kind + m.key} style={{ marginBottom: 6 }}>

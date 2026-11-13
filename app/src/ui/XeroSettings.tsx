@@ -1,5 +1,5 @@
 // Settings › Xero: setting up the Xero app, choosing what to read, connecting, and linking each
-// Xero organisation to its client in Practice Planner.
+// Xero organisation to its client in Xproflow.
 import { useEffect, useRef, useState } from "react";
 import { Row } from "../lib/schema";
 import { getAccessToken } from "../lib/auth";
@@ -142,7 +142,7 @@ export function XeroSettings() {
       const blocked = c.refused.filter((s) => required.includes(s));
       if (blocked.length) {
         setBusy("");
-        setError(`Xero won't give this app ${blocked.join(", ")}, which Practice Planner needs. Check the app in the Xero developer portal (Configuration), or tick "My Xero app was made before 2 March 2026" below if it's an older app.`);
+        setError(`Xero won't give this app ${blocked.join(", ")}, which Xproflow needs. Check the app in the Xero developer portal (Configuration), or tick "My Xero app was made before 2 March 2026" below if it's an older app.`);
         return;
       }
       await saveSetting("xero.refused", c.refused);
@@ -201,7 +201,7 @@ export function XeroSettings() {
           </div>
         </div>
         <p className="muted" style={{ margin: 0 }}>
-          Reads a company's trial balance, nominal ledger, debtors and creditors, bank, VAT and payroll from Xero into its working papers. Practice Planner only reads from Xero; it never changes anything there.
+          Reads a company's trial balance, nominal ledger, debtors and creditors, bank, VAT and payroll from Xero into its working papers. Xproflow only reads from Xero; it never changes anything there.
         </p>
         {status?.configured === false && <div className="alert amber"><strong>Not set up yet</strong><span>The Xero app's client ID and secret need adding to Azure first. Follow the steps below.</span></div>}
         {busy && <p className="muted" role="status" style={{ margin: 0 }}>{busy}</p>}
@@ -225,7 +225,7 @@ export function XeroSettings() {
             {orgs.tenants.length === 0 ? <p className="muted" style={{ margin: 0 }}>None yet. Connect to Xero and tick the organisations to read.</p> : (
               <div className="table-wrap">
                 <table className="grid">
-                  <thead><tr><th scope="col">Xero organisation</th><th scope="col">Client in Practice Planner</th><th scope="col"><span className="sr-only">Remove</span></th></tr></thead>
+                  <thead><tr><th scope="col">Xero organisation</th><th scope="col">Client in Xproflow</th><th scope="col"><span className="sr-only">Remove</span></th></tr></thead>
                   <tbody>
                     {orgs.tenants.map((t) => (
                       <tr key={t.tenantId}>

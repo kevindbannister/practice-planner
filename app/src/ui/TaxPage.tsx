@@ -18,7 +18,6 @@ import { HmrcAccountDialog } from "./HmrcAccountImport";
 import { YEARS, ratesFor, yearEnd, yearLabel, yearOf } from "../lib/taxRates";
 import { Icon, href, useRoute } from "./bits";
 import { HmrcFilingPanel } from "./HmrcFiling";
-import { BannerMenu } from "./BannerMenu";
 import { useEditor } from "./Editors";
 import { useData, useIndex } from "./data";
 import type { Row } from "../lib/schema";
@@ -195,7 +194,6 @@ function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; yea
               {[...YEARS].reverse().map((y) => <option key={y.year} value={y.year}>{y.label}</option>)}
             </select>
           </label>
-          <BannerMenu />
         </div>
       </header>
       <PaperWriter key={year} client={c} period={yearEnd(year)}>

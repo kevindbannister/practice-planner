@@ -1,4 +1,4 @@
-// HMRC agent authorisation bridge for Practice Planner (VAT / Making Tax Digital, first).
+// HMRC agent authorisation bridge for Xproflow (VAT / Making Tax Digital, first).
 //
 // Uses HMRC's Agent Authorisation REST API (docs: github.com/hmrc/agent-authorisation-api). The
 // HMRC application's client ID and secret live in Azure settings (HMRC_CLIENT_ID, HMRC_CLIENT_SECRET)
@@ -237,7 +237,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     }
 
     if (!(await signedIn(req))) {
-      context.res = reply(401, { error: "sign-in", message: "Sign in to Practice Planner again." });
+      context.res = reply(401, { error: "sign-in", message: "Sign in to Xproflow again." });
       return;
     }
 

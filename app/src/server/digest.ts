@@ -61,7 +61,7 @@ export function digestFor(p: DigestPerson, d: DigestData, today: string): Digest
   }
   if (alerts.length) sections.push({ title: `Client KPI alerts (${alerts.length})`, items: alerts.slice(0, 25) });
   const count = sections.reduce((n, s) => n + s.items.length, 0);
-  return { to: p.email, name: p.name, subject: count ? `Practice Planner: ${count} thing${count === 1 ? "" : "s"} for today` : "Practice Planner: nothing due today", sections, count };
+  return { to: p.email, name: p.name, subject: count ? `Xproflow: ${count} thing${count === 1 ? "" : "s"} for today` : "Xproflow: nothing due today", sections, count };
 }
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

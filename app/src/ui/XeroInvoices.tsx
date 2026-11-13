@@ -63,7 +63,7 @@ export function XeroInvoices({ client }: { client: Client }) {
     return (
       <div className="card pad stack">
         <h2 className="sec-h">Invoices</h2>
-        <p className="muted" style={{ margin: 0 }}>{!connected ? "Xero isn't connected yet." : "Practice Planner doesn't know which Xero organisation is your own practice."} Connect Xero, then in the list of organisations choose <strong>Our own practice</strong> for yours. Invoices to this client are then read from it.</p>
+        <p className="muted" style={{ margin: 0 }}>{!connected ? "Xero isn't connected yet." : "Xproflow doesn't know which Xero organisation is your own practice."} Connect Xero, then in the list of organisations choose <strong>Our own practice</strong> for yours. Invoices to this client are then read from it.</p>
         <div><a className="btn primary" href={href("settings", "xero")}>Open Xero settings</a></div>
       </div>
     );

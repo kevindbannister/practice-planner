@@ -1,4 +1,4 @@
-// HMRC filing bridge for Practice Planner: the shared part for Self Assessment (SA100, SA800) and Corporation Tax (CT600) XML filing.
+// HMRC filing bridge for Xproflow: the shared part for Self Assessment (SA100, SA800) and Corporation Tax (CT600) XML filing.
 // The browser never sees HMRC credentials or talks to HMRC; it asks this, and this decides whether the request may go anywhere.
 //
 //   GET  /api/filing/info                                   -> { store, environments, services }   (what is set up and what is blocked, and why)
@@ -27,7 +27,7 @@ function createHandler({ fetch = globalThis.fetch, env = process.env, now = () =
     const path = String((context.bindingData && context.bindingData.path) || (req.params && req.params.path) || "").replace(/^\/+|\/+$/g, "");
     let ok = false;
     try { ok = await signedIn(req); } catch { ok = false; }
-    if (!ok) { context.res = reply(401, { error: "unauthorised", message: "Sign in to Practice Planner again." }); return; }
+    if (!ok) { context.res = reply(401, { error: "unauthorised", message: "Sign in to Xproflow again." }); return; }
     let st;
     try { st = await settingsFrom(env, store); } catch (e) { context.res = reply(502, { error: "failed", message: e.message }); return; }
     if (path === "info" && req.method === "GET") {

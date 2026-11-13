@@ -117,7 +117,7 @@ export function AddCompany({ onClose }: { onClose: () => void }) {
     <section className="card pad stack" aria-label="Add a company">
       <div className="row-wrap" style={{ justifyContent: "space-between" }}><h3 style={{ margin: 0 }}>Add a company</h3><button type="button" className="linkbtn" onClick={onClose}>Close</button></div>
       <div className="row-wrap" role="tablist" aria-label="How to add">
-        {([["ch", "From Companies House"], ["existing", "Existing XProFlow company"], ["manual", "Enter by hand"]] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={how === key} className={`btn${how === key ? " primary" : ""}`} onClick={() => { setHow(key); setMsg(undefined); setFound(null); }}>{label}</button>)}
+        {([["ch", "From Companies House"], ["existing", "Existing Xproflow company"], ["manual", "Enter by hand"]] as const).map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={how === key} className={`btn${how === key ? " primary" : ""}`} onClick={() => { setHow(key); setMsg(undefined); setFound(null); }}>{label}</button>)}
       </div>
       <div className="tl-form">
         {how === "existing" && <label className="doc-field"><span>Client</span><select className="input" value={existing} onChange={(e) => setExisting(e.target.value)}><option value="">Choose a company or LLP client…</option>{candidates.map((c) => <option key={s(c.Key)} value={s(c.Key)}>{s(c.Title)}</option>)}</select></label>}
@@ -136,7 +136,7 @@ export function AddCompany({ onClose }: { onClose: () => void }) {
         {how === "manual" && <button type="button" className="btn primary" disabled={busy} onClick={() => void create({ name, number, kind })}>Add company</button>}
         {how === "existing" && <button type="button" className="btn primary" disabled={busy || !existing} onClick={() => void useExisting()}>Add to Co Sec</button>}
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>A company that isn't a client yet is added to the prospect list (Sales › Leads) with its company number. It joins Co Sec when it becomes a client. Choosing "Existing XProFlow company" adds a current client straight to Co Sec.</p>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>A company that isn't a client yet is added to the prospect list (Sales › Leads) with its company number. It joins Co Sec when it becomes a client. Choosing "Existing Xproflow company" adds a current client straight to Co Sec.</p>
     </section>
   );
 }
