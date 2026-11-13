@@ -7,6 +7,8 @@ import { FAMILY_NAMES, FAMILY_ORDER, serviceSlot, svcClass } from "../lib/servic
 import { useIndex } from "./data";
 import { useEditor } from "./Editors";
 import { Icon, IconName } from "./bits";
+import { PlanCard, usePlanItems } from "./PlanTray";
+import { useCardFields } from "./CardOptions";
 
 /** Where each kind of work is done. */
 const FAMILY_PAGE: Record<number, string> = { 1: "#/papers", 2: "#/tax", 3: "#/cosec", 4: "#/papers", 5: "#/papers", 6: "#/payroll", 7: "#/tax", 0: "#/plan/deadlines" };
@@ -26,8 +28,18 @@ export function WorkHome() {
   const ready = jobs.filter((j) => j.RecordsReceived && !j.PlannedDate);
   const waiting = jobs.filter((j) => !j.RecordsReceived && j.RecordsExpected && String(j.RecordsExpected) < today);
 
-  const families = useMemo(() => FAMILY_ORDER.map((f) => {
-    const list = jobs.filter((j) => serviceSlot(j.ServiceKey) === f).sort(byDeadline);
+  // the planner's cards, with the same fields
+  const { items: planItems } = usePlanItems();
+  const [cardFields] = useCardFields();
+  const itemByKey = useMemo(() => new Map(planItems.map((i) => [i.key, i])), [planItems]);
+  // work with a statutory deadline only (not management accounts or bookkeeping, nor other work)
+  const STATUTORY = FAMILY_ORDER.filter((f) => f !== 0 && f !== 4);
+  // a job is listed once it has been started, or when it is due within 30 days (or late)
+  const started = (j: Job) => Number(j.StageNo || 1) > 1 || Number(j.ActualHours || 0) > 0;
+  const listed = (j: Job) => started(j) || (!!j.Deadline && j.Deadline <= in30);
+
+  const families = useMemo(() => STATUTORY.map((f) => {
+    const list = jobs.filter((j) => serviceSlot(j.ServiceKey) === f && listed(j)).sort(byDeadline);
     return { f, name: FAMILY_NAMES[f], list, late: list.filter((j) => jobState(j, today).state === "overdue").length, soon: list.filter((j) => j.Deadline && j.Deadline >= today && j.Deadline <= in30).length };
   }).filter((g) => g.list.length), [jobs, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -92,15 +104,22 @@ export function WorkHome() {
               <a href={FAMILY_PAGE[g.f]} style={{ fontSize: 13 }}>Open</a>
             </div>
             <p className="work-family-sum">
-              <span><strong>{g.list.length}</strong> open</span>
+              <span><strong>{g.list.length}</strong> started or due soon</span>
               <span className={g.soon ? "amber-text" : ""}><strong>{g.soon}</strong> due in 30 days</span>
               <span className={g.late ? "red-text" : ""}><strong>{g.late}</strong> late</span>
             </p>
-            <ul className="home-list">{g.list.slice(0, 5).map(row)}</ul>
-            {g.list.length > 5 && <p className="home-list more"><a href={FAMILY_PAGE[g.f]}>{g.list.length - 5} more</a></p>}
+            <div className="home-today-cards">
+              {g.list.slice(0, 6).map((j) => {
+                const item = itemByKey.get(j.Key);
+                return item
+                  ? <PlanCard key={j.Key} item={item} today={today} fields={cardFields} dragging={false} onOpen={() => open({ kind: "job", key: j.Key })} />
+                  : <ul key={j.Key} className="home-list">{row(j)}</ul>;
+              })}
+            </div>
+            {g.list.length > 6 && <p className="home-list more"><a href={FAMILY_PAGE[g.f]}>{g.list.length - 6} more</a></p>}
           </section>
         ))}
-        {!families.length && <section className="card"><p style={{ margin: 0, padding: 22 }}>No open client work.</p></section>}
+        {!families.length && <section className="card"><p style={{ margin: 0, padding: 22 }}>No statutory work started or due in the next 30 days.</p></section>}
       </div>
     </div>
   );

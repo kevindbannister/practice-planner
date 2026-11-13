@@ -3862,3 +3862,16 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
 .work-family-sum .red-text strong, .work-family-sum .red-text { color: var(--red-solid); }
 .work-family-sum .amber-text strong, .work-family-sum .amber-text { color: var(--amber-solid); }
 .work-home .home-hero .home-tiles { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+
+/* V29.8: in Work the client banner is part of the menu: a white band joined straight onto the navy bar, edge to
+   edge (on working papers and tax returns, their own banner does the same) */
+.work-client.paper-top { position: sticky; top: 60px; z-index: 19; margin: 0; border: 0; border-radius: 0; border-bottom: 1px solid var(--sep);
+  padding: 8px 28px; background: var(--surface); box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07); animation: none; }
+@media (max-width: 1100px) { .work-client.paper-top { margin: 0; } }
+@media (max-width: 720px) { .work-client.paper-top { position: relative; top: 0; margin: 0; padding: 8px 12px; } }
+@media (min-width: 721px) {
+  html[data-work] .paper-top:not(.work-client) { position: sticky; top: 0; margin: -10px calc(50% - 50vw) 18px; padding: 8px 28px; border: 0; border-radius: 0;
+    border-bottom: 1px solid var(--sep); background: var(--surface); box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07); }
+  html[data-work] .topbar.mode-work.scrolls { box-shadow: none; }
+}
+html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) { background: color-mix(in srgb, var(--navy) 7%, transparent); border-color: transparent; }

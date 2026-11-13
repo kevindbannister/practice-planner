@@ -218,6 +218,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const mode = useMode(section);
   const work = toggle && mode === "work";
   useEffect(() => { rememberPage(section); }, [section, routeKey]);
+  useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   const { save, user } = useData();
   const quick = useQuickAdd();
   const chase = useChaseCount();
