@@ -1,7 +1,7 @@
 // The month calendar of the plan: for each day, what is planned on it, how many hours that is against the hours available, and what is due. Pure, so it can be tested.
 import { addDays, mondayOf } from "./planning";
 
-export type MonthItem = { key: string; kind: "job" | "task"; title: string; client: string; serviceKey?: string; hours: number; planned: string; deadline: string; statutory: boolean; held: boolean; done: boolean; doneOn: string };
+export type MonthItem = { key: string; kind: "job" | "task"; title: string; client: string; serviceKey?: string; hours: number; planned: string; deadline: string; statutory: boolean; held: boolean; done: boolean; doneOn: string; /** the end of the period a job is for, if it has one */ period?: string };
 export type Cell = { date: string; inMonth: boolean; today: boolean; weekend: boolean; planned: MonthItem[]; due: MonthItem[]; done: MonthItem[]; plannedHours: number; capacity: number; over: boolean };
 export type Show = "all" | "statutory" | "other";
 
@@ -33,9 +33,24 @@ export function buildMonth(key: string, items: MonthItem[], capacityOn: (date: s
   return { weeks, totals: { planned: Math.round(inMonth.reduce((t, c) => t + c.plannedHours, 0) * 100) / 100, capacity: Math.round(inMonth.reduce((t, c) => t + c.capacity, 0) * 100) / 100, due: dueItems.length, unplanned: dueItems.filter((i) => !i.planned).length } };
 }
 
-/** Work with no planned day yet (not held, not finished), earliest deadline first, then the ones with no deadline. Follows the same statutory / other filter as the calendar. */
-export function unplannedOf(items: MonthItem[], show: Show = "all", search = ""): MonthItem[] {
+export type DueFilter = "all" | "overdue" | "30" | "90" | "none";
+export type UnplannedFilter = { due?: DueFilter; type?: string; client?: string };
+/** The kind of work an item is, for filtering: tasks together, jobs by service. */
+export const typeOf = (i: MonthItem): string => (i.kind === "task" ? "TASK" : i.serviceKey || "OTHER");
+const gap = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / 86400000);
+
+/** Work with no planned day yet (not held, not finished), earliest deadline first, then the ones with no deadline. Follows the same statutory / other filter as the calendar, and can be narrowed by when it is due, what kind of work it is and which client. */
+export function unplannedOf(items: MonthItem[], show: Show = "all", search = "", f: UnplannedFilter = {}, today = ""): MonthItem[] {
   const q = search.trim().toLowerCase();
-  return items.filter((i) => !i.planned && !i.done && !i.held && (show === "all" || (show === "statutory") === i.statutory) && (!q || `${i.client} ${i.title}`.toLowerCase().includes(q)))
+  const dueOk = (i: MonthItem) => {
+    switch (f.due) {
+      case "overdue": return !!i.deadline && !!today && i.deadline < today;
+      case "30": return !!i.deadline && !!today && gap(i.deadline, today) <= 30;
+      case "90": return !!i.deadline && !!today && gap(i.deadline, today) <= 90;
+      case "none": return !i.deadline;
+      default: return true;
+    }
+  };
+  return items.filter((i) => !i.planned && !i.done && !i.held && (show === "all" || (show === "statutory") === i.statutory) && (!q || `${i.client} ${i.title}`.toLowerCase().includes(q)) && dueOk(i) && (!f.type || typeOf(i) === f.type) && (!f.client || i.client === f.client))
     .sort((a, b) => (a.deadline || "9999").localeCompare(b.deadline || "9999") || a.client.localeCompare(b.client));
 }

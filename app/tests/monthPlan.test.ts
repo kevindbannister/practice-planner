@@ -28,3 +28,22 @@ test("unplanned: only open, unheld, unplanned work, earliest deadline first, und
   assert.deepEqual(unplannedOf(list, "statutory").map((i) => i.key), ["b", "a"]); assert.deepEqual(unplannedOf(list, "other").map((i) => i.key), ["c"]);
   assert.deepEqual(unplannedOf(list, "all", "zed").map((i) => i.key), ["a"]);
 });
+
+test("the unplanned list can be narrowed by deadline, type of work and client", async () => {
+  const { unplannedOf } = await import("../src/lib/monthPlan");
+  const mk = (o: any) => ({ key: o.key, kind: o.kind || "job", title: "T", client: o.client, serviceKey: o.serviceKey, hours: 1, planned: "", deadline: o.deadline || "", statutory: true, held: false, done: false, doneOn: "" });
+  const items: any[] = [
+    mk({ key: "a", client: "Acme", serviceKey: "ACCS_LTD", deadline: "2026-11-01" }),
+    mk({ key: "b", client: "Beta", serviceKey: "CS01", deadline: "2026-11-30" }),
+    mk({ key: "c", client: "Acme", kind: "task" }),
+    mk({ key: "d", client: "Beta", serviceKey: "ACCS_LTD", deadline: "2027-06-01" }),
+  ];
+  const ids = (f: any) => unplannedOf(items, "all", "", f, "2026-11-13").map((i) => i.key);
+  assert.deepEqual(ids({}), ["a", "b", "d", "c"]);
+  assert.deepEqual(ids({ due: "overdue" }), ["a"]);
+  assert.deepEqual(ids({ due: "30" }), ["a", "b"]);
+  assert.deepEqual(ids({ due: "none" }), ["c"]);
+  assert.deepEqual(ids({ type: "ACCS_LTD" }), ["a", "d"]);
+  assert.deepEqual(ids({ type: "TASK" }), ["c"]);
+  assert.deepEqual(ids({ client: "Acme", due: "overdue" }), ["a"]);
+});

@@ -971,7 +971,7 @@ function PlanCard({
   const head = showClient ? i.client : on("job") || !i.client ? i.title : i.client;
   const sub = [
     showClient && on("job") ? i.title : "",
-    on("period") && job?.PeriodEnd ? `to ${fmtDate(job.PeriodEnd, { year: false })}` : "",
+    on("period") && job?.PeriodEnd ? `Period to ${fmtDate(job.PeriodEnd)}` : "",
   ].filter(Boolean).join(" · ");
   const flags = on("flags") && !i.done && (i.urgent || (!i.held && (st.state === "overdue" || st.state === "tight")) || (i.planned && i.planned < today));
   const showDeadline = on("deadline") && !!i.deadline;

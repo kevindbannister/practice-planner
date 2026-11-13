@@ -3,7 +3,7 @@ import { KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useSta
 import { Job, Task, fmtDate, fmtHours, isOnHold, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { dayHours } from "../lib/dayTypes";
-import { MonthItem, Show, buildMonth, monthKey, shiftMonth, unplannedOf } from "../lib/monthPlan";
+import { DueFilter, MonthItem, Show, buildMonth, monthKey, shiftMonth, typeOf, unplannedOf } from "../lib/monthPlan";
 import { isBusinessTask } from "../lib/projects";
 import { svcClass } from "../lib/serviceColour";
 import { planHours } from "../lib/waiting";
@@ -23,11 +23,14 @@ function useNarrow(q = "(max-width: 720px)") { const get = () => typeof matchMed
 export function MonthView() {
   const { data, settings, update } = useData(); const idx = useIndex(); const { open } = useEditor(); const today = todayIso(); const narrow = useNarrow();
   const [month, setMonth] = useState(monthKey(today)); const [show, setShow] = useState<Show>("all");
+  // Saturdays and Sundays are hidden unless asked for; the choice is remembered on this device
+  const [weekends, setWeekends] = useState(() => { try { return localStorage.getItem("pp.month.weekends") === "1"; } catch { return false; } });
+  const toggleWeekends = () => setWeekends((w) => { const n = !w; try { localStorage.setItem("pp.month.weekends", n ? "1" : "0"); } catch { /* not remembered */ } return n; });
   const items: MonthItem[] = useMemo(() => {
     const out: MonthItem[] = [];
     for (const j of data.jobs as Job[]) {
       const done = j.Status === "Complete"; if (!done && (j.Status === "Cancelled")) continue;
-      out.push({ key: j.Key, kind: "job", title: j.Title, client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "", serviceKey: j.ServiceKey, hours: planHours(j, data.services), planned: String(j.PlannedDate || "").slice(0, 10), deadline: String(j.Deadline || "").slice(0, 10), statutory: isStatutory(data.services.find((x) => x.Key === j.ServiceKey), j.ServiceKey), held: !done && isOnHold(j), done, doneOn: done ? String(j.CompletedDate || j.PlannedDate || "").slice(0, 10) : "" });
+      out.push({ key: j.Key, kind: "job", title: j.Title, client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "", serviceKey: j.ServiceKey, hours: planHours(j, data.services), planned: String(j.PlannedDate || "").slice(0, 10), deadline: String(j.Deadline || "").slice(0, 10), statutory: isStatutory(data.services.find((x) => x.Key === j.ServiceKey), j.ServiceKey), held: !done && isOnHold(j), done, doneOn: done ? String(j.CompletedDate || j.PlannedDate || "").slice(0, 10) : "", period: String(j.PeriodEnd || "").slice(0, 10) || undefined });
     }
     for (const t of data.tasks as Task[]) {
       const done = t.Status === "Done"; if (!done && (t.Status === "Cancelled")) continue;
@@ -59,21 +62,40 @@ export function MonthView() {
   const cap = (d: string) => { const h = dayHours(d, settings); return h.client + h.business; };
   const m = useMemo(() => buildMonth(month, items, cap, today, show), [month, items, settings, today, show]); // eslint-disable-line react-hooks/exhaustive-deps
   const [search, setSearch] = useState("");
-  const unplanned = useMemo(() => unplannedOf(items, show, search), [items, show, search]);
+  const [due, setDue] = useState<DueFilter>("all"); const [type, setType] = useState(""); const [clientF, setClientF] = useState("");
+  const base = useMemo(() => unplannedOf(items, show, search, {}, today), [items, show, search, today]); // what the filters below choose from
+  const typeName = (k: string) => (k === "TASK" ? "Tasks" : (data.services.find((s) => s.Key === k)?.Title as string) || k);
+  const typeOpts = useMemo(() => Array.from(new Set<string>(base.map(typeOf))).sort((a, b) => typeName(a).localeCompare(typeName(b))), [base, data.services]); // eslint-disable-line react-hooks/exhaustive-deps
+  const clientOpts = useMemo(() => Array.from(new Set<string>(base.map((i) => i.client).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [base]);
+  const unplanned = useMemo(() => unplannedOf(items, show, search, { due, type, client: clientF }, today), [items, show, search, due, type, clientF, today]);
+  const filtered = due !== "all" || !!type || !!clientF;
+  const hiddenWeekend = useMemo(() => m.weeks.flat().filter((c) => c.weekend && c.inMonth).reduce((t, c) => t + c.planned.length, 0), [m]);
   const goWeek = (date: string) => { try { sessionStorage.setItem("pp.plan.jump", date); } catch { /* the Week view opens on this week instead */ } window.location.hash = "#/plan"; };
   const openItem = (i: MonthItem) => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key });
   const chip = (i: MonthItem) => (
-    <button key={i.key} type="button" className={`month-item${dragKey === i.key ? " dragging" : ""}`} {...(i.done || i.held ? {} : cardProps(i.key))} onKeyDown={(e) => keyMove(i, e)} onClick={(e) => { e.stopPropagation(); openItem(i); }} title={`${i.client ? i.client + ": " : ""}${i.title} · ${fmtHours(i.hours)}`}>
-      <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" />{i.client || i.title}<span className="muted"> {fmtHours(i.hours)}</span>
+    <button key={i.key} type="button" className={`month-item${dragKey === i.key ? " dragging" : ""}`} {...(i.done || i.held ? {} : cardProps(i.key))} onKeyDown={(e) => keyMove(i, e)} onClick={(e) => { e.stopPropagation(); openItem(i); }} title={`${i.client ? i.client + ": " : ""}${i.title}${i.period ? ` · period to ${fmtDate(i.period)}` : ""} · ${fmtHours(i.hours)}`}>
+      <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" />{i.client || i.title}<span className="muted"> {fmtHours(i.hours)}</span>{i.period && <span className="muted month-period"> · to {fmtDate(i.period, { year: false })}</span>}
     </button>
   );
   const panel = (
     <aside className={`month-tray${dropTarget === "tray" ? " drop" : ""}`} aria-label="Unplanned work" data-drop="tray">
       <div className="row" style={{ justifyContent: "space-between", gap: 8 }}><strong>Unplanned <span className="muted">({unplanned.length})</span></strong></div>
       <input className="input" type="search" placeholder="Search" aria-label="Search unplanned work" value={search} onChange={(e) => setSearch(e.target.value)} style={{ minHeight: 34, margin: "8px 0" }} />
+      <div className="row-wrap" style={{ gap: 6, margin: "0 0 8px" }} role="group" aria-label="Filter unplanned work">
+        <select className="input" aria-label="Due" value={due} onChange={(e) => setDue(e.target.value as DueFilter)} style={{ minHeight: 32, padding: "2px 6px", fontSize: 13, width: "auto" }}>
+          <option value="all">Any deadline</option><option value="overdue">Overdue</option><option value="30">Due in 30 days</option><option value="90">Due in 90 days</option><option value="none">No deadline</option>
+        </select>
+        <select className="input" aria-label="Type of work" value={type} onChange={(e) => setType(e.target.value)} style={{ minHeight: 32, padding: "2px 6px", fontSize: 13, width: "auto", maxWidth: 170 }}>
+          <option value="">All types</option>{typeOpts.map((k) => <option key={k} value={k}>{typeName(k)}</option>)}
+        </select>
+        <select className="input" aria-label="Client" value={clientF} onChange={(e) => setClientF(e.target.value)} style={{ minHeight: 32, padding: "2px 6px", fontSize: 13, width: "auto", maxWidth: 170 }}>
+          <option value="">All clients</option>{clientOpts.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        {filtered && <button type="button" className="linkbtn" onClick={() => { setDue("all"); setType(""); setClientF(""); }}>Clear filters</button>}
+      </div>
       <p className="muted" style={{ fontSize: 12, margin: "0 0 8px" }}>{narrow ? "Pick a day for each." : "Drag onto a day to plan it. Drop a planned item here to take it off the plan."}</p>
       <div className="month-tray-list">
-        {unplanned.length === 0 && <p className="muted">{search ? "Nothing matches." : "Everything is planned."}</p>}
+        {unplanned.length === 0 && <p className="muted">{search || filtered ? "Nothing matches." : "Everything is planned."}</p>}
         {unplanned.map((i) => {
           const late = i.deadline && i.deadline < today;
           return (
@@ -81,6 +103,7 @@ export function MonthView() {
               <button type="button" className="month-un-main" onClick={() => openItem(i)}>
                 <span><span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" /> <strong>{i.client || i.title}</strong></span>
                 <span className="muted">{i.client ? `${i.title} · ` : ""}{fmtHours(i.hours)}</span>
+                {i.period && <span className="muted">Period to {fmtDate(i.period)}</span>}
                 <span className={late ? "month-late" : "muted"}>{i.deadline ? `${late ? "Late: " : "Due "}${fmtDate(i.deadline, { year: false })}` : "No deadline"}</span>
               </button>
               {narrow && <input className="input" type="date" aria-label={`Plan ${i.client || i.title} for a day`} value="" style={{ width: "auto", minHeight: 32, padding: "2px 6px", fontSize: 12 }} onChange={(e) => void move(i.key, e.target.value)} />}
@@ -90,7 +113,7 @@ export function MonthView() {
       </div>
     </aside>
   );
-  const cellsWithContent = m.weeks.flat().filter((c) => c.inMonth && (c.planned.length || c.due.length || c.done.length));
+  const cellsWithContent = m.weeks.flat().filter((c) => c.inMonth && (weekends || !c.weekend) && (c.planned.length || c.due.length || c.done.length));
   return (
     <div className="page">
       <PlanTabs current="month" />
@@ -104,6 +127,7 @@ export function MonthView() {
         <div className="seg" role="group" aria-label="Show">
           {([["all", "All work"], ["statutory", "Statutory"], ["other", "Other"]] as [Show, string][]).map(([k, l]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => setShow(k)}>{l}</button>)}
         </div>
+        <button type="button" className="btn small" aria-pressed={weekends} onClick={toggleWeekends} title={weekends ? "Hide Saturdays and Sundays" : "Show Saturdays and Sundays"}>{weekends ? "Hide weekends" : `Show weekends${hiddenWeekend ? ` (${hiddenWeekend} planned)` : ""}`}</button>
         <span className="muted">{fmtHours(m.totals.planned) || "0h"} planned of {fmtHours(m.totals.capacity) || "0h"} available · {m.totals.due} due{m.totals.unplanned ? `, ${m.totals.unplanned} not planned yet` : ""}</span>
       </div>
       <div className="month-layout">
@@ -123,11 +147,11 @@ export function MonthView() {
       ) : (
         <table className="month-grid">
           <caption className="sr-only">Plan for {monthName(month)}</caption>
-          <thead><tr>{WEEKDAYS.map((d) => <th key={d} scope="col">{d}</th>)}</tr></thead>
+          <thead><tr>{WEEKDAYS.filter((_, n) => weekends || n < 5).map((d) => <th key={d} scope="col">{d}</th>)}</tr></thead>
           <tbody>
             {m.weeks.map((w, wi) => (
               <tr key={wi}>
-                {w.map((c) => {
+                {w.filter((c) => weekends || !c.weekend).map((c) => {
                   const pct = c.capacity ? Math.min(100, Math.round((c.plannedHours / c.capacity) * 100)) : c.plannedHours ? 100 : 0;
                   return (
                     <td key={c.date} data-drop={c.date} className={`month-cell${dropTarget === c.date ? " drop" : ""}${c.inMonth ? "" : " out"}${c.today ? " today" : ""}${c.weekend ? " weekend" : ""}${c.over ? " over" : ""}`} onClick={() => goWeek(c.date)}>
