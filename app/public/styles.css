@@ -3742,3 +3742,25 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
 .home-list > li > .work-row:hover strong { text-decoration: none; }
 .svc-group .home-list > li { margin: 0 12px; }
 .svc-group .home-list > li:first-child { border-top-color: color-mix(in srgb, var(--svc) 24%, transparent); }
+
+/* V29.2: work colours without the coloured strip or dot on the left, in deeper tints; Today on Home as planner cards
+   in a narrower column */
+.pcard[class*="svc-"], .job[class*="svc-"], .work-row[class*="svc-"] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--svc) 26%, transparent), color-mix(in srgb, var(--svc) 16%, transparent)), var(--surface);
+  border: 1px solid color-mix(in srgb, var(--svc) 38%, transparent);
+}
+.pcard.planned-late, .month-item.planned-late { box-shadow: none; }
+.pcard.planned-late[class*="svc-"], .pcard.planned-late { border: 1.5px solid var(--red-solid); }
+.month-item[class*="svc-"] { background: color-mix(in srgb, var(--svc) 22%, transparent); }
+.month-item[class*="svc-"]:hover, .month-item[class*="svc-"]:focus-visible { background: color-mix(in srgb, var(--svc) 32%, transparent); }
+.month-item.planned-late { outline: 1.5px solid var(--red-solid); outline-offset: -1px; }
+.svc-group { border: 1px solid color-mix(in srgb, var(--svc) 38%, transparent); border-left-width: 1px; border-radius: 14px; background: linear-gradient(180deg, color-mix(in srgb, var(--svc) 24%, transparent), color-mix(in srgb, var(--svc) 12%, transparent)), var(--surface); }
+.svc-group .svc-dot, .work-row .svc-dot { display: none; }
+.hblock { border: 1px solid color-mix(in srgb, var(--svc, var(--muted)) 38%, transparent); background: color-mix(in srgb, var(--svc, var(--muted)) 24%, var(--surface)); }
+.hblock.task { border: 1px dashed var(--line-strong); background: var(--surface); }
+.hblock.prepared { border: 1px dashed color-mix(in srgb, var(--green) 60%, transparent); background: transparent; }
+.home-g2 > .card:first-child { flex: 1 1 340px; }
+.home-g2 > .card:last-child { flex: 1.5 1 420px; }
+.card[aria-labelledby="today-h"] .home-list { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }
+.card[aria-labelledby="today-h"] .work-row { margin: 0; width: 100%; flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 14px; border-radius: 14px; }
+.card[aria-labelledby="today-h"] .work-row > .row-wrap { justify-content: space-between !important; }

@@ -177,7 +177,7 @@ export function HomePage() {
       <div className="home-g2">
         <section className="card" aria-labelledby="today-h">
           <div className="card-head">
-            <h2 className="with-icon" id="today-h"><span className="h-icon hue-blue" aria-hidden="true"><Icon name="plan" size={15} /></span>Today</h2>
+            <h2 className="with-icon" id="today-h">Today</h2>
             <a href="#/plan/today" style={{ fontSize: 13 }}>Start my day</a>
           </div>
           {todays.length ? (
@@ -192,7 +192,7 @@ export function HomePage() {
           )}
         </section>
         <section className="card" aria-labelledby="att-h">
-          <div className="card-head"><h2 className="with-icon" id="att-h"><span className="h-icon hue-red" aria-hidden="true"><Icon name="flag" size={15} /></span>Needs a decision</h2></div>
+          <div className="card-head"><h2 className="with-icon" id="att-h">Needs a decision</h2></div>
           <ul className="home-list attention">
             {late.slice(0, 4).map((w) => (
               <li key={w.key}><button type="button" onClick={() => openWork(w)}>
@@ -260,7 +260,7 @@ export function HomePage() {
 
         <section className="card" aria-labelledby="soon-h">
           <div className="card-head">
-            <h2 className="with-icon" id="soon-h"><span className="h-icon hue-amber" aria-hidden="true"><Icon name="clock" size={15} /></span>Due in the next 14 days</h2>
+            <h2 className="with-icon" id="soon-h">Due in the next 14 days</h2>
             <a href="#/plan/deadlines" style={{ fontSize: 13 }}>All deadlines</a>
           </div>
           {byDay.size ? (
@@ -283,7 +283,7 @@ export function HomePage() {
       <div className="home-g3">
         <section className="card pad stack" aria-labelledby="week-h">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-            <h2 className="with-icon" id="week-h"><span className="h-icon hue-violet" aria-hidden="true"><Icon name="chart" size={15} /></span>This week</h2>
+            <h2 className="with-icon" id="week-h">This week</h2>
             <a href="#/plan" style={{ fontSize: 13 }}>Plan</a>
           </div>
           <div className="weekbars" role="list" aria-label="Hours planned each day this week">
@@ -308,7 +308,7 @@ export function HomePage() {
         </section>
         <section className="card pad stack" aria-labelledby="mon-h">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-            <h2 className="with-icon" id="mon-h"><span className="h-icon hue-aqua" aria-hidden="true"><Icon name="chart" size={15} /></span>Next 6 months</h2>
+            <h2 className="with-icon" id="mon-h">Next 6 months</h2>
             <a href="#/plan/months" style={{ fontSize: 13 }}>Months ahead</a>
           </div>
           <ul className="minimonths">
@@ -330,7 +330,7 @@ export function HomePage() {
           <p className="muted" style={{ margin: 0, fontSize: 13 }}>Hours due each month as a share of the hours you have (the line), including next periods of recurring work.</p>
         </section>
         <section className="card" aria-labelledby="type-h">
-          <div className="card-head"><h2 className="with-icon" id="type-h"><span className="h-icon hue-green" aria-hidden="true"><Icon name="list" size={15} /></span>Open work by type</h2><span className="muted" style={{ fontSize: 13 }}>{active.length} open</span></div>
+          <div className="card-head"><h2 className="with-icon" id="type-h">Open work by type</h2><span className="muted" style={{ fontSize: 13 }}>{active.length} open</span></div>
           <div className="table-wrap">
             <table className="grid">
               <thead><tr><th scope="col">Type of work</th><th scope="col" className="num">Open</th><th scope="col" className="num">Due in 30 days</th><th scope="col" className="num">Late</th></tr></thead>

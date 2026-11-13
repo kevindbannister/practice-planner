@@ -64,7 +64,7 @@ export function TimeToLog() {
   return (
     <section className="card timelog" aria-labelledby="timelog-h">
       <div className="card-head">
-        <h2 className="with-icon" id="timelog-h"><span className="h-icon hue-amber" aria-hidden="true"><Icon name="clock" size={15} /></span>Time to log</h2>
+        <h2 className="with-icon" id="timelog-h">Time to log</h2>
         <a href="#/plan/done" style={{ fontSize: 13 }}>All completed work</a>
       </div>
       <p className="muted" style={{ margin: "0 0 8px", fontSize: 13, padding: "0 16px" }}>
