@@ -3951,3 +3951,26 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 }
 :root[data-theme="dark"] .paper-page .paper { background: #0d1828; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .paper-page .paper { background: #0d1828; } }
+
+/* V30.3: working papers closer to the reference. The grey panel and white sheet start straight under the client
+   banner (no strip of page showing between), the section list is wider with plain group names and no icons, an empty
+   box under the heading is hidden, and schedules use the full width of the sheet. */
+@media (min-width: 801px) {
+  .paper-page { padding-top: 0; }
+  .paper-page .paper-top { margin-bottom: 0; }
+  html[data-work] .paper-page .paper-top:not(.work-client) { margin-bottom: 0; }
+  .paper-page .paper { grid-template-columns: 300px minmax(0, 1fr); margin-top: 0; }
+  .paper-page .paper-split-main > div > .paper { margin-top: 0; }
+  .paper-page .paper-side { max-width: none; width: 300px; top: 56px; max-height: calc(100vh - 56px); scrollbar-width: thin; }
+  .paper-page .paper-main { border-top-left-radius: 28px; margin-top: 12px; }
+}
+.paper-side .paper-group-name { text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 700; color: var(--ink); gap: 8px; }
+.paper-side .paper-group-name > span[aria-hidden] { color: var(--ink-2); width: 14px; display: inline-block; }
+.paper-side .paper-ico { display: none; }
+.paper-side .paper-item { font-size: 14.5px; padding: 8px 10px 8px 26px !important; }
+.paper-side .paper-item.on { font-weight: 700; }
+.paper-side .paper-group-n { margin-left: auto; font-weight: 600; }
+.paper-side-head { padding: 0 6px 10px; }
+.wp-body > .card.pad:empty { display: none; }
+.wp-body .lead-main:only-child, .wp-body .asset-main:only-child { max-width: none; flex: 1 1 auto; }
+.wp-body .lead-split { width: 100%; }
