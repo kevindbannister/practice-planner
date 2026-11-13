@@ -1,7 +1,7 @@
 // The month calendar of the plan: for each day, what is planned on it, how many hours that is against the hours available, and what is due. Pure, so it can be tested.
 import { addDays, mondayOf } from "./planning";
 
-export type MonthItem = { key: string; kind: "job" | "task"; title: string; client: string; serviceKey?: string; hours: number; planned: string; deadline: string; statutory: boolean; held: boolean; done: boolean; doneOn: string; /** the end of the period a job is for, if it has one */ period?: string };
+export type MonthItem = { key: string; kind: "job" | "task"; title: string; client: string; serviceKey?: string; hours: number; planned: string; deadline: string; statutory: boolean; held: boolean; done: boolean; doneOn: string; /** the end of the period a job is for, if it has one */ period?: string; /** planned after its deadline: how many days late */ lateBy?: number };
 export type Cell = { date: string; inMonth: boolean; today: boolean; weekend: boolean; planned: MonthItem[]; due: MonthItem[]; done: MonthItem[]; plannedHours: number; capacity: number; over: boolean };
 export type Show = "all" | "statutory" | "other";
 

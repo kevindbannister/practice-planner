@@ -8,7 +8,7 @@ import { WorkReports } from "./WorkReports";
 import { MonthView } from "./MonthView";
 import React, { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, holdAlert, holdLabel, isOnHold, jobState, resumePatch, todayIso } from "../lib/domain";
-import { addDays, mondayOf, weekday } from "../lib/planning";
+import { addDays, latestInTime, mondayOf, plannedLate, weekday } from "../lib/planning";
 import { dayHours, usualTypeKey } from "../lib/dayTypes";
 import { Icon, PlanSection, PlanTabs, useRoute } from "./bits";
 import { elementsUrl } from "../lib/elements";
@@ -220,6 +220,11 @@ function WeekView() {
   const missed = visible
     .filter((i) => i.planned && i.planned < today)
     .sort((a, b) => String(a.planned).localeCompare(String(b.planned)) || (a.deadline || "9999").localeCompare(b.deadline || "9999"));
+  // planned for a day after the deadline, so it would be late
+  const lateItems = visible
+    .filter((i) => !i.held && !i.done && plannedLate(i.row))
+    .sort((a, b) => String(plannedLate(a.row)!.deadline).localeCompare(plannedLate(b.row)!.deadline));
+  const [lateOpen, setLateOpen] = useState(true);
   const [missedOpen, setMissedOpen] = useState(true);
   const [unplanning, setUnplanning] = useState(false);
 
@@ -436,7 +441,7 @@ function WeekView() {
         key: i.key, title: i.title, client: i.client, tag: i.tag, hours: i.hours, task: i.kind === "task",
         svc: i.compliance ? svcClass((i.row as Job).ServiceKey) : "task", start: (i.row.StartTime as string) || undefined,
         biz: i.business, cat: i.cat,
-        flags: [st === "overdue" ? "late" : st === "tight" ? "tight" : "", i.urgent ? "urgent" : ""].filter(Boolean),
+        flags: [st === "overdue" ? "late" : st === "tight" ? "tight" : "", i.urgent ? "urgent" : "", !i.done && !i.held && plannedLate(i.row) ? "afterdue" : ""].filter(Boolean),
         subtasks: subs.total ? `${subs.done}/${subs.total} subtasks` : undefined,
         ...extra,
       };
@@ -676,6 +681,35 @@ function WeekView() {
                 ))}
               </ul>
             </>
+          )}
+        </section>
+      )}
+
+      {lateItems.length > 0 && (
+        <section className="missed-box late-box" aria-labelledby="late-h">
+          <div className="missed-head">
+            <button type="button" className="missed-toggle" aria-expanded={lateOpen} onClick={() => setLateOpen(!lateOpen)}>
+              <span aria-hidden="true">{lateOpen ? "▾" : "▸"}</span>
+              <span id="late-h"><strong>⚠ {lateItems.length} planned after {lateItems.length === 1 ? "its" : "their"} deadline</strong></span>
+            </button>
+          </div>
+          {lateOpen && (
+            <ul className="missed-list">
+              {lateItems.map((i) => {
+                const l = plannedLate(i.row)!;
+                const target = latestInTime(l.deadline, today);
+                return (
+                  <li key={i.key}>
+                    <button type="button" className="missed-item" onClick={() => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key })}>
+                      <span className="missed-when">{fmtDate(l.planned, { weekday: true, year: false })}</span>
+                      <span className="missed-what"><strong>{i.client || i.title}</strong>{i.client ? <span className="muted"> · {i.title}</span> : null}</span>
+                      <span className="missed-meta muted">due {fmtDate(l.deadline, { weekday: true, year: false })} · planned {l.days} day{l.days === 1 ? "" : "s"} after</span>
+                    </button>
+                    <button type="button" className="linkbtn" onClick={() => void move(i.key, target)}>Move to {fmtDate(target, { weekday: true, year: false })}</button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </section>
       )}

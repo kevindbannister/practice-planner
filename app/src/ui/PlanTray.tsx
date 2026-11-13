@@ -1,7 +1,7 @@
 // The tray of unplanned work, shared by the Week view and the Month view so they list, filter and show the same cards.
 import React, { PointerEvent as ReactPointerEvent, ReactNode, useMemo, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, holdAlert, holdLabel, isOnHold, jobState } from "../lib/domain";
-import { addDays } from "../lib/planning";
+import { addDays, plannedLate } from "../lib/planning";
 import { Icon } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { categoryOf, isBusinessTask } from "../lib/projects";
@@ -72,12 +72,13 @@ export function PlanCard({
     on("period") && job?.PeriodEnd ? `Period to ${fmtDate(job.PeriodEnd)}` : "",
   ].filter(Boolean).join(" · ");
   const flags = on("flags") && !i.done && (i.urgent || (!i.held && (st.state === "overdue" || st.state === "tight")) || (i.planned && i.planned < today));
+  const late = !i.done ? plannedLate(i.row) : null; // planned for a day after its deadline
   const showDeadline = on("deadline") && !!i.deadline;
   return (
     <button
       type="button"
       style={i.business ? ({ ["--cat" as string]: i.cat } as React.CSSProperties) : undefined}
-      className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.business ? " biz" : ""}${i.done ? " done" : ""}${i.held ? " held" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}${!i.done && !i.held && i.planned && i.planned < today ? " missed" : ""}`}
+      className={`pcard ${i.compliance ? svcClass((i.row as Job).ServiceKey) : "task"}${i.business ? " biz" : ""}${i.done ? " done" : ""}${i.held ? " held" : ""}${late ? " planned-late" : ""}${dragging ? " dragging" : ""}${suggested !== undefined ? " suggested" : ""}${!i.done && !i.held && i.planned && i.planned < today ? " missed" : ""}`}
       {...(dragProps || {})}
       {...(onDay ? { "data-card": i.key } : {})}
       onClick={onOpen}
@@ -139,6 +140,7 @@ export function PlanCard({
           {(i.row.HoldReason as string) && <span style={{ fontSize: 12 }}>{i.row.HoldReason as string}</span>}
         </span>
       )}
+      {late && <span className="pcard-foot"><span className="chip red" title={`Planned for ${fmtDate(late.planned, { weekday: true, year: false })}, but due ${fmtDate(late.deadline, { weekday: true, year: false })}`}>Planned {late.days}d after the deadline</span></span>}
       {(showDeadline || flags) && (
         <span className="pcard-foot">
           {showDeadline && <span className="mono" style={{ fontSize: 12 }}>Due {fmtDate(i.deadline!, { year: i.deadline!.slice(0, 4) !== today.slice(0, 4) })}</span>}

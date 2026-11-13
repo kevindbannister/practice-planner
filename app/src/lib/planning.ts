@@ -185,6 +185,24 @@ export function describeRule(r: Rule): string {
   return `${every} · ${due}`;
 }
 
+const isoDay = (v: unknown): string => { const s = String(v ?? "").slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ""; };
+/** The date work has to be done by: the earliest of the planner's deadline, Companies House's deadline and a task's due date. "" if there is none. */
+export function effectiveDeadline(row: { Deadline?: unknown; CHDeadline?: unknown; DueDate?: unknown }): string {
+  return [isoDay(row.Deadline), isoDay(row.CHDeadline), isoDay(row.DueDate)].filter(Boolean).sort()[0] || "";
+}
+/** An open job or task planned for a day after its deadline (so it would be late), with how many days late. Null when it is planned in time or has no planned day or deadline. */
+export function plannedLate(row: { PlannedDate?: unknown; Deadline?: unknown; CHDeadline?: unknown; DueDate?: unknown }): { planned: string; deadline: string; days: number } | null {
+  const planned = isoDay(row.PlannedDate), deadline = effectiveDeadline(row);
+  if (!planned || !deadline || planned <= deadline) return null;
+  return { planned, deadline, days: Math.round((Date.parse(planned) - Date.parse(deadline)) / 86400000) };
+}
+/** The latest working day on or before the deadline that is not in the past: where late-planned work can go. If the deadline has passed, the next working day from today (it is late either way). */
+export function latestInTime(deadline: string, today: string): string {
+  let d = deadline < today ? today : deadline;
+  while (weekday(d) > 5) d = deadline < today ? addDays(d, 1) : addDays(d, -1);
+  return d < today ? today : d;
+}
+
 /** The working day (Monday to Friday) `n` working days before `iso`. */
 export function subWorkingDays(iso: string, n: number): string {
   let d = iso;

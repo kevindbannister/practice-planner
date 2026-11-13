@@ -11,7 +11,7 @@ import { Icon } from "./bits";
 
 export type HourCard = {
   key: string; title: string; client: string; tag: string; hours: number; svc: string; start?: string; biz?: boolean; cat?: string;
-  flags: string[]; // "late", "tight", "urgent", "held"
+  flags: string[]; // "late", "tight", "urgent", "held", "afterdue" (planned after its deadline)
   suggested?: string; prepared?: boolean; subtasks?: string; task?: boolean; done?: boolean;
   /** Finished work with no time set: not laid out in the grid, listed under the day to be put at a time. */
   unplaced?: boolean;
@@ -301,7 +301,7 @@ export function HoursView(p: Props) {
                       aria-label={`${c.client ? `${c.client}: ` : ""}${c.title}, ${clock(s)} to ${clock(f)}${pl.pinned ? ", set time" : ""}${c.suggested !== undefined ? ", suggested" : ""}. Open.`}
                     >
                       <span className="hb-top">
-                        <strong>{c.prepared || c.done ? "✓ " : ""}{c.client || c.title}</strong>
+                        <strong>{c.prepared || c.done ? "✓ " : ""}{c.flags.includes("afterdue") ? "⚠ " : ""}{c.client || c.title}</strong>
                         {pl.pinned && <span className="hb-pin" title="Set to this time"><Icon name="clock" size={11} /></span>}
                       </span>
                       {!small && <span className="hb-sub">{c.client ? c.title : c.tag}{n > 0 ? " (continued)" : ""}</span>}
@@ -314,7 +314,7 @@ export function HoursView(p: Props) {
                       )}
                       {!small && h > 70 && c.flags.length > 0 && (
                         <span className="hb-flags">
-                          {c.flags.map((fl) => <span key={fl} className={`chip ${fl === "tight" ? "amber" : fl === "held" ? "hold" : "red"}`}>{fl === "late" ? "Late" : fl === "tight" ? "Tight" : fl === "urgent" ? "Urgent" : "On hold"}</span>)}
+                          {c.flags.map((fl) => <span key={fl} className={`chip ${fl === "tight" ? "amber" : fl === "held" ? "hold" : "red"}`}>{fl === "late" ? "Late" : fl === "tight" ? "Tight" : fl === "urgent" ? "Urgent" : fl === "afterdue" ? "Planned after deadline" : "On hold"}</span>)}
                         </span>
                       )}
                       {c.suggested !== undefined && !small && <span className="hb-time">Suggested{c.suggested ? `: ${c.suggested}` : ""}</span>}

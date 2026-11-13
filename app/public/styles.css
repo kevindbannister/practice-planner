@@ -3541,3 +3541,8 @@ table.deadlines .c-kind { white-space: nowrap; }
 .month-tip { position: fixed; z-index: 60; width: 330px; max-width: calc(100vw - 16px); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px var(--shadow); padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; pointer-events: none; }
 .month-tip ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .month-tip .muted { font-size: 12px; }
+
+/* planned after its deadline */
+.missed-box.late-box { background: var(--red-soft, #fde8e8); }
+.pcard.planned-late { box-shadow: inset 3px 0 0 var(--red, #c0392b); }
+.month-item.planned-late { box-shadow: inset 3px 0 0 var(--red, #c0392b); }

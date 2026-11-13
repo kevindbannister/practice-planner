@@ -1,7 +1,7 @@
 // Month: the plan on a calendar. Each day shows what is planned on it against the hours available, and what is due. Click a day to plan it in the Week view.
 import { KeyboardEvent as ReactKeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, isOnHold, todayIso } from "../lib/domain";
-import { addDays, mondayOf } from "../lib/planning";
+import { addDays, mondayOf, plannedLate } from "../lib/planning";
 import { dayHours } from "../lib/dayTypes";
 import { MonthItem, Show, buildMonth, monthKey, rollingWeeks, shiftMonth } from "../lib/monthPlan";
 import { Item, PlanCard, UnplannedTray, usePlanItems, usePlanTray } from "./PlanTray";
@@ -36,12 +36,12 @@ export function MonthView({ rolling = false }: { rolling?: boolean }) {
     const out: MonthItem[] = [];
     for (const j of data.jobs as Job[]) {
       const done = j.Status === "Complete"; if (!done && (j.Status === "Cancelled")) continue;
-      out.push({ key: j.Key, kind: "job", title: j.Title, client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "", serviceKey: j.ServiceKey, hours: planHours(j, data.services), planned: String(j.PlannedDate || "").slice(0, 10), deadline: String(j.Deadline || "").slice(0, 10), statutory: isStatutory(data.services.find((x) => x.Key === j.ServiceKey), j.ServiceKey), held: !done && isOnHold(j), done, doneOn: done ? String(j.CompletedDate || j.PlannedDate || "").slice(0, 10) : "", period: String(j.PeriodEnd || "").slice(0, 10) || undefined });
+      out.push({ key: j.Key, kind: "job", title: j.Title, client: idx.clientByKey.get(j.ClientKey)?.Title || (j.ClientName as string) || "", serviceKey: j.ServiceKey, hours: planHours(j, data.services), planned: String(j.PlannedDate || "").slice(0, 10), deadline: String(j.Deadline || "").slice(0, 10), statutory: isStatutory(data.services.find((x) => x.Key === j.ServiceKey), j.ServiceKey), held: !done && isOnHold(j), done, doneOn: done ? String(j.CompletedDate || j.PlannedDate || "").slice(0, 10) : "", period: String(j.PeriodEnd || "").slice(0, 10) || undefined, lateBy: done ? undefined : plannedLate(j)?.days });
     }
     for (const t of data.tasks as Task[]) {
       const done = t.Status === "Done"; if (!done && (t.Status === "Cancelled")) continue;
       const proj = isBusinessTask(t) ? data.projects.find((p) => p.Key === t.ProjectKey) : undefined;
-      out.push({ key: t.Key, kind: "task", title: t.Title, client: proj ? String(proj.Title) : (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "", hours: t.EstimateHours || 1, planned: String(t.PlannedDate || "").slice(0, 10), deadline: String(t.DueDate || "").slice(0, 10), statutory: false, held: !done && isOnHold(t), done, doneOn: done ? String(t.CompletedDate || t.PlannedDate || "").slice(0, 10) : "" });
+      out.push({ key: t.Key, kind: "task", title: t.Title, client: proj ? String(proj.Title) : (t.ClientKey && idx.clientByKey.get(t.ClientKey)?.Title) || "", hours: t.EstimateHours || 1, planned: String(t.PlannedDate || "").slice(0, 10), deadline: String(t.DueDate || "").slice(0, 10), statutory: false, held: !done && isOnHold(t), done, doneOn: done ? String(t.CompletedDate || t.PlannedDate || "").slice(0, 10) : "", lateBy: done ? undefined : plannedLate(t)?.days });
     }
     return out;
   }, [data.jobs, data.tasks, data.services, data.projects, idx]);
@@ -94,8 +94,8 @@ export function MonthView({ rolling = false }: { rolling?: boolean }) {
   const goWeek = (date: string) => { try { sessionStorage.setItem("pp.plan.jump", date); } catch { /* the Week view opens on this week instead */ } window.location.hash = "#/plan"; };
   const openItem = (i: MonthItem) => open(i.kind === "job" ? { kind: "job", key: i.key } : { kind: "task", key: i.key });
   const chip = (i: MonthItem) => (
-    <button key={i.key} type="button" className={`month-item${dragKey === i.key ? " dragging" : ""}`} {...(i.done || i.held ? {} : cardProps(i.key))} onKeyDown={(e) => keyMove(i, e)} onClick={(e) => { e.stopPropagation(); openItem(i); }} title={`${i.client ? i.client + ": " : ""}${i.title}${i.period ? ` · period to ${fmtDate(i.period)}` : ""} · ${fmtHours(i.hours)}`}>
-      <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" />{i.client || i.title}<span className="muted"> {fmtHours(i.hours)}</span>{i.period && <span className="muted month-period"> · to {fmtDate(i.period, { year: false })}</span>}
+    <button key={i.key} type="button" className={`month-item${i.lateBy ? " planned-late" : ""}${dragKey === i.key ? " dragging" : ""}`} {...(i.done || i.held ? {} : cardProps(i.key))} onKeyDown={(e) => keyMove(i, e)} onClick={(e) => { e.stopPropagation(); openItem(i); }} title={`${i.lateBy ? `Planned ${i.lateBy} day${i.lateBy === 1 ? "" : "s"} after its deadline. ` : ""}${i.client ? i.client + ": " : ""}${i.title}${i.period ? ` · period to ${fmtDate(i.period)}` : ""} · ${fmtHours(i.hours)}`}>
+      <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" />{i.lateBy ? "⚠ " : ""}{i.client || i.title}<span className="muted"> {fmtHours(i.hours)}</span>{i.period && <span className="muted month-period"> · to {fmtDate(i.period, { year: false })}</span>}
     </button>
   );
   const panel = (

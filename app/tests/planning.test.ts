@@ -187,3 +187,17 @@ test("planning a job a few working days before its deadline", async () => {
   assert.equal(next.Deadline, "2026-12-05");
   assert.equal(next.PlannedDate, "2026-12-02", "3 working days before Saturday 5 Dec");
 });
+
+import { effectiveDeadline, plannedLate, latestInTime } from "../src/lib/planning";
+test("plannedLate flags work planned after its deadline", () => {
+  assert.equal(effectiveDeadline({ Deadline: "2026-11-19T00:00:00Z", CHDeadline: "2026-11-25" }), "2026-11-19");
+  assert.deepEqual(plannedLate({ PlannedDate: "2026-12-03", Deadline: "2026-11-19" }), { planned: "2026-12-03", deadline: "2026-11-19", days: 14 });
+  assert.equal(plannedLate({ PlannedDate: "2026-11-19", Deadline: "2026-11-19" }), null);
+  assert.equal(plannedLate({ Deadline: "2026-11-19" }), null);
+  assert.equal(plannedLate({ PlannedDate: "2026-12-03" }), null);
+});
+test("latestInTime picks the last working day in time", () => {
+  assert.equal(latestInTime("2026-11-21", "2026-11-13"), "2026-11-20"); // Saturday deadline
+  assert.equal(latestInTime("2026-11-19", "2026-11-13"), "2026-11-19");
+  assert.equal(latestInTime("2026-11-05", "2026-11-13"), "2026-11-13"); // already passed
+});
