@@ -50,7 +50,7 @@ export function DeadlineChip({ job, today = todayIso() }: { job: Job; today?: st
 
 export type IconName =
   | "check" | "close" | "search" | "left" | "right" | "alert" | "plan" | "clients" | "groups" | "settings" | "sun" | "moon"
-  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag" | "up" | "down" | "letter" | "refresh" | "copy" | "cog" | "layout" | "user" | "box" | "bank" | "coins" | "calc" | "book" | "scale" | "form" | "edit";
+  | "plus" | "grip" | "mail" | "print" | "download" | "spark" | "home" | "clock" | "chart" | "building" | "list" | "flag" | "up" | "down" | "letter" | "refresh" | "copy" | "cog" | "layout" | "user" | "box" | "bank" | "coins" | "calc" | "book" | "scale" | "form" | "edit" | "briefcase";
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", "aria-hidden": true } as const;
@@ -63,6 +63,8 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       );
+    case "briefcase":
+      return <svg {...common}><rect x="1.8" y="4.6" width="12.4" height="9" rx="1.6" {...stroke} /><path d="M5.6 4.6V3.3a1 1 0 0 1 1-1h2.8a1 1 0 0 1 1 1v1.3M1.8 8.6h12.4" {...stroke} /></svg>;
     case "form":
       return <svg {...common}><path d="M3.5 1.8h9v12.4h-9z" {...stroke} /><path d="M5.5 4.5h2.5M5.5 7h5M5.5 9.5h5M5.5 12h3" {...stroke} /><rect x="9.3" y="3.6" width="1.8" height="1.8" rx=".3" {...stroke} /></svg>;
     case "edit":

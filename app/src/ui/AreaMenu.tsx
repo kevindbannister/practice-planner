@@ -47,8 +47,8 @@ export function AreaMenu({ section, chase = 0, rename = false, children }: { sec
 }
 
 /** Which menu is showing: the drop-down one, or the two-line trial. Kept in this browser. */
-export type MenuKind = "drop" | "named" | "two" | "pick";
-const read = (): MenuKind => { try { const v = localStorage.getItem("pp.menu"); return v === "two" || v === "pick" || v === "named" ? v : "drop"; } catch { return "drop"; } };
+export type MenuKind = "drop" | "named" | "two" | "pick" | "toggle";
+const read = (): MenuKind => { try { const v = localStorage.getItem("pp.menu"); return v === "two" || v === "pick" || v === "named" || v === "toggle" ? v : "drop"; } catch { return "drop"; } };
 const subscribe = (cb: () => void) => { window.addEventListener("pp-menu", cb); return () => window.removeEventListener("pp-menu", cb); };
 export function useMenuKind(): [MenuKind, (k: MenuKind) => void] {
   const kind = useSyncExternalStore(subscribe, read, () => "drop" as MenuKind);
@@ -121,5 +121,61 @@ export function AreaPicker({ section, area, onPick, chase = 0 }: { section: stri
         ))}
       </nav>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------------------------------------------------------
+   Practice / Work toggle: two modes instead of three areas. Practice is running the firm; Work is doing clients' work
+   (Work and Advise together). In Work the bar turns navy and the client you are working on sits just below it.
+   ------------------------------------------------------------------------------------------------------------------ */
+export type Mode = "practice" | "work";
+export const PRACTICE_MODULES = ["plan", "clients", "sales", "comms", "practice", "aml"];
+export const WORK_MODULES = ["clients", "papers", "tax", "payroll", "cosec", "reporting", "advisory", "taxplan"];
+const WORK_LABELS: Record<string, string> = { papers: "Working papers", reporting: "Reports" };
+
+export function modeOf(section: string): Mode | undefined {
+  const a = areaOf(section);
+  return a === "deliver" || a === "grow" ? "work" : a === "run" ? "practice" : undefined;
+}
+const readMode = (): Mode => { try { return localStorage.getItem("pp.mode") === "work" ? "work" : "practice"; } catch { return "practice"; } };
+const keepMode = (m: Mode) => { try { localStorage.setItem("pp.mode", m); } catch { /* this visit only */ } };
+/** The mode shown: the page's own mode, or (on Home, Clients, Settings…) the one last chosen. */
+export function useMode(section: string): Mode {
+  const own = section === "clients" ? undefined : modeOf(section);
+  if (own) keepMode(own);
+  return own || readMode();
+}
+const lastPage = (m: Mode): string => { try { return localStorage.getItem(`pp.mode.last.${m}`) || (m === "work" ? "#/papers" : "#/plan"); } catch { return m === "work" ? "#/papers" : "#/plan"; } };
+export function rememberPage(section: string) {
+  const m = section === "clients" ? undefined : modeOf(section);
+  if (m) { try { localStorage.setItem(`pp.mode.last.${m}`, window.location.hash || "#/"); } catch { /* fine */ } }
+}
+
+export function ModeMenu({ section, mode, chase }: { section: string; mode: Mode; chase: number }) {
+  const here = navKeyOf(section);
+  const mods = mode === "work" ? WORK_MODULES : PRACTICE_MODULES;
+  const pick = (m: Mode) => {
+    if (m === mode) return;
+    keepMode(m);
+    window.location.hash = lastPage(m);
+    window.dispatchEvent(new Event("pp-menu"));
+  };
+  return (
+    <nav className="nv-nav mode-nav" aria-label="Main">
+      <div className="mode-toggle" role="group" aria-label="Practice or work">
+        <button type="button" aria-pressed={mode === "practice"} title="Practice: running the firm" onClick={() => pick("practice")}>
+          <Icon name="building" size={17} /><span className="sr-only">Practice</span>
+        </button>
+        <button type="button" aria-pressed={mode === "work"} title="Work: clients' work" onClick={() => pick("work")}>
+          <Icon name="briefcase" size={17} /><span className="sr-only">Work</span>
+        </button>
+      </div>
+      {mods.map((k) => (
+        <a key={k} className="nv-link" href={`#/${k}`} aria-current={here === k ? "page" : undefined}>
+          {(mode === "work" && WORK_LABELS[k]) || MODULE_LABELS[k]}
+          {k === "plan" && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
+        </a>
+      ))}
+    </nav>
   );
 }

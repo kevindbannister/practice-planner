@@ -21,6 +21,8 @@ import { useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 import { svcClass } from "../lib/serviceColour";
 import { Icon, IconName } from "./bits";
+import { PlanCard, usePlanItems } from "./PlanTray";
+import { useCardFields } from "./CardOptions";
 
 type Work = {
   key: string; kind: "job" | "task"; row: Job | Task; title: string; client: string; serviceKey?: string;
@@ -74,6 +76,10 @@ export function HomePage() {
     .sort((a, b) => String(a.row.SpeakOn).localeCompare(String(b.row.SpeakOn)));
   const noSpeakDate = withClient.filter((w) => waitState(w.row, today) === "nodate");
   const todays = activeAll.filter((w) => w.planned === today).sort((a, b) => compareInDay(a, b));
+  // today's work is shown as the planner shows it: the same cards, with the same fields
+  const { items: planItems } = usePlanItems();
+  const [cardFields] = useCardFields();
+  const planItemByKey = useMemo(() => new Map(planItems.map((i) => [i.key, i])), [planItems]);
   const todayHours = todays.filter((w) => !w.business).reduce((t, w) => t + w.hours, 0);
   const todayBiz = todays.filter((w) => w.business).reduce((t, w) => t + w.hours, 0);
   const todayBizCap = dayHours(today, settings).business;
@@ -181,9 +187,14 @@ export function HomePage() {
             <a href="#/plan/today" style={{ fontSize: 13 }}>Start my day</a>
           </div>
           {todays.length ? (
-            <ul className="home-list">
-              {todays.map((w) => <WorkRow key={w.key} w={w} today={today} onOpen={() => openWork(w)} show="deadline" />)}
-            </ul>
+            <div className="home-today-cards">
+              {todays.map((w) => {
+                const item = planItemByKey.get(w.key);
+                return item
+                  ? <PlanCard key={w.key} item={item} today={today} fields={cardFields} dragging={false} onOpen={() => openWork(w)} onDay />
+                  : <ul key={w.key} className="home-list"><WorkRow w={w} today={today} onOpen={() => openWork(w)} show="deadline" /></ul>;
+              })}
+            </div>
           ) : (
             <div className="home-empty">
               <p style={{ margin: 0 }}>Nothing planned for today{missed.length ? `, and ${missed.length} item${missed.length === 1 ? " was" : "s were"} planned on an earlier day but not finished` : ""}.</p>

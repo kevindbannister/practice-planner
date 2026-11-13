@@ -3764,3 +3764,46 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
 .card[aria-labelledby="today-h"] .home-list { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }
 .card[aria-labelledby="today-h"] .work-row { margin: 0; width: 100%; flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 14px; border-radius: 14px; }
 .card[aria-labelledby="today-h"] .work-row > .row-wrap { justify-content: space-between !important; }
+
+/* V29.3: Practice / Work switch menu. Two icons in a toggle replace the area words; the mode's pages follow.
+   In Work the bar turns navy and runs edge to edge, the logo goes white into green, and the client being worked on
+   sits in a white strip just below it. */
+.mode-nav { display: flex; align-items: center; gap: 2px; margin-left: 10px; overflow-x: auto; scrollbar-width: none; }
+.mode-nav::-webkit-scrollbar { display: none; }
+.mode-toggle { display: inline-flex; padding: 3px; gap: 2px; margin-right: 8px; border-radius: 999px; background: rgba(23, 38, 58, 0.07); flex: none; }
+.mode-toggle button { width: 40px; height: 36px; border: 0; border-radius: 999px; background: none; color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.mode-toggle button:hover { color: var(--ink); }
+.mode-toggle button[aria-pressed="true"] { background: var(--navy); color: #fff; box-shadow: 0 3px 10px rgba(30, 53, 80, 0.3); }
+.mode-nav .nv-link { flex: none; }
+
+@media (min-width: 721px) {
+  .topbar.mode-work { margin: 0; border-radius: 0; border: 0; width: auto; top: 0; padding: 8px 24px 8px 28px; background: linear-gradient(180deg, #1E3550, #182C44); box-shadow: 0 6px 22px rgba(16, 30, 48, 0.28); }
+}
+.topbar.mode-work::before { display: none; }
+.topbar.mode-work { background: linear-gradient(180deg, #1E3550, #182C44); }
+.topbar.mode-work .brand-logo { background: linear-gradient(105deg, #ffffff 0%, #ffffff 44%, #8BE7CB 64%, #22B99A 100%); }
+.topbar.mode-work .nv-link { color: rgba(255, 255, 255, 0.92); }
+.topbar.mode-work .nv-link:hover { background: rgba(255, 255, 255, 0.10); color: #fff; }
+.topbar.mode-work .nv-link[aria-current="page"] { background: rgba(255, 255, 255, 0.14); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
+.topbar.mode-work .mode-toggle { background: rgba(255, 255, 255, 0.10); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22); }
+.topbar.mode-work .mode-toggle button { color: rgba(255, 255, 255, 0.8); }
+.topbar.mode-work .mode-toggle button[aria-pressed="true"] { background: #fff; color: #1E3550; }
+.topbar.mode-work .search-btn, .topbar.mode-work .bell, .topbar.mode-work .iconbtn, .topbar.mode-work .btn:not(.primary) { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.22); color: #fff; }
+.topbar.mode-work .search-btn .search-btn-text { color: rgba(255, 255, 255, 0.75); }
+.topbar.mode-work .btn.primary.topbar-icon { background: #fff; color: #1E3550; box-shadow: none; }
+.topbar.mode-work .nav-count { background: var(--gold); }
+
+.work-client { position: sticky; top: 76px; z-index: 19; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 28px; background: var(--surface); border-bottom: 1px solid var(--sep); box-shadow: 0 4px 14px rgba(23, 38, 58, 0.06); }
+.wc-icon { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--navy) 10%, transparent); color: var(--navy-ink); flex: none; }
+.wc-name { font-size: 20px; font-weight: 700; color: var(--ink); margin-right: 6px; }
+.wc-chip { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 999px; background: color-mix(in srgb, var(--navy) 8%, transparent); color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.wc-chip.plain { background: var(--surface); box-shadow: inset 0 0 0 1px var(--btn-line); }
+.wc-actions { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.wc-pick { display: inline-flex; gap: 8px; align-items: center; }
+.wc-pick input { height: 38px; width: min(340px, 60vw); padding: 0 14px; border-radius: 999px; border: 1px solid var(--btn-line); background: var(--pill-bg); font: inherit; color: var(--ink); }
+@media (max-width: 720px) { .work-client { top: 0; position: relative; padding: 10px 14px; } .wc-actions { margin-left: 0; } }
+/* no coloured line down the left of any planner card (done and business cards kept one) */
+.pcard.done { border-left-color: inherit; }
+.pcard.done[class*="svc-"] { border-left-color: color-mix(in srgb, var(--svc) 38%, transparent); }
+.pcard.biz { border-left: 1.5px solid color-mix(in srgb, var(--cat) 40%, var(--line)); }
+.home-today-cards { display: flex; flex-direction: column; gap: 8px; padding: 4px 16px 16px; }
