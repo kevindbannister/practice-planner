@@ -160,3 +160,18 @@ test("every finding type belongs to a review group; planner types are never in t
   assert.equal(flagGroup("deadline-order"), "deadlines");
   for (const t of PLANNER_TYPES) assert.ok(["deadlines", "compliance"].includes(flagGroup(t)), t);
 });
+
+test("Companies House's next filing is for a later period than the open job: flagged as filed, even with no last-filed date", () => {
+  const p = profile({ accounts: { next_made_up_to: "2027-03-31", next_due: "2027-12-31" }, confirmation_statement: { next_made_up_to: "2027-01-10", next_due: "2027-01-24" } });
+  const out = compareCompany({ client, profile: p, jobs: [accs, cs01] });
+  assert.deepEqual(types(out), ["filed"], "not a dates difference");
+  assert.deepEqual(out[0].action, { do: "complete", jobKey: "J1", next: { PeriodEnd: "2027-03-31", Deadline: "2027-12-31" } });
+  assert.match(out[0].detail, /waiting for accounts/);
+});
+
+test("a confirmation statement is flagged the same way", () => {
+  const p = profile({ confirmation_statement: { next_made_up_to: "2028-01-10", next_due: "2028-01-24" } });
+  const out = compareCompany({ client, profile: p, jobs: [accs, cs01] });
+  assert.deepEqual(types(out), ["filed"]);
+  assert.equal(out[0].jobKey, "J2");
+});

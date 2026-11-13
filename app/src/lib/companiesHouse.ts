@@ -287,7 +287,9 @@ function compareFiling(client: Client, f: (typeof FILINGS)[number], ch: FilingDa
   const open = jobs
     .filter((j) => f.services.includes(j.ServiceKey || ""))
     .sort((a, b) => (a.PeriodEnd || "9999").localeCompare(b.PeriodEnd || "9999"));
-  const filed = ch.last ? open.filter((j) => j.PeriodEnd && j.PeriodEnd <= ch.last!) : [];
+  // A job counts as already filed when Companies House has accounts / a statement made up to its date, or, even without that, when
+  // Companies House's next filing is for a later period: it can only be waiting for the next one if this one is in.
+  const filed = open.filter((j) => j.PeriodEnd && ((ch.last && j.PeriodEnd <= ch.last) || (ch.nextPe && j.PeriodEnd < ch.nextPe)));
   const rest = open.filter((j) => !filed.includes(j));
   const what = f.kind === "accounts" ? "accounts" : "confirmation statement";
 
@@ -297,7 +299,7 @@ function compareFiling(client: Client, f: (typeof FILINGS)[number], ch: FilingDa
     out.push({
       key: `${ck}|filed|${j.Key}`, type: "filed", clientKey: ck, jobKey: j.Key, severity: "amber",
       title: `${f.label} filed for ${f.kind === "accounts" ? "period to" : "made up to"} ${d(j.PeriodEnd)}`,
-      detail: `Companies House has ${what} made up to ${d(ch.last)}, but the job is still open.` +
+      detail: `${ch.last && j.PeriodEnd && j.PeriodEnd <= ch.last ? `Companies House has ${what} made up to ${d(ch.last)}` : `Companies House is now waiting for ${what} ${f.kind === "accounts" ? "for the period to" : "made up to"} ${d(ch.nextPe)}, which comes after this job's`}, but the job is still open. Mark it as filed once you are happy it has been.` +
         (next ? ` Apply marks it complete and sets up the next one: ${f.kind === "accounts" ? "period to" : "made up to"} ${d(next.PeriodEnd)}, due ${d(next.Deadline)}.` : " Apply marks it complete."),
       current: `Open, at stage ${j.StageNo || 1}`, action: { do: "complete", jobKey: j.Key, next },
     });

@@ -66,3 +66,7 @@ Co Sec uses the planner's existing staff roles. Managers and partners can approv
 - Each company's Companies House filing history (up to 40 most recent, `lib/cosecHistory.ts`) is read with the normal Companies House check, the Check Companies House button and the temporary reset, and kept on the company's `CHVerified` record.
 - Filings screens (all companies, and per company) list those filings with **no status**. Only filings being prepared in the system show a status: draft, or approved and waiting to be filed. Closed ones are hidden unless ticked, because Companies House's history is the record of what was filed.
 - A difference in year end is never drafted as an AA01 any more (the year end rule and the Companies House comparison both ignore it). A change of accounting reference date is only started by a person with Change accounting reference date.
+
+## Open jobs Companies House shows as filed (V26.4)
+
+After a Companies House refresh, an open accounts or confirmation statement job is flagged "filed" when Companies House has a filing made up to that date, or when its next filing is for a later period than the job. The flag's Apply marks the job complete and sets up the next one from Companies House's dates.
