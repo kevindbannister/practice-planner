@@ -325,6 +325,7 @@ export type ServiceEdit = { serviceKey: string; /** the practice does this work 
 export type ServiceEditInput = {
   client: Row; schedule: Row[]; edits: ServiceEdit[]; today: string; reviewMonths: number; reason: string;
   /** VAT treatment to record on a new line, by service */ vatFor?: (serviceKey: string) => string;
+  /** The first job for a service that has just been added or switched back on (null: none to create, for example it already has an open job) */ startJob?: (serviceKey: string, fee: number, period: string) => Row | null;
   can: (x: ProposalAction) => boolean;
 };
 const sameRow = (a: Row, b: Row) => str(a.Key) === str(b.Key);
@@ -353,6 +354,8 @@ export function planServiceEdit(i: ServiceEditInput, o: Ctx): Written | { error:
       w.creates!.push({ list: "ClientServices", row: fields });
       if (fee > 0) w.creates!.push({ list: "FeeHistory", row: historyRow(o, ck, e.serviceKey, "added", null, { fee: money2(fee), period, effectiveFrom: i.today }, "Service added", "Manual") });
       notes.push(`${e.serviceKey} added${fee > 0 ? ` at £${money2(fee)} ${period || "one-off"}` : ""}`);
+      const first = i.startJob?.(e.serviceKey, money2(fee), period);
+      if (first) { w.creates!.push({ list: "Jobs", row: first }); notes.push(`${e.serviceKey} job created for the period to ${str(first.PeriodEnd)}`); }
       continue;
     }
     const line = readFeeLine(row);
@@ -368,6 +371,8 @@ export function planServiceEdit(i: ServiceEditInput, o: Ctx): Written | { error:
     if (e.on && (truthy(row.Off) || line.ended)) {
       Object.assign(patchFor(row), line.ended ? { Off: false, OffSince: "", EndedOn: "", EffectiveFrom: i.today } : { Off: false, OffSince: "" });
       notes.push(`${e.serviceKey} back on`);
+      const first = i.startJob?.(e.serviceKey, money2(fee), period);
+      if (first) { w.creates!.push({ list: "Jobs", row: first }); notes.push(`${e.serviceKey} job created for the period to ${str(first.PeriodEnd)}`); }
     } else if (!e.on && !truthy(row.Off) && !line.ended) {
       Object.assign(patchFor(row), { Off: true, OffSince: i.today });
       notes.push(`${e.serviceKey} turned off`);

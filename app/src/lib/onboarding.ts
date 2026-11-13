@@ -8,7 +8,7 @@ import { Agreed, readAgreed, isInForce, coverageGaps, asEng } from "./engagement
 import { CatalogueService, ClientType, ProposalAction, clientTypeFor, proposalCan, typeLabel } from "./proposals";
 import { Ctx, Written, activityRow, linkToClient, logRow, Lead, Opp } from "./sales";
 import { Row } from "./schema";
-import { addDays, addMonths, deadlineByRule, ruleFor } from "./planning";
+import { addDays, addMonths, deadlineByRule, planDateFor, ruleFor } from "./planning";
 import { periodText, scheduleFields, setupCharge } from "./fees";
 
 const str = (v: unknown): string => (v === undefined || v === null ? "" : String(v));
@@ -348,6 +348,24 @@ export function firstJob(serviceKey: string, services: Row[], client: Row, start
   } else if (rule.repeatMonths > 0) { pe = monthEnd(addMonths(`${start.slice(0, 7)}-01`, rule.repeatMonths - 1, false)); note = "First period worked out from the start date. Check it matches the client's own periods."; }
   else pe = start;
   return { PeriodEnd: pe, Deadline: deadlineByRule(rule, pe, 14), note };
+}
+
+/**
+ * The first job for a service just added to a client by hand: the period and deadline from the client's year end (or the start date), planned for
+ * the day the service's rule gives. Null when the work isn't a type in the planner or the client already has an open job for it.
+ */
+export function startJobRow(i: { serviceKey: string; services: Row[]; stageTemplates: Row[]; client: Row; jobs: Row[]; today: string; newKey: (p: string) => string; fee?: number; period?: string }): Row | null {
+  const svc = i.services.find((s) => s.Key === i.serviceKey);
+  if (!svc) return null;
+  if (i.jobs.some((j) => str(j.ClientKey) === str(i.client.Key) && str(j.ServiceKey) === i.serviceKey && !["Complete", "Done", "Cancelled"].includes(str(j.Status)))) return null;
+  const f = firstJob(i.serviceKey, i.services, i.client, i.today);
+  const stage = i.stageTemplates.filter((s) => s.ServiceKey === i.serviceKey).sort((a, b) => Number(a.StageNo) - Number(b.StageNo))[0];
+  const planned = planDateFor(ruleFor(i.serviceKey, i.services), f.Deadline, i.today);
+  return {
+    Key: i.newKey("J"), Title: str(svc.Title) || i.serviceKey, ClientKey: str(i.client.Key), ClientName: str(i.client.Title), ServiceKey: i.serviceKey,
+    PeriodEnd: f.PeriodEnd, Deadline: f.Deadline, DeadlineSource: "Calculated", ...(planned ? { PlannedDate: planned } : {}),
+    StageNo: 1, StageName: str(stage?.Title), Status: "Open", Source: "Added", ...(i.fee && i.fee > 0 ? { Fee: i.fee, FeePeriod: i.period || "" } : {}), ...(f.note ? { Notes: f.note } : {}),
+  };
 }
 
 export type PlanLine = { serviceKey: string; name: string; action: "start" | "held" | "skip"; reason: string; fee: number; period: string; oneOff: boolean; annual: number; job?: { PeriodEnd: string; Deadline: string; note: string } };

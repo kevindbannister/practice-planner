@@ -1,4 +1,5 @@
 // The full client page: overview and work tabs, with editable contact and references.
+import { startJobRow } from "../lib/onboarding";
 import { ClientWorkOverview } from "./ClientWorkOverview";
 import { ClientTasks } from "./ClientTasks";
 import { CustomDetailsCard } from "./CustomFields";
@@ -853,6 +854,7 @@ function ServicesCard({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
   const [turnedOn, setTurnedOn] = useState<string>();
+  const [started, setStarted] = useState<string>();
   const [editingAll, setEditingAll] = useState(false);
   const [saved, setSaved] = useState<string>();
   const today = todayIso();
@@ -869,6 +871,11 @@ function ServicesCard({ client: c, jobs }: { client: Client; jobs: Job[] }) {
       const row = rows.find((r) => r.ServiceKey === serviceKey);
       if (row) await update("ClientServices", row, { Off: off, OffSince: off ? today : "" });
       else await create("ClientServices", { Key: newKey("CS"), ClientKey: c.Key, ServiceKey: serviceKey, Off: off, OffSince: off ? today : undefined });
+      // switching a service on for a client with no open job for it starts the first one
+      if (!off) {
+        const first = startJobRow({ serviceKey, services: data.services, stageTemplates: data.stageTemplates, client: c, jobs: data.jobs, today, newKey });
+        if (first) { await create("Jobs", first); setStarted(serviceKey); } else setStarted(undefined);
+      }
       setAsking(undefined);
       setTurnedOn(off ? undefined : serviceKey);
     } catch {
@@ -947,8 +954,8 @@ function ServicesCard({ client: c, jobs }: { client: Client; jobs: Job[] }) {
       )}
       {turnedOn && (
         <p className="muted" style={{ margin: 0, padding: "0 16px 14px", fontSize: 13 }}>
-          {name(turnedOn)} is back on. Jobs are created when the next one is completed, so{" "}
-          {jobs.some((j) => j.ServiceKey === turnedOn) ? "the open job will roll on as normal." : (
+          {name(turnedOn)} is back on.{" "}
+          {started === turnedOn ? "A job has been created for it. After that, the next one is created when each is completed." : jobs.some((j) => j.ServiceKey === turnedOn) ? "Jobs are created when the next one is completed, so the open job will roll on as normal." : (
             <button type="button" className="linkbtn" style={{ minHeight: 0, padding: 0 }} onClick={() => open({ kind: "newJob", clientKey: c.Key })}>add the next job now</button>
           )}.
         </p>

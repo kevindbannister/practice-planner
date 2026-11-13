@@ -7,6 +7,8 @@ import { clientTypeFor } from "../lib/proposals";
 import { Row } from "../lib/schema";
 import { isStatutory, statutoryRank } from "../lib/workGroups";
 import { useData } from "./data";
+import { startJobRow } from "../lib/onboarding";
+import { newKey } from "../lib/planning";
 import { useSales } from "./salesKit";
 
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
@@ -53,10 +55,11 @@ export function ServicesEditor({ client, onClose, onSaved }: { client: Row; onCl
   const save = async () => {
     setBusy(true); setErr(undefined);
     try {
-      const w = planServiceEdit({ client, schedule: data.clientServices, edits: lines.map((l) => edits[l.key]), today: todayIso(), reviewMonths, reason, vatFor: (k) => s.catalogue.find((c) => c.key === k)?.vat || "standard", can: s.pcan }, s.ctx());
+      const w = planServiceEdit({ client, schedule: data.clientServices, edits: lines.map((l) => edits[l.key]), today: todayIso(), reviewMonths, reason, vatFor: (k) => s.catalogue.find((c) => c.key === k)?.vat || "standard", startJob: (k, fee, period) => startJobRow({ serviceKey: k, services: data.services, stageTemplates: data.stageTemplates, client, jobs: data.jobs, today: todayIso(), newKey, fee, period }), can: s.pcan }, s.ctx());
       if ("error" in w) { setErr(w.error); return; }
       await s.apply(w);
-      onSaved?.("Services and fees saved."); onClose();
+      const made = (w.creates || []).filter((c) => c.list === "Jobs").length;
+      onSaved?.(`Services and fees saved.${made ? ` ${made} job${made === 1 ? "" : "s"} created.` : ""}`); onClose();
     } catch (e) { setErr(e instanceof Error && e.message ? e.message : "That didn't save. Nothing has changed; try again."); } finally { setBusy(false); }
   };
   const group = (title: string, list: Line[]) => list.length ? (
