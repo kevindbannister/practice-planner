@@ -60,7 +60,7 @@ export const LISTS: ListDef[] = [
     key: "Services", displayName: "PP Services", description: "Practice Planner: types of work",
     columns: [
       t("Key", true), t("Recurrence"), t("DeadlineRule"), n("DefaultHours"), n("RepeatMonths"), t("DeadlineMode"),
-      n("DeadlineMonths"), n("DeadlineDays"), t("DeadlineFixed"), b("KeepMonthEnd"), t("RecordsNeeded"), n("RecordsLeadDays"), n("FinaliseHours"),
+      n("DeadlineMonths"), n("DeadlineDays"), t("DeadlineFixed"), b("KeepMonthEnd"), n("PlanDaysBefore"), t("RecordsNeeded"), n("RecordsLeadDays"), n("FinaliseHours"),
       // the commercial side (Services & pricing): what a proposal can offer
       t("Code"), t("Category"), note("Description"), note("ClientDescription"), t("ClientTypes"), n("Price"), t("PriceFrequency"), t("VatTreatment"), n("SetupFee"),
       note("Scope"), note("Exclusions"), note("ClientResp"), note("PracticeResp"), note("Clauses"), note("Schedule"), note("Pricing"), b("Offered"), b("Active"), b("RequiresAuth"), t("Statutory"), t("PracticeId", true),

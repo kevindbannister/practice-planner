@@ -24,7 +24,7 @@ import { FirmSettings } from "./FirmSettings";
 import React, { useEffect, useRef, useState } from "react";
 import { fmtDate, fmtHours, todayIso } from "../lib/domain";
 import {
-  BUILT_IN_RULES, DEFAULT_HOURS, Hours, Rule, deadlineByRule, describeRule, newKey, nextPeriod, ruleFields, ruleFor,
+  BUILT_IN_RULES, DEFAULT_HOURS, Hours, Rule, deadlineByRule, describeRule, newKey, nextPeriod, planDateFor, ruleFields, ruleFor,
 } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { DEFAULT_DAY_TYPES, DEFAULT_WEEK, DayType } from "../lib/dayTypes";
@@ -341,7 +341,7 @@ const REPEATS: [number, string][] = [[0, "One-off (doesn't repeat)"], [1, "Month
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 function RuleCard({ service: s }: { service: Row }) {
-  const { data, update } = useData();
+  const { data, update, updateMany } = useData();
   const idx = useIndex();
   const saved = ruleFor(s.Key as string, data.services);
   const builtIn = BUILT_IN_RULES[s.Key as string];
@@ -376,6 +376,10 @@ function RuleCard({ service: s }: { service: Row }) {
   const sampleDeadline = rule.deadline === "gap" && sampleJob?.Deadline ? sampleJob.Deadline : deadlineByRule(rule, samplePe, sampleGap);
   const next = nextPeriod(rule, samplePe, sampleDeadline);
   const openCount = idx.openJobs.filter((j) => j.ServiceKey === s.Key).length;
+  // open jobs of this type with no planned day, and the day the saved rule would give them
+  const [planning, setPlanning] = useState(false);
+  const todayStr = todayIso();
+  const toPlan = idx.openJobs.filter((j) => j.ServiceKey === s.Key && !j.PlannedDate && j.Deadline).map((j) => ({ job: j, day: planDateFor(saved, j.Deadline, todayStr) })).filter((x) => x.day);
 
   const save = async () => {
     setState("saving");
@@ -421,6 +425,31 @@ function RuleCard({ service: s }: { service: Row }) {
           {!hasWait && <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>Used once a stage below is marked "With client".</span>}
         </label>
       </div>
+
+      <fieldset className="fieldset">
+        <legend>When it's planned</legend>
+        <label className="radio">
+          <input type="checkbox" checked={rule.planDaysBefore !== undefined} onChange={(e) => set({ planDaysBefore: e.target.checked ? 3 : undefined })} />
+          <span>Plan each new job in the calendar before its deadline</span>
+        </label>
+        {rule.planDaysBefore !== undefined && (
+          <div className="row-wrap" style={{ paddingLeft: 30 }}>
+            <label className="inline-num">
+              <input className="input" type="number" min="0" max="60" value={rule.planDaysBefore} onChange={(e) => set({ planDaysBefore: Math.max(0, Math.min(60, Math.floor(Number(e.target.value) || 0))) })} aria-label="Working days before the deadline" />
+              working days before the deadline
+            </label>
+            <span className="muted" style={{ fontSize: 13 }}>Weekends are skipped. A job created late is planned for the next working day. Applies to jobs created from now on (and the next one rolled on when a job is completed); a day you set yourself is never changed.</span>
+          </div>
+        )}
+        {rule.planDaysBefore !== undefined && sampleDeadline && <p className="muted" style={{ margin: "4px 0 0 30px", fontSize: 13 }}>For example, a job due {fmtDate(sampleDeadline, { weekday: true })} is planned for {planDateFor(rule, sampleDeadline, "0000-00-00") ? fmtDate(planDateFor(rule, sampleDeadline, "0000-00-00"), { weekday: true }) : "no day"}.</p>}
+        {rule.planDaysBefore !== undefined && !changed && toPlan.length > 0 && (
+          <div style={{ paddingLeft: 30 }}>
+            <button type="button" className="btn small" disabled={planning} onClick={async () => { setPlanning(true); try { await updateMany("Jobs", toPlan.map((x) => ({ row: x.job, patch: { PlannedDate: x.day } }))); } finally { setPlanning(false); } }}>
+              {planning ? "Planning…" : `Plan the ${toPlan.length} open job${toPlan.length === 1 ? "" : "s"} that ${toPlan.length === 1 ? "has" : "have"} no planned day`}
+            </button>
+          </div>
+        )}
+      </fieldset>
 
       {rule.repeatMonths > 0 && (
         <fieldset className="fieldset">

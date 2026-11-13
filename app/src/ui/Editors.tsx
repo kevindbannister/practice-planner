@@ -13,7 +13,7 @@ import { createContext, ReactNode, useContext, useEffect, useId, useRef, useStat
 import {
   HOLD_WARN_DAYS, Job, Task, WAIT_KINDS, fmtDate, fmtHours, holdAlert, holdLabel, holdPatch, isOnHold, isOpen, jobState, resumePatch, todayIso,
 } from "../lib/domain";
-import { changePeriod, deadlineFor, describeRule, jobHours, newKey, nextPeriod, rollForward, ruleFor } from "../lib/planning";
+import { changePeriod, deadlineFor, describeRule, jobHours, newKey, nextPeriod, planDateFor, rollForward, ruleFor } from "../lib/planning";
 import { ListKey, Row } from "../lib/schema";
 import { chaseSummary } from "../lib/chase";
 import { Subtask, progress, readSubtasks, writeSubtasks } from "../lib/subtasks";
@@ -498,7 +498,7 @@ function NewJobPanel({ clientKey, onClose }: { clientKey: string; onClose: () =>
         PeriodEnd: periodEnd,
         Deadline: deadline,
         DeadlineSource: deadlineTouched ? "Manual" : "Calculated",
-        PlannedDate: planned || undefined,
+        PlannedDate: planned || planDateFor(ruleFor(service, data.services), deadline, todayIso()) || undefined,
         StageNo: 1,
         StageName: (stages[0]?.Title as string) || "",
         Status: "Open",

@@ -119,6 +119,8 @@ export type Rule = {
   days: number;
   fixed?: string; // "MM-DD"
   keepMonthEnd: boolean;
+  /** Plan the job this many working days before its deadline when it is created (for example payroll, a few days before it is due). Absent: no automatic planned day. */
+  planDaysBefore?: number;
 };
 
 const after = (repeatMonths: number, months: number, days = 0, keepMonthEnd = true): Rule =>
@@ -133,7 +135,7 @@ export const BUILT_IN_RULES: Record<string, Rule> = {
   SA100: { repeatMonths: 12, deadline: "fixed", months: 0, days: 0, fixed: "01-31", keepMonthEnd: false },
   SA800: { repeatMonths: 12, deadline: "fixed", months: 0, days: 0, fixed: "01-31", keepMonthEnd: false },
   VAT: after(3, 1, 7),
-  PAYROLL: gap(1), MGMT_ACCOUNTS: gap(1), BOOKKEEPING: gap(1), CIS: gap(1), MYS: gap(1),
+  PAYROLL: { ...gap(1), planDaysBefore: 3 }, MGMT_ACCOUNTS: gap(1), BOOKKEEPING: gap(1), CIS: gap(1), MYS: gap(1),
   SOFTWARE: gap(12),
 };
 const ONE_OFF: Rule = { repeatMonths: 0, deadline: "gap", months: 0, days: 0, keepMonthEnd: true };
@@ -149,6 +151,10 @@ export function ruleFor(serviceKey: string | undefined, services: Row[] = []): R
       days: Number(row.DeadlineDays) || 0,
       fixed: (row.DeadlineFixed as string) || undefined,
       keepMonthEnd: row.KeepMonthEnd !== false,
+      // saved: a number of days, or -1 for "none"; never saved: the built-in setting, if there is one
+      planDaysBefore: row.PlanDaysBefore === undefined || row.PlanDaysBefore === null || row.PlanDaysBefore === ""
+        ? BUILT_IN_RULES[serviceKey || ""]?.planDaysBefore
+        : Number(row.PlanDaysBefore) >= 0 ? Math.floor(Number(row.PlanDaysBefore)) : undefined,
     };
   }
   return BUILT_IN_RULES[serviceKey || ""] || ONE_OFF;
@@ -158,7 +164,7 @@ export function ruleFor(serviceKey: string | undefined, services: Row[] = []): R
 export function ruleFields(r: Rule): Row {
   return {
     RepeatMonths: r.repeatMonths, DeadlineMode: r.deadline, DeadlineMonths: r.months, DeadlineDays: r.days,
-    DeadlineFixed: r.fixed || "", KeepMonthEnd: r.keepMonthEnd,
+    DeadlineFixed: r.fixed || "", KeepMonthEnd: r.keepMonthEnd, PlanDaysBefore: r.planDaysBefore === undefined ? -1 : r.planDaysBefore,
   };
 }
 
@@ -177,6 +183,28 @@ export function describeRule(r: Rule): string {
     due = parts.length ? `due ${parts.join(" and ")} after period end` : "due on the period end";
   }
   return `${every} · ${due}`;
+}
+
+/** The working day (Monday to Friday) `n` working days before `iso`. */
+export function subWorkingDays(iso: string, n: number): string {
+  let d = iso;
+  for (let left = Math.max(0, Math.floor(n)); left > 0; ) {
+    d = addDays(d, -1);
+    if (weekday(d) <= 5) left--;
+  }
+  return d;
+}
+
+/**
+ * The day to plan a job for under its type's rule: that many working days before the deadline, but never in the past (a job created late is
+ * planned for the next working day) and never after the deadline. "" when the rule doesn't plan automatically or there is no deadline.
+ */
+export function planDateFor(r: Rule, deadline: string | undefined, today: string): string {
+  if (r.planDaysBefore === undefined || !deadline) return "";
+  const ideal = subWorkingDays(deadline, r.planDaysBefore);
+  let day = ideal < today ? today : ideal;
+  while (weekday(day) > 5) day = addDays(day, 1);
+  return day > deadline ? "" : day;
 }
 
 /** Deadline for a period end under a rule. `previousGap` (days) is used by "gap" rules. */
@@ -232,6 +260,7 @@ export function rollForward(job: Job, r: Rule, completedOn: string, newKey: stri
     StageNo: 1,
     RecordsExpected: shift(job.RecordsReceived as string | undefined),
     SuggestedSlot: slot && slot <= next.Deadline ? workingDay(slot) : undefined,
+    PlannedDate: planDateFor(r, next.Deadline, completedOn) || undefined,
     EstimateHours: (job.ActualHours as number) || job.EstimateHours,
     LastCompleted: completedOn,
     Status: "Open",

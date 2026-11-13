@@ -164,3 +164,26 @@ test("changing a job's period: the deadline only moves when asked", async () => 
   assert.equal(changePeriod(r, job, "2026-09-30", false), null, "no change");
   assert.equal(changePeriod(r, job, "not a date", true), null);
 });
+
+test("planning a job a few working days before its deadline", async () => {
+  const { planDateFor, subWorkingDays, ruleFor, rollForward, BUILT_IN_RULES } = await import("../src/lib/planning");
+  assert.equal(subWorkingDays("2026-11-23", 3), "2026-11-18", "Monday back three working days: Wednesday");
+  assert.equal(subWorkingDays("2026-11-20", 3), "2026-11-17");
+  const r = { ...BUILT_IN_RULES.PAYROLL, planDaysBefore: 3 };
+  assert.equal(planDateFor(r, "2026-11-27", "2026-11-13"), "2026-11-24");
+  assert.equal(planDateFor(r, "2026-11-16", "2026-11-13"), "2026-11-13", "created late: today, not the past");
+  assert.equal(planDateFor(r, "2026-11-14", "2026-11-14"), "", "no working day left before a Saturday deadline from a Saturday: next Monday is after it");
+  assert.equal(planDateFor({ ...r, planDaysBefore: undefined }, "2026-11-27", "2026-11-13"), "", "no rule");
+  assert.equal(planDateFor(r, undefined, "2026-11-13"), "");
+  // payroll has the rule built in; saved rows can switch it off (-1) or change it
+  assert.equal(ruleFor("PAYROLL", []).planDaysBefore, 3);
+  assert.equal(ruleFor("PAYROLL", [{ Key: "PAYROLL", RepeatMonths: 1, DeadlineMode: "gap", PlanDaysBefore: -1 }]).planDaysBefore, undefined);
+  assert.equal(ruleFor("PAYROLL", [{ Key: "PAYROLL", RepeatMonths: 1, DeadlineMode: "gap", PlanDaysBefore: 5 }]).planDaysBefore, 5);
+  assert.equal(ruleFor("PAYROLL", [{ Key: "PAYROLL", RepeatMonths: 1, DeadlineMode: "gap" }]).planDaysBefore, 3, "a row saved before this setting existed keeps the built-in");
+  assert.equal(ruleFor("VAT", []).planDaysBefore, undefined);
+  // the next job in a series arrives already planned
+  const job: any = { Key: "J1", Title: "Payroll", ClientKey: "C", ServiceKey: "PAYROLL", PeriodEnd: "2026-10-31", Deadline: "2026-11-05" };
+  const next = rollForward(job, ruleFor("PAYROLL", []), "2026-11-13", "J2")!;
+  assert.equal(next.Deadline, "2026-12-05");
+  assert.equal(next.PlannedDate, "2026-12-02", "3 working days before Saturday 5 Dec");
+});

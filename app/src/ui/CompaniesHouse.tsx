@@ -9,7 +9,7 @@ import {
 import { plannerChecks } from "../lib/plannerChecks";
 import { Client, fmtDate, isOpen, todayIso } from "../lib/domain";
 import { FakeCh } from "../lib/fakeCh";
-import { BUILT_IN_RULES, addDays, newKey, rollForward, ruleFields, ruleFor } from "../lib/planning";
+import { BUILT_IN_RULES, addDays, newKey, planDateFor, rollForward, ruleFields, ruleFor } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { ClientBadge, companiesHouseUrl, href } from "./bits";
 import { verifiedFrom, verifiedOf } from "../lib/cosec";
@@ -194,6 +194,7 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
         const next: Row = {
           ...rolled, PeriodEnd: a.next.PeriodEnd, Deadline: a.next.Deadline, CHDeadline: a.next.Deadline,
           DeadlineSource: "Companies House", StageNo: 1, StageName: firstStage(job.ServiceKey), Source: "Companies House",
+          PlannedDate: planDateFor(ruleFor(job.ServiceKey, data.services), a.next.Deadline, today) || undefined,
         };
         if (next.SuggestedSlot && String(next.SuggestedSlot) > a.next.Deadline) next.SuggestedSlot = undefined;
         await create("Jobs", next); // the next one first, so nothing is lost if the second step fails
@@ -207,6 +208,7 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
         Key: newKey("J"), Title: name, ClientKey: client.Key, ClientName: client.Title, ServiceKey: a.serviceKey,
         PeriodEnd: a.PeriodEnd, Deadline: a.Deadline, CHDeadline: a.Deadline, DeadlineSource: "Companies House",
         StageNo: 1, StageName: firstStage(a.serviceKey), Status: "Open", Source: "Companies House",
+        PlannedDate: planDateFor(ruleFor(a.serviceKey, data.services), a.Deadline, today) || undefined,
       });
     } else if (a.do === "client" && client) {
       await update("Clients", client, a.patch, { source: "ch-sync" });
