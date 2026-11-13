@@ -2,7 +2,9 @@
 // Everything that changes a record goes through lib/cosec.ts, which also writes the audit line and the timeline entry.
 import { useMemo, useState } from "react";
 import { fmtDate , todayIso } from "../lib/domain";
-import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, TxAction, TxInput } from "../lib/cosec";
+import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, verifiedFrom, TxAction, TxInput, Verified } from "../lib/cosec";
+import { regenerate, resetPlan } from "../lib/cosecReset";
+import { chNumber } from "../lib/companiesHouse";
 import { Addr, BLANK_ADDR, addrIssues, addrText, formTitle, formDef } from "../lib/cosecForms";
 import { ArdInput, EXTENSION_REASONS, WHICH_LABEL, ardAdvice, ardFromPayload, dayMonth, isArdForm, isoOk } from "../lib/cosecArd";
 import { GatewayError } from "../lib/cosecGateway";
@@ -177,6 +179,7 @@ function FilingsList() {
   const rows = useMemo(() => k.data.cosecTx.filter((t) => (show === "all" ? true : show === "open" ? isOpenTx(t) : txStatus(t) === show)).sort((a, b) => String(b.Created).localeCompare(String(a.Created))), [k.data.cosecTx, show]);
   return (
     <section className="card pad stack" aria-label="Filings">
+      <ResetFilings />
       <div className="row-wrap">
         <select className="input" aria-label="Which filings" value={show} onChange={(e) => setShow(e.target.value as typeof show)}>
           <option value="open">Needing attention</option><option value="all">All</option>
@@ -198,6 +201,56 @@ function FilingsList() {
         </table></div>
       )}
     </section>
+  );
+}
+
+/**
+ * TEMPORARY. Clears the unfiled drafts that change detection prepared (and the records that stop them being picked up again), reads every
+ * company from Companies House again, and prepares the filings that adding each company fresh would give. Filed filings and ones started by
+ * hand are kept. The logic is in lib/cosecReset. Remove this once Co Sec's filings are settled.
+ */
+function ResetFilings() {
+  const k = useCoSec();
+  const ch = useCompaniesHouse();
+  const { removeMany } = useData();
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string }>();
+  const plan = useMemo(() => resetPlan({ txs: k.data.cosecTx, events: k.data.cosecEvents }), [k.data.cosecTx, k.data.cosecEvents]);
+  const companies = useMemo(() => k.companies.filter((c) => !isDissolved(c)), [k.companies]);
+  if (!k.can("approve")) return null;
+  const run = async () => {
+    const ok = window.confirm(`Reset filings (temporary)\n\nThis permanently removes ${plan.txs.length} unfiled draft${plan.txs.length === 1 ? "" : "s"} that the planner prepared itself, and ${plan.events.length} related record${plan.events.length === 1 ? "" : "s"}. It then reads ${companies.length} compan${companies.length === 1 ? "y" : "ies"} from Companies House and prepares the filings that adding each one fresh would give.\n\nNothing already filed or sent is touched, and neither is anything you started by hand. Nothing is sent to Companies House.\n\nContinue?`);
+    if (!ok) return;
+    setBusy(true); setMsg(undefined);
+    try {
+      const snap = k.snap(); const now = new Date().toISOString();
+      const verified: Record<string, Verified> = {}; const failed: string[] = [];
+      let i = 0;
+      for (const c of companies) {
+        setProgress(`Reading Companies House: ${++i} of ${companies.length}`);
+        try { verified[String(c.Key)] = verifiedFrom(await ch.get(`company/${chNumber(c as any)}`), now); } catch { failed.push(String(c.Title)); }
+      }
+      setProgress("Removing the old drafts");
+      const { plan: done, write } = regenerate(snap, verified, k.ctx());
+      await removeMany("CoSecTransactions", done.txs);
+      await removeMany("CoSecEvents", done.events);
+      setProgress("Preparing the filings again");
+      for (const c of companies) if (verified[String(c.Key)]) await k.update("Clients", c, { CHVerified: JSON.stringify(verified[String(c.Key)]) }, { source: "ch-sync" });
+      await k.apply(write);
+      const n = write.found;
+      setMsg({ ok: !failed.length, text: `Removed ${done.txs.length} draft${done.txs.length === 1 ? "" : "s"}. ${n ? `Prepared ${n} filing${n === 1 ? "" : "s"} from what Companies House shows now.` : "Companies House agrees with the planner, so nothing needs filing."}${failed.length ? ` Couldn't read ${failed.length} from Companies House, so their old record was used: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? "…" : ""}.` : ""}` });
+    } catch (e) { setMsg({ ok: false, text: e instanceof Error && e.message ? `Stopped part way: ${e.message}. Run it again to finish.` : "Stopped part way. Run it again to finish." }); } finally { setBusy(false); setProgress(""); }
+  };
+  return (
+    <div className="card pad stack" role="group" aria-label="Reset filings (temporary)" style={{ borderStyle: "dashed" }}>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <strong>Reset filings <span className="chip amber">temporary</span></strong>
+        <button type="button" className="btn" disabled={busy} onClick={() => void run()}>{busy ? progress || "Working…" : "Reset and prepare filings again"}</button>
+      </div>
+      <p className="muted" style={{ margin: 0 }}>Removes the {plan.txs.length} unfiled draft{plan.txs.length === 1 ? "" : "s"} the planner prepared itself, then works out the filings from Companies House as if each company had just been added. Anything already filed, and anything started by hand, is kept.</p>
+      {msg && <p role={msg.ok ? "status" : "alert"} style={{ margin: 0, color: msg.ok ? "var(--green)" : "var(--red-ink)" }}>{msg.text}</p>}
+    </div>
   );
 }
 
