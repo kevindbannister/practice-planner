@@ -3807,3 +3807,22 @@ section[aria-labelledby="soon-h"] .home-date { background: var(--pill-bg); borde
 .pcard.done[class*="svc-"] { border-left-color: color-mix(in srgb, var(--svc) 38%, transparent); }
 .pcard.biz { border-left: 1.5px solid color-mix(in srgb, var(--cat) 40%, var(--line)); }
 .home-today-cards { display: flex; flex-direction: column; gap: 8px; padding: 4px 16px 16px; }
+
+/* V29.4: the switch is fully rounded (the menu's scroll edge was clipping its left side), and moving between
+   Practice and Work animates: the rounded glass bar rises to the top, stretches to the edges and turns navy;
+   going back it shrinks into the rounded bar again and fades back to glass. */
+.mode-nav { padding: 4px 4px 4px 6px; margin-left: 4px; }
+.mode-toggle { border-radius: 999px; overflow: hidden; }
+.topbar.mode-bar {
+  background-color: rgba(30, 53, 80, 0);
+  transition: margin 0.45s cubic-bezier(.2, .8, .2, 1), padding 0.45s cubic-bezier(.2, .8, .2, 1), border-radius 0.45s cubic-bezier(.2, .8, .2, 1),
+    background-color 0.45s ease, box-shadow 0.45s ease, border-color 0.45s ease, top 0.45s ease;
+}
+.topbar.mode-bar::before { transition: opacity 0.45s ease; opacity: 1; display: block; }
+.topbar.mode-bar.mode-work { background: #1B3049; background-color: #1B3049; }
+.topbar.mode-bar.mode-work::before { display: block; opacity: 0; }
+.topbar.mode-bar .brand-logo, .topbar.mode-bar .nv-link, .topbar.mode-bar .mode-toggle, .topbar.mode-bar .mode-toggle button,
+.topbar.mode-bar .search-btn, .topbar.mode-bar .bell, .topbar.mode-bar .iconbtn, .topbar.mode-bar .btn { transition: background 0.45s ease, background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease; }
+.work-client { animation: wc-in 0.45s cubic-bezier(.2, .8, .2, 1); }
+@keyframes wc-in { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .topbar.mode-bar, .topbar.mode-bar::before, .work-client { transition: none; animation: none; } }
