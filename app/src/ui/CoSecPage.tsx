@@ -2,7 +2,7 @@
 // Everything that changes a record goes through lib/cosec.ts, which also writes the audit line and the timeline entry.
 import { useMemo, useState } from "react";
 import { fmtDate , todayIso } from "../lib/domain";
-import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, verifiedFrom, verifiedOf, TxAction, TxInput, Verified } from "../lib/cosec";
+import { GROUP_LABEL, NOT_FILED, OPEN_STATUSES, SOURCE_LABEL, STATUS_LABEL, TxStatus, act, canSubmitVia, coSecItems, historyOf, isOpenTx, txIssues, txStatus, verifiedFrom, verifiedOf, officersFromCh, pscsFromCh, TxAction, TxInput, Verified } from "../lib/cosec";
 import { filingRows, filingsFrom } from "../lib/cosecHistory";
 import { regenerate, resetPlan } from "../lib/cosecReset";
 import { chNumber } from "../lib/companiesHouse";
@@ -21,6 +21,7 @@ import { CoSecCompany } from "./CoSecCompany";
 import { useCompaniesHouse } from "./CompaniesHouse";
 import { Cell, PortfolioRow, isDissolved, portfolioRows } from "../lib/portfolio";
 import { AddCompany, LevelChip, PortfolioSummary } from "./CoSecFoundation";
+import { Tag, tagsFor } from "../lib/cosecProfile";
 import { ApprovalPanel } from "./CoSecApproval";
 import { Cs01InFiling } from "./CoSecCs01";
 import { LEVELS, Level, profileFor } from "../lib/cosecProfile";
@@ -109,9 +110,11 @@ function Portfolio() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
   const [level, setLevelFilter] = useState<Level | "">("");
   const [adding, setAdding] = useState(false);
+  const [tag, setTag] = useState<Tag | "">("");
   const all = useMemo(() => portfolioRows(k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today, k.data.services), [k.data.clients, k.data.jobs, k.data.clientServices, k.data.cosecTx, today, k.data.services]);
   const byKey = new Map(k.data.clients.map((c) => [String(c.Key), c]));
-  const match = (r: PortfolioRow) => (!level || profileFor(byKey.get(r.key)!, k.data.cosecProfiles).level === level) && (!q.trim() || `${r.name} ${r.number} ${r.vatNumber}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const tagged = (r: PortfolioRow) => !tag || tagsFor(byKey.get(r.key)!, k.data.cosecProfiles, r, today).includes(tag);
+  const match = (r: PortfolioRow) => tagged(r) && (!level || profileFor(byKey.get(r.key)!, k.data.cosecProfiles).level === level) && (!q.trim() || `${r.name} ${r.number} ${r.vatNumber}`.toLowerCase().includes(q.trim().toLowerCase()));
   const order = (a: PortfolioRow, b: PortfolioRow) => sort.dir * sortValue(a, sort.key).localeCompare(sortValue(b, sort.key)) || a.name.localeCompare(b.name);
   const current = all.filter((r) => !isDissolved(byKey.get(r.key)!) && match(r)).sort(order);
   const gone = all.filter((r) => isDissolved(byKey.get(r.key)!) && match(r)).sort(order);
@@ -140,7 +143,8 @@ function Portfolio() {
           <button type="button" className="btn" disabled={running} onClick={() => void ch.run()}>{running ? "Checking…" : "Refresh from Companies House"}</button>
         </span>
       </div>
-      <PortfolioSummary rows={all} />
+      <PortfolioSummary rows={all} active={tag} onPick={setTag} />
+      {tag && <p role="status" style={{ margin: 0 }}>Showing the {current.length} {current.length === 1 ? "company" : "companies"} in the highlighted box. <button type="button" className="linkbtn" onClick={() => setTag("")}>Show all companies</button></p>}
       {adding && <AddCompany onClose={() => setAdding(false)} />}
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>Accounts and confirmation statement dates come from Companies House (hover a confirmation statement date to see the date it is made up to){checked ? `, last checked ${fmtDate(checked.slice(0, 10))}` : ""}. The tax return date is the planner's open Corporation Tax job (12 months after that period ends), so it can be for an earlier period than the accounts date beside it. VAT comes from the planner's VAT job. * marks a date taken from the planner because that company hasn't been checked at Companies House yet.</p>
       <div className="table-wrap"><table className="grid pf" style={{ minWidth: 1000 }}>
@@ -265,20 +269,59 @@ function ResetFilings() {
 
 function Companies() {
   const k = useCoSec();
+  const ch = useCompaniesHouse();
   const [q, setQ] = useState("");
   const rows = k.companies.filter((c) => !q.trim() || `${c.Title} ${c.CompanyNumber}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const importable = (c: Row) => !isDissolved(c) && !!String(c.CompanyNumber || "").trim();
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string }>();
+  const chosen = k.companies.filter((c) => picked.has(String(c.Key)) && importable(c));
+  const toggle = (key: string) => setPicked((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  const shown = rows.filter(importable).map((c) => String(c.Key));
+  const allShown = shown.length > 0 && shown.every((x) => picked.has(x));
+  /** Reads officers and people with significant control from Companies House for each chosen company and adds the ones not already on the registers. */
+  const bulk = async () => {
+    setBusy(true); setMsg(undefined);
+    let o = 0, p = 0; const failed: string[] = [];
+    try {
+      let i = 0;
+      for (const c of chosen) {
+        setProgress(`Importing ${++i} of ${chosen.length}: ${String(c.Title)}`);
+        try {
+          const num = chNumber(c as any);
+          const [offList, pscList] = await Promise.all([ch.get(`company/${num}/officers?items_per_page=100`), ch.get(`company/${num}/persons-with-significant-control?items_per_page=100`)]);
+          const cx = k.ctx();
+          const off = officersFromCh(c, offList, k.data.cosecOfficers, cx), pscs = pscsFromCh(c, pscList, k.data.cosecPscs, cx);
+          await k.apply({ patches: [], log: [], activities: [], creates: [...off.map((row) => ({ list: "CoSecOfficers" as const, row })), ...pscs.map((row) => ({ list: "CoSecPscs" as const, row }))] });
+          o += off.length; p += pscs.length;
+        } catch (e) { failed.push(String(c.Title)); if ((e as any)?.code === "rate-limited" || (e as any)?.code === "unauthorised" || (e as any)?.code === "not-configured") throw e; }
+        await new Promise((r) => setTimeout(r, 300)); // well inside Companies House's limit of 600 calls per 5 minutes
+      }
+      setMsg({ ok: !failed.length, text: `Brought in ${o} officer${o === 1 ? "" : "s"} and ${p} person${p === 1 ? "" : "s"} with significant control across ${chosen.length - failed.length} compan${chosen.length - failed.length === 1 ? "y" : "ies"}. Residential addresses are not public: add them by hand.${failed.length ? ` Couldn't read ${failed.length}: ${failed.slice(0, 5).join(", ")}${failed.length > 5 ? "…" : ""}.` : ""}` });
+    } catch (e) { setMsg({ ok: false, text: `Stopped after ${o} officers and ${p} people with significant control: ${e instanceof Error && e.message ? e.message : "Companies House could not be reached"}. Run it again to carry on; ones already brought in are skipped.` }); } finally { setBusy(false); setProgress(""); }
+  };
   return (
     <section className="card pad stack" aria-label="Companies">
-      <input className="input" placeholder="Search by name or number" aria-label="Search companies" value={q} onChange={(e) => setQ(e.target.value)} />
-      <div className="table-wrap"><table className="grid" style={{ minWidth: 640 }}>
-        <thead><tr><th scope="col">Company</th><th scope="col">Number</th><th scope="col">Officers</th><th scope="col">Filings open</th><th scope="col">Checked at Companies House</th></tr></thead>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <input className="input" placeholder="Search by name or number" aria-label="Search companies" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
+        {k.can("edit") && <button type="button" className="btn" disabled={busy || !chosen.length} onClick={() => void bulk()}>{busy ? progress || "Working…" : `Import officers and PSCs for ${chosen.length} selected`}</button>}
+      </div>
+      {msg && <p role={msg.ok ? "status" : "alert"} style={{ margin: 0, color: msg.ok ? "var(--green)" : "var(--red-ink)" }}>{msg.text}</p>}
+      <div className="table-wrap"><table className="grid" style={{ minWidth: 700 }}>
+        <thead><tr>
+          <th scope="col" style={{ width: 32 }}><input type="checkbox" aria-label="Select every company shown" checked={allShown} onChange={() => setPicked((p) => { const n = new Set(p); for (const x of shown) { if (allShown) n.delete(x); else n.add(x); } return n; })} /></th>
+          <th scope="col">Company</th><th scope="col">Number</th><th scope="col">Officers</th><th scope="col">PSCs</th><th scope="col">Filings open</th><th scope="col">Checked at Companies House</th></tr></thead>
         <tbody>{rows.map((c) => {
           const open = k.data.cosecTx.filter((t) => t.ClientKey === c.Key && isOpenTx(t)).length;
           let at = ""; try { at = JSON.parse(String(c.CHVerified || "{}")).at || ""; } catch { /* none */ }
           return (
             <tr key={String(c.Key)}>
+              <td>{importable(c) ? <input type="checkbox" aria-label={`Select ${String(c.Title)}`} checked={picked.has(String(c.Key))} onChange={() => toggle(String(c.Key))} /> : null}</td>
               <td><a href={href("cosec", "company", String(c.Key))}>{String(c.Title)}</a></td><td>{String(c.CompanyNumber)}</td>
               <td>{k.data.cosecOfficers.filter((o) => o.ClientKey === c.Key && o.Status === "current").length}</td>
+              <td>{k.data.cosecPscs.filter((o) => o.ClientKey === c.Key && o.Status === "current").length}</td>
               <td>{open ? <span className="chip amber">{open}</span> : "None"}</td>
               <td>{at ? fmtDate(at.slice(0, 10)) : <span className="muted">Not yet</span>}</td>
             </tr>);

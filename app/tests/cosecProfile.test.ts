@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addCompany, counts, filesCs01, findDuplicate, normNumber, profileFor, responsible, setLevel, validNumber } from "../src/lib/cosecProfile";
+import { addCompany, counts, tagsFor, filesCs01, findDuplicate, normNumber, profileFor, responsible, setLevel, validNumber } from "../src/lib/cosecProfile";
 
 let k = 0;
 const key = (p: string) => `${p}${++k}`;
@@ -71,4 +71,17 @@ test("dashboard counts follow responsibility", () => {
   ];
   const c = counts(clients, [], rows, "2026-10-28");
   assert.deepEqual(c, { total: 3, managed: 1, monitoring: 1, other: 1, notClients: 1, cs01Overdue: 1, cs01Soon: 0, accountsOverdue: 0, accountsSoon: 1, outstanding: 3 });
+});
+
+test("the boxes and the lists behind them use the same rule", () => {
+  const clients: any[] = [{ Key: "A", Kind: "Ltd", Status: "active" }, { Key: "B", Kind: "Ltd", Status: "cosec-only" }];
+  const rows = [
+    { key: "A", cs: { date: "2026-10-01" }, accounts: { date: "2026-11-30" }, openFilings: 2 },
+    { key: "B", cs: { date: "2026-10-01" }, accounts: { date: "2026-10-01" }, openFilings: 0 },
+  ];
+  const tags = (i: number) => tagsFor(clients[i], [], rows[i], "2026-10-28");
+  assert.ok(tags(0).includes("cs01Overdue") && tags(0).includes("accountsSoon") && tags(0).includes("outstanding"));
+  assert.deepEqual(tags(1), ["monitoring"]);
+  const c = counts(clients, [], rows, "2026-10-28");
+  for (const g of ["cs01Overdue", "cs01Soon", "accountsOverdue", "accountsSoon"] as const) assert.equal(c[g], [0, 1].filter((i) => tags(i).includes(g)).length, g);
 });

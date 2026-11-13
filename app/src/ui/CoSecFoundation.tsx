@@ -2,7 +2,7 @@
 // (holdings and ownership at any date, entries, corrections, and the comparison with the working register).
 import { useMemo, useState } from "react";
 import { fmtDate, todayIso } from "../lib/domain";
-import { COSEC_ONLY, LEVELS, Level, addCompany, counts, filesCs01, findDuplicate, levelLabel, profileFor, responsible, setLevel, validNumber, normNumber } from "../lib/cosecProfile";
+import { COSEC_ONLY, LEVELS, Level, addCompany, counts, tagsFor, Tag, filesCs01, findDuplicate, levelLabel, profileFor, responsible, setLevel, validNumber, normNumber } from "../lib/cosecProfile";
 import { ENTRY_LABEL, Entry, EntryType, NewEntry, openingFromRegister, ownership, readEntry, reconcile, record, replay, supersede } from "../lib/shareLedger";
 import { PortfolioRow } from "../lib/portfolio";
 import { newKey } from "../lib/planning";
@@ -19,25 +19,29 @@ const say = (e: unknown) => (e instanceof Error && e.message ? e.message : "That
 
 // ------------------------------------------------------------------ portfolio summary
 
-export function PortfolioSummary({ rows }: { rows: PortfolioRow[] }) {
+export function PortfolioSummary({ rows, active, onPick }: { rows: PortfolioRow[]; active?: Tag | ""; onPick?: (t: Tag | "") => void }) {
   const k = useCoSec();
   const c = useMemo(() => counts(k.data.clients, k.data.cosecProfiles, rows, todayIso()), [k.data.clients, k.data.cosecProfiles, rows]);
-  const tile = (label: string, value: number, tone = "", title?: string) => (
-    <div className="card pad" style={{ minWidth: 130, flex: "1 1 130px" }} title={title}>
+  const tile = (label: string, value: number, tone = "", title?: string, tag?: Tag) => {
+    const on = !!tag && active === tag;
+    const body = (<>
       <div className="muted" style={{ fontSize: 12 }}>{label}</div>
       <div style={{ fontSize: 24, fontWeight: 600 }}>{value}{value > 0 && tone ? <span className={`chip ${tone}`} style={{ marginLeft: 8, fontSize: 11 }}>{tone === "red" ? "act" : "soon"}</span> : null}</div>
-    </div>
-  );
+    </>);
+    const style = { minWidth: 130, flex: "1 1 130px", ...(on ? { outline: "2px solid var(--accent, #2563eb)" } : {}) };
+    if (!tag || !onPick) return <div className="card pad" style={style} title={title}>{body}</div>;
+    return <button type="button" className="card pad" style={{ ...style, textAlign: "left", cursor: "pointer", font: "inherit", color: "inherit" }} title={`${title ? title + ". " : ""}${on ? "Click to show all companies" : "Click to list these companies"}`} aria-pressed={on} onClick={() => onPick(on ? "" : tag)}>{body}</button>;
+  };
   return (
     <div className="row-wrap" style={{ gap: 10, alignItems: "stretch" }} aria-label="Portfolio summary">
       {tile("Companies", c.total)}
-      {tile("Managed by the practice", c.managed, "", "Fully managed, or specific filings only")}
-      {tile("Monitoring only", c.monitoring, "", "Watched for changes; the practice files nothing")}
-      {tile("Confirmation statements overdue", c.cs01Overdue, "red", "Only where the practice files the CS01")}
-      {tile("Confirmation statements due soon", c.cs01Soon, "amber", "Within 60 days")}
-      {tile("Accounts overdue", c.accountsOverdue, "red", "Only where the practice is responsible")}
-      {tile("Accounts due soon", c.accountsSoon, "amber", "Within 60 days")}
-      {tile("Filings waiting", c.outstanding)}
+      {tile("Managed by the practice", c.managed, "", "Fully managed, or specific filings only", "managed")}
+      {tile("Monitoring only", c.monitoring, "", "Watched for changes; the practice files nothing", "monitoring")}
+      {tile("Confirmation statements overdue", c.cs01Overdue, "red", "Only where the practice files the CS01", "cs01Overdue")}
+      {tile("Confirmation statements due soon", c.cs01Soon, "amber", "Within 60 days", "cs01Soon")}
+      {tile("Accounts overdue", c.accountsOverdue, "red", "Only where the practice is responsible", "accountsOverdue")}
+      {tile("Accounts due soon", c.accountsSoon, "amber", "Within 60 days", "accountsSoon")}
+      {tile("Filings waiting", c.outstanding, "", undefined, "outstanding")}
     </div>
   );
 }

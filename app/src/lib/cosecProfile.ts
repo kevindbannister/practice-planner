@@ -73,25 +73,37 @@ export function setLevel(client: Row, profiles: Row[], level: Level, key: (p: st
 }
 
 export type Counts = { total: number; managed: number; monitoring: number; other: number; notClients: number; cs01Overdue: number; cs01Soon: number; accountsOverdue: number; accountsSoon: number; outstanding: number };
+/** The summary boxes a company is counted in. The same rules produce the figures and the lists behind them. */
+export type Tag = "managed" | "monitoring" | "cs01Overdue" | "cs01Soon" | "accountsOverdue" | "accountsSoon" | "outstanding";
+type CountRow = { key: string; cs: { date: string }; accounts: { date: string }; openFilings: number };
+export function tagsFor(client: Row, profiles: Row[], r: CountRow, today: string, soonDays = 60): Tag[] {
+  const out: Tag[] = [];
+  const p = profileFor(client, profiles);
+  const days = (d: string) => Math.round((Date.parse(d) - Date.parse(today)) / 86400000);
+  if (p.level === "managed" || p.level === "filings") out.push("managed");
+  else if (p.level === "monitoring") out.push("monitoring");
+  if (p.level !== "historical") {
+    if (r.cs.date && filesCs01(p)) { const d = days(r.cs.date); if (d < 0) out.push("cs01Overdue"); else if (d <= soonDays) out.push("cs01Soon"); }
+    if (r.accounts.date && responsible(p.level)) { const d = days(r.accounts.date); if (d < 0) out.push("accountsOverdue"); else if (d <= soonDays) out.push("accountsSoon"); }
+  }
+  if (r.openFilings > 0) out.push("outstanding");
+  return out;
+}
 /** Dashboard figures. Dates come from the portfolio rows, which already prefer Companies House. */
-export function counts(clients: Row[], profiles: Row[], rows: { key: string; cs: { date: string }; accounts: { date: string }; openFilings: number }[], today: string, soonDays = 60): Counts {
+export function counts(clients: Row[], profiles: Row[], rows: CountRow[], today: string, soonDays = 60): Counts {
   const byKey = new Map(clients.map((c) => [str(c.Key), c]));
   const out: Counts = { total: 0, managed: 0, monitoring: 0, other: 0, notClients: 0, cs01Overdue: 0, cs01Soon: 0, accountsOverdue: 0, accountsSoon: 0, outstanding: 0 };
-  const days = (d: string) => Math.round((Date.parse(d) - Date.parse(today)) / 86400000);
   for (const r of rows) {
     const c = byKey.get(r.key);
     if (!c || !companyKind(c)) continue;
     const p = profileFor(c, profiles);
     out.total++;
-    if (p.level === "managed" || p.level === "filings") out.managed++;
-    else if (p.level === "monitoring") out.monitoring++;
-    else out.other++;
+    const tags = tagsFor(c, profiles, r, today, soonDays);
+    if (tags.includes("managed")) out.managed++; else if (tags.includes("monitoring")) out.monitoring++; else out.other++;
     if (str(c.Status).toLowerCase() === COSEC_ONLY) out.notClients++;
-    if (p.level !== "historical") {
-      if (r.cs.date && filesCs01(p)) { const d = days(r.cs.date); if (d < 0) out.cs01Overdue++; else if (d <= soonDays) out.cs01Soon++; }
-      if (r.accounts.date && responsible(p.level)) { const d = days(r.accounts.date); if (d < 0) out.accountsOverdue++; else if (d <= soonDays) out.accountsSoon++; }
-    }
+    for (const g of ["cs01Overdue", "cs01Soon", "accountsOverdue", "accountsSoon"] as const) if (tags.includes(g)) out[g]++;
     out.outstanding += r.openFilings;
+    void p;
   }
   return out;
 }
