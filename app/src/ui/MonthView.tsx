@@ -1,9 +1,9 @@
 // Month: the plan on a calendar. Each day shows what is planned on it against the hours available, and what is due. Click a day to plan it in the Week view.
 import { KeyboardEvent as ReactKeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Job, Task, fmtDate, fmtHours, isOnHold, todayIso } from "../lib/domain";
-import { addDays } from "../lib/planning";
+import { addDays, mondayOf } from "../lib/planning";
 import { dayHours } from "../lib/dayTypes";
-import { MonthItem, Show, buildMonth, monthKey, shiftMonth } from "../lib/monthPlan";
+import { MonthItem, Show, buildMonth, monthKey, rollingWeeks, shiftMonth } from "../lib/monthPlan";
 import { Item, PlanCard, UnplannedTray, usePlanItems, usePlanTray } from "./PlanTray";
 import { useCardFields } from "./CardOptions";
 import { isBusinessTask } from "../lib/projects";
@@ -23,9 +23,12 @@ const HELP = "Held work is left off. Bars show planned hours against the hours y
 const MAX_SHOWN = 3; // on a small screen; on a wide one it follows the height of the rows
 function useNarrow(q = "(max-width: 720px)") { const get = () => typeof matchMedia === "function" && matchMedia(q).matches; const [n, setN] = useState(get); useEffect(() => { const m = matchMedia(q); const f = () => setN(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, [q]); return n; }
 
-export function MonthView() {
+const shortDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+/** The plan on a calendar. `rolling` shows six weeks starting from this week, moving a week at a time, instead of a calendar month. */
+export function MonthView({ rolling = false }: { rolling?: boolean }) {
   const { data, settings, update } = useData(); const idx = useIndex(); const { open } = useEditor(); const today = todayIso(); const narrow = useNarrow();
-  const [month, setMonth] = useState(monthKey(today)); const [show, setShow] = useState<Show>("all");
+  const [month, setMonth] = useState(monthKey(today)); const [anchor, setAnchor] = useState(mondayOf(today)); const [show, setShow] = useState<Show>("all");
   // Saturdays and Sundays are hidden unless asked for; the choice is remembered on this device
   const [weekends, setWeekends] = useState(() => { try { return localStorage.getItem("pp.month.weekends") === "1"; } catch { return false; } });
   const toggleWeekends = () => setWeekends((w) => { const n = !w; try { localStorage.setItem("pp.month.weekends", n ? "1" : "0"); } catch { /* not remembered */ } return n; });
@@ -57,13 +60,13 @@ export function MonthView() {
       say(`${item.client || item.title}: planned for ${fmtDate(date, { weekday: true, year: false })}${late}`, () => update(list, row, before).then(() => setToast(undefined)).catch(() => setError("Couldn't undo that. Move it back by hand.")));
     } catch { setError("That move didn't save. It's been put back; try again."); }
   };
-  const { dragKey, target: dropTarget, cardProps } = useBoardDrag((key, to) => void move(key, to === "tray" ? "" : to), (by) => setMonth((m) => shiftMonth(m, by))); // holding a card at the edge turns the month
+  const { dragKey, target: dropTarget, cardProps } = useBoardDrag((key, to) => void move(key, to === "tray" ? "" : to), (by) => (rolling ? setAnchor((a) => addDays(a, 7 * by)) : setMonth((m) => shiftMonth(m, by)))); // holding a card at the edge turns the month, or moves a rolling view on a week
   const keyMove = (i: MonthItem, e: ReactKeyboardEvent) => {
     if (!e.altKey || !i.planned) return; const by = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" ? -7 : e.key === "ArrowDown" ? 7 : 0; if (!by) return;
     e.preventDefault(); void move(i.key, addDays(i.planned, by));
   };
   const cap = (d: string) => { const h = dayHours(d, settings); return h.client + h.business; };
-  const m = useMemo(() => buildMonth(month, items, cap, today, show), [month, items, settings, today, show]); // eslint-disable-line react-hooks/exhaustive-deps
+  const m = useMemo(() => buildMonth(rolling ? monthKey(anchor) : month, items, cap, today, show, rolling ? rollingWeeks(anchor, 6) : undefined), [month, anchor, rolling, items, settings, today, show]); // eslint-disable-line react-hooks/exhaustive-deps
   // the Unplanned panel is the Week view's: the same list, filters and cards
   const { items: planItems } = usePlanItems();
   const [fields] = useCardFields();
@@ -105,14 +108,14 @@ export function MonthView() {
   return (
     <div className={`page${narrow ? "" : " month-fit"}`}>
       <div className="row-wrap no-print" style={{ gap: 12, alignItems: "center", justifyContent: "space-between" }}>
-      <PlanTabs current="month" />
+      <PlanTabs current={rolling ? "rolling" : "month"} />
       <div className="row-wrap" style={{ gap: 12, alignItems: "center" }}>
         <div className="row" style={{ gap: 4 }}>
-          <button type="button" className="btn small" data-drop="week-prev" aria-label="Previous month" onClick={() => setMonth(shiftMonth(month, -1))}>‹</button>
-          <button type="button" className="btn small" data-drop="week-next" aria-label="Next month" onClick={() => setMonth(shiftMonth(month, 1))}>›</button>
+          <button type="button" className="btn small" data-drop="week-prev" aria-label={rolling ? "Previous week" : "Previous month"} onClick={() => (rolling ? setAnchor(addDays(anchor, -7)) : setMonth(shiftMonth(month, -1)))}>‹</button>
+          <button type="button" className="btn small" data-drop="week-next" aria-label={rolling ? "Next week" : "Next month"} onClick={() => (rolling ? setAnchor(addDays(anchor, 7)) : setMonth(shiftMonth(month, 1)))}>›</button>
         </div>
-        <h2 style={{ margin: 0, fontSize: 20 }} aria-live="polite">{monthName(month)}</h2>
-        {month !== monthKey(today) && <button type="button" className="btn small" onClick={() => setMonth(monthKey(today))}>This month</button>}
+        <h2 style={{ margin: 0, fontSize: 20 }} aria-live="polite">{rolling ? `${shortDay(m.weeks[0][0].date)} – ${shortDay(m.weeks[m.weeks.length - 1][6].date)}` : monthName(month)}</h2>
+        {rolling ? (anchor !== mondayOf(today) && <button type="button" className="btn small" onClick={() => setAnchor(mondayOf(today))}>This week</button>) : (month !== monthKey(today) && <button type="button" className="btn small" onClick={() => setMonth(monthKey(today))}>This month</button>)}
         <div className="seg" role="group" aria-label="Show">
           {([["all", "All work"], ["statutory", "Statutory"], ["other", "Other"]] as [Show, string][]).map(([k, l]) => <button key={k} type="button" aria-pressed={show === k} onClick={() => setShow(k)}>{l}</button>)}
         </div>
@@ -125,8 +128,8 @@ export function MonthView() {
       {!narrow && panel}
       <div className="month-main">
       {narrow ? (
-        <ul className="month-agenda" aria-label={`Plan for ${monthName(month)}`}>
-          {cellsWithContent.length === 0 && <li className="muted">Nothing planned or due this month.</li>}
+        <ul className="month-agenda" aria-label={`Plan for ${rolling ? "the next six weeks" : monthName(month)}`}>
+          {cellsWithContent.length === 0 && <li className="muted">Nothing planned or due in this period.</li>}
           {cellsWithContent.map((c) => (
             <li key={c.date} className={c.today ? "today" : ""}>
               <button type="button" className="linkbtn" onClick={() => goWeek(c.date)}><strong>{dayName(c.date)}</strong></button> <span className="muted">{fmtHours(c.plannedHours) || "0h"} of {fmtHours(c.capacity) || "0h"}</span>
@@ -138,7 +141,7 @@ export function MonthView() {
       ) : (
         <div className="month-grid-wrap" ref={gridRef}>
         <table className="month-grid">
-          <caption className="sr-only">Plan for {monthName(month)}</caption>
+          <caption className="sr-only">Plan for {rolling ? "the next six weeks" : monthName(month)}</caption>
           <thead><tr>{WEEKDAYS.filter((_, n) => weekends || n < 5).map((d) => <th key={d} scope="col">{d}</th>)}</tr></thead>
           <tbody>
             {m.weeks.map((w, wi) => (
@@ -148,7 +151,7 @@ export function MonthView() {
                   return (
                     <td key={c.date} data-drop={c.date} className={`month-cell${dropTarget === c.date ? " drop" : ""}${c.inMonth ? "" : " out"}${c.today ? " today" : ""}${c.weekend ? " weekend" : ""}${c.over ? " over" : ""}`} onClick={() => goWeek(c.date)}>
                       <div className="month-cell-head">
-                        <button type="button" className="month-day" aria-label={`${dayName(c.date)}: ${fmtHours(c.plannedHours) || "0h"} planned of ${fmtHours(c.capacity) || "0h"}. Open in the week view`} onClick={(e) => { e.stopPropagation(); goWeek(c.date); }}>{Number(c.date.slice(8))}</button>
+                        <button type="button" className="month-day" aria-label={`${dayName(c.date)}: ${fmtHours(c.plannedHours) || "0h"} planned of ${fmtHours(c.capacity) || "0h"}. Open in the week view`} onClick={(e) => { e.stopPropagation(); goWeek(c.date); }}>{rolling && (c.date.slice(8) === "01" || c.date === m.weeks[0][0].date) ? shortDay(c.date) : Number(c.date.slice(8))}</button>
                         {c.due.length > 0 && <span className="chip red" title={c.due.map((i) => `${i.client ? i.client + ": " : ""}${i.title}`).join("\n")}>{c.due.length} due</span>}
                       </div>
                       {c.capacity > 0 || c.plannedHours > 0 ? <div className="month-bar" aria-hidden="true"><span className={c.over ? "over" : ""} style={{ width: `${pct}%` }} /></div> : null}

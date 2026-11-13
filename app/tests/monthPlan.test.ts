@@ -47,3 +47,16 @@ test("the unplanned list can be narrowed by deadline, type of work and client", 
   assert.deepEqual(ids({ type: "TASK" }), ["c"]);
   assert.deepEqual(ids({ client: "Acme", due: "overdue" }), ["a"]);
 });
+
+test("a rolling view is six whole weeks from this week's Monday, all counted", async () => {
+  const { rollingWeeks, buildMonth } = await import("../src/lib/monthPlan");
+  const w = rollingWeeks("2026-11-13", 6);
+  assert.equal(w.length, 6);
+  assert.equal(w[0][0], "2026-11-09");
+  assert.equal(w[5][6], "2026-12-20");
+  const item: any = { key: "a", kind: "job", title: "T", client: "C", hours: 2, planned: "2026-12-18", deadline: "", statutory: true, held: false, done: false, doneOn: "" };
+  const r = buildMonth("2026-11", [item], () => 7, "2026-11-13", "all", w);
+  assert.equal(r.weeks.length, 6);
+  assert.ok(r.weeks.flat().every((c) => c.inMonth), "none greyed out as another month");
+  assert.equal(r.totals.planned, 2, "work planned in December counts in a view that starts in November");
+});

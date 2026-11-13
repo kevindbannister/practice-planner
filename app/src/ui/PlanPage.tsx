@@ -76,6 +76,7 @@ export function PlanPage() {
   if (parts[1] === "overview") return <WorkOverview />;
   if (parts[1] === "reports") return <WorkReports />;
   if (parts[1] === "month") return <MonthView />;
+  if (parts[1] === "rolling") return <MonthView rolling />;
   if (parts[1] === "months") return <MonthsView />;
   if (parts[1] === "deadlines") return <DeadlinesView />;
   if (parts[1] === "done" || parts[1] === "history") return (

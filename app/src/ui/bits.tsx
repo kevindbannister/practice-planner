@@ -195,13 +195,13 @@ export function PlanSection({ title, id, open, count, children }: { title: strin
   );
 }
 const PLAN_ALIAS: Record<string, string> = { inbox: "today", unblock: "today", history: "done" };
-export function PlanTabs({ current }: { current: "today" | "month" | "inbox" | "unblock" | "overview" | "reports" | "week" | "months" | "deadlines" | "done" | "projects" | "chase" | "history" | "timesheet" | "time" }) {
+export function PlanTabs({ current }: { current: "today" | "month" | "rolling" | "inbox" | "unblock" | "overview" | "reports" | "week" | "months" | "deadlines" | "done" | "projects" | "chase" | "history" | "timesheet" | "time" }) {
   const embedded = useContext(PlanEmbed);
   if (embedded) return null;
   const T = (key: string, label: string, to: string): TabItem => ({ key, label, to });
   const groups: TabGroup[] = [
     { label: "Today", items: [T("today", "Today", "#/plan/today")] },
-    { label: "Calendar", items: [T("week", "Week", "#/plan"), T("month", "Month", "#/plan/month"), T("months", "Months ahead", "#/plan/months"), T("deadlines", "Deadlines", "#/plan/deadlines")] },
+    { label: "Calendar", items: [T("week", "Week", "#/plan"), T("month", "Month", "#/plan/month"), T("rolling", "6 weeks", "#/plan/rolling"), T("months", "Months ahead", "#/plan/months"), T("deadlines", "Deadlines", "#/plan/deadlines")] },
     { label: "Work", items: [T("overview", "Overview", "#/plan/overview"), T("projects", "Projects", "#/plan/projects"), T("done", "Done", "#/plan/done"), T("reports", "Reports", "#/plan/reports")] },
     { label: "Time", items: [T("timesheet", "Timesheet", "#/plan/timesheet"), T("time", "Time reports", "#/plan/time")] },
   ];

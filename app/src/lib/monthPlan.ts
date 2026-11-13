@@ -5,6 +5,8 @@ export type MonthItem = { key: string; kind: "job" | "task"; title: string; clie
 export type Cell = { date: string; inMonth: boolean; today: boolean; weekend: boolean; planned: MonthItem[]; due: MonthItem[]; done: MonthItem[]; plannedHours: number; capacity: number; over: boolean };
 export type Show = "all" | "statutory" | "other";
 
+/** `count` whole weeks (Monday first) from the Monday on or before `from`: the days of a rolling view. */
+export const rollingWeeks = (from: string, count = 6): string[][] => { const start = mondayOf(from); return Array.from({ length: count }, (_, w) => Array.from({ length: 7 }, (_, d) => addDays(start, w * 7 + d))); };
 export const monthKey = (iso: string) => iso.slice(0, 7);
 export const shiftMonth = (key: string, by: number) => { const d = new Date(`${key}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + by); return d.toISOString().slice(0, 7); };
 const dow = (iso: string) => (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7; // Monday = 0
@@ -19,14 +21,14 @@ export function weeksOf(key: string): string[][] {
 
 /** Held (on hold) work is off the plan. Planned work shows on its planned day, finished work on the day it was finished, due dates on the day they fall.
  *  Capacity is the hours available that day for client and business work together; a day with none (a weekend, a day off) has capacity 0. */
-export function buildMonth(key: string, items: MonthItem[], capacityOn: (date: string) => number, today: string, show: Show = "all"): { weeks: Cell[][]; totals: { planned: number; capacity: number; due: number; unplanned: number } } {
+export function buildMonth(key: string, items: MonthItem[], capacityOn: (date: string) => number, today: string, show: Show = "all", weeksOverride?: string[][]): { weeks: Cell[][]; totals: { planned: number; capacity: number; due: number; unplanned: number } } {
   const keep = (i: MonthItem) => show === "all" || (show === "statutory") === i.statutory;
   const live = items.filter((i) => keep(i) && !i.held);
   const by = (f: (i: MonthItem) => string, list: MonthItem[]) => { const m = new Map<string, MonthItem[]>(); for (const i of list) { const d = f(i); if (!d) continue; (m.get(d) || m.set(d, []).get(d)!).push(i); } return m; };
   const planned = by((i) => i.planned, live.filter((i) => !i.done)), due = by((i) => i.deadline, live.filter((i) => !i.done)), done = by((i) => i.doneOn, live.filter((i) => i.done));
-  const weeks = weeksOf(key).map((w) => w.map((date): Cell => {
+  const weeks = (weeksOverride || weeksOf(key)).map((w) => w.map((date): Cell => {
     const p = (planned.get(date) || []).sort((a, b) => b.hours - a.hours || a.client.localeCompare(b.client)); const cap = capacityOn(date); const hrs = Math.round(p.reduce((t, i) => t + i.hours, 0) * 100) / 100;
-    return { date, inMonth: monthKey(date) === key, today: date === today, weekend: dow(date) >= 5, planned: p, due: due.get(date) || [], done: done.get(date) || [], plannedHours: hrs, capacity: cap, over: hrs > cap + 1e-9 };
+    return { date, inMonth: weeksOverride ? true : monthKey(date) === key, today: date === today, weekend: dow(date) >= 5, planned: p, due: due.get(date) || [], done: done.get(date) || [], plannedHours: hrs, capacity: cap, over: hrs > cap + 1e-9 };
   }));
   const inMonth = weeks.flat().filter((c) => c.inMonth);
   const dueItems = inMonth.flatMap((c) => c.due);
