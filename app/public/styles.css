@@ -3535,3 +3535,9 @@ table.deadlines .c-kind { white-space: nowrap; }
   .month-fit .month-cell { height: auto; }
   .month-fit .month-cell { overflow: hidden; }
 }
+
+/* Month: what is due on a day, on hover or focus of its "due" label */
+.month-due-chip { border: 0; cursor: help; font: inherit; font-size: 11px; }
+.month-tip { position: fixed; z-index: 60; width: 330px; max-width: calc(100vw - 16px); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px var(--shadow); padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; pointer-events: none; }
+.month-tip ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.month-tip .muted { font-size: 12px; }

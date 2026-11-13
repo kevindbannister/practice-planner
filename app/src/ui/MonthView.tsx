@@ -75,6 +75,9 @@ export function MonthView({ rolling = false }: { rolling?: boolean }) {
   const tray = usePlanTray({ items: narrowed, today, inTray: (i) => !i.planned });
   // like Working Papers, the month fills the window: the calendar takes the room left and the Unplanned panel scrolls on its own. The number of
   // items a day can show follows the height its row gets.
+  // what is due on a day, shown straight away when the "due" label is hovered or focused (the cell clips anything inside it, so it is placed on the page)
+  const [tip, setTip] = useState<{ x: number; y: number; items: MonthItem[] }>();
+  const showTip = (el: HTMLElement, items: MonthItem[]) => { const r = el.getBoundingClientRect(); setTip({ x: Math.max(8, Math.min(r.right, window.innerWidth - 340)), y: r.bottom + 6, items }); };
   const gridRef = useRef<HTMLDivElement>(null);
   const [rowH, setRowH] = useState(0);
   useLayoutEffect(() => {
@@ -152,7 +155,8 @@ export function MonthView({ rolling = false }: { rolling?: boolean }) {
                     <td key={c.date} data-drop={c.date} className={`month-cell${dropTarget === c.date ? " drop" : ""}${c.inMonth ? "" : " out"}${c.today ? " today" : ""}${c.weekend ? " weekend" : ""}${c.over ? " over" : ""}`} onClick={() => goWeek(c.date)}>
                       <div className="month-cell-head">
                         <button type="button" className="month-day" aria-label={`${dayName(c.date)}: ${fmtHours(c.plannedHours) || "0h"} planned of ${fmtHours(c.capacity) || "0h"}. Open in the week view`} onClick={(e) => { e.stopPropagation(); goWeek(c.date); }}>{rolling && (c.date.slice(8) === "01" || c.date === m.weeks[0][0].date) ? shortDay(c.date) : Number(c.date.slice(8))}</button>
-                        {c.due.length > 0 && <span className="chip red" title={c.due.map((i) => `${i.client ? i.client + ": " : ""}${i.title}`).join("\n")}>{c.due.length} due</span>}
+                        {c.due.length > 0 && <button type="button" className="chip red month-due-chip" aria-label={`${c.due.length} due on ${dayName(c.date)}: ${c.due.map((i) => `${i.client ? i.client + ": " : ""}${i.title}`).join("; ")}`}
+                          onMouseEnter={(e) => showTip(e.currentTarget, c.due)} onFocus={(e) => showTip(e.currentTarget, c.due)} onMouseLeave={() => setTip(undefined)} onBlur={() => setTip(undefined)}>{c.due.length} due</button>}
                       </div>
                       {c.capacity > 0 || c.plannedHours > 0 ? <div className="month-bar" aria-hidden="true"><span className={c.over ? "over" : ""} style={{ width: `${pct}%` }} /></div> : null}
                       {c.planned.slice(0, maxShown).map(chip)}
@@ -173,6 +177,18 @@ export function MonthView({ rolling = false }: { rolling?: boolean }) {
       {narrow && panel}
       {narrow && <p className="muted" style={{ margin: 0 }}>{HELP}</p>}
       {error && <p className="import-list warn" role="alert">{error}</p>}
+      {tip && (
+        <div className="month-tip" role="tooltip" style={{ left: tip.x, top: Math.min(tip.y, window.innerHeight - 40 - tip.items.length * 44) }}>
+          <strong>Due this day ({tip.items.length})</strong>
+          <ul className="plain">{tip.items.slice(0, 12).map((i) => (
+            <li key={i.key}>
+              <span className={`svc-dot ${svcClass(i.kind === "job" ? i.serviceKey : "TASK")}`} aria-hidden="true" /> <strong>{i.client || i.title}</strong>{i.client ? ` · ${i.title}` : ""}
+              <div className="muted">{i.period ? `Period to ${fmtDate(i.period)} · ` : ""}{fmtHours(i.hours)} · {i.planned ? `planned ${fmtDate(i.planned, { weekday: true, year: false })}` : "not planned yet"}</div>
+            </li>))}
+          </ul>
+          {tip.items.length > 12 && <span className="muted">and {tip.items.length - 12} more</span>}
+        </div>
+      )}
       <div aria-live="polite" className="sr-only">{toast?.text}</div>
       {toast && <div className="toast" role="status">{toast.text}{toast.undo && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={toast.undo}>Undo</button>}</div>}
     </div>
