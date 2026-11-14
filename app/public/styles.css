@@ -3994,3 +3994,6 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 @keyframes wc-down { from { transform: translateY(-100%); opacity: 0; } 40% { opacity: 1; } to { transform: none; opacity: 1; } }
 @keyframes wc-up { from { transform: none; opacity: 1; } 60% { opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .work-strip.in > .work-client, .work-strip.out > .work-client { animation: none; } .work-strip.out > .work-client { display: none; } }
+/* V30.7: the Work logo uses the same sweep as the Practice logo (same angle and fade, 10% to 95%), from white into
+   the same teal lifted for the navy bar, rather than a block of white jumping to mint green */
+.topbar.mode-work .brand-logo { background: linear-gradient(110deg, #ffffff 10%, #4fd3e8 95%); }
