@@ -217,6 +217,15 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const toggle = menuKind === "toggle";
   const mode = useMode(section);
   const work = toggle && mode === "work";
+  // the client strip slides down out of the navy bar going into Work, and back up into it going to Practice
+  const [strip, setStrip] = useState<"" | "in" | "out">(work ? "in" : "");
+  useEffect(() => {
+    if (work) { setStrip("in"); return; }
+    if (!strip) return;
+    setStrip("out");
+    const t = window.setTimeout(() => setStrip(""), 900);
+    return () => window.clearTimeout(t);
+  }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { rememberPage(section); }, [section, routeKey]);
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   const { save, user } = useData();
@@ -283,7 +292,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
       </div>
       {two && <TwoLineModules section={section} area={area} chase={ready ? chase : 0} />}
     </header>
-    {work && ready && <WorkClientBar section={section} routeKey={routeKey} />}
+    {strip && ready && <div className={`work-strip ${strip}`}><WorkClientBar section={section} routeKey={routeKey} /></div>}
     </>
   );
 }

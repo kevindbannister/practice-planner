@@ -3984,3 +3984,13 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 .paper-page .paper-side::-webkit-scrollbar { display: none; }
 .paper-page .paper-group, .paper-page .paper-group + .paper-group, .paper-page .paper-side-head { border: 0 !important; }
 @media (min-width: 801px) { .paper-page .paper-split-main, .paper-page .paper-split-main > div { margin-top: 0; padding-top: 0; } .paper-page > .paper-split, .paper-page > div:has(> .paper-split-main) { margin-top: -14px; } }
+
+/* V30.6: the client strip slides down out of the navy bar going into Work, and back up into it going to Practice */
+.work-strip { display: contents; }
+.topbar.mode-bar { z-index: 30; }
+.work-strip > .work-client.paper-top { z-index: 20; }
+.work-strip.in > .work-client { animation: wc-down 0.9s cubic-bezier(.2, .8, .2, 1) both; }
+.work-strip.out > .work-client { animation: wc-up 0.9s cubic-bezier(.4, 0, .6, 1) both; pointer-events: none; }
+@keyframes wc-down { from { transform: translateY(-100%); opacity: 0; } 40% { opacity: 1; } to { transform: none; opacity: 1; } }
+@keyframes wc-up { from { transform: none; opacity: 1; } 60% { opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .work-strip.in > .work-client, .work-strip.out > .work-client { animation: none; } .work-strip.out > .work-client { display: none; } }
