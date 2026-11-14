@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { Job, fmtDate, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { FAMILY_NAMES, FAMILY_ORDER, serviceSlot, svcClass } from "../lib/serviceColour";
-import { useIndex } from "./data";
+import { useData, useIndex } from "./data";
+import { isOpenTx } from "../lib/cosec";
 import { useEditor } from "./Editors";
 import { Icon, IconName } from "./bits";
 import { PlanCard, usePlanItems } from "./PlanTray";
@@ -35,13 +36,34 @@ export function WorkHome() {
   // work with a statutory deadline only (not management accounts or bookkeeping, nor other work)
   const STATUTORY = FAMILY_ORDER.filter((f) => f !== 0 && f !== 4);
   // a job is listed once it has been started, or when it is due within 30 days (or late)
-  const started = (j: Job) => Number(j.StageNo || 1) > 1 || Number(j.ActualHours || 0) > 0;
+  // "started" means the work itself has begun: working papers or a tax return for the job's period have something in
+  // them, a Companies House filing is being prepared, or the job has moved on a stage or had time logged against it
+  const { data } = useData();
+  const workBegun = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of [...data.papers, ...data.paperLines]) if (r.ClientKey && r.PeriodEnd) s.add(`${r.ClientKey}|${String(r.PeriodEnd).slice(0, 10)}`);
+    return s;
+  }, [data.papers, data.paperLines]);
+  const filing = useMemo(() => new Set(data.cosecTx.filter((x) => isOpenTx(x as never)).map((x) => String(x.ClientKey))), [data.cosecTx]);
+  const started = (j: Job) => {
+    if (j.PeriodEnd && workBegun.has(`${j.ClientKey}|${String(j.PeriodEnd).slice(0, 10)}`)) return true;
+    if (serviceSlot(j.ServiceKey) === 3 && filing.has(String(j.ClientKey))) return true;
+    return Number(j.StageNo || 1) > 1 || Number(j.ActualHours || 0) > 0;
+  };
   const listed = (j: Job) => started(j) || (!!j.Deadline && j.Deadline <= in30);
 
   const families = useMemo(() => STATUTORY.map((f) => {
     const list = jobs.filter((j) => serviceSlot(j.ServiceKey) === f && listed(j)).sort(byDeadline);
-    return { f, name: FAMILY_NAMES[f], list, late: list.filter((j) => jobState(j, today).state === "overdue").length, soon: list.filter((j) => j.Deadline && j.Deadline >= today && j.Deadline <= in30).length };
-  }).filter((g) => g.list.length), [jobs, today]); // eslint-disable-line react-hooks/exhaustive-deps
+    const begun = list.filter(started), soon = list.filter((j) => !started(j));
+    return { f, name: FAMILY_NAMES[f], list, begun, soonList: soon, late: list.filter((j) => jobState(j, today).state === "overdue").length };
+  }).filter((g) => g.list.length), [jobs, today, workBegun, filing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cards = (list: Job[], limit: number) => list.slice(0, limit).map((j) => {
+    const item = itemByKey.get(j.Key);
+    return item
+      ? <PlanCard key={j.Key} item={item} today={today} fields={cardFields} dragging={false} onOpen={() => open({ kind: "job", key: j.Key })} />
+      : <ul key={j.Key} className="home-list">{row(j)}</ul>;
+  });
 
   const tile = (label: string, value: number, sub: string, icon: IconName, hue: string, tone: string, to: string) => (
     <a className={`tile home-tile${tone && value ? ` ${tone}` : ""}`} href={to}>
@@ -104,19 +126,24 @@ export function WorkHome() {
               <a href={FAMILY_PAGE[g.f]} style={{ fontSize: 13 }}>Open</a>
             </div>
             <p className="work-family-sum">
-              <span><strong>{g.list.length}</strong> started or due soon</span>
-              <span className={g.soon ? "amber-text" : ""}><strong>{g.soon}</strong> due in 30 days</span>
+              <span><strong>{g.begun.length}</strong> started</span>
+              <span className={g.soonList.length ? "amber-text" : ""}><strong>{g.soonList.length}</strong> due soon, not started</span>
               <span className={g.late ? "red-text" : ""}><strong>{g.late}</strong> late</span>
             </p>
-            <div className="home-today-cards">
-              {g.list.slice(0, 6).map((j) => {
-                const item = itemByKey.get(j.Key);
-                return item
-                  ? <PlanCard key={j.Key} item={item} today={today} fields={cardFields} dragging={false} onOpen={() => open({ kind: "job", key: j.Key })} />
-                  : <ul key={j.Key} className="home-list">{row(j)}</ul>;
-              })}
-            </div>
-            {g.list.length > 6 && <p className="home-list more"><a href={FAMILY_PAGE[g.f]}>{g.list.length - 6} more</a></p>}
+            {g.begun.length > 0 && (
+              <div className="work-group">
+                <h3 className="work-group-head"><span className="work-tag started">Started</span><span className="muted">work under way</span></h3>
+                <div className="home-today-cards">{cards(g.begun, 4)}</div>
+                {g.begun.length > 4 && <p className="home-list more"><a href={FAMILY_PAGE[g.f]}>{g.begun.length - 4} more started</a></p>}
+              </div>
+            )}
+            {g.soonList.length > 0 && (
+              <div className="work-group">
+                <h3 className="work-group-head"><span className="work-tag soon">Due soon</span><span className="muted">not started, due in the next 30 days</span></h3>
+                <div className="home-today-cards">{cards(g.soonList, 4)}</div>
+                {g.soonList.length > 4 && <p className="home-list more"><a href={FAMILY_PAGE[g.f]}>{g.soonList.length - 4} more due soon</a></p>}
+              </div>
+            )}
           </section>
         ))}
         {!families.length && <section className="card"><p style={{ margin: 0, padding: 22 }}>No statutory work started or due in the next 30 days.</p></section>}

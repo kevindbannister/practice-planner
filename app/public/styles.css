@@ -3997,3 +3997,11 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 /* V30.7: the Work logo uses the same sweep as the Practice logo (same angle and fade, 10% to 95%), from white into
    the same teal lifted for the navy bar, rather than a block of white jumping to mint green */
 .topbar.mode-work .brand-logo { background: linear-gradient(110deg, #ffffff 10%, #4fd3e8 95%); }
+
+/* V30.8: Work home boxes split into Started (working papers or a return under way) and Due soon (not started) */
+.work-group { border-top: 1px solid var(--sep); padding-top: 10px; margin-top: 4px; }
+.work-group-head { display: flex; align-items: center; gap: 10px; margin: 0; padding: 0 22px 8px; font-size: 13px; font-weight: 400; }
+.work-tag { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.work-tag.started { background: color-mix(in srgb, #23A46A 16%, transparent); color: #17714A; }
+.work-tag.soon { background: color-mix(in srgb, var(--amber-solid) 18%, transparent); color: #7A4B00; }
+:root[data-theme="dark"] .work-tag.started { color: #7FE0B0; } :root[data-theme="dark"] .work-tag.soon { color: #F3C76B; }
