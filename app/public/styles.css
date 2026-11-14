@@ -4007,3 +4007,4 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 :root[data-theme="dark"] .work-tag.started { color: #7FE0B0; } :root[data-theme="dark"] .work-tag.soon { color: #F3C76B; }
 /* V30.9: no coloured edge down the left of the figure boxes (Late, Due…); the colour stays in the number and icon */
 .tile.red, .tile.amber, .tile.green, .tile.blue, .tile.violet, .tile.pink, .home-tile.red, .home-tile.amber, .home-tile.green { border-left: 1px solid var(--box-line) !important; }
+.tile, .home-tile { border-left: 1px solid var(--box-line) !important; }
