@@ -4116,3 +4116,33 @@ html[data-work] .page:not(.home) thead th * { color: #fff; }
 .tax-comp-table tr.strong td { border-top: 1px solid var(--line-strong, var(--line)); }
 .tax-comp-table tr.total td { color: var(--ink); background: color-mix(in srgb, #2F6FD6 11%, var(--surface)); border-top: 1px solid color-mix(in srgb, #2F6FD6 25%, transparent); padding-top: 8px; padding-bottom: 8px; }
 .tax-warn { border-radius: 12px; }
+
+/* =====================================================================================
+   V32.0 Work mode review. Numbers, dates, references and tax years use the app's typeface (the typewriter face is
+   kept for code only); tables run the full width with plain bold links; the second row of tabs (Co Sec and others)
+   is the underlined style used on working papers; drop-downs match the other fields; and the tax return's Summary is
+   one white sheet like the rest of the return.
+   ===================================================================================== */
+:root { --mono: var(--sans); }
+code, pre, kbd, samp, .chase-log, .problem-text, .search-kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.mono, .num { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+
+html[data-work] .page:not(.home) table.grid { width: 100%; }
+html[data-work] .page:not(.home) td a { text-decoration: none; font-weight: 600; color: #2155C9; }
+html[data-work] .page:not(.home) td a:hover { text-decoration: underline; text-underline-offset: 3px; }
+html[data-work] .page:not(.home) td { text-align: left; }
+html[data-work] .page:not(.home) td.num, html[data-work] .page:not(.home) th.num { text-align: right; }
+
+html[data-work] .page .subtabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0; background: none; border-radius: 0; border-bottom: 1px solid var(--sep); box-shadow: none; max-width: 100%; }
+html[data-work] .page .subtabs a { border-radius: 0; padding: 10px 14px; margin-bottom: -1px; border-bottom: 2px solid transparent; font-size: 15px; font-weight: 600; color: var(--ink-2); background: none; box-shadow: none; }
+html[data-work] .page .subtabs a:hover { color: var(--ink); }
+html[data-work] .page .subtabs a[aria-current="page"] { background: none; box-shadow: none; color: var(--ink); border-bottom-color: #1E3550; font-weight: 700; }
+
+html[data-work] .page select:not(td select) { min-height: 40px; border-radius: 12px; border: 1px solid var(--btn-line); padding: 0 12px; background-color: var(--surface); font: inherit; color: var(--ink); }
+
+@media (min-width: 801px) {
+  html[data-work] .tax-page .tax-split-return { margin: 12px -32px -40px; padding: 24px 32px 40px; gap: 24px; background: var(--surface); border-radius: 28px 28px 0 0;
+    box-shadow: 0 -1px 0 rgba(23, 38, 58, 0.06), 0 -6px 24px rgba(23, 38, 58, 0.05); min-height: calc(100vh - 150px); }
+  html[data-work] .tax-page .tax-split-return > .tax-comp { margin: 0; padding: 0; min-height: 0; border: 0; border-right: 1px solid var(--sep); padding-right: 24px; box-shadow: none; top: 140px; }
+  html[data-work] .tax-page .tax-split-return .tax-summary > .card { box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); border: 1px solid var(--sep); }
+}
