@@ -4013,3 +4013,16 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
    back to Practice the strip goes up into the bar first, then the bar turns back to the glass pill. */
 .work-strip.in > .work-client { animation-delay: 0.9s; }
 .work-strip.out > .work-client { animation-delay: 0s; }
+
+/* V31.2: in Work the navy bar stays put on every page (it no longer scrolls away on working papers, tax returns and
+   reports) and the client strip or document banner sits exactly under it and stays there while the page scrolls */
+@media (min-width: 721px) {
+  html[data-work] .topbar.mode-work, html[data-work] .topbar.mode-work.scrolls { position: sticky; top: 0; min-height: 68px; box-sizing: border-box; }
+  html[data-work] .work-client.paper-top { top: 68px; }
+  html[data-work] .paper-page .paper-top:not(.work-client) { top: 68px; margin-top: 0; }
+  html[data-work] .paper-page { padding-top: 0; }
+}
+@media (min-width: 801px) {
+  html[data-work] .paper-page .paper-side { top: 123px; max-height: calc(100vh - 123px); }
+  html[data-work] .wp-aside { top: 135px; }
+}
