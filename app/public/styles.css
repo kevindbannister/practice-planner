@@ -4069,3 +4069,12 @@ html[data-work] .page:not(.home) table thead th { background: #1E3550; color: #f
 html[data-work] .page:not(.home) table thead th a, html[data-work] .page:not(.home) table thead th button { color: #fff; }
 html[data-work] .page:not(.home) table thead tr:first-child th:first-child { border-top-left-radius: 10px; }
 html[data-work] .page:not(.home) table thead tr:first-child th:last-child { border-top-right-radius: 10px; }
+/* V31.7: on a tax return the computation column is part of the same white sheet as the return, as on working papers */
+@media (min-width: 801px) {
+  html[data-work] .tax-page .tax-split { gap: 0; margin-right: -32px; align-items: stretch; }
+  html[data-work] .tax-page .tax-split > .paper { margin-right: 0; }
+  html[data-work] .tax-page .tax-split > .tax-comp { margin: 12px 0 -40px; padding: 22px 28px 32px; background: var(--surface); border: 0; border-radius: 0;
+    box-shadow: 0 -1px 0 rgba(23, 38, 58, 0.06); border-left: 1px solid var(--sep); top: 124px; align-self: start; min-height: calc(100vh - 150px); box-sizing: border-box; }
+  html[data-work] .tax-page .tax-comp.hero-wash::before, html[data-work] .tax-page .tax-comp.hero-wash::after { display: none; }
+  html[data-work] .tax-page .paper-main { border-top-right-radius: 0; }
+}
