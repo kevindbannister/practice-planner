@@ -74,7 +74,7 @@ export function WorkClientBar({ section }: { section: string; routeKey?: string 
   );
 
   // on every page in Work (a client's working papers and tax return have this banner of their own, so it isn't shown twice)
-  if (fromRoute && (section === "papers" || section === "tax" || section === "reporting")) return null;
+  if (fromRoute && (section === "papers" || section === "tax")) return null;
 
   return (
     <header className="paper-top work-client" aria-label="Client you are working on">

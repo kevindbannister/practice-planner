@@ -4029,3 +4029,16 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 /* the switch menu never runs under the search box on a narrower window: it scrolls sideways within its own space */
 .topbar .topbar-left > .hide-phone { min-width: 0; }
 .topbar.mode-bar .topbar-left > .hide-phone { overflow: hidden; }
+
+/* V31.4: the client strip in Work is the same on every page: the same height, edge to edge (allowing for the scroll
+   bar, which was pushing the working papers and tax banners 7px to the left), and the icon and name always start in
+   the same place */
+@media (min-width: 721px) {
+  html[data-work] .work-client.paper-top, html[data-work] .paper-page .paper-top:not(.work-client), html[data-work] .tax-page .paper-top {
+    box-sizing: border-box; height: 56px; min-height: 56px; flex-wrap: nowrap; padding: 0 28px; align-items: center; overflow: hidden; }
+  html[data-work] .paper-page .paper-top:not(.work-client) { width: calc(100vw - var(--sb, 0px)); max-width: none; margin-left: calc(50% - (100vw - var(--sb, 0px)) / 2); margin-right: 0; }
+  html[data-work] .paper-top .paper-top-icon { flex: none; width: 38px; height: 38px; margin: 0; }
+  html[data-work] .paper-top .paper-tools { flex-wrap: nowrap; flex: none; margin-left: auto; }
+  html[data-work] .paper-top > :nth-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+  html[data-work] .paper-top .chip { flex: none; }
+}

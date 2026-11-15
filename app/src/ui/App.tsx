@@ -228,6 +228,14 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { rememberPage(section); }, [section, routeKey]);
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
+  // the width of the window's scroll bar, so edge-to-edge strips line up exactly on every page
+  useEffect(() => {
+    const set = () => document.documentElement.style.setProperty("--sb", `${window.innerWidth - document.documentElement.clientWidth}px`);
+    set();
+    window.addEventListener("resize", set);
+    const t = window.setInterval(set, 1500);
+    return () => { window.removeEventListener("resize", set); window.clearInterval(t); };
+  }, []);
   const { save, user } = useData();
   const quick = useQuickAdd();
   const chase = useChaseCount();
