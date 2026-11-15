@@ -218,9 +218,9 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const mode = useMode(section);
   const work = toggle && mode === "work";
   // the client strip slides down out of the navy bar going into Work, and back up into it going to Practice
-  const [strip, setStrip] = useState<"" | "in" | "out">(work ? "in" : "");
+  const [strip, setStrip] = useState<"" | "on" | "in" | "out">(work ? "on" : ""); // "on": already there when the page opened, no animation
   useEffect(() => {
-    if (work) { setStrip("in"); return; }
+    if (work) { setStrip((s) => (s === "on" ? "on" : "in")); return; }
     if (!strip) return;
     setStrip("out");
     const t = window.setTimeout(() => setStrip(""), 900);
@@ -245,7 +245,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const AREA_ICONS: Record<AreaId, IconName> = { run: "layout", deliver: "check", grow: "chart" };
   return (
     <>
-    <header className={`topbar${two ? " two" : ""}${toggle ? " mode-bar" : ""}${work ? " mode-work" : ""}${scrolls ? " scrolls" : ""}`}>
+    <header className={`topbar${two ? " two" : ""}${toggle ? " mode-bar" : ""}${work || strip === "out" ? " mode-work" : ""}${scrolls ? " scrolls" : ""}`}>
       <div className="topbar-left">
         <Brand />
         <div className="hide-phone">{toggle ? <ModeMenu section={section} mode={mode} chase={ready ? chase : 0} /> : two ? <TwoLineAreas section={section} area={area} onPick={pickArea} /> : pick ? <AreaPicker section={section} area={area} onPick={pickArea} chase={ready ? chase : 0} /> : <AreaMenu section={section} rename={menuKind === "named"} chase={ready ? chase : 0} />}</div>

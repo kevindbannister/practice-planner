@@ -4008,3 +4008,8 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
 /* V30.9: no coloured edge down the left of the figure boxes (Late, Due…); the colour stays in the number and icon */
 .tile.red, .tile.amber, .tile.green, .tile.blue, .tile.violet, .tile.pink, .home-tile.red, .home-tile.amber, .home-tile.green { border-left: 1px solid var(--box-line) !important; }
 .tile, .home-tile { border-left: 1px solid var(--box-line) !important; }
+
+/* V31.1: one move after the other. Into Work the navy bar finishes first, then the client strip comes down from it;
+   back to Practice the strip goes up into the bar first, then the bar turns back to the glass pill. */
+.work-strip.in > .work-client { animation-delay: 0.9s; }
+.work-strip.out > .work-client { animation-delay: 0s; }
