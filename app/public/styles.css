@@ -4146,3 +4146,4 @@ html[data-work] .page select:not(td select) { min-height: 40px; border-radius: 1
   html[data-work] .tax-page .tax-split-return > .tax-comp { margin: 0; padding: 0; min-height: 0; border: 0; border-right: 1px solid var(--sep); padding-right: 24px; box-shadow: none; top: 140px; }
   html[data-work] .tax-page .tax-split-return .tax-summary > .card { box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); border: 1px solid var(--sep); }
 }
+html[data-work] .page .subtabs { border: 0; border-bottom: 1px solid var(--sep); }
