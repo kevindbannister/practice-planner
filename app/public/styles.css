@@ -4064,3 +4064,8 @@ html[data-work] .page table.grid thead tr:first-child th:last-child { border-top
 html[data-work] .page table.grid tfoot td, html[data-work] .page table.grid tfoot th, html[data-work] .page table.grid tr.total td { background: color-mix(in srgb, #2F6FD6 11%, var(--surface)); font-weight: 700; color: var(--ink); }
 html[data-work] .page .tabs { border-bottom-color: var(--sep); }
 :root[data-theme="dark"][data-work] body { background: #0b1522; }
+/* V31.6: navy heading rows on every table in Work, not just schedule grids */
+html[data-work] .page:not(.home) table thead th { background: #1E3550; color: #fff; font-weight: 700; border-color: #1E3550; }
+html[data-work] .page:not(.home) table thead th a, html[data-work] .page:not(.home) table thead th button { color: #fff; }
+html[data-work] .page:not(.home) table thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+html[data-work] .page:not(.home) table thead tr:first-child th:last-child { border-top-right-radius: 10px; }
