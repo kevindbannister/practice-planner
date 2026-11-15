@@ -4080,3 +4080,39 @@ html[data-work] .page:not(.home) table thead tr:first-child th:last-child { bord
 }
 html[data-work] .page:not(.home) thead th { background: #1E3550 !important; color: #fff !important; border-color: #1E3550 !important; }
 html[data-work] .page:not(.home) thead th * { color: #fff; }
+
+/* =====================================================================================
+   V31.9 Tax computation in the app's current style: a plain heading with the year and Print beside it; the three key
+   figures as soft cards (the amount to pay in navy, a repayment in green); each part of the computation in its own
+   outlined box with a normal-case heading and a chevron; hairlines between lines; totals in pale blue as on working
+   papers.
+   ===================================================================================== */
+.tax-comp-inner { font-size: 14px; padding: 18px 20px 20px; }
+.tax-comp-head { gap: 12px; margin-bottom: 14px; }
+.tax-comp-title { display: flex; align-items: baseline; gap: 10px; }
+.tax-comp-title h2 { margin: 0; font-size: 20px; font-weight: 700; color: var(--ink); }
+.tax-comp-title .muted { font-size: 14px; }
+.tax-comp-title .btn { margin-left: auto; align-self: center; }
+.tax-comp-due { gap: 8px; }
+.tax-comp-due > div { background: var(--pill-bg); border: 1px solid var(--sep); border-left: 1px solid var(--sep); border-radius: 14px; padding: 10px 12px; gap: 4px; }
+.tax-comp-due span { font-size: 12.5px; color: var(--muted); }
+.tax-comp-due strong { font-size: 18px; font-weight: 700; color: var(--ink); letter-spacing: 0; }
+.tax-comp-due > div:nth-child(2) { background: #1E3550; border-color: #1E3550; }
+.tax-comp-due > div:nth-child(2) span { color: rgba(255, 255, 255, 0.78); }
+.tax-comp-due > div:nth-child(2) strong { color: #fff; }
+.tax-comp-due > div.repay { background: color-mix(in srgb, #23A46A 14%, var(--surface)); border-color: color-mix(in srgb, #23A46A 30%, transparent); }
+.tax-comp-due > div.repay span { color: #17714A; } .tax-comp-due > div.repay strong { color: #17714A; }
+.tax-block { border: 1px solid var(--sep); border-radius: 14px; padding: 0; margin: 0 0 10px; overflow: hidden; background: var(--surface); }
+.tax-block-head { padding: 10px 14px; border: 0; border-bottom: 1px solid var(--sep); font-size: 15px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--ink); background: color-mix(in srgb, var(--navy) 4%, var(--surface)); gap: 8px; }
+.tax-block-head[aria-expanded="false"] { border-bottom: 0; }
+.tax-block-head:hover { background: color-mix(in srgb, var(--navy) 7%, var(--surface)); }
+.tax-block-chev { display: inline-flex; color: var(--ink-2); }
+.tax-block-head .mono { margin-left: auto; font-weight: 700; font-family: var(--sans); }
+.tax-comp-table td { padding: 7px 14px; border-top: 1px solid var(--sep); vertical-align: top; }
+.tax-comp-table tr:first-child td { border-top: 0; }
+.tax-comp-table td.rate { width: 60px; padding-left: 0; padding-right: 0; font-size: 13px; }
+.tax-comp-table td.num { width: 110px; font-family: var(--sans); font-variant-numeric: tabular-nums; }
+.tax-comp-table tr.sub td:first-child { padding-left: 28px; }
+.tax-comp-table tr.strong td { border-top: 1px solid var(--line-strong, var(--line)); }
+.tax-comp-table tr.total td { color: var(--ink); background: color-mix(in srgb, #2F6FD6 11%, var(--surface)); border-top: 1px solid color-mix(in srgb, #2F6FD6 25%, transparent); padding-top: 8px; padding-bottom: 8px; }
+.tax-warn { border-radius: 12px; }

@@ -1097,20 +1097,23 @@ function CompPanel({ comp, year, client }: { comp: Computation; year: number; cl
   return (
     <div className="tax-comp-inner">
       <div className="tax-comp-head">
-        <span className="eyebrow">Tax computation {R.label}</span>
+        <div className="tax-comp-title">
+          <h2>Tax computation</h2>
+          <span className="muted">{R.label}</span>
+          <button type="button" className="btn small" onClick={print}><Icon name="print" size={14} /> Print</button>
+        </div>
         <div className="tax-comp-due">
           <div><span>Total tax</span><strong className="mono">{gbp(comp.totalLiability)}</strong></div>
           <div className={comp.balancing < 0 ? "repay" : undefined}><span>{comp.balancing >= 0 ? "To pay 31 Jan" : "Repayment"}</span><strong className="mono">{gbp(Math.abs(comp.balancing))}</strong></div>
           <div><span>Payments on account</span><strong className="mono">{comp.poaNext ? `2 × ${gbp(comp.poaNext)}` : "None"}</strong></div>
         </div>
-        <button type="button" className="btn small" onClick={print}><Icon name="print" size={14} /> Print</button>
       </div>
       <div className="tax-print-title">{client.Title}: tax computation {R.label}</div>
       {comp.blocks.map((b) => {
         const shut = open[b.title] === false;
         return (
           <section key={b.title} className="tax-block">
-            <button type="button" className="tax-block-head" aria-expanded={!shut} onClick={() => setOpen({ ...open, [b.title]: shut })}><span aria-hidden="true">{shut ? "▸" : "▾"}</span> {b.title}{b.total && shut && <span className="mono" style={{ marginLeft: "auto" }}>{gbp(b.total.amount)}</span>}</button>
+            <button type="button" className="tax-block-head" aria-expanded={!shut} onClick={() => setOpen({ ...open, [b.title]: shut })}><span className="tax-block-chev" aria-hidden="true"><Icon name={shut ? "right" : "down"} size={13} /></span> {b.title}{b.total && shut && <span className="mono" style={{ marginLeft: "auto" }}>{gbp(b.total.amount)}</span>}</button>
             {!shut && <table className="tax-comp-table"><tbody>
               {b.rows.map((r, i) => (
                 <tr key={i} className={r.strong ? "strong" : r.sub ? "sub" : undefined}>
