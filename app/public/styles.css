@@ -4026,3 +4026,6 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
   html[data-work] .paper-page .paper-side { top: 123px; max-height: calc(100vh - 123px); }
   html[data-work] .wp-aside { top: 135px; }
 }
+/* the switch menu never runs under the search box on a narrower window: it scrolls sideways within its own space */
+.topbar .topbar-left > .hide-phone { min-width: 0; }
+.topbar.mode-bar .topbar-left > .hide-phone { overflow: hidden; }
