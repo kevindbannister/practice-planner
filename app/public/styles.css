@@ -4078,3 +4078,5 @@ html[data-work] .page:not(.home) table thead tr:first-child th:last-child { bord
   html[data-work] .tax-page .tax-comp.hero-wash::before, html[data-work] .tax-page .tax-comp.hero-wash::after { display: none; }
   html[data-work] .tax-page .paper-main { border-top-right-radius: 0; }
 }
+html[data-work] .page:not(.home) thead th { background: #1E3550 !important; color: #fff !important; border-color: #1E3550 !important; }
+html[data-work] .page:not(.home) thead th * { color: #fff; }
