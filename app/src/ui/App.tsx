@@ -226,6 +226,8 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const pick = menuKind === "pick";
   const toggle = isModeKind(menuKind);
   const nav = useNavState();
+  // boot.js paints a bar-coloured band from the first frame; once the bar is drawn in its own colours the band goes
+  useEffect(() => { if (nav.ready) document.documentElement.removeAttribute("data-boot"); }, [nav.ready]);
   const mode = useMode(section);
   const work = toggle && mode === "work";
   const advisory = toggle && mode === "advisory";

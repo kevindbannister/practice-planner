@@ -4821,3 +4821,23 @@ html[data-sheet]:not([data-work]):not([data-advisory]) body { background: #F4F6F
   :root:not([data-theme="light"])[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
     background: linear-gradient(95deg, #10293b 0%, #1a2145 100%); background-color: #152a40; }
 }
+
+/* V35.25: no pop-in on a refresh. boot.js sets data-boot before the first paint; until the app has drawn its own bar (it then
+   removes data-boot) a band the colour of that workspace's bar sits across the top, so the page never shows blank and pale
+   with the dark Work or Advisory bar arriving on top of it. */
+@media (min-width: 721px) {
+  html[data-boot]::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: 68px; z-index: 0; pointer-events: none; background: #1B3049; }
+  html[data-boot="advisory"]::before { background: #2E2368; }
+  html[data-boot="practice"]::before { background: linear-gradient(95deg, #E7FAFF 0%, #F2F8FE 50%, #F2F3FF 100%); }
+  :root[data-theme="dark"][data-boot="practice"]::before { background: linear-gradient(95deg, #10293b 0%, #1a2145 100%); }
+}
+@media (min-width: 721px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-boot="practice"]::before { background: linear-gradient(95deg, #10293b 0%, #1a2145 100%); }
+}
+
+/* the page itself (html) carries the canvas colour too: it has its own pale background, which showed wherever the page content
+   did not yet (or no longer) reach, such as the whole screen during a refresh */
+html[data-sheet]:not([data-work]):not([data-advisory]) { background: #F4F6F9; }
+html[data-sheet][data-work], html[data-sheet][data-advisory] { background: #E7EBF0; }
+html[data-sheet][data-theme="dark"]:not([data-work]):not([data-advisory]), html[data-sheet][data-theme="dark"][data-work], html[data-sheet][data-theme="dark"][data-advisory] { background: #0b1522; }
+@media (prefers-color-scheme: dark) { html[data-sheet]:not([data-theme="light"]) { background: #0b1522; } }
