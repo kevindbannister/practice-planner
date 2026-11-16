@@ -58,7 +58,7 @@ export function usePracticeLayout(): [PracticeLayout, (v: PracticeLayout) => voi
 /** How the Practice bar looks: the floating glass bar, or the full-width bar with the views in a band joined under it (as in Work). Remembered on this device. */
 export type PracticeBar = "float" | "flat";
 const BAR_KEY = "pp.practice.bar";
-const readBar = (): PracticeBar => { try { return localStorage.getItem(BAR_KEY) === "flat" ? "flat" : "float"; } catch { return "float"; } };
+const readBar = (): PracticeBar => { try { return localStorage.getItem(BAR_KEY) === "float" ? "float" : "flat"; } catch { return "flat"; } };
 export function usePracticeBar(): [PracticeBar, (v: PracticeBar) => void] {
   const [v, setV] = useState<PracticeBar>(readBar);
   useEffect(() => {

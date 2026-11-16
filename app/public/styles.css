@@ -4694,3 +4694,22 @@ html[data-pflat] .page-tabs, .practice-strip, .p-strip > .practice-strip { anima
 /* leaving Work: the strip is simply gone (it used to slide up for a moment) */
 .work-strip.out > .work-client { display: none; }
 .p-strip.out > .work-client, .p-strip.out > .practice-strip { display: none; }
+
+/* V35.6: one second menu everywhere. In every workspace it is the same full-width white line under the bar, and the
+   full-width Practice bar is now the standard (the floating bar stays as a profile choice, with its tabs on the page).
+   The only motion is between workspaces: the bar's colour crossfades and the new line fades in; page changes inside a
+   workspace stay instant. */
+@media (min-width: 721px) {
+  .topbar.mode-bar { transition: background-color 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease !important; }
+  .topbar.mode-bar .brand-logo, .topbar.mode-bar .nv-link, .topbar.mode-bar .mode-toggle, .topbar.mode-bar .mode-toggle button,
+  .topbar.mode-bar .search-btn, .topbar.mode-bar .bell, .topbar.mode-bar .iconbtn, .topbar.mode-bar .btn { transition: background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease !important; }
+  .band-slot, .work-strip > .work-client, .adv-band { animation: band-in 0.45s ease both !important; }
+  /* the three lines measure the same */
+  .work-client.paper-top { box-sizing: border-box; height: 56px; min-height: 56px; }
+}
+@keyframes band-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .topbar.mode-bar, .topbar.mode-bar .brand-logo, .topbar.mode-bar .nv-link, .topbar.mode-bar .mode-toggle, .topbar.mode-bar .mode-toggle button,
+  .topbar.mode-bar .search-btn, .topbar.mode-bar .bell, .topbar.mode-bar .iconbtn, .topbar.mode-bar .btn { transition: none !important; }
+  .band-slot, .work-strip > .work-client, .adv-band { animation: none !important; }
+}
