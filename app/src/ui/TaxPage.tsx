@@ -16,7 +16,7 @@ import { Ask, ConfirmBox, ImportDialog, NewReturnDialog, ReturnViewer, Start, se
 import { BulkImportDialog } from "./TaxBulkImport";
 import { HmrcAccountDialog } from "./HmrcAccountImport";
 import { YEARS, ratesFor, yearEnd, yearLabel, yearOf } from "../lib/taxRates";
-import { Icon, href, useRoute } from "./bits";
+import { Icon, MoreMenu, href, useRoute } from "./bits";
 import { HmrcFilingPanel } from "./HmrcFiling";
 import { useEditor } from "./Editors";
 import { useData, useIndex } from "./data";
@@ -174,22 +174,24 @@ function TaxView({ clientKey, year: yearParam, start }: { clientKey: string; yea
       <header className="paper-top">
         <a className="paper-top-icon" href="#/tax" title="Back to all tax returns" aria-label="Back to all tax returns"><Icon name="book" size={20} /></a>
         <ClientSwitcher current={c} year={year} />
-        <span className="chip">SA100 {yearLabel(year)}</span>
         {state && <span className={`chip${state === "submitted" ? " green" : state === "final" ? " blue" : ""}`}>{STATE_LABEL[state]}</span>}
-        {c.UTR && <span className="chip mono" title="Self Assessment UTR">{String(c.UTR)}</span>}
-        <a className="chip blue chip-fixed" href={href("clients", c.Key)}>Client page</a>
-        {jobs.map((j) => <button key={j.Key} type="button" className="chip blue" style={{ cursor: "pointer" }} onClick={() => editor.open({ kind: "job", key: j.Key as string })}>{j.Title}{j.Deadline ? ` · due ${fmtDate(j.Deadline as string, { year: false })}` : ""}</button>)}
+        {c.UTR && <span className="chip mono lg-only" title="Self Assessment UTR">{String(c.UTR)}</span>}
         <div className="paper-tools">
           <div className="seg tax-views" role="group" aria-label="What to show">
-            <button type="button" aria-pressed={view === "inputs"} title="Enter the figures, with the computation" onClick={() => setView("inputs")}><Icon name="edit" size={15} /> Inputs</button>
-            <button type="button" aria-pressed={view === "return"} title="The computation beside the SA100 return" onClick={() => setView("return")}><Icon name="form" size={15} /> Return</button>
-            <button type="button" aria-pressed={view === "summary"} title="The tax due for this year beside every year's position" onClick={() => setView("summary")}><Icon name="book" size={15} /> Summary</button>
+            <button type="button" aria-pressed={view === "inputs"} title="Enter the figures, with the computation" onClick={() => setView("inputs")}><Icon name="edit" size={15} /> <span className="seg-label">Inputs</span></button>
+            <button type="button" aria-pressed={view === "return"} title="The computation beside the SA100 return" onClick={() => setView("return")}><Icon name="form" size={15} /> <span className="seg-label">Return</span></button>
+            <button type="button" aria-pressed={view === "summary"} title="The tax due for this year beside every year's position" onClick={() => setView("summary")}><Icon name="book" size={15} /> <span className="seg-label">Summary</span></button>
           </div>
-          <button type="button" className="btn small" title="Start a return for another tax year, or bring in a past one" onClick={() => setStarting(true)}><Icon name="plus" size={14} /> New return</button>
-          <button type="button" className="btn small" title="Bring in this client's past returns from IRIS Elements, one PDF for each year" onClick={() => setBulk(true)}><Icon name="download" size={14} /> Import past returns</button>
-          <button type="button" className="btn small" title="Paste the payments, interest and penalties from this client's HMRC account" onClick={() => setAccount(true)}><Icon name="download" size={14} /> HMRC account</button>
+          <MoreMenu label="More" items={[
+            { label: "New return", icon: "plus", title: "Start a return for another tax year, or bring in a past one", onClick: () => setStarting(true) },
+            { label: "Import past returns", icon: "download", title: "Bring in this client's past returns from IRIS Elements, one PDF for each year", onClick: () => setBulk(true) },
+            { label: "HMRC account", icon: "download", title: "Paste the payments, interest and penalties from this client's HMRC account", onClick: () => setAccount(true) },
+            "sep",
+            { label: "Client page", icon: "user", href: href("clients", c.Key) },
+            ...jobs.map((j) => ({ label: `${j.Title}${j.Deadline ? ` · due ${fmtDate(j.Deadline as string, { year: false })}` : ""}`, icon: "clock" as const, onClick: () => editor.open({ kind: "job", key: j.Key as string }) })),
+          ]} />
           <label className="row-wrap paper-year" style={{ gap: 6, fontSize: 13 }}>
-            <span>Tax year</span>
+            <span className="lg-only">Tax year</span>
             <select className="input" value={year} style={{ width: "auto", minHeight: 32, padding: "2px 8px" }} onChange={(e) => (window.location.hash = href("tax", c.Key, e.target.value))}>
               {[...YEARS].reverse().map((y) => <option key={y.year} value={y.year}>{y.label}</option>)}
             </select>

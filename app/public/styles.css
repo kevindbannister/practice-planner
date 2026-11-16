@@ -4736,3 +4736,68 @@ html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !i
 @media (min-width: 721px) and (prefers-color-scheme: dark) {
   :root:not([data-theme="light"])[data-pflat] .band-slot { border-bottom-color: rgba(255, 255, 255, 0.10); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
 }
+
+/* V35.16: the second line, refined in every workspace.
+   - folding: on a narrower window the lines fold their lesser controls into a menu instead of spilling out of the line
+   - glass: the Work and Advisory lines (and the page banners that stand in for them) get the same slight glass as Practice's
+   - tabs: the current tab is a soft tinted pill, the same shape as the bar above it (it was an underline); the views for the
+     current tab sit in a track on the right, named by a small caption so it is clear they belong to that tab
+   - Advisory's line carries the client and quick links, like Work's, and the overview's two start buttons
+   - hit targets are at least 32px */
+.more-btn.wc-more { display: none; }
+.more-panel { position: fixed; z-index: 80; min-width: 220px; max-width: min(340px, calc(100vw - 16px)); padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 16px 40px rgba(16, 30, 48, 0.22); }
+.more-panel a, .more-panel button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 0 12px; border: 0; border-radius: 10px; background: none; font: inherit; font-size: 14px; color: var(--ink); text-align: left; text-decoration: none; cursor: pointer; }
+.more-panel a:hover, .more-panel button:hover { background: color-mix(in srgb, var(--navy) 7%, transparent); }
+.more-panel a[aria-current] { font-weight: 700; color: var(--navy); }
+.more-panel hr { border: 0; border-top: 1px solid var(--sep); margin: 6px 4px; }
+@media (max-width: 1179px) { .lg-only { display: none !important; } }
+@media (max-width: 1050px) {
+  .wc-tools .paper-tool, .advl-tools .advl-link { display: none !important; }
+  .more-btn.wc-more { display: inline-flex; }
+}
+@media (max-width: 899px) { .tax-views .seg-label { display: none; } .tax-views button svg { margin-right: 0 !important; } }
+
+.page-tabs-nav { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.page-tabs-nav::-webkit-scrollbar { display: none; }
+.page-tabs-nav[data-clip="end"] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.page-tabs-nav[data-clip="start"] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+.page-tabs-nav[data-clip="both"] { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+.page-tabs-subs { display: flex; align-items: center; flex: none; margin-left: 22px; }
+.page-tabs-subs .page-tabs-seg { margin-left: 0; }
+.page-tabs-seg-label { display: inline-flex; align-items: center; gap: 2px; margin-right: 10px; font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.page-tabs-view { flex: none; margin-left: 12px; }
+.page-tabs-seg a, .page-tabs-more a { height: 34px; }
+.band-slot .page-tabs { overflow: visible; }
+.band-slot .page-tabs-nav { gap: 4px; align-items: center; }
+.band-slot .page-tabs-nav a { height: 36px; padding: 0 14px; border: 0; border-radius: 999px; }
+.band-slot .page-tabs-nav a:hover:not([aria-current]) { background: color-mix(in srgb, var(--navy) 6%, transparent); }
+.band-slot .page-tabs-nav a[aria-current] { background: color-mix(in srgb, var(--navy) 11%, transparent); }
+:root[data-theme="dark"] .band-slot .page-tabs-nav a[aria-current] { background: rgba(255, 255, 255, 0.14); }
+:root[data-theme="dark"] .band-slot .page-tabs-nav a:hover:not([aria-current]) { background: rgba(255, 255, 255, 0.07); }
+
+@media (min-width: 721px) {
+  .work-client.paper-top, html[data-work] .paper-top:not(.work-client), .adv-band, html[data-advisory] .paper-top:not(.work-client) {
+    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.55); }
+  :root[data-theme="dark"] .work-client.paper-top, :root[data-theme="dark"] html[data-work] .paper-top:not(.work-client), :root[data-theme="dark"] .adv-band {
+    border-bottom-color: rgba(255, 255, 255, 0.10); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+  .adv-band { gap: 12px; }
+  .adv-band .page-tabs-name:not(:last-child) { border-right: 1px solid var(--sep); padding-right: 22px; margin-right: 10px; }
+  .advl-pick input { height: 34px; width: 220px; }
+  .advl-link[aria-current] { background: color-mix(in srgb, var(--adv-deep) 12%, transparent); color: var(--adv-deep); font-weight: 700; }
+}
+.paper-top .chip, .adv-band .chip { min-height: 30px; display: inline-flex; align-items: center; }
+.paper-top a.chip, .paper-top button.chip, .adv-band a.chip { min-height: 32px; }
+.paper-top .tax-views button { min-height: 36px; }
+
+/* V35.16 fixes: the tab row may shrink (so the views menu is never pushed out of the line), Advisory's line never wraps, and the
+   tax return's client switcher is a full-size target */
+.band-slot .page-tabs { min-width: 0; }
+.adv-band { flex-wrap: nowrap; }
+.adv-band .paper-tools { flex: none; flex-wrap: nowrap; }
+.paper-top .tax-switcher-name { min-height: 34px; }
+.page-tabs-nav { position: relative; }
+:root[data-theme="dark"] .advl-link[aria-current] { background: rgba(255, 255, 255, 0.16); color: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .advl-link[aria-current] { background: rgba(255, 255, 255, 0.16); color: #fff; } }

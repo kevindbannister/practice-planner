@@ -1,5 +1,5 @@
 // Small shared pieces: routing, client badge, deadline chips, icons.
-import { CSSProperties, ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
+import { CSSProperties, ReactNode, createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useBandSlot, usePracticeLayout, useStripSlot } from "./StripSlot";
 import { logoSrc } from "../lib/logo";
@@ -173,6 +173,31 @@ export function GroupedTabs({ groups, current, label, heading, plain }: { groups
   const slot = useStripSlot();
   const bandEl = useBandSlot();
   const [layout] = usePracticeLayout();
+  // when the row of tabs plus the views for the tab you are on do not fit, the views fold into a drop-down; the tabs scroll sideways with a fade
+  const rowRef = useRef<HTMLDivElement>(null);
+  const subsWidth = useRef(0);
+  const [compact, setCompact] = useState(false);
+  useLayoutEffect(() => {
+    const el = rowRef.current, navEl = nav.current;
+    if (!el || !navEl) return;
+    const measure = () => {
+      const subsEl = el.querySelector<HTMLElement>(".page-tabs-subs");
+      if (subsEl && subsEl.offsetWidth) subsWidth.current = subsEl.offsetWidth;
+      const nameEl = el.querySelector<HTMLElement>(".page-tabs-name");
+      // the tabs' own width (the row itself stretches to fill the space, so its scroll width says nothing about what the tabs need)
+      const gap = parseFloat(getComputedStyle(navEl).columnGap) || 0;
+      const tabs = Array.from(navEl.children).reduce((sum, t) => sum + (t as HTMLElement).offsetWidth, 0) + gap * Math.max(0, navEl.children.length - 1);
+      const need = (nameEl?.offsetWidth || 0) + tabs + subsWidth.current + 56 + 22 + 40;
+      setCompact(subsWidth.current > 0 && el.clientWidth < need);
+      const room = navEl.scrollWidth - navEl.clientWidth;
+      navEl.dataset.clip = room <= 1 ? "" : navEl.scrollLeft <= 1 ? "end" : navEl.scrollLeft >= room - 1 ? "start" : "both";
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    navEl.addEventListener("scroll", measure, { passive: true });
+    return () => { ro.disconnect(); navEl.removeEventListener("scroll", measure); };
+  }, [active.label, current, layout, bandEl, compact]);
   useEffect(() => { const el = nav.current?.querySelector<HTMLElement>("[aria-current]"); if (el && nav.current && nav.current.scrollWidth > nav.current.clientWidth) nav.current.scrollLeft = el.offsetLeft - (nav.current.clientWidth - el.offsetWidth) / 2; }, [current]);
   const badge = (n?: number) => (n ? <span className="chip amber" style={{ marginLeft: 6 }}>{n}</span> : null);
   const count = (g: TabGroup) => g.items.reduce((n, i) => n + (i.badge || 0), 0);
@@ -216,14 +241,16 @@ export function GroupedTabs({ groups, current, label, heading, plain }: { groups
   // "Tabs on the page": the section's name and views along the top of the white page
   const many = active.items.length > 4;
   const row = (
-    <div className="page-tabs">
+    <div className="page-tabs" ref={rowRef}>
       <span className="page-tabs-name"><Icon name={icon} size={20} />{label}</span>
       {!single && (
         <nav className="page-tabs-nav" aria-label={label} ref={nav}>
           {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{badge(count(g))}</a>)}
         </nav>
       )}
-      {active.items.length > 1 && !many && <nav className="page-tabs-seg" aria-label={`${label}: ${active.label}`}>{subs}</nav>}
+      {active.items.length > 1 && !many && (compact
+        ? <MoreMenu className="page-tabs-view" label={item.label} items={active.items.map((i) => ({ label: i.label, href: i.to, current: current === i.key }))} />
+        : <div className="page-tabs-subs"><span className="page-tabs-seg-label">{active.label}<Icon name="right" size={13} /></span><nav className="page-tabs-seg" aria-label={`${label}: ${active.label}`}>{subs}</nav></div>)}
     </div>
   );
   return (
@@ -356,5 +383,45 @@ export function ElementsLink({ client, className }: { client?: object | null; cl
       onClick={(e) => e.stopPropagation()} title="Open this client in Iris Elements">
       Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span>
     </a>
+  );
+}
+
+export type MoreItem = { label: string; icon?: IconName; title?: string; onClick?: () => void; href?: string; current?: boolean } | "sep";
+
+/** A button that opens a short list of actions or links. The list is drawn over the page rather than inside the second line,
+ *  so a line that clips or scrolls its contents never cuts it off. */
+export function MoreMenu({ label = "More", items, className = "" }: { label?: ReactNode; items: MoreItem[]; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (!open || !btn.current) return;
+    const r = btn.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    const onDoc = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest?.(".more-panel, .more-btn")) close(); };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", close);
+    return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("keydown", onKey); window.removeEventListener("resize", close); };
+  }, [open]);
+  return (
+    <>
+      <button ref={btn} type="button" className={`btn small more-btn ${className}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {label}<Icon name="down" size={14} />
+      </button>
+      {open && pos && createPortal(
+        <div className="more-panel" role="menu" style={{ top: pos.top, right: pos.right }}>
+          {items.map((it, i) => it === "sep" ? <hr key={i} /> : it.href !== undefined ? (
+            <a key={i} role="menuitem" href={it.href} title={it.title} aria-current={it.current ? "page" : undefined} onClick={() => setOpen(false)}>{it.icon && <Icon name={it.icon} size={15} />}{it.label}</a>
+          ) : (
+            <button key={i} type="button" role="menuitem" title={it.title} onClick={() => { setOpen(false); it.onClick?.(); }}>{it.icon && <Icon name={it.icon} size={15} />}{it.label}</button>
+          ))}
+        </div>, document.body)}
+    </>
   );
 }

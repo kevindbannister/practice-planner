@@ -20,6 +20,7 @@ import { EditorProvider, useEditor } from "./Editors";
 import { useChaseCount } from "./chaseCount";
 import { SettingsTabs } from "./SettingsTabs";
 import { setBandSlot, setStripSlot, usePracticeLayout } from "./StripSlot";
+import { AdvisoryLine } from "./AdvisoryLine";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -343,7 +344,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
     )}
     {ready && wide && advisory && (
       <div className="adv-band">
-        <span className="page-tabs-name"><Icon name={ICONS[section] || "chart"} size={20} />{section === WORKSPACES.advisory.homeSection ? WORKSPACES.advisory.homeLabel : phoneMods.label(section)}</span>
+        <AdvisoryLine section={section} icon={ICONS[section] || "chart"} title={section === WORKSPACES.advisory.homeSection ? WORKSPACES.advisory.homeLabel : phoneMods.label(section)} />
       </div>
     )}
     {work && ready && <div className="work-strip"><WorkClientBar section={section} routeKey={routeKey} /></div>}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { fmtDate } from "../lib/domain";
 import { useData, useIndex } from "./data";
-import { Icon, href } from "./bits";
+import { Icon, MoreMenu, href } from "./bits";
 
 /** Pages whose second part is a client key. */
 const CLIENT_PAGES = new Set(["clients", "papers", "tax", "reporting", "advisory", "taxplan"]);
@@ -84,16 +84,25 @@ export function WorkClientBar({ section }: { section: string; routeKey?: string 
       ) : (
         <>
           <strong className="wc-name">{c.Title}</strong>
-          {c.CompanyNumber && <span className="chip mono">{c.CompanyNumber}</span>}
-          {c.YearEnd && <span className="chip">Year end: {fmtDate(`2000-${c.YearEnd}`, { year: false })}</span>}
-          {c.Kind && <span className="chip">{c.Kind}</span>}
+          {c.CompanyNumber && <span className="chip mono lg-only">{c.CompanyNumber}</span>}
+          {c.YearEnd && <span className="chip lg-only">Year end: {fmtDate(`2000-${c.YearEnd}`, { year: false })}</span>}
+          {c.Kind && <span className="chip lg-only">{c.Kind}</span>}
           <a className="chip blue chip-fixed" href={href("clients", c.Key)}>Client page</a>
-          <div className="paper-tools">
+          <div className="paper-tools wc-tools">
             <a className="btn small paper-tool" href={clientHref("papers", c.Key, schemes)}>Working papers</a>
             <a className="btn small paper-tool" href={clientHref("tax", c.Key, schemes)}>Tax</a>
             <a className="btn small paper-tool" href={clientHref("payroll", c.Key, schemes)}>Payroll</a>
             <a className="btn small paper-tool" href={clientHref("cosec", c.Key, schemes)}>Co Sec</a>
             <button type="button" className="btn small paper-tool" onClick={() => setPicking(true)}>Change client</button>
+            <MoreMenu className="wc-more" label="Go to" items={[
+              { label: "Working papers", href: clientHref("papers", c.Key, schemes) },
+              { label: "Tax", href: clientHref("tax", c.Key, schemes) },
+              { label: "Payroll", href: clientHref("payroll", c.Key, schemes) },
+              { label: "Co Sec", href: clientHref("cosec", c.Key, schemes) },
+              "sep",
+              { label: "Client page", icon: "user", href: href("clients", c.Key) },
+              { label: "Change client", onClick: () => setPicking(true) },
+            ]} />
           </div>
         </>
       )}
