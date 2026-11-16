@@ -4802,23 +4802,22 @@ html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !i
 :root[data-theme="dark"] .advl-link[aria-current] { background: rgba(255, 255, 255, 0.16); color: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .advl-link[aria-current] { background: rgba(255, 255, 255, 0.16); color: #fff; } }
 
-/* V35.19: the client page copy (#/client-copy/<client>) tries a different look: the soft blue-to-lavender gradient that used
-   to glow behind Practice pages now colours the top bar itself, and the page sits on Work's plain grey canvas with the white
-   second line and white sheet. Only this page asks for it (html[data-trial="client"]); the rest of Practice is unchanged. */
-html[data-trial="client"][data-sheet]:not([data-work]) body { background: #E7EBF0; }
-:root[data-theme="dark"][data-trial="client"][data-sheet]:not([data-work]) body { background: #0b1522; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-trial="client"][data-sheet]:not([data-work]) body { background: #0b1522; } }
+/* V35.23: the new look is how every Practice page looks. The soft blue-to-lavender gradient that used to glow behind the page
+   now colours the top bar itself (at the same pale strength the glass bar had), the second line is solid white, and the page
+   sits on a plain grey canvas, a little lighter than Work's, under the white sheet. Work and Advisory are unchanged. */
+html[data-sheet]:not([data-work]):not([data-advisory]) body { background: #EEF1F5; background-repeat: no-repeat; }
+:root[data-theme="dark"][data-sheet]:not([data-work]):not([data-advisory]) body { background: #0b1522; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-sheet]:not([data-work]):not([data-advisory]) body { background: #0b1522; } }
 @media (min-width: 721px) {
-  html[data-trial="client"][data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
     background: linear-gradient(95deg, #E7FAFF 0%, #F2F8FE 50%, #F2F3FF 100%); background-color: #EEF6FE;
     -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: var(--bar-edge); }
-  :root[data-theme="dark"][data-trial="client"][data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
+  :root[data-theme="dark"][data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
     background: linear-gradient(95deg, #10293b 0%, #1a2145 100%); background-color: #152a40; }
-}
-
-/* V35.21: on the client page copy the second line is solid white. Over the grey canvas the slightly see-through line came out a
-   dull grey-white; the original page shows a pale blue-white because the gradient is behind it. */
-@media (min-width: 721px) {
-  html[data-trial="client"][data-pflat]:not([data-work]):not([data-advisory]) .band-slot {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot {
     background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 1px solid var(--sep); }
+}
+@media (min-width: 721px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
+    background: linear-gradient(95deg, #10293b 0%, #1a2145 100%); background-color: #152a40; }
 }

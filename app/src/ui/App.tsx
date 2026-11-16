@@ -234,8 +234,6 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   useEffect(() => { notePage(); }, [section, routeParts.join("/"), routeQuery.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   useEffect(() => { document.documentElement.toggleAttribute("data-advisory", advisory); }, [advisory]);
-  // the client page copy has its own look (html[data-trial="client"] in styles.css), switched on as soon as you go to it rather than when it has loaded
-  useEffect(() => { if (section === "client-copy") document.documentElement.setAttribute("data-trial", "client"); else document.documentElement.removeAttribute("data-trial"); }, [section]);
   // the Practice bar is always the full-width one, with the white line joined under it
   useEffect(() => { document.documentElement.setAttribute("data-pflat", ""); }, []);
   // the band under the full-width bar is only a desktop thing: on a phone the views stay on the page

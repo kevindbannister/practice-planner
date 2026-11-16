@@ -1,6 +1,5 @@
-// A copy of the client page (ClientPage.tsx) to try a different look: a gradient top bar, the white second line and the grey
-// canvas as in Work. It lives at #/client-copy/<client>, keeps you inside the copy as you move between its tabs (its look is switched on by TopBar in App.tsx), and can be
-// changed freely without touching the real client page.
+// A copy of the client page (ClientPage.tsx), at #/client-copy/<client>, to try changes on without touching the real page.
+// It keeps you inside the copy as you move between its tabs. The new look it was made to try is now how every Practice page looks.
 import { startJobRow } from "../lib/onboarding";
 import { ClientWorkOverview } from "./ClientWorkOverview";
 import { ClientTasks } from "./ClientTasks";
