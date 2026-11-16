@@ -4615,3 +4615,16 @@ html[data-advisory] .page:not(.home) table thead th, html[data-advisory] .page t
 html[data-advisory] .page table.grid thead th a, html[data-advisory] .page table.grid thead th button { color: #fff; }
 html[data-advisory] .btn.primary:not(.topbar-icon) { background: var(--adv-deep); border-color: var(--adv-deep); }
 html[data-advisory] .chip:not(.blue) { background: color-mix(in srgb, var(--adv-deep) 8%, transparent); border-color: transparent; }
+
+/* V34.7: profile option "Practice bar: Full width, like Work". Practice keeps its own colours (light bar, grey-blue page) but is
+   built like Work: the bar runs edge to edge at the top and the page's views sit in a white band joined straight under it. */
+@media (min-width: 721px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
+    position: sticky; top: 0; min-height: 68px; box-sizing: border-box; margin: 0; width: auto; border: 0; border-radius: 0; padding: 8px 24px 8px 28px;
+    background: var(--surface); background-color: var(--surface); box-shadow: 0 6px 22px rgba(23, 38, 58, 0.10); backdrop-filter: none; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work)::before { display: none; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) .page-tabs {
+    position: sticky; top: 68px; z-index: 19; box-sizing: border-box; min-height: 56px; width: calc(100vw - var(--sb, 0px)); max-width: none;
+    margin: calc(-1 * var(--spt, 0px)) 0 18px calc(50% - (100vw - var(--sb, 0px)) / 2); padding: 0 28px; background: var(--surface);
+    border-bottom: 1px solid var(--sep); box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07); }
+}

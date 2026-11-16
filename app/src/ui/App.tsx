@@ -19,7 +19,7 @@ import { useData, useIndex } from "./data";
 import { EditorProvider, useEditor } from "./Editors";
 import { useChaseCount } from "./chaseCount";
 import { SettingsTabs } from "./SettingsTabs";
-import { setStripSlot, usePracticeLayout } from "./StripSlot";
+import { setStripSlot, usePracticeLayout, usePracticeBar } from "./StripSlot";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -252,6 +252,8 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   useEffect(() => { notePage(); }, [section, routeParts.join("/"), routeQuery.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   useEffect(() => { document.documentElement.toggleAttribute("data-advisory", advisory); }, [advisory]);
+  const [practiceBar] = usePracticeBar();
+  useEffect(() => { document.documentElement.toggleAttribute("data-pflat", practiceBar === "flat"); }, [practiceBar]);
   // the sheet design (grey background, white sheet, navy table headings) is used in both Practice and Work
   useEffect(() => { document.documentElement.setAttribute("data-sheet", ""); }, []);
   // the width of the window's scroll bar, so edge-to-edge strips line up exactly on every page
@@ -378,6 +380,7 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
   const [tips, setTips] = useTips();
   const [menuKind, setMenuKind] = useMenuKind();
   const [layout, setLayout] = usePracticeLayout();
+  const [bar, setBar] = usePracticeBar();
   const navError = useNavState().error;
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -416,6 +419,12 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
           {([["top", "Tabs on the page"], ["side", "List down the left"]] as const).map(([k, label]) => (
             <button key={k} type="button" role="menuitemradio" aria-checked={layout === k} onClick={() => { setLayout(k); setShown(false); }}>
               <Icon name={layout === k ? "check" : "layout"} size={16} /> {label}
+            </button>
+          ))}
+          <div className="profile-sub">Practice bar</div>
+          {([["float", "Floating glass bar"], ["flat", "Full width, like Work"]] as const).map(([k, label]) => (
+            <button key={k} type="button" role="menuitemradio" aria-checked={bar === k} onClick={() => { setBar(k); setShown(false); }}>
+              <Icon name={bar === k ? "check" : "layout"} size={16} /> {label}
             </button>
           ))}
           <div className="profile-sub">Menu style</div>

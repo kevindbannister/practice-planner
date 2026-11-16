@@ -37,3 +37,17 @@ export function usePracticeLayout(): [PracticeLayout, (v: PracticeLayout) => voi
   }, []);
   return [v, (n) => { try { localStorage.setItem(LAYOUT_KEY, n); } catch { /* this visit only */ } setV(n); window.dispatchEvent(new Event("pp-layout")); }];
 }
+
+/** How the Practice bar looks: the floating glass bar, or the full-width bar with the views in a band joined under it (as in Work). Remembered on this device. */
+export type PracticeBar = "float" | "flat";
+const BAR_KEY = "pp.practice.bar";
+const readBar = (): PracticeBar => { try { return localStorage.getItem(BAR_KEY) === "flat" ? "flat" : "float"; } catch { return "float"; } };
+export function usePracticeBar(): [PracticeBar, (v: PracticeBar) => void] {
+  const [v, setV] = useState<PracticeBar>(readBar);
+  useEffect(() => {
+    const f = () => setV(readBar());
+    window.addEventListener("pp-bar", f);
+    return () => window.removeEventListener("pp-bar", f);
+  }, []);
+  return [v, (n) => { try { localStorage.setItem(BAR_KEY, n); } catch { /* this visit only */ } setV(n); window.dispatchEvent(new Event("pp-bar")); }];
+}
