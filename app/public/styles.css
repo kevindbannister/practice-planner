@@ -4722,3 +4722,17 @@ html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !i
   html[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) { box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.9), var(--bar-edge); }
   html .topbar.mode-bar.mode-work { box-shadow: var(--bar-edge); }
 }
+
+/* V35.14: the Practice second line is slightly frosted glass, like the Practice bar above it: a mostly white line that lets a
+   little of the page tint through, with whatever scrolls beneath it melted into a soft blur, and a bright glass edge along the bottom. */
+@media (min-width: 721px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot {
+    background: color-mix(in srgb, var(--surface) 86%, transparent);
+    -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.55); }
+  :root[data-theme="dark"] html[data-pflat] .band-slot, :root[data-theme="dark"][data-pflat] .band-slot { border-bottom-color: rgba(255, 255, 255, 0.10); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+}
+@media (min-width: 721px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-pflat] .band-slot { border-bottom-color: rgba(255, 255, 255, 0.10); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+}
