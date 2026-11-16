@@ -4275,3 +4275,17 @@ html[data-sheet]:not([data-work]) body {
   .side-select { display: block; }
   .side-select select { width: 100%; }
 }
+
+/* V33.5: in Practice the section strip is the lower half of the menu: the rounded glass bar squares off its bottom
+   corners and the strip carries on underneath it in the same glass, the same width, with a fine line between */
+@media (min-width: 721px) {
+  html:not([data-work]) .topbar.mode-bar:not(.mode-work):has(+ .p-strip) {
+    border-radius: 30px 30px 0 0; border-bottom-color: var(--sep); box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); }
+  html:not([data-work]) .p-strip > .practice-strip.paper-top {
+    position: sticky; top: 69px; margin: 0 24px; padding: 0 16px; width: auto;
+    background: var(--topbar-bg); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.9); border-top: 0; border-radius: 0 0 30px 30px;
+    box-shadow: 0 12px 30px rgba(23, 38, 58, 0.08); }
+  .p-strip > .practice-strip .paper-top-icon { background: color-mix(in srgb, var(--navy) 8%, transparent); }
+}
+:root[data-theme="dark"] .p-strip > .practice-strip.paper-top { border-color: var(--glass-line); }
