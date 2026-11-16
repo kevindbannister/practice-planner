@@ -4727,3 +4727,18 @@ html[data-pflat] .page-tabs, .practice-strip, .p-strip > .practice-strip { anima
   html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: band-in 0.45s ease both !important; }
 }
 @media (prefers-reduced-motion: reduce) { html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !important; } }
+
+/* V35.9: the second menu moves only when you change workspace. The line you leave slides up out of the bar; the line
+   you arrive at drops down into it. Changing page inside a workspace stays instant. */
+@media (min-width: 721px) {
+  .band-slot.mode-leave, .adv-band.mode-leave, .work-strip.out > .work-client {
+    animation: mode-up 0.45s cubic-bezier(.4, 0, .6, 1) both !important; pointer-events: none; }
+  .band-slot.mode-enter, .adv-band.mode-enter, .work-strip.in > .work-client {
+    animation: mode-down 0.45s cubic-bezier(.2, .8, .2, 1) both !important; }
+  .work-strip.out > .work-client { display: flex !important; }
+}
+@keyframes mode-up { from { transform: none; opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
+@keyframes mode-down { from { transform: translateY(-100%); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .band-slot.mode-leave, .adv-band.mode-leave, .work-strip.out > .work-client, .band-slot.mode-enter, .adv-band.mode-enter, .work-strip.in > .work-client { animation: none !important; }
+}

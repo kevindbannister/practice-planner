@@ -7,7 +7,7 @@ import { NavPrefsSync, notePage, useNavState } from "./navPrefs";
 import { AdvisoryOverview } from "./AdvisoryOverview";
 import { WorkClientBar } from "./WorkClientBar";
 import { PortalProvider, usePortal } from "./portalKit";
-import { Suspense, lazy, useEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ComponentType, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { fmtDate, holdAlert, isHoldText, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
@@ -255,6 +255,19 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const [practiceBar] = usePracticeBar();
   const [practiceLayout] = usePracticeLayout();
   useEffect(() => { document.documentElement.toggleAttribute("data-pflat", practiceBar === "flat"); }, [practiceBar]);
+  // the second menu moves only when the workspace changes: the old line slides up out of the bar and the new one drops in
+  const bandNow: "practice" | "work" | "advisory" = work ? "work" : advisory ? "advisory" : "practice";
+  const [swap, setSwap] = useState<{ from: "practice" | "work" | "advisory" } | null>(null);
+  const lastBand = useRef(bandNow);
+  useLayoutEffect(() => {
+    if (lastBand.current === bandNow) return;
+    setSwap({ from: lastBand.current });
+    lastBand.current = bandNow;
+    const t = window.setTimeout(() => setSwap(null), 900);
+    return () => window.clearTimeout(t);
+  }, [bandNow]);
+  // the views of the line being left stay as they were, so the line does not change while it slides away
+  const frozenLabel = useRef<Partial<Record<"practice" | "advisory", ReactNode>>>({});
   // the band under the full-width bar is only a desktop thing: on a phone the views stay on the page
   const [wide, setWide] = useState(() => typeof matchMedia === "function" && matchMedia("(min-width: 721px)").matches);
   useEffect(() => { const m = matchMedia("(min-width: 721px)"); const f = () => setWide(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, []);
@@ -359,15 +372,22 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
     </header>
     {ready && <div className="rail-slot" ref={setStripSlot} />}
     {/* the full-width Practice bar always has its white line under it; each section's views drop into it from the bar */}
-    {ready && wide && !work && !advisory && practiceBar === "flat" && practiceLayout === "top" && (
-      <div className="band-slot" ref={setBandSlot}>
-        <div className="band-default"><span className="page-tabs-name"><Icon name={ICONS[section] || "home"} size={20} />{section === "" || section === "home" ? "Home" : (ICON_TITLES[section] || phoneMods.label(section))}</span></div>
+    {ready && wide && practiceBar === "flat" && practiceLayout === "top" && (bandNow === "practice" || swap?.from === "practice") && (
+      <div
+        className={`band-slot${bandNow !== "practice" ? " mode-leave" : swap ? " mode-enter" : ""}`}
+        ref={bandNow === "practice" ? setBandSlot : undefined}
+      >
+        <div className="band-default">{bandNow === "practice" ? (frozenLabel.current.practice = (
+          <span className="page-tabs-name"><Icon name={ICONS[section] || "home"} size={20} />{section === "" || section === "home" ? "Home" : (ICON_TITLES[section] || phoneMods.label(section))}</span>
+        )) : frozenLabel.current.practice}</div>
       </div>
     )}
     {/* Advisory has the same line under its purple bar, in the same place as Work's client strip */}
-    {ready && wide && advisory && (
-      <div className="adv-band" key="adv-band">
-        <span className="page-tabs-name" key={section}><Icon name={ICONS[section] || "chart"} size={20} />{section === WORKSPACES.advisory.homeSection ? WORKSPACES.advisory.homeLabel : phoneMods.label(section)}</span>
+    {ready && wide && (bandNow === "advisory" || swap?.from === "advisory") && (
+      <div className={`adv-band${bandNow !== "advisory" ? " mode-leave" : swap ? " mode-enter" : ""}`} key="adv-band">
+        {bandNow === "advisory" ? (frozenLabel.current.advisory = (
+          <span className="page-tabs-name" key={section}><Icon name={ICONS[section] || "chart"} size={20} />{section === WORKSPACES.advisory.homeSection ? WORKSPACES.advisory.homeLabel : phoneMods.label(section)}</span>
+        )) : frozenLabel.current.advisory}
       </div>
     )}
     {strip && ready && <div className={`work-strip ${strip}`}><WorkClientBar section={section} routeKey={routeKey} /></div>}
