@@ -4589,3 +4589,29 @@ div.adv-empty p { margin: 0; }
   .work-client.paper-top::-webkit-scrollbar { display: none; }
   .work-client.paper-top > * { flex: none; }
 }
+
+/* V34.6: Advisory is built exactly like Work (the full-width bar at the top, flat grey page, solid table headings) in
+   dark purple instead of navy. Advisory's bar also carries the Work classes, so it gets Work's layout and white-on-colour
+   buttons; this block only changes the colour and replaces the earlier indigo accents. */
+:root { --adv-deep: #2E2368; --adv-deep-2: #231A55; }
+.topbar.mode-work.mode-advisory { background: linear-gradient(180deg, var(--adv-deep), var(--adv-deep-2)); box-shadow: 0 6px 22px rgba(35, 26, 85, 0.32); border-color: transparent; }
+.topbar.mode-bar.mode-work.mode-advisory { background: var(--adv-deep); background-color: var(--adv-deep); }
+.topbar.mode-work.mode-advisory .nv-link[aria-current="page"] { background: rgba(255, 255, 255, 0.14); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
+.topbar.mode-work.mode-advisory .nv-link:hover:not([aria-current]) { background: rgba(255, 255, 255, 0.10); color: #fff; }
+.topbar.mode-work.mode-advisory .mode-adv.on { background: #fff; color: var(--adv-deep); box-shadow: none; }
+.topbar.mode-work.mode-advisory .mode-three .mode-opt.on, .topbar.mode-work.mode-advisory .mode-three .mode-opt.mode-advisory.on { background: #fff; color: var(--adv-deep); box-shadow: none; }
+.topbar.mode-work.mode-advisory .mode-drop-btn.mode-advisory { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.topbar.mode-work.mode-advisory .btn.primary.topbar-icon { color: var(--adv-deep); }
+.topbar.mode-work.mode-advisory .mode-toggle .mode-opt.on { background: #fff; color: var(--adv-deep); }
+.topbar.mode-work.mode-advisory .mode-toggle button[aria-pressed="true"] { color: var(--adv-deep); }
+.topbar.mode-work.mode-advisory .mode-adv:focus-visible, .topbar.mode-work.mode-advisory .mode-three .mode-opt:focus-visible { outline-color: #fff; }
+@media (min-width: 721px) {
+  html[data-advisory] .topbar.mode-work, html[data-advisory] .topbar.mode-work.scrolls { position: sticky; top: 0; min-height: 68px; box-sizing: border-box; margin: 0; border-radius: 0; border: 0; width: auto; padding: 8px 24px 8px 28px; }
+}
+/* the page under it: flat grey like Work, purple where Work is navy */
+html[data-sheet][data-advisory]:not([data-work]) body { background: #E7EBF0; }
+:root[data-theme="dark"][data-sheet][data-advisory]:not([data-work]) body { background: #0b1522; }
+html[data-advisory] .page:not(.home) table thead th, html[data-advisory] .page table.grid thead th { background: var(--adv-deep); border-color: var(--adv-deep); color: #fff; }
+html[data-advisory] .page table.grid thead th a, html[data-advisory] .page table.grid thead th button { color: #fff; }
+html[data-advisory] .btn.primary:not(.topbar-icon) { background: var(--adv-deep); border-color: var(--adv-deep); }
+html[data-advisory] .chip:not(.blue) { background: color-mix(in srgb, var(--adv-deep) 8%, transparent); border-color: transparent; }

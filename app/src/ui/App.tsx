@@ -281,7 +281,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const PHONE_LABELS: Record<string, string> = { papers: "Papers", advisory: "Plans", practice: "Practice", taxplan: "Tax plan", reporting: "Reports" };
   return (
     <>
-    <header className={`topbar${two ? " two" : ""}${toggle ? " mode-bar" : ""}${work || (strip === "out" && barHold) ? " mode-work" : ""}${advisory ? " mode-advisory" : ""}${scrolls ? " scrolls" : ""}`}>
+    <header className={`topbar${two ? " two" : ""}${toggle ? " mode-bar" : ""}${work || advisory || (strip === "out" && barHold) ? " mode-work" : ""}${advisory ? " mode-advisory" : ""}${scrolls ? " scrolls" : ""}`}>
       <div className="topbar-left">
         <Brand />
         {/* until the account's menu style is known (first visit on this device), no menu is drawn rather than the wrong one */}
