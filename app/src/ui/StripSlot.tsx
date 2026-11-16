@@ -18,6 +18,23 @@ export function useStripSlot(): HTMLElement | null {
   return useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f); }; }, () => slot, () => null);
 }
 
+// The white band under the full-width Practice bar. It is part of the menu, so it never moves with the page:
+// pages put their views into it, and only those contents change.
+let band: HTMLElement | null = null;
+const bandSubs = new Set<() => void>();
+
+/** Called by the menu with the band's space (and with null when the band goes). */
+export function setBandSlot(el: HTMLElement | null) {
+  if (band === el) return;
+  band = el;
+  bandSubs.forEach((f) => f());
+}
+
+/** The band's space under the full-width bar, or null when there is no band. */
+export function useBandSlot(): HTMLElement | null {
+  return useSyncExternalStore((f) => { bandSubs.add(f); return () => { bandSubs.delete(f); }; }, () => band, () => null);
+}
+
 /** Shows its contents in the strip when there is one, otherwise where it is. */
 export function InStrip({ children }: { children: ReactNode }) {
   const el = useStripSlot();

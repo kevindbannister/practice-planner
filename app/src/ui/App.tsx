@@ -19,7 +19,7 @@ import { useData, useIndex } from "./data";
 import { EditorProvider, useEditor } from "./Editors";
 import { useChaseCount } from "./chaseCount";
 import { SettingsTabs } from "./SettingsTabs";
-import { setStripSlot, usePracticeLayout, usePracticeBar } from "./StripSlot";
+import { setBandSlot, setStripSlot, usePracticeLayout, usePracticeBar } from "./StripSlot";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -253,7 +253,11 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   useEffect(() => { document.documentElement.toggleAttribute("data-advisory", advisory); }, [advisory]);
   const [practiceBar] = usePracticeBar();
+  const [practiceLayout] = usePracticeLayout();
   useEffect(() => { document.documentElement.toggleAttribute("data-pflat", practiceBar === "flat"); }, [practiceBar]);
+  // the band under the full-width bar is only a desktop thing: on a phone the views stay on the page
+  const [wide, setWide] = useState(() => typeof matchMedia === "function" && matchMedia("(min-width: 721px)").matches);
+  useEffect(() => { const m = matchMedia("(min-width: 721px)"); const f = () => setWide(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, []);
   // the sheet design (grey background, white sheet, navy table headings) is used in both Practice and Work
   useEffect(() => { document.documentElement.setAttribute("data-sheet", ""); }, []);
   // the width of the window's scroll bar, so edge-to-edge strips line up exactly on every page
@@ -353,6 +357,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
       {two && <TwoLineModules section={section} area={area} chase={ready ? chase : 0} />}
     </header>
     {ready && <div className="rail-slot" ref={setStripSlot} />}
+    {ready && wide && !work && !advisory && practiceBar === "flat" && practiceLayout === "top" && <div className="band-slot" ref={setBandSlot} />}
     {strip && ready && <div className={`work-strip ${strip}`}><WorkClientBar section={section} routeKey={routeKey} /></div>}
     </>
   );

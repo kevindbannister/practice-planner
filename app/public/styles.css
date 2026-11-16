@@ -4647,3 +4647,15 @@ html[data-pflat]:not([data-work]):not([data-advisory]) :is(.page, .plan, .split-
   @keyframes pt-fade { from { opacity: 0; } to { opacity: 1; } }
 }
 @media (prefers-reduced-motion: reduce) { html[data-pflat] .page-tabs { animation: none; } }
+
+/* V35.1: the views band is part of the menu, not the page. A fixed white band under the full-width bar holds whatever page
+   views there are, so it never moves between pages or during loading; only its labels fade over (pt-fade on the row). */
+@media (min-width: 721px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot { position: fixed; top: 68px; left: 0; right: 0; height: 56px; z-index: 19;
+    background: var(--surface); border-bottom: 1px solid var(--sep); box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07); }
+  html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot .page-tabs { position: static; width: auto; max-width: none; margin: 0; padding: 0 28px;
+    min-height: 56px; background: none; border-bottom: 0; box-shadow: none; animation: pt-fade 0.28s ease both; }
+  /* every page sits at the same height under the band; Home has no views, so there the band and the space go */
+  html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.band-slot):not(:has(.page.home)) :is(.page, .plan, .split-main) { padding-top: 90px; margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.page.home) .band-slot { display: none; }
+}

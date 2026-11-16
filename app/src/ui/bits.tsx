@@ -1,7 +1,7 @@
 // Small shared pieces: routing, client badge, deadline chips, icons.
 import { CSSProperties, ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { usePracticeLayout, useStripSlot } from "./StripSlot";
+import { useBandSlot, usePracticeLayout, useStripSlot } from "./StripSlot";
 import { logoSrc } from "../lib/logo";
 import { elementsUrl } from "../lib/elements";
 import { Client, Job, badgeColours, deadlineLabel, initials, jobState, todayIso } from "../lib/domain";
@@ -171,6 +171,7 @@ export function GroupedTabs({ groups, current, label, heading, plain }: { groups
   const item = active.items.find((i) => i.key === current) || active.items[0];
   const nav = useRef<HTMLElement>(null);
   const slot = useStripSlot();
+  const bandEl = useBandSlot();
   const [layout] = usePracticeLayout();
   useEffect(() => { const el = nav.current?.querySelector<HTMLElement>("[aria-current]"); if (el && nav.current && nav.current.scrollWidth > nav.current.clientWidth) nav.current.scrollLeft = el.offsetLeft - (nav.current.clientWidth - el.offsetWidth) / 2; }, [current]);
   const badge = (n?: number) => (n ? <span className="chip amber" style={{ marginLeft: 6 }}>{n}</span> : null);
@@ -214,17 +215,20 @@ export function GroupedTabs({ groups, current, label, heading, plain }: { groups
   }
   // "Tabs on the page": the section's name and views along the top of the white page
   const many = active.items.length > 4;
+  const row = (
+    <div className="page-tabs">
+      <span className="page-tabs-name"><Icon name={icon} size={20} />{label}</span>
+      {!single && (
+        <nav className="page-tabs-nav" aria-label={label} ref={nav}>
+          {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{badge(count(g))}</a>)}
+        </nav>
+      )}
+      {active.items.length > 1 && !many && <nav className="page-tabs-seg" aria-label={`${label}: ${active.label}`}>{subs}</nav>}
+    </div>
+  );
   return (
     <>
-      <div className="page-tabs">
-        <span className="page-tabs-name"><Icon name={icon} size={20} />{label}</span>
-        {!single && (
-          <nav className="page-tabs-nav" aria-label={label} ref={nav}>
-            {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{badge(count(g))}</a>)}
-          </nav>
-        )}
-        {active.items.length > 1 && !many && <nav className="page-tabs-seg" aria-label={`${label}: ${active.label}`}>{subs}</nav>}
-      </div>
+      {bandEl ? createPortal(row, bandEl) : row}
       {many && <nav className="page-tabs-more" aria-label={`${label}: ${active.label}`}>{subs}</nav>}
       {head}
     </>
