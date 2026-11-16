@@ -4310,3 +4310,36 @@ html[data-sheet]:not([data-work]) body {
   to { height: 0; min-height: 0; opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .p-strip.in > .practice-strip.paper-top, .p-strip.out > .practice-strip.paper-top { animation: none; } }
+
+/* V33.7: the original Practice menu is back exactly as it was: one floating, fully rounded glass pill. The section
+   strip is a second, smaller pill of the same glass that floats just beneath it, only as wide as what it holds,
+   and drops out from behind the menu. */
+@media (min-width: 721px) {
+  html:not([data-work]) .topbar.mode-bar:not(.mode-work),
+  html:not([data-work]) .topbar.mode-bar:not(.mode-work):has(+ .p-strip),
+  html:not([data-work]) .topbar.mode-bar:not(.mode-work):has(+ .p-strip.out) {
+    top: 10px; border-radius: 999px; border-bottom-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05), 0 10px 30px rgba(23, 38, 58, 0.08); }
+  html:not([data-work]) .p-strip > .practice-strip.paper-top {
+    position: sticky; top: 88px; z-index: 20; width: fit-content; max-width: calc(100% - 48px); margin: 8px 24px 0; padding: 0 7px 0 7px; gap: 10px;
+    height: 48px; min-height: 48px; border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 999px;
+    background: var(--topbar-bg); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05), 0 8px 22px rgba(23, 38, 58, 0.07); }
+  html:not([data-work]) .p-strip > .practice-strip .paper-top-icon { width: 34px; height: 34px; }
+  html:not([data-work]) .p-strip > .practice-strip .wc-name { font-size: 16px; padding-right: 8px; }
+  html:not([data-work]) .p-strip > .practice-strip .ps-tabs { flex: 0 1 auto; margin-left: 0; padding-left: 12px; }
+  html:not([data-work]) .p-strip > .practice-strip .ps-tabs .subtabs { margin-left: 8px !important; }
+  .p-strip.in > .practice-strip.paper-top { animation: ps-drop 0.6s cubic-bezier(.2, .8, .2, 1) both; }
+  .p-strip.out > .practice-strip.paper-top { animation: ps-lift 0.5s cubic-bezier(.4, 0, .6, 1) both; }
+}
+:root[data-theme="dark"] .topbar.mode-bar:not(.mode-work), :root[data-theme="dark"] .p-strip > .practice-strip.paper-top { border-color: var(--glass-line) !important; }
+@keyframes ps-drop {
+  from { height: 0; min-height: 0; margin-top: 0; opacity: 0; transform: translateY(-26px); }
+  40% { opacity: 0; }
+  to { height: 48px; min-height: 48px; margin-top: 8px; opacity: 1; transform: none; }
+}
+@keyframes ps-lift {
+  from { height: 48px; min-height: 48px; margin-top: 8px; opacity: 1; transform: none; }
+  60% { opacity: 0; }
+  to { height: 0; min-height: 0; margin-top: 0; opacity: 0; transform: translateY(-26px); }
+}
