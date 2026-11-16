@@ -28,7 +28,7 @@ import {
 } from "../lib/planning";
 import { Row } from "../lib/schema";
 import { DEFAULT_DAY_TYPES, DEFAULT_WEEK, DayType } from "../lib/dayTypes";
-import { GroupedTabs, Icon, href, useRoute } from "./bits";
+import { Icon, href, useRoute } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
 import { DEFAULT_FILL } from "../lib/autoplan";
 import { SelectField } from "./Editors";
@@ -47,7 +47,7 @@ import { signOut } from "../lib/auth";
 declare const __DEMO__: boolean;
 
 const DAYS: [keyof Hours, string][] = [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"]];
-import { SETTINGS_ALIAS, TABS, settingsGroups } from "./SettingsTabs";
+import { SETTINGS_ALIAS, SettingsTabs, TABS } from "./SettingsTabs";
 import { DigestSettings } from "./DigestSettings";
 export { SettingsTabs } from "./SettingsTabs";
 
@@ -55,8 +55,8 @@ export function SettingsPage() {
   const { parts } = useRoute();
   const tab = TABS.some(([k]) => k === parts[1]) ? parts[1] : "week";
   return (
-    <div className="page">
-      <GroupedTabs groups={settingsGroups()} current={SETTINGS_ALIAS[tab] || tab} label="Settings" heading="Settings" />
+    <SettingsTabs current={tab}>
+      <div className="page-head"><h1>{TABS.find(([k]) => k === (SETTINGS_ALIAS[tab] || tab))?.[1] || "Settings"}</h1></div>
       {tab === "week" && <HoursCard />}
       {tab === "week" && <DayTypesCard />}
       {tab === "week" && <RoutinesCard />}
@@ -86,7 +86,7 @@ export function SettingsPage() {
       {(tab === "services" || tab === "pricing") && <PricingSettings />}
 
       {tab === "onboarding" && <OnboardingSettingsPage />}
-    </div>
+    </SettingsTabs>
   );
 }
 

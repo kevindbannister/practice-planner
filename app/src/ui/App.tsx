@@ -17,6 +17,7 @@ import { useData, useIndex } from "./data";
 import { EditorProvider, useEditor } from "./Editors";
 import { useChaseCount } from "./chaseCount";
 import { SettingsTabs } from "./SettingsTabs";
+import { PracticeStrip } from "./PracticeStrip";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -169,11 +170,11 @@ export function App({ demo }: { demo: boolean }) {
   } else if (section === "payroll") {
     body = <PayrollPage />;
   } else if (section === "dependencies") {
-    body = <><SettingsTabs current="dependencies" /><DependencyTemplatesPage /></>;
+    body = <SettingsTabs current="dependencies"><DependencyTemplatesPage /></SettingsTabs>;
   } else if (section === "checklists") {
-    body = <><SettingsTabs current="checklists" /><ChecklistsPage /></>;
+    body = <SettingsTabs current="checklists"><ChecklistsPage /></SettingsTabs>;
   } else if (section === "portal") {
-    body = <><SettingsTabs current="portal" /><PortalPage /></>;
+    body = <SettingsTabs current="portal"><PortalPage /></SettingsTabs>;
   } else {
     body = <ClientsPage />;
   }
@@ -239,6 +240,17 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
     const t = window.setTimeout(() => setStrip(""), 900);
     return () => { window.clearTimeout(b); window.clearTimeout(t); };
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
+  // in Practice, the section strip comes down once the client strip has gone up (and goes up as Work comes in)
+  const [pstrip, setPstrip] = useState<"" | "on" | "in" | "out">(toggle && !work ? "on" : "");
+  useEffect(() => {
+    if (!toggle) { setPstrip(""); return; }
+    if (work) {
+      setPstrip((p) => (p ? "out" : ""));
+      const t = window.setTimeout(() => setPstrip(""), 900);
+      return () => window.clearTimeout(t);
+    }
+    if (!strip) setPstrip((p) => (p === "on" ? "on" : "in"));
+  }, [toggle, work, strip]);
   useEffect(() => { rememberPage(section); }, [section, routeKey]);
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   // the sheet design (grey background, white sheet, navy table headings) is used in both Practice and Work
@@ -315,6 +327,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
       </div>
       {two && <TwoLineModules section={section} area={area} chase={ready ? chase : 0} />}
     </header>
+    {pstrip && ready && <div className={`work-strip p-strip ${pstrip}`}><PracticeStrip section={section} /></div>}
     {strip && ready && <div className={`work-strip ${strip}`}><WorkClientBar section={section} routeKey={routeKey} /></div>}
     </>
   );

@@ -1,5 +1,6 @@
 // Shared by letters and emails, meetings and payment reminders: the AI client, your sign-off
 // settings, Outlook drafts, the communications tabs.
+import { InStrip } from "./StripSlot";
 import { useMemo } from "react";
 import { getAccessToken, hasExtraScope } from "../lib/auth";
 import { AiApi, FakeAi, HttpAi } from "../lib/ai";
@@ -49,6 +50,7 @@ export async function outlookDraft(graph: Graph, o: { to: string; subject: strin
 
 export function CommsTabs({ current }: { current: "letters" | "meetings" | "payments" | "mail" | "documents" }) {
   return (
+    <InStrip>
     <nav className="subtabs" aria-label="Communication">
       <a href="#/comms" aria-current={current === "mail" ? "page" : undefined}>Email</a>
       <a href="#/comms/letters" aria-current={current === "letters" ? "page" : undefined}>Letters and emails</a>
@@ -58,5 +60,6 @@ export function CommsTabs({ current }: { current: "letters" | "meetings" | "paym
         Payment reminders
       </a>
     </nav>
+    </InStrip>
   );
 }

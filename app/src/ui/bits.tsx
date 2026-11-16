@@ -1,5 +1,7 @@
 // Small shared pieces: routing, client badge, deadline chips, icons.
 import { CSSProperties, ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useStripSlot } from "./StripSlot";
 import { logoSrc } from "../lib/logo";
 import { elementsUrl } from "../lib/elements";
 import { Client, Job, badgeColours, deadlineLabel, initials, jobState, todayIso } from "../lib/domain";
@@ -166,20 +168,60 @@ export type TabGroup = { label: string; items: TabItem[] };
 export function GroupedTabs({ groups, current, label, heading }: { groups: TabGroup[]; current: string; label: string; heading?: string }) {
   const active = groups.find((g) => g.items.some((i) => i.key === current)) || groups[0];
   const nav = useRef<HTMLElement>(null);
+  const slot = useStripSlot();
   useEffect(() => { const el = nav.current?.querySelector<HTMLElement>("[aria-current]"); if (el && nav.current && nav.current.scrollWidth > nav.current.clientWidth) nav.current.scrollLeft = el.offsetLeft - (nav.current.clientWidth - el.offsetWidth) / 2; }, [current]);
   const badge = (n?: number) => (n ? <span className="chip amber" style={{ marginLeft: 6 }}>{n}</span> : null);
   const count = (g: TabGroup) => g.items.reduce((n, i) => n + (i.badge || 0), 0);
-  return (
-    <div className="grouped-tabs">
-      {heading && <div className="page-head"><h1>{heading}</h1></div>}
+  const navs = (
+    <>
       <nav className="tabs" aria-label={label} ref={nav}>
-        {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{g.items.length > 1 ? null : null}{badge(count(g))}</a>)}
+        {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{badge(count(g))}</a>)}
       </nav>
       {active.items.length > 1 && (
-        <nav className="subtabs" aria-label={`${label}: ${active.label}`} style={{ marginTop: 10 }}>
+        <nav className="subtabs" aria-label={`${label}: ${active.label}`} style={slot ? undefined : { marginTop: 10 }}>
           {active.items.map((i) => <a key={i.key} href={i.to} aria-current={current === i.key ? "page" : undefined}>{i.label}{badge(i.badge)}</a>)}
         </nav>
       )}
+    </>
+  );
+  // in Practice the tabs sit in the strip under the menu, and the page is headed with the view you are on
+  if (slot) {
+    const item = active.items.find((i) => i.key === current) || active.items[0];
+    const title = heading ? (item.label === "Overview" ? `${heading} overview` : item.label) : "";
+    return <>{createPortal(navs, slot)}{title && <div className="grouped-tabs"><div className="page-head"><h1>{title}</h1></div></div>}</>;
+  }
+  return (
+    <div className="grouped-tabs">
+      {heading && <div className="page-head"><h1>{heading}</h1></div>}
+      {navs}
+    </div>
+  );
+}
+
+/** Pages listed down the left in groups (used where a section has too many pages for a row of tabs, such as Settings).
+ *  On a phone the list becomes a drop-down at the top. */
+export function SideTabs({ groups, current, label, children }: { groups: TabGroup[]; current: string; label: string; children: ReactNode }) {
+  const all = groups.flatMap((g) => g.items);
+  const here = all.find((i) => i.key === current) || all[0];
+  return (
+    <div className="side-shell">
+      <aside className="side-tabs" aria-label={label}>
+        <label className="side-select">
+          <span className="sr-only">{label}: choose a page</span>
+          <select className="input" value={here.to} onChange={(e) => { window.location.hash = e.target.value; }}>
+            {groups.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((i) => <option key={i.key} value={i.to}>{i.label}</option>)}</optgroup>)}
+          </select>
+        </label>
+        <nav aria-label={label}>
+          {groups.map((g) => (
+            <div key={g.label} className="side-group">
+              <h3>{g.label}</h3>
+              {g.items.map((i) => <a key={i.key} href={i.to} aria-current={i.key === here.key ? "page" : undefined}><span>{i.label}</span>{i.badge ? <span className="chip amber">{i.badge}</span> : null}</a>)}
+            </div>
+          ))}
+        </nav>
+      </aside>
+      <div className="side-main">{children}</div>
     </div>
   );
 }

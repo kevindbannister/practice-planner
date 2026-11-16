@@ -1,5 +1,6 @@
 // The Settings tab bar, apart from the Settings page so that showing it above Checks and the Client portal doesn't load every settings screen.
-import { GroupedTabs, TabGroup, href } from "./bits";
+import { ReactNode } from "react";
+import { SideTabs, TabGroup, href } from "./bits";
 import { usePortal } from "./portalKit";
 
 export const TABS: [string, string][] = [
@@ -23,8 +24,8 @@ export function settingsGroups(portalWaiting = 0): TabGroup[] {
   groups.push({ label: "Checks and portal", items: PAGE_TABS.map(([k, l, to]) => ({ key: k, label: l, to, badge: k === "portal" ? portalWaiting : 0 })) });
   return groups;
 }
-/** The Settings tab bar, also shown above Checks and the Client portal so they read as part of Settings. */
-export function SettingsTabs({ current }: { current: string }) {
+/** Settings' pages listed down the left, also round Checks, Dependencies and the Client portal so they read as part of Settings. */
+export function SettingsTabs({ current, children }: { current: string; children?: ReactNode }) {
   const waiting = usePortal().overview?.attention.length || 0;
-  return <div className="page" style={{ paddingBottom: 0 }}><GroupedTabs groups={settingsGroups(waiting)} current={SETTINGS_ALIAS[current] || current} label="Settings" heading="Settings" /></div>;
+  return <div className="page settings-page"><SideTabs groups={settingsGroups(waiting)} current={SETTINGS_ALIAS[current] || current} label="Settings">{children}</SideTabs></div>;
 }

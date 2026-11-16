@@ -4197,3 +4197,81 @@ html[data-sheet] .page.home { outline: 1px solid rgba(23, 38, 58, 0.07); outline
 html[data-sheet] .page.home .home-hero { background: transparent; box-shadow: none; border: 0; }
 html[data-sheet] .page.home .card, html[data-sheet] .page.home .tile {
   background: var(--surface); border: 1px solid var(--sep); box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+/* =====================================================================================
+   V33.3 Practice and Work built the same way
+   1. The Practice gradient is a hint: a glow at the very top that fades into the same grey as Work by about 350px,
+      and scrolls away with the page.
+   2. Practice has a second bar like Work's client strip: the section you're in, with its tabs.
+   3. Settings lists its pages down the left, in the grey side list used on the working papers.
+   ===================================================================================== */
+html[data-sheet]:not([data-work]) body {
+  background:
+    radial-gradient(ellipse 60% 340px at 4% 0, rgba(190, 234, 252, 0.95), rgba(190, 234, 252, 0) 100%),
+    radial-gradient(ellipse 55% 320px at 97% 0, rgba(214, 215, 250, 0.95), rgba(214, 215, 250, 0) 100%),
+    #E7EBF0;
+  background-repeat: no-repeat; background-attachment: scroll;
+}
+:root[data-theme="dark"][data-sheet]:not([data-work]) body {
+  background: radial-gradient(ellipse 60% 340px at 4% 0, rgba(20, 140, 190, 0.22), transparent), radial-gradient(ellipse 55% 320px at 97% 0, rgba(90, 80, 200, 0.18), transparent), #0b1522;
+  background-repeat: no-repeat;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-sheet]:not([data-work]) body {
+    background: radial-gradient(ellipse 60% 340px at 4% 0, rgba(20, 140, 190, 0.22), transparent), radial-gradient(ellipse 55% 320px at 97% 0, rgba(90, 80, 200, 0.18), transparent), #0b1522;
+    background-repeat: no-repeat;
+  }
+}
+
+/* the Practice strip: the same size and place as the client strip in Work */
+.p-strip.in > .work-client { animation-delay: 0s; }
+.p-strip.out > .work-client { margin-bottom: -56px; z-index: 21; }
+@media (min-width: 721px) {
+  html:not([data-work]) .topbar.mode-bar { position: sticky; top: 0; min-height: 68px; box-sizing: border-box; }
+  .practice-strip.paper-top { top: 68px; box-sizing: border-box; height: 56px; min-height: 56px; flex-wrap: nowrap; padding: 0 28px; align-items: center; overflow: hidden; }
+  .practice-strip .paper-top-icon { flex: none; width: 38px; height: 38px; margin: 0; }
+}
+.practice-strip .chip { flex: none; background: color-mix(in srgb, var(--navy) 7%, transparent); border-color: transparent; }
+.practice-strip .wc-name { flex: none; }
+.ps-tabs { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; margin-left: 8px; padding-left: 16px; border-left: 1px solid var(--sep);
+  height: 34px; overflow-x: auto; scrollbar-width: none; }
+.ps-tabs::-webkit-scrollbar { display: none; }
+.ps-tabs:empty { display: none; }
+.ps-tabs .tabs, .ps-tabs .subtabs { display: flex; flex: none; align-items: center; gap: 2px; margin: 0 !important; padding: 0; border: 0 !important; overflow: visible; background: none; }
+.ps-tabs .tabs a, .ps-tabs .subtabs a { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; margin: 0; border: 0 !important; border-radius: 999px;
+  font-size: 14px; font-weight: 600; color: var(--ink-2); text-decoration: none; white-space: nowrap; background: transparent; box-shadow: none; }
+.ps-tabs .tabs a::after, .ps-tabs .subtabs a::after { display: none; }
+.ps-tabs .tabs a:hover, .ps-tabs .subtabs a:hover { background: color-mix(in srgb, var(--navy) 7%, transparent); color: var(--ink); }
+.ps-tabs .tabs a[aria-current] { background: var(--navy); color: #fff; }
+.ps-tabs .subtabs { margin-left: auto !important; padding: 3px; border-radius: 999px; background: color-mix(in srgb, var(--navy) 7%, transparent); }
+.ps-tabs .subtabs a { height: 28px; padding: 0 12px; font-size: 13px; }
+.ps-tabs .subtabs a[aria-current] { background: var(--surface); color: var(--navy); box-shadow: 0 1px 3px rgba(23, 38, 58, 0.14); }
+:root[data-theme="dark"] .ps-tabs .tabs a[aria-current] { background: #2E4C70; }
+@media (max-width: 720px) {
+  .practice-strip.paper-top { flex-wrap: wrap; padding: 8px 12px; }
+  .ps-tabs { flex-basis: 100%; margin-left: 0; padding-left: 0; border-left: 0; }
+}
+
+/* Settings: the pages down the left, the page itself on the right */
+.side-shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 32px; align-items: start; }
+.side-tabs { position: sticky; top: 140px; padding: 10px; border-radius: 18px; background: #F1F4F8; border: 1px solid var(--sep); }
+.side-group + .side-group { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--sep); }
+.side-group h3 { margin: 8px 12px 4px; font-size: 12.5px; font-weight: 700; color: var(--muted); letter-spacing: 0.01em; }
+.side-group a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; padding: 0 12px; border-radius: 10px;
+  font-size: 14.5px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
+.side-group a:hover { background: rgba(23, 38, 58, 0.05); color: var(--ink); }
+.side-group a[aria-current] { background: var(--surface); color: var(--navy); box-shadow: 0 1px 3px rgba(23, 38, 58, 0.1); }
+.side-select { display: none; }
+.side-main { min-width: 0; }
+.side-main > .page { max-width: none !important; margin: 0 !important; padding: 0 !important; background: transparent !important; box-shadow: none !important;
+  border-radius: 0 !important; min-height: 0 !important; outline: 0 !important; }
+.settings-page .side-main > .page-head { margin-top: 0; }
+:root[data-theme="dark"] .side-tabs { background: rgba(255, 255, 255, 0.04); }
+:root[data-theme="dark"] .side-group a[aria-current] { color: #fff; }
+@media (max-width: 800px) {
+  .side-shell { grid-template-columns: 1fr; gap: 14px; }
+  .side-tabs { position: static; padding: 0; background: none; border: 0; }
+  .side-tabs nav { display: none; }
+  .side-select { display: block; }
+  .side-select select { width: 100%; }
+}
