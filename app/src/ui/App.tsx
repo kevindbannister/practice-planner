@@ -7,7 +7,7 @@ import { NavPrefsSync, notePage, useNavState } from "./navPrefs";
 import { AdvisoryOverview } from "./AdvisoryOverview";
 import { WorkClientBar } from "./WorkClientBar";
 import { PortalProvider, usePortal } from "./portalKit";
-import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ComponentType, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
 import { createPortal } from "react-dom";
 import { fmtDate, holdAlert, isHoldText, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
@@ -19,7 +19,7 @@ import { useData, useIndex } from "./data";
 import { EditorProvider, useEditor } from "./Editors";
 import { useChaseCount } from "./chaseCount";
 import { SettingsTabs } from "./SettingsTabs";
-import { setBandSlot, setStripSlot, usePracticeLayout, usePracticeBar } from "./StripSlot";
+import { setBandSlot, setStripSlot, usePracticeLayout } from "./StripSlot";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -225,49 +225,13 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const mode = useMode(section);
   const work = toggle && mode === "work";
   const advisory = toggle && mode === "advisory";
-  // the client strip slides down out of the navy bar going into Work, and back up into it going to Practice
-  const [barHold, setBarHold] = useState(false);
-  const [strip, setStrip] = useState<"" | "on" | "in" | "out">(work ? "on" : ""); // "on": already there when the page opened, no animation
-  useEffect(() => {
-    if (work) {
-      setStrip((s) => (s === "on" ? "on" : "in"));
-      // a working paper or tax return shows its own client banner in place of the strip: it drops in the same way
-      if (strip !== "on") {
-        document.documentElement.setAttribute("data-work-in", "");
-        const t = window.setTimeout(() => document.documentElement.removeAttribute("data-work-in"), 2000);
-        return () => window.clearTimeout(t);
-      }
-      return;
-    }
-    if (!strip) return;
-    setStrip("out");
-    setBarHold(true);
-    // the bar turns back to Practice at the same time as the strip goes up
-    const b = window.setTimeout(() => setBarHold(false), 0);
-    const t = window.setTimeout(() => setStrip(""), 1000);
-    return () => { window.clearTimeout(b); window.clearTimeout(t); };
-  }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
   // remember the page for its workspace (shared pages such as Clients leave the workspace as it is)
   const { parts: routeParts, query: routeQuery } = useRoute();
   useEffect(() => { notePage(); }, [section, routeParts.join("/"), routeQuery.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   useEffect(() => { document.documentElement.toggleAttribute("data-advisory", advisory); }, [advisory]);
-  const [practiceBar] = usePracticeBar();
-  const [practiceLayout] = usePracticeLayout();
-  useEffect(() => { document.documentElement.toggleAttribute("data-pflat", practiceBar === "flat"); }, [practiceBar]);
-  // the second menu moves only when the workspace changes: the old line slides up out of the bar and the new one drops in
-  const bandNow: "practice" | "work" | "advisory" = work ? "work" : advisory ? "advisory" : "practice";
-  const [swap, setSwap] = useState<{ from: "practice" | "work" | "advisory" } | null>(null);
-  const lastBand = useRef(bandNow);
-  useLayoutEffect(() => {
-    if (lastBand.current === bandNow) return;
-    setSwap({ from: lastBand.current });
-    lastBand.current = bandNow;
-    const t = window.setTimeout(() => setSwap(null), 1000);
-    return () => window.clearTimeout(t);
-  }, [bandNow]);
-  // the views of the line being left stay as they were, so the line does not change while it slides away
-  const frozenLabel = useRef<Partial<Record<"practice" | "advisory", ReactNode>>>({});
+  // the Practice bar is always the full-width one, with the white line joined under it
+  useEffect(() => { document.documentElement.setAttribute("data-pflat", ""); }, []);
   // the band under the full-width bar is only a desktop thing: on a phone the views stay on the page
   const [wide, setWide] = useState(() => typeof matchMedia === "function" && matchMedia("(min-width: 721px)").matches);
   useEffect(() => { const m = matchMedia("(min-width: 721px)"); const f = () => setWide(m.matches); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, []);
@@ -301,7 +265,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const PHONE_LABELS: Record<string, string> = { papers: "Papers", advisory: "Plans", practice: "Practice", taxplan: "Tax plan", reporting: "Reports" };
   return (
     <>
-    <header className={`topbar${two ? " two" : ""}${toggle ? " mode-bar" : ""}${work || advisory || (strip === "out" && barHold) ? " mode-work" : ""}${advisory ? " mode-advisory" : ""}${scrolls ? " scrolls" : ""}`}>
+    <header className={`topbar${two ? " two" : ""}${toggle ? " mode-bar" : ""}${work || advisory ? " mode-work" : ""}${advisory ? " mode-advisory" : ""}${scrolls ? " scrolls" : ""}`}>
       <div className="topbar-left">
         <Brand />
         {/* until the account's menu style is known (first visit on this device), no menu is drawn rather than the wrong one */}
@@ -371,26 +335,18 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
       {two && <TwoLineModules section={section} area={area} chase={ready ? chase : 0} />}
     </header>
     {ready && <div className="rail-slot" ref={setStripSlot} />}
-    {/* the full-width Practice bar always has its white line under it; each section's views drop into it from the bar */}
-    {ready && wide && practiceBar === "flat" && practiceLayout === "top" && (bandNow === "practice" || swap?.from === "practice") && (
-      <div
-        className={`band-slot${bandNow !== "practice" ? " mode-leave" : swap ? " mode-enter" : ""}`}
-        ref={bandNow === "practice" ? setBandSlot : undefined}
-      >
-        <div className="band-default">{bandNow === "practice" ? (frozenLabel.current.practice = (
-          <span className="page-tabs-name"><Icon name={ICONS[section] || "home"} size={20} />{section === "" || section === "home" ? "Home" : (ICON_TITLES[section] || phoneMods.label(section))}</span>
-        )) : frozenLabel.current.practice}</div>
+    {/* the white line under the bar is permanent: every workspace always has it, in the same place, and only its contents change */}
+    {ready && wide && !work && !advisory && (
+      <div className="band-slot" ref={setBandSlot}>
+        <div className="band-default"><span className="page-tabs-name"><Icon name={ICONS[section] || "home"} size={20} />{section === "" || section === "home" ? "Home" : (ICON_TITLES[section] || phoneMods.label(section))}</span></div>
       </div>
     )}
-    {/* Advisory has the same line under its purple bar, in the same place as Work's client strip */}
-    {ready && wide && (bandNow === "advisory" || swap?.from === "advisory") && (
-      <div className={`adv-band${bandNow !== "advisory" ? " mode-leave" : swap ? " mode-enter" : ""}`} key="adv-band">
-        {bandNow === "advisory" ? (frozenLabel.current.advisory = (
-          <span className="page-tabs-name" key={section}><Icon name={ICONS[section] || "chart"} size={20} />{section === WORKSPACES.advisory.homeSection ? WORKSPACES.advisory.homeLabel : phoneMods.label(section)}</span>
-        )) : frozenLabel.current.advisory}
+    {ready && wide && advisory && (
+      <div className="adv-band">
+        <span className="page-tabs-name"><Icon name={ICONS[section] || "chart"} size={20} />{section === WORKSPACES.advisory.homeSection ? WORKSPACES.advisory.homeLabel : phoneMods.label(section)}</span>
       </div>
     )}
-    {strip && ready && <div className={`work-strip ${strip}`}><WorkClientBar section={section} routeKey={routeKey} /></div>}
+    {work && ready && <div className="work-strip"><WorkClientBar section={section} routeKey={routeKey} /></div>}
     </>
   );
 }
@@ -417,7 +373,6 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
   const [tips, setTips] = useTips();
   const [menuKind, setMenuKind] = useMenuKind();
   const [layout, setLayout] = usePracticeLayout();
-  const [bar, setBar] = usePracticeBar();
   const navError = useNavState().error;
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -456,12 +411,6 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
           {([["top", "Tabs on the page"], ["side", "List down the left"]] as const).map(([k, label]) => (
             <button key={k} type="button" role="menuitemradio" aria-checked={layout === k} onClick={() => { setLayout(k); setShown(false); }}>
               <Icon name={layout === k ? "check" : "layout"} size={16} /> {label}
-            </button>
-          ))}
-          <div className="profile-sub">Practice bar</div>
-          {([["float", "Floating glass bar"], ["flat", "Full width, like Work"]] as const).map(([k, label]) => (
-            <button key={k} type="button" role="menuitemradio" aria-checked={bar === k} onClick={() => { setBar(k); setShown(false); }}>
-              <Icon name={bar === k ? "check" : "layout"} size={16} /> {label}
             </button>
           ))}
           <div className="profile-sub">Menu style</div>

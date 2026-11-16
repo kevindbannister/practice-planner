@@ -4682,65 +4682,22 @@ html[data-pflat]:not([data-work]):not([data-advisory]) :is(.page, .plan, .split-
 html[data-advisory] table thead th, html[data-advisory] table.grid thead th, html[data-advisory] .adv-table thead th { background: var(--adv-deep) !important; border-color: var(--adv-deep) !important; color: #fff; }
 html[data-advisory] table thead th a, html[data-advisory] table thead th button { color: #fff; }
 
-/* V35.5: no transitions on the menus. The top bar and the line under it change instantly between pages, sections and
-   workspaces: no morphing, no dropping in or out, no fading. (Button hover shades are kept; they are not movement.) */
-.topbar.mode-bar, .topbar.mode-bar::before,
-.topbar.mode-bar .brand-logo, .topbar.mode-bar .nv-link, .topbar.mode-bar .mode-toggle, .topbar.mode-bar .mode-toggle button,
-.topbar.mode-bar .search-btn, .topbar.mode-bar .bell, .topbar.mode-bar .iconbtn, .topbar.mode-bar .btn { transition: none !important; }
-.work-client, .work-strip.in > .work-client, .work-strip.out > .work-client,
-html[data-work-in] .paper-page .paper-top:not(.work-client),
-.band-slot .page-tabs, .band-slot .band-default, .adv-band, .adv-band .page-tabs-name,
-html[data-pflat] .page-tabs, .practice-strip, .p-strip > .practice-strip { animation: none !important; transition: none !important; }
-/* leaving Work: the strip is simply gone (it used to slide up for a moment) */
-.work-strip.out > .work-client { display: none; }
-.p-strip.out > .work-client, .p-strip.out > .practice-strip { display: none; }
+/* V35.12: no transitions or animations on the menus, anywhere. The top bar and the white line under it change instantly
+   between pages, sections and workspaces: no morphing, no dropping in or out, no fading, no colour crossfade and no hover
+   fades. The white line is permanent (see TopBar in ui/App.tsx): it is always there, and only what is in it changes. */
+.topbar, .topbar *, .topbar *::before, .topbar *::after, .topbar::before,
+.band-slot, .band-slot *, .adv-band, .adv-band *, .work-strip, .work-strip *, .page-tabs, .page-tabs *,
+.practice-strip, .p-strip > .practice-strip { transition: none !important; }
+.band-slot, .band-slot .page-tabs, .band-slot .band-default, .adv-band, .adv-band .page-tabs-name, .work-client,
+html[data-pflat] .page-tabs, .practice-strip, .p-strip > .practice-strip,
+html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !important; }
 
-/* V35.6: one second menu everywhere. In every workspace it is the same full-width white line under the bar, and the
-   full-width Practice bar is now the standard (the floating bar stays as a profile choice, with its tabs on the page).
-   The only motion is between workspaces: the bar's colour crossfades and the new line fades in; page changes inside a
-   workspace stay instant. */
+/* the three lines measure the same; Advisory's line and its page banners are full width and square, like Work's */
 @media (min-width: 721px) {
-  .topbar.mode-bar { transition: background-color 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease !important; }
-  .topbar.mode-bar .brand-logo, .topbar.mode-bar .nv-link, .topbar.mode-bar .mode-toggle, .topbar.mode-bar .mode-toggle button,
-  .topbar.mode-bar .search-btn, .topbar.mode-bar .bell, .topbar.mode-bar .iconbtn, .topbar.mode-bar .btn { transition: background-color 0.45s ease, color 0.45s ease, border-color 0.45s ease !important; }
-  .band-slot, .work-strip > .work-client, .adv-band { animation: band-in 0.45s ease both !important; }
-  /* the three lines measure the same */
   .work-client.paper-top { box-sizing: border-box; height: 56px; min-height: 56px; }
-}
-@keyframes band-in { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  .topbar.mode-bar, .topbar.mode-bar .brand-logo, .topbar.mode-bar .nv-link, .topbar.mode-bar .mode-toggle, .topbar.mode-bar .mode-toggle button,
-  .topbar.mode-bar .search-btn, .topbar.mode-bar .bell, .topbar.mode-bar .iconbtn, .topbar.mode-bar .btn { transition: none !important; }
-  .band-slot, .work-strip > .work-client, .adv-band { animation: none !important; }
-}
-/* entering Work the strip fades in like the other lines (the V35.5 no-animation rule was more specific) */
-@media (min-width: 721px) { .work-strip.in > .work-client, .work-strip.on > .work-client { animation: band-in 0.45s ease both !important; } }
-@media (prefers-reduced-motion: reduce) { .work-strip.in > .work-client, .work-strip.on > .work-client { animation: none !important; } }
-
-/* V35.8: every second menu is the same full-width line. The Advisory line loses the old Freedom Plans band's rounded
-   corners; a report's or tax plan's own banner in Advisory runs edge to edge like it does in Work; and a page banner
-   standing in for the strip on arrival in Work fades in with the rest of the menu. */
-@media (min-width: 721px) {
   .adv-band { border-radius: 0; }
   html[data-advisory] .paper-top:not(.work-client) { position: sticky; top: 68px; margin: 0 calc(50% - 50vw) 18px; padding: 8px 28px; border: 0; border-radius: 0;
     border-bottom: 1px solid var(--sep); background: var(--surface); box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07); }
-  html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: band-in 0.45s ease both !important; }
-}
-@media (prefers-reduced-motion: reduce) { html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !important; } }
-
-/* V35.9: the second menu moves only when you change workspace. The line you leave slides up out of the bar; the line
-   you arrive at drops down into it. Changing page inside a workspace stays instant. */
-@media (min-width: 721px) {
-  .band-slot.mode-leave, .adv-band.mode-leave, .work-strip.out > .work-client {
-    animation: mode-up 0.9s cubic-bezier(.4, 0, .6, 1) both !important; pointer-events: none; }
-  .band-slot.mode-enter, .adv-band.mode-enter, .work-strip.in > .work-client {
-    animation: mode-down 0.9s cubic-bezier(.2, .8, .2, 1) both !important; }
-  .work-strip.out > .work-client { display: flex !important; }
-}
-@keyframes mode-up { from { transform: none; opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
-@keyframes mode-down { from { transform: translateY(-100%); opacity: 0; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  .band-slot.mode-leave, .adv-band.mode-leave, .work-strip.out > .work-client, .band-slot.mode-enter, .adv-band.mode-enter, .work-strip.in > .work-client { animation: none !important; }
 }
 
 /* V35.11: one menu look in Practice, Work and Advisory.
