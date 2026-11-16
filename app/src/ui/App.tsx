@@ -2,7 +2,9 @@
 declare const __DEMO__: boolean;
 import { QuickAddProvider, useQuickAdd } from "./QuickAdd";
 import { VERSION } from "../version";
-import { AreaMenu, AreaPicker, ModeMenu, TwoLineAreas, TwoLineModules, rememberPage, useMenuKind, useMode } from "./AreaMenu";
+import { AreaMenu, AreaPicker, ModeMenu, ModeSwitch, TwoLineAreas, TwoLineModules, modeModules, useMenuKind, useMode } from "./AreaMenu";
+import { NavPrefsSync, notePage, useNavState } from "./navPrefs";
+import { AdvisoryOverview } from "./AdvisoryOverview";
 import { WorkClientBar } from "./WorkClientBar";
 import { PortalProvider, usePortal } from "./portalKit";
 import { Suspense, lazy, useEffect, useRef, useState, type CSSProperties, type ComponentType } from "react";
@@ -12,7 +14,7 @@ import { addDays } from "../lib/planning";
 import { signOut } from "../lib/auth";
 import { Brand, ClientBadge, ClientsTabs, Icon, IconName, href, useRoute } from "./bits";
 import { useTheme } from "./theme";
-import { AREAS, MODULE_LABELS, areaOf, isAreaId, navKeyOf, type AreaId } from "../lib/navAreas";
+import { AREAS, MENU_KINDS, MODULE_LABELS, WORKSPACES, areaOf, isAreaId, isModeKind, navKeyOf, type AreaId } from "../lib/navAreas";
 import { useData, useIndex } from "./data";
 import { EditorProvider, useEditor } from "./Editors";
 import { useChaseCount } from "./chaseCount";
@@ -143,6 +145,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <SalesPage />;
   } else if (section === "cosec") {
     body = <CoSecPage />;
+  } else if (section === "advisory-overview") {
+    body = <AdvisoryOverview />;
   } else if (section === "advisory") {
     body = <AdvisoryPage />;
   } else if (section === "actions") {
@@ -186,6 +190,7 @@ export function App({ demo }: { demo: boolean }) {
           <PortalProvider>
           <EditorProvider>
             <QuickAddProvider ready={status === "ready"}>
+            <NavPrefsSync />
             <AssistantProvider>
               <>
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
@@ -215,9 +220,11 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const [menuKind] = useMenuKind();
   const two = menuKind === "two";
   const pick = menuKind === "pick";
-  const toggle = menuKind === "toggle";
+  const toggle = isModeKind(menuKind);
+  const nav = useNavState();
   const mode = useMode(section);
   const work = toggle && mode === "work";
+  const advisory = toggle && mode === "advisory";
   // the client strip slides down out of the navy bar going into Work, and back up into it going to Practice
   const [barHold, setBarHold] = useState(false);
   const [strip, setStrip] = useState<"" | "on" | "in" | "out">(work ? "on" : ""); // "on": already there when the page opened, no animation
@@ -240,8 +247,11 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
     const t = window.setTimeout(() => setStrip(""), 900);
     return () => { window.clearTimeout(b); window.clearTimeout(t); };
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { rememberPage(section); }, [section, routeKey]);
+  // remember the page for its workspace (shared pages such as Clients leave the workspace as it is)
+  const { parts: routeParts, query: routeQuery } = useRoute();
+  useEffect(() => { notePage(section); }, [section, routeParts.join("/"), routeQuery.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
+  useEffect(() => { document.documentElement.toggleAttribute("data-advisory", advisory); }, [advisory]);
   // the sheet design (grey background, white sheet, navy table headings) is used in both Practice and Work
   useEffect(() => { document.documentElement.setAttribute("data-sheet", ""); }, []);
   // the width of the window's scroll bar, so edge-to-edge strips line up exactly on every page
@@ -267,13 +277,35 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const pickArea = (id: AreaId) => { setShown(id); setPicked(id); try { localStorage.setItem("pp.nav.area", id); } catch { /* fine */ } };
   const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
   const AREA_ICONS: Record<AreaId, IconName> = { run: "layout", deliver: "check", grow: "chart" };
+  const phoneMods = modeModules(menuKind, mode);
+  const PHONE_LABELS: Record<string, string> = { papers: "Papers", advisory: "Plans", practice: "Practice", taxplan: "Tax plan", reporting: "Reports" };
   return (
     <>
-    <header className={`topbar${two ? " two" : ""}${toggle ? " mode-bar" : ""}${work || (strip === "out" && barHold) ? " mode-work" : ""}${scrolls ? " scrolls" : ""}`}>
+    <header className={`topbar${two ? " two" : ""}${toggle ? " mode-bar" : ""}${work || (strip === "out" && barHold) ? " mode-work" : ""}${advisory ? " mode-advisory" : ""}${scrolls ? " scrolls" : ""}`}>
       <div className="topbar-left">
         <Brand />
-        <div className="hide-phone">{toggle ? <ModeMenu section={section} mode={mode} chase={ready ? chase : 0} /> : two ? <TwoLineAreas section={section} area={area} onPick={pickArea} /> : pick ? <AreaPicker section={section} area={area} onPick={pickArea} chase={ready ? chase : 0} /> : <AreaMenu section={section} rename={menuKind === "named"} chase={ready ? chase : 0} />}</div>
+        {/* until the account's menu style is known (first visit on this device), no menu is drawn rather than the wrong one */}
+        <div className="hide-phone">{!nav.ready ? null : toggle ? <ModeMenu section={section} mode={mode} kind={menuKind} chase={ready ? chase : 0} /> : two ? <TwoLineAreas section={section} area={area} onPick={pickArea} /> : pick ? <AreaPicker section={section} area={area} onPick={pickArea} chase={ready ? chase : 0} /> : <AreaMenu section={section} rename={menuKind === "named"} chase={ready ? chase : 0} />}</div>
         <div className="phone-nav">
+        {!nav.ready ? null : toggle ? (
+          <>
+            {/* on a phone the same switcher sits above the bottom bar, and the bar lists the workspace's modules */}
+            <div className={`areas mode-areas mode-areas-${menuKind}`}><ModeSwitch kind={menuKind} mode={mode} compact /></div>
+            <nav className={`nav mode-phone-nav mode-${mode}`} aria-label={`${WORKSPACES[mode].name} modules`}>
+              {mode !== "practice" && (
+                <a href={WORKSPACES[mode].home} aria-current={section === WORKSPACES[mode].homeSection ? "page" : undefined}><Icon name="home" size={22} />{mode === "advisory" ? "Overview" : "Home"}</a>
+              )}
+              {phoneMods.modules.slice(0, 6).map((k) => (
+                <a key={k} href={`#/${k}`} aria-current={current === k ? "page" : undefined}>
+                  <Icon name={ICONS[k] || "list"} size={22} />
+                  {PHONE_LABELS[k] || phoneMods.label(k)}
+                  {k === "plan" && ready && chase > 0 && <span className="nav-count" aria-label={`${chase} to chase`}>{chase}</span>}
+                </a>
+              ))}
+            </nav>
+          </>
+        ) : (
+          <>
         <div className="areas" role="group" aria-label="Areas">
           {AREAS.map((a) => (
             <button key={a.id} type="button" className="area-btn" aria-pressed={a.id === area.id} aria-label={a.name} title={a.name} onClick={() => pickArea(a.id)}>
@@ -291,6 +323,8 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
             </a>
           ))}
         </nav>
+          </>
+        )}
         </div>
       </div>
       <div className="topbar-right">
@@ -344,6 +378,7 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
   const [tips, setTips] = useTips();
   const [menuKind, setMenuKind] = useMenuKind();
   const [layout, setLayout] = usePracticeLayout();
+  const navError = useNavState().error;
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -384,11 +419,12 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
             </button>
           ))}
           <div className="profile-sub">Menu style</div>
-          {([["drop", "Drop-down areas"], ["named", "Drop-down, shows where you are"], ["two", "Two lines"], ["pick", "Area picker"], ["toggle", "Practice and Work switch"]] as const).map(([k, label]) => (
+          {MENU_KINDS.map(([k, label]) => (
             <button key={k} type="button" role="menuitemradio" aria-checked={menuKind === k} onClick={() => { setMenuKind(k); setShown(false); }}>
               <Icon name={menuKind === k ? "check" : "layout"} size={16} /> {label}
             </button>
           ))}
+          {navError && <p className="profile-note" role="alert">{navError}</p>}
           {!demo && <button type="button" role="menuitem" onClick={signOut}><Icon name="left" size={16} /> Sign out</button>}
         </div>
       )}

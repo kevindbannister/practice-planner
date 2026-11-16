@@ -7,6 +7,7 @@ import { SharePointStore } from "./lib/sharepoint";
 import { App } from "./ui/App";
 import { Brand } from "./ui/bits";
 import { DataProvider } from "./ui/data";
+import { initNavPrefs } from "./ui/navPrefs";
 import { PageBoundary, recordProblem } from "./ui/ErrorBoundary";
 
 // problems outside a screen (a failed background save, say) are noted too
@@ -40,11 +41,13 @@ function SignInScreen({ message }: { message?: string }) {
 async function start() {
   let graph: Graph;
   let user: string | undefined;
+  let userId = "";
 
   if (__DEMO__) {
     graph = new FakeGraph("pp.demo");
     (window as unknown as { __fakeGraph: Graph }).__fakeGraph = graph; // demo only: lets tests change the fake Outlook
     user = "Demo user";
+    userId = "demo";
   } else {
     try {
       await handleRedirect();
@@ -61,12 +64,16 @@ async function start() {
     }
     graph = new HttpGraph(getAccessToken);
     try {
-      user = (await graph.get("/me?$select=displayName")).displayName;
+      const me = await graph.get("/me?$select=displayName,id");
+      user = me.displayName;
+      // the account's own id (not the name, which can change): navigation preferences are kept against it
+      userId = String(me.id || "");
     } catch {
       /* the data screens report connection problems themselves */
     }
   }
 
+  initNavPrefs(userId);
   root.render(
     <PageBoundary resetKey="app">
       <DataProvider store={new SharePointStore(graph)} user={user}>
