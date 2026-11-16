@@ -17,7 +17,7 @@ import { useData, useIndex } from "./data";
 import { EditorProvider, useEditor } from "./Editors";
 import { useChaseCount } from "./chaseCount";
 import { SettingsTabs } from "./SettingsTabs";
-import { PracticeStrip } from "./PracticeStrip";
+import { setStripSlot, usePracticeLayout } from "./StripSlot";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -240,27 +240,6 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
     const t = window.setTimeout(() => setStrip(""), 900);
     return () => { window.clearTimeout(b); window.clearTimeout(t); };
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
-  // in Practice, the section strip unfolds out of the menu: the rounded menu shows on its own first, then the strip
-  // opens downwards from it (when the app opens, and when coming back from Work once the client strip has gone up)
-  const [pstrip, setPstrip] = useState<"" | "on" | "in" | "out">(() => {
-    let seen = false;
-    try { seen = sessionStorage.getItem("pp.menu.unfolded") === "1"; } catch { /* first time */ }
-    return toggle && !work && seen ? "on" : "";
-  });
-  useEffect(() => {
-    if (!toggle) { setPstrip(""); return; }
-    if (work) {
-      setPstrip((p) => (p ? "out" : ""));
-      const t = window.setTimeout(() => setPstrip(""), 900);
-      return () => window.clearTimeout(t);
-    }
-    if (strip) return;
-    const t = window.setTimeout(() => {
-      setPstrip((p) => (p === "on" ? "on" : "in"));
-      try { sessionStorage.setItem("pp.menu.unfolded", "1"); } catch { /* fine */ }
-    }, 300);
-    return () => window.clearTimeout(t);
-  }, [toggle, work, strip]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { rememberPage(section); }, [section, routeKey]);
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   // the sheet design (grey background, white sheet, navy table headings) is used in both Practice and Work
@@ -337,7 +316,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
       </div>
       {two && <TwoLineModules section={section} area={area} chase={ready ? chase : 0} />}
     </header>
-    {pstrip && ready && <div className={`work-strip p-strip ${pstrip}`}><PracticeStrip section={section} /></div>}
+    {ready && <div className="rail-slot" ref={setStripSlot} />}
     {strip && ready && <div className={`work-strip ${strip}`}><WorkClientBar section={section} routeKey={routeKey} /></div>}
     </>
   );
@@ -364,6 +343,7 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
   const { dark, set } = useTheme();
   const [tips, setTips] = useTips();
   const [menuKind, setMenuKind] = useMenuKind();
+  const [layout, setLayout] = usePracticeLayout();
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -397,6 +377,12 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
           </button>
           <a role="menuitem" href="#/settings" onClick={() => setShown(false)}><Icon name="settings" size={16} /> Settings{waiting > 0 && <span className="nav-count" aria-label={`${waiting} waiting in the portal`}>{waiting}</span>}</a>
           <a role="menuitem" href="#/devhub" onClick={() => setShown(false)}><Icon name="cog" size={16} /> Development Hub</a>
+          <div className="profile-sub">Practice pages</div>
+          {([["top", "Tabs on the page"], ["side", "List down the left"]] as const).map(([k, label]) => (
+            <button key={k} type="button" role="menuitemradio" aria-checked={layout === k} onClick={() => { setLayout(k); setShown(false); }}>
+              <Icon name={layout === k ? "check" : "layout"} size={16} /> {label}
+            </button>
+          ))}
           <div className="profile-sub">Menu style</div>
           {([["drop", "Drop-down areas"], ["named", "Drop-down, shows where you are"], ["two", "Two lines"], ["pick", "Area picker"], ["toggle", "Practice and Work switch"]] as const).map(([k, label]) => (
             <button key={k} type="button" role="menuitemradio" aria-checked={menuKind === k} onClick={() => { setMenuKind(k); setShown(false); }}>

@@ -4343,3 +4343,68 @@ html[data-sheet]:not([data-work]) body {
   60% { opacity: 0; }
   to { height: 0; min-height: 0; margin-top: 0; opacity: 0; transform: translateY(-26px); }
 }
+
+/* =====================================================================================
+   V33.8 Practice pages, two layouts (chosen in the profile menu). The original floating menu is unchanged in both.
+   "Tabs on the page": the section's name and views run along the top of the white page.
+   "List down the left": the Work design - the views in a list on the grey at the left, the page a white sheet
+   with a curved top-left corner.
+   ===================================================================================== */
+html[data-sheet] .page { --spx: 40px; --spt: 26px; }
+html[data-sheet] .plan { --spx: 28px; --spt: 18px; }
+@media (max-width: 720px) { html[data-sheet] .page, html[data-sheet] .plan { --spx: 14px; --spt: 18px; } }
+
+/* tabs on the page */
+.page-tabs { display: flex; align-items: center; gap: 0; min-height: 58px; margin: calc(-1 * var(--spt, 0px)) calc(-1 * var(--spx, 0px)) 22px; padding: 0 var(--spx, 0px);
+  border-bottom: 1px solid var(--sep); overflow-x: auto; scrollbar-width: none; }
+.page-tabs::-webkit-scrollbar { display: none; }
+.page-tabs-name { display: inline-flex; align-items: center; gap: 10px; flex: none; padding-right: 22px; margin-right: 22px; border-right: 1px solid var(--sep);
+  font-size: 17px; font-weight: 700; color: var(--ink); }
+.page-tabs-name svg { color: var(--navy); }
+.page-tabs-nav { display: flex; align-items: stretch; flex: 1 0 auto; gap: 26px; align-self: stretch; }
+.page-tabs-nav a { display: inline-flex; align-items: center; padding: 0 2px; border-bottom: 3px solid transparent; border-top: 3px solid transparent; font-size: 15.5px; font-weight: 600;
+  color: var(--muted); text-decoration: none; white-space: nowrap; }
+.page-tabs-nav a:hover { color: var(--ink); }
+.page-tabs-nav a[aria-current] { color: var(--navy); font-weight: 700; border-bottom-color: var(--navy); }
+.page-tabs-seg, .page-tabs-more { display: flex; align-items: center; gap: 2px; flex: none; padding: 3px; border-radius: 999px; background: color-mix(in srgb, var(--navy) 7%, transparent); }
+.page-tabs-seg { margin-left: 22px; }
+.page-tabs-more { width: fit-content; max-width: 100%; margin: -8px 0 22px; overflow-x: auto; scrollbar-width: none; }
+.page-tabs-seg a, .page-tabs-more a { display: inline-flex; align-items: center; height: 30px; padding: 0 13px; border-radius: 999px; font-size: 13.5px; font-weight: 600;
+  color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.page-tabs-seg a:hover, .page-tabs-more a:hover { color: var(--ink); }
+.page-tabs-seg a[aria-current], .page-tabs-more a[aria-current] { background: var(--surface); color: var(--navy); box-shadow: 0 1px 3px rgba(23, 38, 58, 0.14); }
+:root[data-theme="dark"] .page-tabs-nav a[aria-current], :root[data-theme="dark"] .page-tabs-name svg { color: #fff; border-bottom-color: #fff; }
+:root[data-theme="dark"] .page-tabs-seg a[aria-current], :root[data-theme="dark"] .page-tabs-more a[aria-current] { color: #fff; }
+.settings-page .side-main > .page-head { margin-top: 0; }
+@media print { .page-tabs, .page-tabs-more, .rail-slot { display: none !important; } }
+
+/* list down the left */
+.rail-slot { display: none; }
+.rail-slot:not(:empty) { display: block; }
+.rail { display: flex; flex-direction: column; gap: 2px; }
+.rail-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 0 6px; font-size: 18px; color: var(--ink); }
+.rail-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; background: var(--surface); color: var(--navy); box-shadow: 0 1px 3px rgba(23, 38, 58, 0.1); }
+.rail-group { display: flex; flex-direction: column; gap: 2px; }
+.rail-link, .rail-sub a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 12px;
+  font-size: 15px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
+.rail-link:hover, .rail-sub a:hover { background: rgba(23, 38, 58, 0.06); color: var(--ink); }
+.rail-link[aria-current], .rail-sub a[aria-current] { background: var(--surface); color: var(--navy); font-weight: 700; box-shadow: 0 1px 3px rgba(23, 38, 58, 0.12); }
+.rail-link.open { color: var(--ink); font-weight: 700; }
+.rail-sub { display: flex; flex-direction: column; gap: 2px; margin: 0 0 6px 14px; padding-left: 10px; border-left: 2px solid rgba(23, 38, 58, 0.1); }
+.rail-sub a { min-height: 36px; font-size: 14.5px; }
+:root[data-theme="dark"] .rail-link[aria-current], :root[data-theme="dark"] .rail-sub a[aria-current] { color: #fff; }
+@media (min-width: 901px) {
+  .rail-slot:not(:empty) { position: fixed; left: 0; top: 101px; bottom: 0; width: 244px; box-sizing: border-box; padding: 16px 14px 24px 24px; overflow-y: auto; z-index: 5; scrollbar-width: thin; }
+  html[data-work] .rail-slot:not(:empty) { top: 124px; }
+  body:has(.rail-slot:not(:empty)) .page:not(.paper-page), body:has(.rail-slot:not(:empty)) .plan {
+    margin-left: 244px !important; margin-right: 0 !important; border-radius: 28px 0 0 0 !important; }
+  body:has(.rail-slot:not(:empty)) .side-main > .page { margin-left: 0 !important; border-radius: 0 !important; }
+}
+@media (max-width: 900px) {
+  .rail-slot:not(:empty) { padding: 10px 14px 0; }
+  .rail { flex-direction: row; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .rail-head { display: none; }
+  .rail-group, .rail-sub { display: contents; }
+  .rail-link, .rail-sub a { flex: none; min-height: 36px; white-space: nowrap; background: rgba(255, 255, 255, 0.6); }
+  .rail-link.open { display: none; }
+}

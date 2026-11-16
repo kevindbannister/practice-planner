@@ -1,6 +1,6 @@
 // Shared by letters and emails, meetings and payment reminders: the AI client, your sign-off
 // settings, Outlook drafts, the communications tabs.
-import { InStrip } from "./StripSlot";
+import { GroupedTabs, TabGroup } from "./bits";
 import { useMemo } from "react";
 import { getAccessToken, hasExtraScope } from "../lib/auth";
 import { AiApi, FakeAi, HttpAi } from "../lib/ai";
@@ -49,17 +49,7 @@ export async function outlookDraft(graph: Graph, o: { to: string; subject: strin
 }
 
 export function CommsTabs({ current }: { current: "letters" | "meetings" | "payments" | "mail" | "documents" }) {
-  return (
-    <InStrip>
-    <nav className="subtabs" aria-label="Communication">
-      <a href="#/comms" aria-current={current === "mail" ? "page" : undefined}>Email</a>
-      <a href="#/comms/letters" aria-current={current === "letters" ? "page" : undefined}>Letters and emails</a>
-      <a href="#/comms/documents" aria-current={current === "documents" ? "page" : undefined}>Documents</a>
-      <a href="#/comms/meetings" aria-current={current === "meetings" ? "page" : undefined}>Meetings and calls</a>
-      <a href="#/comms/payments" aria-current={current === "payments" ? "page" : undefined}>
-        Payment reminders
-      </a>
-    </nav>
-    </InStrip>
-  );
+  const T = (key: string, label: string, to: string): TabGroup => ({ label, items: [{ key, label, to }] });
+  const groups = [T("mail", "Email", "#/comms"), T("letters", "Letters and emails", "#/comms/letters"), T("documents", "Documents", "#/comms/documents"), T("meetings", "Meetings and calls", "#/comms/meetings"), T("payments", "Payment reminders", "#/comms/payments")];
+  return <GroupedTabs groups={groups} current={current} label="Email" />;
 }

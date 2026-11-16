@@ -34,7 +34,7 @@ export function PortalPage() {
         <h1>Client portal</h1>
         <p className="muted tip" style={{ margin: "4px 0 0" }}>Who can sign in, which businesses they can see, and what needs your attention. Clients only ever see what you publish to them.</p>
       </div></div>
-      <GroupedTabs groups={portalGroups(changesWaiting)} current={["reminders", "branding", "people"].includes(sub) ? "setup" : sub} label="Client portal" />
+      <GroupedTabs groups={portalGroups(changesWaiting)} current={["reminders", "branding", "people"].includes(sub) ? "setup" : sub} label="Client portal" plain />
       {portal.error && <p className="import-list warn" role="alert">{portal.error}</p>}
       {portal.status && !portal.status.configured && sub !== "setup" && (
         <p className="import-list warn" role="status">The client portal isn't switched on yet. <a href="#/portal/setup">See what's needed</a>.</p>

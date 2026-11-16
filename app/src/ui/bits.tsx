@@ -1,7 +1,7 @@
 // Small shared pieces: routing, client badge, deadline chips, icons.
 import { CSSProperties, ReactNode, createContext, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useStripSlot } from "./StripSlot";
+import { usePracticeLayout, useStripSlot } from "./StripSlot";
 import { logoSrc } from "../lib/logo";
 import { elementsUrl } from "../lib/elements";
 import { Client, Job, badgeColours, deadlineLabel, initials, jobState, todayIso } from "../lib/domain";
@@ -165,36 +165,64 @@ export type TabItem = { key: string; label: string; to: string; badge?: number }
 export type TabGroup = { label: string; items: TabItem[] };
 /** Two rows of tabs: the main row has a handful of groups, and the row under it has the views in the group you're in (shown only when the group has more than one).
  *  Every view keeps its own address, so older links and bookmarks still land on the right screen. */
-export function GroupedTabs({ groups, current, label, heading }: { groups: TabGroup[]; current: string; label: string; heading?: string }) {
+const SECTION_ICONS: Record<string, IconName> = { Plan: "plan", Sales: "chart", Settings: "cog", AML: "scale", Compliance: "scale", Email: "mail" };
+export function GroupedTabs({ groups, current, label, heading, plain }: { groups: TabGroup[]; current: string; label: string; heading?: string; plain?: boolean }) {
   const active = groups.find((g) => g.items.some((i) => i.key === current)) || groups[0];
+  const item = active.items.find((i) => i.key === current) || active.items[0];
   const nav = useRef<HTMLElement>(null);
   const slot = useStripSlot();
+  const [layout] = usePracticeLayout();
   useEffect(() => { const el = nav.current?.querySelector<HTMLElement>("[aria-current]"); if (el && nav.current && nav.current.scrollWidth > nav.current.clientWidth) nav.current.scrollLeft = el.offsetLeft - (nav.current.clientWidth - el.offsetWidth) / 2; }, [current]);
   const badge = (n?: number) => (n ? <span className="chip amber" style={{ marginLeft: 6 }}>{n}</span> : null);
   const count = (g: TabGroup) => g.items.reduce((n, i) => n + (i.badge || 0), 0);
-  const navs = (
-    <>
-      <nav className="tabs" aria-label={label} ref={nav}>
-        {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{badge(count(g))}</a>)}
-      </nav>
-      {active.items.length > 1 && (
-        <nav className="subtabs" aria-label={`${label}: ${active.label}`} style={slot ? undefined : { marginTop: 10 }}>
-          {active.items.map((i) => <a key={i.key} href={i.to} aria-current={current === i.key ? "page" : undefined}>{i.label}{badge(i.badge)}</a>)}
+  const subs = active.items.map((i) => <a key={i.key} href={i.to} aria-current={current === i.key ? "page" : undefined}>{i.label}{badge(i.badge)}</a>);
+  // tabs that sit inside another section's page (the Client portal, inside Settings): a plain row
+  if (plain) {
+    return (
+      <div className="grouped-tabs">
+        <nav className="tabs" aria-label={label} ref={nav}>
+          {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{badge(count(g))}</a>)}
         </nav>
-      )}
-    </>
-  );
-  // in Practice the tabs sit in the strip under the menu, and the page is headed with the view you are on
-  if (slot) {
-    const item = active.items.find((i) => i.key === current) || active.items[0];
-    const title = heading ? (item.label === "Overview" ? `${heading} overview` : item.label) : "";
-    return <>{createPortal(navs, slot)}{title && <div className="grouped-tabs"><div className="page-head"><h1>{title}</h1></div></div>}</>;
+        {active.items.length > 1 && <nav className="subtabs" aria-label={`${label}: ${active.label}`} style={{ marginTop: 10 }}>{subs}</nav>}
+      </div>
+    );
   }
+  // the page is headed with the view you are on
+  const title = heading ? (item.label === "Overview" ? `${heading} overview` : item.label) : "";
+  const head = title ? <div className="grouped-tabs"><div className="page-head"><h1>{title}</h1></div></div> : null;
+  const icon = SECTION_ICONS[label] || "list";
+  // "List down the left": the section's views in the panel on the left, as on the Work pages
+  if (layout === "side" && slot) {
+    return (
+      <>
+        {createPortal(
+          <nav className="rail" aria-label={label}>
+            <div className="rail-head"><span className="rail-icon" aria-hidden="true"><Icon name={icon} size={18} /></span><strong>{label}</strong></div>
+            {groups.map((g) => (
+              <div key={g.label} className="rail-group">
+                <a className={`rail-link${g === active && g.items.length > 1 ? " open" : ""}`} href={g.items[0].to} aria-current={g === active && g.items.length === 1 ? "page" : undefined}><span>{g.label}</span>{badge(count(g))}</a>
+                {g === active && g.items.length > 1 && <div className="rail-sub">{subs}</div>}
+              </div>
+            ))}
+          </nav>, slot)}
+        {head}
+      </>
+    );
+  }
+  // "Tabs on the page": the section's name and views along the top of the white page
+  const many = active.items.length > 4;
   return (
-    <div className="grouped-tabs">
-      {heading && <div className="page-head"><h1>{heading}</h1></div>}
-      {navs}
-    </div>
+    <>
+      <div className="page-tabs">
+        <span className="page-tabs-name"><Icon name={icon} size={20} />{label}</span>
+        <nav className="page-tabs-nav" aria-label={label} ref={nav}>
+          {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{badge(count(g))}</a>)}
+        </nav>
+        {active.items.length > 1 && !many && <nav className="page-tabs-seg" aria-label={`${label}: ${active.label}`}>{subs}</nav>}
+      </div>
+      {many && <nav className="page-tabs-more" aria-label={`${label}: ${active.label}`}>{subs}</nav>}
+      {head}
+    </>
   );
 }
 
