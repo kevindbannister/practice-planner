@@ -4713,3 +4713,6 @@ html[data-pflat] .page-tabs, .practice-strip, .p-strip > .practice-strip { anima
   .topbar.mode-bar .search-btn, .topbar.mode-bar .bell, .topbar.mode-bar .iconbtn, .topbar.mode-bar .btn { transition: none !important; }
   .band-slot, .work-strip > .work-client, .adv-band { animation: none !important; }
 }
+/* entering Work the strip fades in like the other lines (the V35.5 no-animation rule was more specific) */
+@media (min-width: 721px) { .work-strip.in > .work-client, .work-strip.on > .work-client { animation: band-in 0.45s ease both !important; } }
+@media (prefers-reduced-motion: reduce) { .work-strip.in > .work-client, .work-strip.on > .work-client { animation: none !important; } }
