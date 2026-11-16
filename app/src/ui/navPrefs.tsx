@@ -8,7 +8,7 @@
 // - A change shows straight away, then is saved to the account. If that save fails the menu style goes back to the
 //   last one that did save, and the profile menu says so.
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { DEFAULT_MENU, MenuKind, Mode, NavPrefs, defaultPrefs, effectiveMode, isThreeMode, landing, migrateLegacy, newerPrefs, noteVisit, prefsKey, readPrefs, sectionOfHash } from "../lib/navAreas";
+import { DEFAULT_MENU, MenuKind, Mode, NavPrefs, defaultPrefs, effectiveMode, isThreeMode, landing, migrateLegacy, mergePrefs, noteVisit, prefsKey, readPrefs, sectionOfHash } from "../lib/navAreas";
 import { readSetting, useData } from "./data";
 
 type State = {
@@ -21,12 +21,14 @@ type State = {
   ready: boolean;
   /** Changed here and not yet saved to the account. */
   dirty: boolean;
+  /** The menu style was changed here and that change is not yet saved. */
+  styleDirty: boolean;
   /** Bumped to ask for a save. */
   saveTick: number;
   error: string;
 };
 
-let state: State = { uid: "", prefs: defaultPrefs(), ready: false, dirty: false, saveTick: 0, error: "" };
+let state: State = { uid: "", prefs: defaultPrefs(), ready: false, dirty: false, styleDirty: false, saveTick: 0, error: "" };
 const subs = new Set<() => void>();
 const emit = () => subs.forEach((f) => f());
 const set = (patch: Partial<State>) => { state = { ...state, ...patch }; emit(); };
@@ -43,7 +45,7 @@ const clearLegacy = () => { for (const k of LEGACY) { try { localStorage.removeI
 export function initNavPrefs(uid: string) {
   let mine: NavPrefs | undefined;
   try { mine = readPrefs(localStorage.getItem(cacheKey(uid))); } catch { /* none */ }
-  state = { uid, prefs: mine || defaultPrefs(), ready: !!mine, dirty: false, saveTick: 0, error: "" };
+  state = { uid, prefs: mine || defaultPrefs(), ready: !!mine, dirty: false, styleDirty: false, saveTick: 0, error: "" };
   emit();
 }
 
@@ -58,7 +60,7 @@ function change(next: NavPrefs, save: boolean) {
 /** Choose a menu style: shows at once, then saves to the account. */
 export function setMenuStyle(k: MenuKind) {
   if (k === state.prefs.menuStyle) return;
-  set({ error: "" });
+  set({ error: "", styleDirty: true });
   change({ ...state.prefs, menuStyle: k, updated: now() }, true);
 }
 
@@ -95,32 +97,48 @@ export function useMode(section: string): Mode {
 
 /** Keeps the account's copy and this device in step. Renders nothing. */
 export function NavPrefsSync() {
-  const { status, data, saveSetting } = useData();
+  const { status, data, saveSetting, refreshList } = useData();
   const s = useNavState();
-  const save = useRef(saveSetting);
-  save.current = saveSetting;
-  const busy = useRef(false);
-  const again = useRef(false);
-  const creating = useRef(false);
   const key = prefsKey(s.uid);
   const row = data.settings.find((r) => r.Key === key);
   const account = row ? readPrefs(readSetting<unknown>(data.settings, key)) : undefined;
-  const accountStamp = account?.updated || "";
+  const accountStamp = `${account?.updated || ""}|${account?.menuStyle || ""}`;
+  // the latest of each, for the save (which runs outside the render)
+  const latest = useRef({ saveSetting, refreshList, account });
+  latest.current = { saveSetting, refreshList, account };
+  const busy = useRef(false);
+  const again = useRef(false);
+  const creating = useRef(false);
 
   const push = async () => {
     if (!state.uid) return;
     if (busy.current) { again.current = true; return; }
     busy.current = true;
-    const sending = state.prefs;
+    const styleWas = state.styleDirty;
+    let sending = state.prefs;
     try {
-      await save.current(prefsKey(state.uid), sending);
-      // a later change made while this one was saving stays "not yet saved"
-      set({ saved: sending, dirty: state.prefs !== sending, error: "" });
+      // read the account's copy again first, so a change saved from another device since is kept rather than overwritten
+      try { await latest.current.refreshList("Settings"); await new Promise((r) => window.setTimeout(r, 60)); } catch { /* save with what is known */ }
+      const acct = latest.current.account;
+      sending = acct ? mergePrefs(acct, state.prefs, state.styleDirty) : state.prefs;
+      if (acct && sending === acct) {
+        // nothing of this device's to add: take the account's copy
+        cache(state.uid, acct);
+        set({ prefs: acct, saved: acct, dirty: false, styleDirty: false, error: "" });
+      } else {
+        sending = { ...sending, updated: now() };
+        await latest.current.saveSetting(prefsKey(state.uid), sending);
+        // a change made while this one was saving stays "not yet saved"
+        const moved = state.prefs.updated > sending.updated;
+        const next = moved ? { ...state.prefs, menuStyle: state.styleDirty && state.prefs.menuStyle !== sending.menuStyle ? state.prefs.menuStyle : sending.menuStyle } : sending;
+        cache(state.uid, next);
+        set({ prefs: next, saved: sending, dirty: moved, styleDirty: state.prefs.menuStyle !== sending.menuStyle && state.styleDirty, error: "" });
+      }
     } catch (e) {
       // keep the last style that did save; the pages visited stay on this device and go up with the next save
-      const back = state.saved && state.saved.menuStyle !== state.prefs.menuStyle ? { ...state.prefs, menuStyle: state.saved.menuStyle } : state.prefs;
+      const back = styleWas && state.saved ? { ...state.prefs, menuStyle: state.saved.menuStyle } : state.prefs;
       cache(state.uid, back);
-      set({ prefs: back, dirty: false, error: `Your menu style couldn't be saved to your account${e instanceof Error && e.message ? ` (${e.message})` : ""}. It has gone back to the last one saved.` });
+      set({ prefs: back, dirty: false, styleDirty: false, error: styleWas ? `Your menu style couldn't be saved to your account${e instanceof Error && e.message ? ` (${e.message})` : ""}. It has gone back to the last one saved.` : "" });
     } finally {
       busy.current = false;
       if (again.current) { again.current = false; void push(); }
@@ -130,15 +148,14 @@ export function NavPrefsSync() {
   // read the account's copy when the practice's data arrives, and again whenever it changes (another device saved)
   useEffect(() => {
     if (status !== "ready" || !s.uid) {
-      // nothing to read from (not set up, or the data couldn't be loaded): carry on with what this device has
-      if (status !== "loading" && !state.ready) set({ ready: true });
+      // nothing to read from (not set up, the data couldn't be loaded, or no account id): carry on with what this device has
+      if ((status === "error" || status === "needs-setup" || (status === "ready" && !s.uid)) && !state.ready) set({ ready: true });
       return;
     }
     if (account) {
-      // the later change wins: the account's copy replaces this device's when it is newer (another device saved since),
-      // and is left alone when this device has moved on since (that goes up with the next save)
-      if (!state.ready || (newerPrefs(account, state.prefs) === account && account.updated !== state.prefs.updated)) { cache(s.uid, account); set({ prefs: account, saved: account, ready: true, dirty: false }); }
-      else set({ saved: account, ready: true });
+      const next = state.ready ? mergePrefs(account, state.prefs, state.styleDirty) : account;
+      if (next !== state.prefs) cache(s.uid, next);
+      set({ prefs: next, saved: account, ready: true, dirty: next === account ? false : state.dirty });
       clearLegacy();
       return;
     }

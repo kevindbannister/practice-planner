@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MENU_KINDS, MODES, WORKSPACES, backFromAdvisory, defaultPrefs, effectiveMode, isModeKind, isThreeMode, landing, migrateLegacy, modeOfSection, newerPrefs, noteVisit, prefsKey, readPrefs, sectionOfHash } from "../src/lib/navAreas.ts";
+import { MENU_KINDS, MODES, WORKSPACES, backFromAdvisory, defaultPrefs, effectiveMode, isModeKind, isThreeMode, landing, mergePrefs, migrateLegacy, modeOfSection, newerPrefs, noteVisit, prefsKey, readPrefs, sectionOfHash } from "../src/lib/navAreas.ts";
 
 const NOW = "2026-11-16T12:00:00.000Z";
 
@@ -131,4 +131,33 @@ test("between devices the later change wins, and a tie keeps the account's copy"
   assert.equal(newerPrefs(a, b).menuStyle, "modedrop");
   assert.equal(newerPrefs(b, a).menuStyle, "modedrop");
   assert.equal(newerPrefs(a, { ...b, updated: a.updated }).menuStyle, "three");
+});
+
+test("a device with only newer page history cannot undo a menu style chosen on another device", () => {
+  const account = { ...defaultPrefs("2026-11-16T10:00:00.000Z"), menuStyle: "three" as const };
+  // this device last knew the old style, and has visited pages since the account was saved
+  const stale = { ...defaultPrefs("2026-11-16T11:00:00.000Z"), menuStyle: "toggle-advisory" as const, lastVisited: { practice: "#/plan/month" } };
+  const merged = mergePrefs(account, stale, false);
+  assert.equal(merged.menuStyle, "three");
+  assert.equal(merged.lastVisited.practice, "#/plan/month");
+  // a style chosen here and not yet saved is kept
+  assert.equal(mergePrefs(account, { ...stale, menuStyle: "modedrop" }, true).menuStyle, "modedrop");
+  // nothing newer here: the account's copy is used as it is
+  assert.equal(mergePrefs(account, { ...stale, updated: "2026-11-16T09:00:00.000Z" }, false), account);
+});
+
+test("a failed save keeps the last style that saved: the account's copy still wins on the next read", () => {
+  const saved = { ...defaultPrefs("2026-11-16T10:00:00.000Z"), menuStyle: "two" as const };
+  // the style was changed here, the save failed, so the change is no longer marked as this device's
+  const afterFailure = { ...saved, menuStyle: "three" as const, updated: "2026-11-16T10:05:00.000Z" };
+  assert.equal(mergePrefs(saved, afterFailure, false).menuStyle, "two");
+});
+
+test("two accounts on one device never share preferences", () => {
+  const a = prefsKey("aaaa"), b = prefsKey("bbbb");
+  const store = new Map<string, string>([[a, JSON.stringify({ ...defaultPrefs(NOW), menuStyle: "three" })]]);
+  assert.equal(readPrefs(store.get(a))!.menuStyle, "three");
+  // the second person has no saved copy, so they get the default, not the first person's choice
+  assert.equal(readPrefs(store.get(b)), undefined);
+  assert.equal(migrateLegacy({}, NOW).menuStyle, "toggle-advisory");
 });

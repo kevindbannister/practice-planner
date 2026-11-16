@@ -178,3 +178,13 @@ export const backFromAdvisory = (p: NavPrefs): "practice" | "work" => p.lastPrac
 export function newerPrefs(account: NavPrefs, local: NavPrefs): NavPrefs {
   return local.updated > account.updated ? local : account;
 }
+
+/** Puts the account's copy and a device's copy together. The menu style is the account's, unless it was changed on
+ *  this device and that change is not yet saved; the pages visited are whichever copy changed later. So a device that
+ *  only has newer page history can never undo a menu style chosen on another device. */
+export function mergePrefs(account: NavPrefs, local: NavPrefs, styleChangedHere: boolean): NavPrefs {
+  const route = newerPrefs(account, local);
+  const menuStyle = styleChangedHere ? local.menuStyle : account.menuStyle;
+  if (route.menuStyle === menuStyle) return route;
+  return { ...route, menuStyle };
+}
