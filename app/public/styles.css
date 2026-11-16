@@ -4152,3 +4152,8 @@ html[data-work] .page .subtabs { border: 0; border-bottom: 1px solid var(--sep);
    bar has finished), as the client strip does on other pages */
 html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: wc-down 0.9s cubic-bezier(.2, .8, .2, 1) 0.9s both; z-index: 20; }
 @media (prefers-reduced-motion: reduce) { html[data-work-in] .paper-page .paper-top { animation: none; } }
+
+/* V32.5: the client strip slides in and out behind its own top edge (the line under the menu bar), so it is never
+   seen behind the bar while the bar changes shape */
+@keyframes wc-down { from { transform: translateY(-100%); clip-path: inset(100% 0 0 0); } to { transform: none; clip-path: inset(0 0 0 0); } }
+@keyframes wc-up { from { transform: none; clip-path: inset(0 0 0 0); } to { transform: translateY(-100%); clip-path: inset(100% 0 0 0); } }
