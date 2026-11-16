@@ -4718,7 +4718,7 @@ html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !i
    a dark slate in Work and a purple tint in Advisory; all three bars now cast one neutral navy shadow (scrolled working
    papers and tax returns keep their own, where the page's banner takes over). */
 @media (min-width: 721px) {
-  :root { --bar-edge: 0 6px 22px rgba(23, 38, 58, 0.22); }
+  :root { --bar-edge: 0 4px 14px rgba(23, 38, 58, 0.12); }
   html[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) { box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.9), var(--bar-edge); }
   html .topbar.mode-bar.mode-work { box-shadow: var(--bar-edge); }
 }
