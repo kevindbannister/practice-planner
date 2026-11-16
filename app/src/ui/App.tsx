@@ -249,7 +249,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
   // remember the page for its workspace (shared pages such as Clients leave the workspace as it is)
   const { parts: routeParts, query: routeQuery } = useRoute();
-  useEffect(() => { notePage(section); }, [section, routeParts.join("/"), routeQuery.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { notePage(); }, [section, routeParts.join("/"), routeQuery.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   useEffect(() => { document.documentElement.toggleAttribute("data-advisory", advisory); }, [advisory]);
   // the sheet design (grey background, white sheet, navy table headings) is used in both Practice and Work

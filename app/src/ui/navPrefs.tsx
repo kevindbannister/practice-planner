@@ -8,7 +8,7 @@
 // - A change shows straight away, then is saved to the account. If that save fails the menu style goes back to the
 //   last one that did save, and the profile menu says so.
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { DEFAULT_MENU, MenuKind, Mode, NavPrefs, defaultPrefs, effectiveMode, isThreeMode, landing, migrateLegacy, noteVisit, prefsKey, readPrefs, sectionOfHash } from "../lib/navAreas";
+import { DEFAULT_MENU, MenuKind, Mode, NavPrefs, defaultPrefs, effectiveMode, isThreeMode, landing, migrateLegacy, newerPrefs, noteVisit, prefsKey, readPrefs, sectionOfHash } from "../lib/navAreas";
 import { readSetting, useData } from "./data";
 
 type State = {
@@ -64,8 +64,10 @@ export function setMenuStyle(k: MenuKind) {
 
 /** Note the page being shown. Kept on this device straight away; saved to the account when you next switch workspace
  *  or leave the tab, rather than on every page. */
-export function notePage(section: string) {
-  change(noteVisit(state.prefs, section, typeof window === "undefined" ? "" : window.location.hash || "#/", now()), false);
+export function notePage() {
+  // the section is read from the address itself, so the page and its address can never be out of step
+  const hash = typeof window === "undefined" ? "" : window.location.hash || "#/";
+  change(noteVisit(state.prefs, sectionOfHash(hash), hash, now()), false);
 }
 
 /** Go to a workspace: its last page if there is one, otherwise its landing page. */
@@ -99,6 +101,7 @@ export function NavPrefsSync() {
   save.current = saveSetting;
   const busy = useRef(false);
   const again = useRef(false);
+  const creating = useRef(false);
   const key = prefsKey(s.uid);
   const row = data.settings.find((r) => r.Key === key);
   const account = row ? readPrefs(readSetting<unknown>(data.settings, key)) : undefined;
@@ -132,13 +135,15 @@ export function NavPrefsSync() {
       return;
     }
     if (account) {
-      // the account's copy is the one that counts, unless something changed here that hasn't been saved yet
-      if (!state.dirty && account.updated !== state.prefs.updated) { cache(s.uid, account); set({ prefs: account, saved: account, ready: true }); }
+      // the later change wins: the account's copy replaces this device's when it is newer (another device saved since),
+      // and is left alone when this device has moved on since (that goes up with the next save)
+      if (!state.ready || (newerPrefs(account, state.prefs) === account && account.updated !== state.prefs.updated)) { cache(s.uid, account); set({ prefs: account, saved: account, ready: true, dirty: false }); }
       else set({ saved: account, ready: true });
       clearLegacy();
       return;
     }
-    if (state.saved) return; // already created during this visit; the list just hasn't caught up
+    if (state.saved || creating.current) return; // already created during this visit; the list just hasn't caught up
+    creating.current = true;
     // first time on this account: start from what this device remembered, and save it to the account
     const first = state.ready ? state.prefs : migrateLegacy(readLegacy(), now());
     cache(s.uid, first);
