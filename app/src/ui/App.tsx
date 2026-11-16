@@ -220,7 +220,16 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   // the client strip slides down out of the navy bar going into Work, and back up into it going to Practice
   const [strip, setStrip] = useState<"" | "on" | "in" | "out">(work ? "on" : ""); // "on": already there when the page opened, no animation
   useEffect(() => {
-    if (work) { setStrip((s) => (s === "on" ? "on" : "in")); return; }
+    if (work) {
+      setStrip((s) => (s === "on" ? "on" : "in"));
+      // a working paper or tax return shows its own client banner in place of the strip: it drops in the same way
+      if (strip !== "on") {
+        document.documentElement.setAttribute("data-work-in", "");
+        const t = window.setTimeout(() => document.documentElement.removeAttribute("data-work-in"), 2000);
+        return () => window.clearTimeout(t);
+      }
+      return;
+    }
     if (!strip) return;
     setStrip("out");
     const t = window.setTimeout(() => setStrip(""), 900);

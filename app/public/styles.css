@@ -4147,3 +4147,8 @@ html[data-work] .page select:not(td select) { min-height: 40px; border-radius: 1
   html[data-work] .tax-page .tax-split-return .tax-summary > .card { box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); border: 1px solid var(--sep); }
 }
 html[data-work] .page .subtabs { border: 0; border-bottom: 1px solid var(--sep); }
+
+/* V32.2: going into Work on a working paper or tax return, its client banner drops out of the navy bar too (after the
+   bar has finished), as the client strip does on other pages */
+html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: wc-down 0.9s cubic-bezier(.2, .8, .2, 1) 0.9s both; z-index: 20; }
+@media (prefers-reduced-motion: reduce) { html[data-work-in] .paper-page .paper-top { animation: none; } }
