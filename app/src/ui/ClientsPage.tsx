@@ -3,7 +3,7 @@ import { useCustomDefs } from "./CustomFields";
 import { valuesOf } from "../lib/customFields";
 import { useMemo, useState } from "react";
 import { Client, Job, KIND_LABEL, amlLabel, contactName, fmtDate, fmtMoney, holdLabel, importanceLabel, importanceOf, isOnHold, jobState, loeLabel, recordGaps, todayIso } from "../lib/domain";
-import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, companiesHouseUrl, go, href, useRoute } from "./bits";
+import { ClientBadge, ClientsTabs, CopyButton, DeadlineChip, ElementsLink, Icon, companiesHouseUrl, go, href, useRoute } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { ElementsImport } from "./ElementsImport";
 import { useData, useIndex } from "./data";
@@ -61,14 +61,12 @@ export function ClientsPage() {
   return (
     <div className="split">
       <main className="split-main">
+        <ClientsTabs current="all" />
         <div className="page-head">
-          <div>
-            <h1>Clients</h1>
-            <p className="muted" style={{ margin: "4px 0 0" }}>
-              {data.clients.length} clients · {attentionCount} need attention
-            </p>
-          </div>
-          <div className="row-wrap"><a className="btn" href="#/clients">Back to clients</a><ElementsImport /></div>
+          <p className="muted" style={{ margin: 0 }}>
+            {data.clients.length} clients · {attentionCount} need attention
+          </p>
+          <div className="row-wrap"><ElementsImport /></div>
         </div>
 
         <div className="row-wrap">

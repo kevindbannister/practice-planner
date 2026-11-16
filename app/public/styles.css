@@ -4413,3 +4413,6 @@ html[data-sheet] .plan { --spx: 28px; --spt: 18px; }
 .plan > .grouped-tabs { padding: 6px 24px 0; }
 .plan > .grouped-tabs .page-head { margin: 0; }
 .plan > .grouped-tabs + .plan-head { padding-top: 0; }
+/* V34.0: Clients and Practice view put their title in the row along the top of the page (or the list on the left) */
+@media (min-width: 901px) { body:has(.rail-slot:not(:empty)) .split { margin-left: 244px; } }
+.split-main > .page-tabs { margin-bottom: 16px; }

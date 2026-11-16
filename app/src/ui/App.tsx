@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { fmtDate, holdAlert, isHoldText, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
 import { signOut } from "../lib/auth";
-import { Brand, ClientBadge, Icon, IconName, href, useRoute } from "./bits";
+import { Brand, ClientBadge, ClientsTabs, Icon, IconName, href, useRoute } from "./bits";
 import { useTheme } from "./theme";
 import { AREAS, MODULE_LABELS, areaOf, isAreaId, navKeyOf, type AreaId } from "../lib/navAreas";
 import { useData, useIndex } from "./data";
@@ -402,10 +402,7 @@ function GroupsPage() {
   const today = todayIso();
   return (
     <div className="page">
-      <div className="page-head">
-        <h1>Clients</h1>
-        <a className="btn" href="#/clients/all">Open full client list</a>
-      </div>
+      <ClientsTabs current="groups" />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
         {data.groups.map((g) => {
           const members = idx.membersByGroup.get(g.Key as string) || [];

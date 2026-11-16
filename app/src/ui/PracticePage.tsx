@@ -4,7 +4,7 @@ import { ReactNode, useMemo, useState } from "react";
 import { clientHoursOn } from "../lib/dayTypes";
 import { fmtDate, fmtHours, todayIso } from "../lib/domain";
 import { PRACTICE_RATE_KEY, monthLabel, practiceView, readTargetRate } from "../lib/practice";
-import { href } from "./bits";
+import { GroupedTabs, href } from "./bits";
 import { readSetting, useData } from "./data";
 import { useSales } from "./salesKit";
 
@@ -45,12 +45,8 @@ export function PracticePage() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <h1>Practice</h1>
-          <p className="muted tip" style={{ margin: "4px 0 0" }}>How the whole firm is doing today. Read only: every figure opens the screen with the detail.</p>
-        </div>
-      </div>
+      <GroupedTabs groups={[{ label: "Practice view", items: [{ key: "", label: "Practice view", to: "#/practice" }] }]} current="" label="Practice view" />
+      <p className="muted tip" style={{ margin: "0 0 12px" }}>How the whole firm is doing today. Read only: every figure opens the screen with the detail.</p>
 
       <div className="tl-summary" role="list" aria-label="The practice in numbers">
         <Tile label="Active clients" value={String(v.clients.active)} sub={v.clients.byKind.slice(0, 3).map((k) => `${k.count} ${k.kind}`).join(", ")} to="#/clients/all" />

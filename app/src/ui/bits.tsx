@@ -165,7 +165,7 @@ export type TabItem = { key: string; label: string; to: string; badge?: number }
 export type TabGroup = { label: string; items: TabItem[] };
 /** Two rows of tabs: the main row has a handful of groups, and the row under it has the views in the group you're in (shown only when the group has more than one).
  *  Every view keeps its own address, so older links and bookmarks still land on the right screen. */
-const SECTION_ICONS: Record<string, IconName> = { Plan: "plan", Sales: "chart", Settings: "cog", AML: "scale", Compliance: "scale", Email: "mail" };
+const SECTION_ICONS: Record<string, IconName> = { Clients: "clients", "Practice view": "layout", Plan: "plan", Sales: "chart", Settings: "cog", AML: "scale", Compliance: "scale", Email: "mail" };
 export function GroupedTabs({ groups, current, label, heading, plain }: { groups: TabGroup[]; current: string; label: string; heading?: string; plain?: boolean }) {
   const active = groups.find((g) => g.items.some((i) => i.key === current)) || groups[0];
   const item = active.items.find((i) => i.key === current) || active.items[0];
@@ -191,6 +191,9 @@ export function GroupedTabs({ groups, current, label, heading, plain }: { groups
   const title = heading ? (item.label === "Overview" ? `${heading} overview` : item.label) : "";
   const head = title ? <div className="grouped-tabs"><div className="page-head"><h1>{title}</h1></div></div> : null;
   const icon = SECTION_ICONS[label] || "list";
+  // a section with a single page (Practice view): its name sits in the row along the top of the page, or heads the page
+  const single = groups.length === 1 && groups[0].items.length === 1;
+  if (single && layout === "side" && slot) return <div className="page-head"><h1>{label}</h1></div>;
   // "List down the left": the section's views in the panel on the left, as on the Work pages
   if (layout === "side" && slot) {
     return (
@@ -215,15 +218,23 @@ export function GroupedTabs({ groups, current, label, heading, plain }: { groups
     <>
       <div className="page-tabs">
         <span className="page-tabs-name"><Icon name={icon} size={20} />{label}</span>
-        <nav className="page-tabs-nav" aria-label={label} ref={nav}>
-          {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{badge(count(g))}</a>)}
-        </nav>
+        {!single && (
+          <nav className="page-tabs-nav" aria-label={label} ref={nav}>
+            {groups.map((g) => <a key={g.label} href={g.items[0].to} aria-current={g === active ? "page" : undefined}>{g.label}{badge(count(g))}</a>)}
+          </nav>
+        )}
         {active.items.length > 1 && !many && <nav className="page-tabs-seg" aria-label={`${label}: ${active.label}`}>{subs}</nav>}
       </div>
       {many && <nav className="page-tabs-more" aria-label={`${label}: ${active.label}`}>{subs}</nav>}
       {head}
     </>
   );
+}
+
+/** The two Clients pages: client groups, and the full list. */
+export function ClientsTabs({ current }: { current: "groups" | "all" }) {
+  const groups: TabGroup[] = [{ label: "Groups", items: [{ key: "groups", label: "Groups", to: "#/clients" }] }, { label: "All clients", items: [{ key: "all", label: "All clients", to: "#/clients/all" }] }];
+  return <GroupedTabs groups={groups} current={current} label="Clients" />;
 }
 
 /** Pages listed down the left in groups (used where a section has too many pages for a row of tabs, such as Settings).
