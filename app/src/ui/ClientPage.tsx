@@ -96,10 +96,10 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
             {(idx.groupsByMember.get(c.Key) || []).map((g) => (
               <span key={g.Key} className="chip blue">{g.Title}</span>
             ))}
-            <a className="chip" href={href("client-copy", c.Key)}>Preview the new look</a>
           </div>
         </div>
         <div className="row-wrap client-head-actions">
+          <a className="btn" href={href("client-copy", c.Key)} title="Open a copy of this page with the new look: gradient top bar, white second line, grey canvas"><Icon name="layout" size={16} /> New look</a>
           <a className="btn" href={href("advisory", c.Key)} title="Open this client's Freedom Plan to go through with them"><Icon name="flag" size={16} /> Advisory</a>
           {!(c.Kind === "Ltd" || c.Kind === "LLP" || c.CompanyNumber) && <a className="btn" href={href("tax", c.Key)} title="Self Assessment return and tax computation">Tax return</a>}
           {(c.Kind === "Ltd" || (!!c.CompanyNumber && c.Kind !== "LLP")) && <a className="btn" href={href("taxplan", c.Key)} title="Salary and dividend planning for the directors and shareholders">Tax planning</a>}
