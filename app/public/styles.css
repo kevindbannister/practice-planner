@@ -4727,7 +4727,7 @@ html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !i
    little of the page tint through, with whatever scrolls beneath it melted into a soft blur, and a bright glass edge along the bottom. */
 @media (min-width: 721px) {
   html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot {
-    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
     -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.75);
     box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.55); }
@@ -4777,7 +4777,7 @@ html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !i
 
 @media (min-width: 721px) {
   .work-client.paper-top, html[data-work] .paper-top:not(.work-client), .adv-band, html[data-advisory] .paper-top:not(.work-client) {
-    background: color-mix(in srgb, var(--surface) 70%, transparent);
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
     -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.75);
     box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.55); }
