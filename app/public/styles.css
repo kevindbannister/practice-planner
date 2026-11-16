@@ -4805,7 +4805,7 @@ html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !i
 /* V35.23: the new look is how every Practice page looks. The soft blue-to-lavender gradient that used to glow behind the page
    now colours the top bar itself (at the same pale strength the glass bar had), the second line is solid white, and the page
    sits on a plain grey canvas, a little lighter than Work's, under the white sheet. Work and Advisory are unchanged. */
-html[data-sheet]:not([data-work]):not([data-advisory]) body { background: #EEF1F5; background-repeat: no-repeat; }
+html[data-sheet]:not([data-work]):not([data-advisory]) body { background: #F4F6F9; background-repeat: no-repeat; }
 :root[data-theme="dark"][data-sheet]:not([data-work]):not([data-advisory]) body { background: #0b1522; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-sheet]:not([data-work]):not([data-advisory]) body { background: #0b1522; } }
 @media (min-width: 721px) {
