@@ -4716,3 +4716,14 @@ html[data-pflat] .page-tabs, .practice-strip, .p-strip > .practice-strip { anima
 /* entering Work the strip fades in like the other lines (the V35.5 no-animation rule was more specific) */
 @media (min-width: 721px) { .work-strip.in > .work-client, .work-strip.on > .work-client { animation: band-in 0.45s ease both !important; } }
 @media (prefers-reduced-motion: reduce) { .work-strip.in > .work-client, .work-strip.on > .work-client { animation: none !important; } }
+
+/* V35.8: every second menu is the same full-width line. The Advisory line loses the old Freedom Plans band's rounded
+   corners; a report's or tax plan's own banner in Advisory runs edge to edge like it does in Work; and a page banner
+   standing in for the strip on arrival in Work fades in with the rest of the menu. */
+@media (min-width: 721px) {
+  .adv-band { border-radius: 0; }
+  html[data-advisory] .paper-top:not(.work-client) { position: sticky; top: 68px; margin: 0 calc(50% - 50vw) 18px; padding: 8px 28px; border: 0; border-radius: 0;
+    border-bottom: 1px solid var(--sep); background: var(--surface); box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07); }
+  html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: band-in 0.45s ease both !important; }
+}
+@media (prefers-reduced-motion: reduce) { html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !important; } }
