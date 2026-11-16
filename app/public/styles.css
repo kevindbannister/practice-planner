@@ -4408,3 +4408,8 @@ html[data-sheet] .plan { --spx: 28px; --spt: 18px; }
   .rail-link, .rail-sub a { flex: none; min-height: 36px; white-space: nowrap; background: rgba(255, 255, 255, 0.6); }
   .rail-link.open { display: none; }
 }
+/* the Week planner: the tabs run along the top of its sheet, then the heading, then the week's figures */
+.plan > .page-tabs { margin-bottom: 0; }
+.plan > .grouped-tabs { padding: 6px 24px 0; }
+.plan > .grouped-tabs .page-head { margin: 0; }
+.plan > .grouped-tabs + .plan-head { padding-top: 0; }

@@ -508,9 +508,9 @@ function WeekView() {
 
   return (
     <div className={`plan${fit && view === "hours" && !narrow ? " fit" : ""}`}>
+      <PlanTabs current="week" />
       <section className="plan-head">
         <div className="plan-head-top">
-          <PlanTabs current="week" />
           <div className="week-summary" aria-label="This week">
             <div className="ws-load">
               <span className="ws-label">Planned</span>
