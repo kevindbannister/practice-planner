@@ -4678,3 +4678,6 @@ html[data-pflat]:not([data-work]):not([data-advisory]) :is(.page, .plan, .split-
   .adv-band .page-tabs-name svg { color: var(--adv-deep); }
 }
 @media (prefers-reduced-motion: reduce) { .band-slot .page-tabs, .band-slot .band-default, .adv-band { animation: none !important; } }
+/* V35.4: every table heading in Advisory is dark purple, whatever the table's own classes */
+html[data-advisory] table thead th, html[data-advisory] table.grid thead th, html[data-advisory] .adv-table thead th { background: var(--adv-deep) !important; border-color: var(--adv-deep) !important; color: #fff; }
+html[data-advisory] table thead th a, html[data-advisory] table thead th button { color: #fff; }
