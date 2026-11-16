@@ -165,7 +165,7 @@ export type TabItem = { key: string; label: string; to: string; badge?: number }
 export type TabGroup = { label: string; items: TabItem[] };
 /** Two rows of tabs: the main row has a handful of groups, and the row under it has the views in the group you're in (shown only when the group has more than one).
  *  Every view keeps its own address, so older links and bookmarks still land on the right screen. */
-const SECTION_ICONS: Record<string, IconName> = { Clients: "clients", "Practice view": "layout", Plan: "plan", Sales: "chart", Settings: "cog", AML: "scale", Compliance: "scale", Email: "mail" };
+const SECTION_ICONS: Record<string, IconName> = { Clients: "clients", "Practice view": "layout", Chase: "mail", "Action Centre": "check", Plan: "plan", Sales: "chart", Settings: "cog", AML: "scale", Compliance: "scale", Email: "mail" };
 export function GroupedTabs({ groups, current, label, heading, plain }: { groups: TabGroup[]; current: string; label: string; heading?: string; plain?: boolean }) {
   const active = groups.find((g) => g.items.some((i) => i.key === current)) || groups[0];
   const item = active.items.find((i) => i.key === current) || active.items[0];
@@ -229,6 +229,11 @@ export function GroupedTabs({ groups, current, label, heading, plain }: { groups
       {head}
     </>
   );
+}
+
+/** The title row for a section with one page (its name along the top of the page, or heading the page). */
+export function SectionTitle({ label, to }: { label: string; to: string }) {
+  return <GroupedTabs groups={[{ label, items: [{ key: "", label, to }] }]} current="" label={label} />;
 }
 
 /** The two Clients pages: client groups, and the full list. */

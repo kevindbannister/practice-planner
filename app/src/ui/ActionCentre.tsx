@@ -12,6 +12,7 @@ import { Row } from "../lib/schema";
 import { useBackupAlert } from "./Backups";
 import { useChAlerts } from "./CompaniesHouse";
 import { useData, useIndex } from "./data";
+import { SectionTitle } from "./bits";
 import { useEditor } from "./Editors";
 import { useOnboarding } from "./onboardingKit";
 import { usePortal } from "./portalKit";
@@ -119,7 +120,8 @@ export function ActionCentrePage() {
 
   return (
     <div className="page">
-      <div className="plan-title"><h1>Action Centre</h1><span className="muted">{counts.all} outstanding{a.seeAll ? "" : " that are yours or unassigned"}</span></div>
+      <SectionTitle label="Action Centre" to="#/actions" />
+      <div className="plan-title"><span className="muted">{counts.all} outstanding{a.seeAll ? "" : " that are yours or unassigned"}</span></div>
       <p className="muted" style={{ marginTop: 0 }}>Everything that needs doing, worked out from the real records. An action goes away by itself when the work is done. Informational notices can be dismissed; nothing else can.</p>
       <PopupNotificationSettings />
       <nav className="subtabs" aria-label="Action views">

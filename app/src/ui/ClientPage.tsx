@@ -15,7 +15,7 @@ import { newKey } from "../lib/planning";
 import { ClientPapers } from "./ClientPapers";
 import { ClientLogoMark } from "./LogoMenu";
 import { ClientNumbers } from "./ClientNumbers";
-import { ClientBadge, CopyButton, DeadlineChip, ElementsLink, Icon, PapersLink, companiesHouseUrl, href } from "./bits";
+import { ClientBadge, ClientsTabs, CopyButton, DeadlineChip, ElementsLink, Icon, PapersLink, companiesHouseUrl, href } from "./bits";
 import { elementsUrl } from "../lib/elements";
 import { nextStagePatch, stageLabel } from "../lib/stages";
 import { inFinalise, isWaitStage, stageAt, waitingForClient } from "../lib/waiting";
@@ -81,6 +81,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
 
   return (
     <div className="page client-page">
+      <ClientsTabs current="all" />
       <div className="page-head client-head">
         <div className="client-head-id">
           <h1>{c.Title}</h1>

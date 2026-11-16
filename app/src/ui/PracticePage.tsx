@@ -4,7 +4,7 @@ import { ReactNode, useMemo, useState } from "react";
 import { clientHoursOn } from "../lib/dayTypes";
 import { fmtDate, fmtHours, todayIso } from "../lib/domain";
 import { PRACTICE_RATE_KEY, monthLabel, practiceView, readTargetRate } from "../lib/practice";
-import { GroupedTabs, href } from "./bits";
+import { SectionTitle, href } from "./bits";
 import { readSetting, useData } from "./data";
 import { useSales } from "./salesKit";
 
@@ -45,7 +45,7 @@ export function PracticePage() {
 
   return (
     <div className="page">
-      <GroupedTabs groups={[{ label: "Practice view", items: [{ key: "", label: "Practice view", to: "#/practice" }] }]} current="" label="Practice view" />
+      <SectionTitle label="Practice view" to="#/practice" />
       <p className="muted tip" style={{ margin: "0 0 12px" }}>How the whole firm is doing today. Read only: every figure opens the screen with the detail.</p>
 
       <div className="tl-summary" role="list" aria-label="The practice in numbers">

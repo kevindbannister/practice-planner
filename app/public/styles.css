@@ -4416,3 +4416,43 @@ html[data-sheet] .plan { --spx: 28px; --spt: 18px; }
 /* V34.0: Clients and Practice view put their title in the row along the top of the page (or the list on the left) */
 @media (min-width: 901px) { body:has(.rail-slot:not(:empty)) .split { margin-left: 244px; } }
 .split-main > .page-tabs { margin-bottom: 16px; }
+
+/* =====================================================================================
+   V34.1 Every Practice page in the one design
+   - The full client list sits on the white sheet like every other page, with the same boxes and navy table headings.
+   - Tabs inside a page (a client's tabs, Action Centre views, Email folders, the Client portal) use the same
+     underlined tabs and small switches as the row along the top of the page.
+   ===================================================================================== */
+html[data-sheet] .split-main { --spx: 40px; --spt: 26px; }
+@media (min-width: 721px) {
+  html[data-sheet] .split-main { margin: 18px 24px 0; padding: 26px 40px 56px; background: var(--surface); border-radius: 28px 28px 0 0;
+    min-height: calc(100vh - 160px); box-sizing: border-box; box-shadow: 0 -1px 0 rgba(23, 38, 58, 0.06), 0 -6px 24px rgba(23, 38, 58, 0.05); }
+}
+@media (max-width: 720px) {
+  html[data-sheet] .split-main { --spx: 14px; --spt: 18px; margin: 10px 0 0; padding: 18px 14px 40px; background: var(--surface); border-radius: 22px 22px 0 0; min-height: calc(100vh - 80px); box-sizing: border-box; }
+}
+html[data-sheet] .split-main { outline: 1px solid rgba(23, 38, 58, 0.07); outline-offset: -1px; }
+html[data-sheet] .split-main .card, html[data-sheet] .split-main .panel, html[data-sheet] .split-main .tile {
+  background: var(--surface); border: 1px solid var(--sep); box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); border-radius: 18px; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-sheet] .split-main thead th { background: #1E3550 !important; color: #fff !important; border-color: #1E3550 !important; }
+html[data-sheet] .split-main thead th * { color: #fff; }
+html[data-sheet] .split-main thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+html[data-sheet] .split-main thead tr:first-child th:last-child { border-top-right-radius: 10px; }
+html[data-sheet] .split-main td a { text-decoration: none; font-weight: 600; color: #2155C9; }
+.split-main > .page-tabs { margin-bottom: 6px; }
+@media (min-width: 901px) {
+  body:has(.rail-slot:not(:empty)) .split { margin-left: 0; }
+  body:has(.rail-slot:not(:empty)) .split-main { margin-left: 244px; margin-right: 0; border-radius: 28px 0 0 0; }
+}
+
+/* tabs inside a page: the same underlined tabs and small switches */
+html[data-sheet]:not([data-work]) :is(.page, .split-main, .plan) .tabs { display: flex; gap: 26px; border-bottom: 1px solid var(--sep); overflow-x: auto; scrollbar-width: none; }
+html[data-sheet]:not([data-work]) :is(.page, .split-main, .plan) .tabs a { min-height: 44px; padding: 0 2px; border: 0; border-bottom: 3px solid transparent; border-image: none; border-radius: 0; background: none;
+  font-size: 15px; font-weight: 600; color: var(--muted); text-decoration: none; white-space: nowrap; }
+html[data-sheet]:not([data-work]) :is(.page, .split-main, .plan) .tabs a:hover { color: var(--ink); }
+html[data-sheet]:not([data-work]) :is(.page, .split-main, .plan) .tabs a[aria-current] { color: var(--navy); font-weight: 700; border-bottom: 3px solid var(--navy); border-image: none; }
+html[data-sheet]:not([data-work]) :is(.page, .split-main, .plan) .subtabs { display: flex; width: fit-content; max-width: 100%; gap: 2px; padding: 3px; border: 0; border-radius: 999px;
+  background: color-mix(in srgb, var(--navy) 7%, transparent); overflow-x: auto; scrollbar-width: none; }
+html[data-sheet]:not([data-work]) :is(.page, .split-main, .plan) .subtabs a { min-height: 30px; padding: 0 13px; border: 0; border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); text-decoration: none; white-space: nowrap; background: none; box-shadow: none; }
+html[data-sheet]:not([data-work]) :is(.page, .split-main, .plan) .subtabs a[aria-current] { background: var(--surface); color: var(--navy); box-shadow: 0 1px 3px rgba(23, 38, 58, 0.14); }
+:root[data-theme="dark"][data-sheet]:not([data-work]) :is(.page, .split-main, .plan) .tabs a[aria-current], :root[data-theme="dark"][data-sheet]:not([data-work]) :is(.page, .split-main, .plan) .subtabs a[aria-current] { color: #fff; border-bottom-color: #fff; }
