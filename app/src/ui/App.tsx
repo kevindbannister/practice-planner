@@ -234,8 +234,8 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
     if (!strip) return;
     setStrip("out");
     setBarHold(true);
-    // the bar starts turning back to Practice a quarter of a second before the strip has finished going up
-    const b = window.setTimeout(() => setBarHold(false), 650);
+    // the bar turns back to Practice at the same time as the strip goes up
+    const b = window.setTimeout(() => setBarHold(false), 0);
     const t = window.setTimeout(() => setStrip(""), 900);
     return () => { window.clearTimeout(b); window.clearTimeout(t); };
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
