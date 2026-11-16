@@ -241,6 +241,8 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { rememberPage(section); }, [section, routeKey]);
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
+  // the sheet design (grey background, white sheet, navy table headings) is used in both Practice and Work
+  useEffect(() => { document.documentElement.setAttribute("data-sheet", ""); }, []);
   // the width of the window's scroll bar, so edge-to-edge strips line up exactly on every page
   useEffect(() => {
     const set = () => document.documentElement.style.setProperty("--sb", `${window.innerWidth - document.documentElement.clientWidth}px`);

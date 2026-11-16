@@ -4048,38 +4048,38 @@ html[data-work] .work-client .chip, html[data-work] .paper-top .chip:not(.blue) 
    page is a plain grey canvas; the module sits on it as a white sheet with rounded top corners; headings are the
    working paper size; boxes have a hairline instead of a glow; tables have the navy heading row and pale blue totals.
    ===================================================================================== */
-html[data-work] body { background: #E7EBF0; }
+html[data-sheet] body { background: #E7EBF0; }
 @media (min-width: 721px) {
-  html[data-work] .page:not(.paper-page):not(.home) { max-width: none; margin: 18px 24px 0; padding: 26px 40px 56px; background: var(--surface);
+  html[data-sheet] .page:not(.paper-page):not(.home) { max-width: none; margin: 18px 24px 0; padding: 26px 40px 56px; background: var(--surface);
     border-radius: 28px 28px 0 0; min-height: calc(100vh - 160px); box-sizing: border-box;
     box-shadow: 0 -1px 0 rgba(23, 38, 58, 0.06), 0 -6px 24px rgba(23, 38, 58, 0.05); }
 }
-html[data-work] .page:not(.home) .page-head h1, html[data-work] .page:not(.home) .plan-title h1 { font-size: 28px; line-height: 1.15; }
-html[data-work] .page:not(.home) .card, html[data-work] .page:not(.home) .panel, html[data-work] .page:not(.home) .tile {
+html[data-sheet] .page:not(.home) .page-head h1, html[data-sheet] .page:not(.home) .plan-title h1 { font-size: 28px; line-height: 1.15; }
+html[data-sheet] .page:not(.home) .card, html[data-sheet] .page:not(.home) .panel, html[data-sheet] .page:not(.home) .tile {
   background: var(--surface); border: 1px solid var(--sep); box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); border-radius: 18px; }
-html[data-work] .page table.grid thead th { background: #1E3550; color: #fff; font-weight: 700; border-color: #1E3550; }
-html[data-work] .page table.grid thead th a, html[data-work] .page table.grid thead th button { color: #fff; }
-html[data-work] .page table.grid thead tr:first-child th:first-child { border-top-left-radius: 10px; }
-html[data-work] .page table.grid thead tr:first-child th:last-child { border-top-right-radius: 10px; }
-html[data-work] .page table.grid tfoot td, html[data-work] .page table.grid tfoot th, html[data-work] .page table.grid tr.total td { background: color-mix(in srgb, #2F6FD6 11%, var(--surface)); font-weight: 700; color: var(--ink); }
-html[data-work] .page .tabs { border-bottom-color: var(--sep); }
+html[data-sheet] .page table.grid thead th { background: #1E3550; color: #fff; font-weight: 700; border-color: #1E3550; }
+html[data-sheet] .page table.grid thead th a, html[data-sheet] .page table.grid thead th button { color: #fff; }
+html[data-sheet] .page table.grid thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+html[data-sheet] .page table.grid thead tr:first-child th:last-child { border-top-right-radius: 10px; }
+html[data-sheet] .page table.grid tfoot td, html[data-sheet] .page table.grid tfoot th, html[data-sheet] .page table.grid tr.total td { background: color-mix(in srgb, #2F6FD6 11%, var(--surface)); font-weight: 700; color: var(--ink); }
+html[data-sheet] .page .tabs { border-bottom-color: var(--sep); }
 :root[data-theme="dark"][data-work] body { background: #0b1522; }
 /* V31.6: navy heading rows on every table in Work, not just schedule grids */
-html[data-work] .page:not(.home) table thead th { background: #1E3550; color: #fff; font-weight: 700; border-color: #1E3550; }
-html[data-work] .page:not(.home) table thead th a, html[data-work] .page:not(.home) table thead th button { color: #fff; }
-html[data-work] .page:not(.home) table thead tr:first-child th:first-child { border-top-left-radius: 10px; }
-html[data-work] .page:not(.home) table thead tr:first-child th:last-child { border-top-right-radius: 10px; }
+html[data-sheet] .page:not(.home) table thead th { background: #1E3550; color: #fff; font-weight: 700; border-color: #1E3550; }
+html[data-sheet] .page:not(.home) table thead th a, html[data-sheet] .page:not(.home) table thead th button { color: #fff; }
+html[data-sheet] .page:not(.home) table thead tr:first-child th:first-child { border-top-left-radius: 10px; }
+html[data-sheet] .page:not(.home) table thead tr:first-child th:last-child { border-top-right-radius: 10px; }
 /* V31.7: on a tax return the computation column is part of the same white sheet as the return, as on working papers */
 @media (min-width: 801px) {
-  html[data-work] .tax-page .tax-split { gap: 0; margin-right: -32px; align-items: stretch; }
-  html[data-work] .tax-page .tax-split > .paper { margin-right: 0; }
-  html[data-work] .tax-page .tax-split > .tax-comp { margin: 12px 0 -40px; padding: 22px 28px 32px; background: var(--surface); border: 0; border-radius: 0;
+  html[data-sheet] .tax-page .tax-split { gap: 0; margin-right: -32px; align-items: stretch; }
+  html[data-sheet] .tax-page .tax-split > .paper { margin-right: 0; }
+  html[data-sheet] .tax-page .tax-split > .tax-comp { margin: 12px 0 -40px; padding: 22px 28px 32px; background: var(--surface); border: 0; border-radius: 0;
     box-shadow: 0 -1px 0 rgba(23, 38, 58, 0.06); border-left: 1px solid var(--sep); top: 124px; align-self: start; min-height: calc(100vh - 150px); box-sizing: border-box; }
-  html[data-work] .tax-page .tax-comp.hero-wash::before, html[data-work] .tax-page .tax-comp.hero-wash::after { display: none; }
-  html[data-work] .tax-page .paper-main { border-top-right-radius: 0; }
+  html[data-sheet] .tax-page .tax-comp.hero-wash::before, html[data-sheet] .tax-page .tax-comp.hero-wash::after { display: none; }
+  html[data-sheet] .tax-page .paper-main { border-top-right-radius: 0; }
 }
-html[data-work] .page:not(.home) thead th { background: #1E3550 !important; color: #fff !important; border-color: #1E3550 !important; }
-html[data-work] .page:not(.home) thead th * { color: #fff; }
+html[data-sheet] .page:not(.home) thead th { background: #1E3550 !important; color: #fff !important; border-color: #1E3550 !important; }
+html[data-sheet] .page:not(.home) thead th * { color: #fff; }
 
 /* =====================================================================================
    V31.9 Tax computation in the app's current style: a plain heading with the year and Print beside it; the three key
@@ -4127,26 +4127,26 @@ html[data-work] .page:not(.home) thead th * { color: #fff; }
 code, pre, kbd, samp, .chase-log, .problem-text, .search-kbd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 .mono, .num { font-variant-numeric: tabular-nums; letter-spacing: 0; }
 
-html[data-work] .page:not(.home) table.grid { width: 100%; }
-html[data-work] .page:not(.home) td a { text-decoration: none; font-weight: 600; color: #2155C9; }
-html[data-work] .page:not(.home) td a:hover { text-decoration: underline; text-underline-offset: 3px; }
-html[data-work] .page:not(.home) td { text-align: left; }
-html[data-work] .page:not(.home) td.num, html[data-work] .page:not(.home) th.num { text-align: right; }
+html[data-sheet] .page:not(.home) table.grid { width: 100%; }
+html[data-sheet] .page:not(.home) td a { text-decoration: none; font-weight: 600; color: #2155C9; }
+html[data-sheet] .page:not(.home) td a:hover { text-decoration: underline; text-underline-offset: 3px; }
+html[data-sheet] .page:not(.home) td { text-align: left; }
+html[data-sheet] .page:not(.home) td.num, html[data-sheet] .page:not(.home) th.num { text-align: right; }
 
-html[data-work] .page .subtabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0; background: none; border-radius: 0; border-bottom: 1px solid var(--sep); box-shadow: none; max-width: 100%; }
-html[data-work] .page .subtabs a { border-radius: 0; padding: 10px 14px; margin-bottom: -1px; border-bottom: 2px solid transparent; font-size: 15px; font-weight: 600; color: var(--ink-2); background: none; box-shadow: none; }
-html[data-work] .page .subtabs a:hover { color: var(--ink); }
-html[data-work] .page .subtabs a[aria-current="page"] { background: none; box-shadow: none; color: var(--ink); border-bottom-color: #1E3550; font-weight: 700; }
+html[data-sheet] .page .subtabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0; background: none; border-radius: 0; border-bottom: 1px solid var(--sep); box-shadow: none; max-width: 100%; }
+html[data-sheet] .page .subtabs a { border-radius: 0; padding: 10px 14px; margin-bottom: -1px; border-bottom: 2px solid transparent; font-size: 15px; font-weight: 600; color: var(--ink-2); background: none; box-shadow: none; }
+html[data-sheet] .page .subtabs a:hover { color: var(--ink); }
+html[data-sheet] .page .subtabs a[aria-current="page"] { background: none; box-shadow: none; color: var(--ink); border-bottom-color: #1E3550; font-weight: 700; }
 
-html[data-work] .page select:not(td select) { min-height: 40px; border-radius: 12px; border: 1px solid var(--btn-line); padding: 0 12px; background-color: var(--surface); font: inherit; color: var(--ink); }
+html[data-sheet] .page select:not(td select) { min-height: 40px; border-radius: 12px; border: 1px solid var(--btn-line); padding: 0 12px; background-color: var(--surface); font: inherit; color: var(--ink); }
 
 @media (min-width: 801px) {
-  html[data-work] .tax-page .tax-split-return { margin: 12px -32px -40px; padding: 24px 32px 40px; gap: 24px; background: var(--surface); border-radius: 28px 28px 0 0;
+  html[data-sheet] .tax-page .tax-split-return { margin: 12px -32px -40px; padding: 24px 32px 40px; gap: 24px; background: var(--surface); border-radius: 28px 28px 0 0;
     box-shadow: 0 -1px 0 rgba(23, 38, 58, 0.06), 0 -6px 24px rgba(23, 38, 58, 0.05); min-height: calc(100vh - 150px); }
-  html[data-work] .tax-page .tax-split-return > .tax-comp { margin: 0; padding: 0; min-height: 0; border: 0; border-right: 1px solid var(--sep); padding-right: 24px; box-shadow: none; top: 140px; }
-  html[data-work] .tax-page .tax-split-return .tax-summary > .card { box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); border: 1px solid var(--sep); }
+  html[data-sheet] .tax-page .tax-split-return > .tax-comp { margin: 0; padding: 0; min-height: 0; border: 0; border-right: 1px solid var(--sep); padding-right: 24px; box-shadow: none; top: 140px; }
+  html[data-sheet] .tax-page .tax-split-return .tax-summary > .card { box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); border: 1px solid var(--sep); }
 }
-html[data-work] .page .subtabs { border: 0; border-bottom: 1px solid var(--sep); }
+html[data-sheet] .page .subtabs { border: 0; border-bottom: 1px solid var(--sep); }
 
 /* V32.2: going into Work on a working paper or tax return, its client banner drops out of the navy bar too (after the
    bar has finished), as the client strip does on other pages */
