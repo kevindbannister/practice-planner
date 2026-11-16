@@ -45,7 +45,21 @@ export async function addScope(scope: string, now = false): Promise<void> {
   }
 }
 const scopes = () => [...SCOPES, ...extraScopes()].join(" ");
+/** The in-flight sign-in handshake. In localStorage, not sessionStorage: a phone switching to its desktop site (and some
+ *  other reloads) drops the tab's session memory mid-redirect, which used to come back from Microsoft as an error. It
+ *  holds no tokens, only the one-time check values, and is removed the moment Microsoft answers. */
 const PENDING = "pp.pkce";
+const loadPending = (): Pending | null => {
+  try { return JSON.parse(localStorage.getItem(PENDING) || sessionStorage.getItem(PENDING) || "null"); } catch { return null; }
+};
+const savePending = (p: Pending) => { try { localStorage.setItem(PENDING, JSON.stringify(p)); } catch { sessionStorage.setItem(PENDING, JSON.stringify(p)); } };
+const clearPending = () => { try { localStorage.removeItem(PENDING); } catch { /* fine */ } sessionStorage.removeItem(PENDING); };
+/** Microsoft's ways of saying "you need to sign in yourself" — not errors, just show the Sign in screen. */
+const SIGN_IN_NEEDED = ["login_required", "interaction_required", "consent_required", "account_selection_required"];
+/** One automatic fresh sign-in when the handshake was lost (at most once a minute, so it can never loop). */
+const RETRY = "pp.auth.retry";
+const canRetry = () => { try { return Date.now() - Number(localStorage.getItem(RETRY) || 0) > 60_000; } catch { return false; } };
+const noteRetry = () => { try { localStorage.setItem(RETRY, String(Date.now())); } catch { /* then no retry */ } };
 
 export class AuthError extends Error {}
 
@@ -84,7 +98,7 @@ export async function signIn(prompt?: "select_account" | "none"): Promise<never>
   const verifier = randomString(48);
   const state = randomString(16);
   const pending: Pending = { verifier, state, returnTo: window.location.hash, silent: prompt === "none" };
-  sessionStorage.setItem(PENDING, JSON.stringify(pending));
+  savePending(pending);
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     response_type: "code",
@@ -107,16 +121,20 @@ export async function handleRedirect(): Promise<boolean> {
   const error = url.searchParams.get("error");
   if (!code && !error) return false;
 
-  const pending: Pending | null = JSON.parse(sessionStorage.getItem(PENDING) || "null");
-  sessionStorage.removeItem(PENDING);
+  const pending: Pending | null = loadPending();
+  clearPending();
   window.history.replaceState(null, "", url.pathname + (pending?.returnTo || ""));
 
   if (error) {
-    if (pending?.silent) { markIn(false); throw new SilentSignInFailed(error); }
+    if (pending?.silent || SIGN_IN_NEEDED.includes(error)) { markIn(false); throw new SilentSignInFailed(error); }
     throw new AuthError(url.searchParams.get("error_description") || error);
   }
   if (!pending || pending.state !== url.searchParams.get("state")) {
-    throw new AuthError("The sign-in response didn't match this browser tab. Please sign in again.");
+    // the browser lost the handshake between leaving for Microsoft and coming back (a phone switching to its
+    // desktop site does this): start over once — while your Microsoft session is current it comes straight back
+    if (canRetry()) { noteRetry(); return signIn(); }
+    markIn(false);
+    throw new SilentSignInFailed("handshake lost");
   }
   await tokenRequest({
     grant_type: "authorization_code",
@@ -145,6 +163,7 @@ async function tokenRequest(params: Record<string, string>): Promise<Tokens> {
   };
   sessionStorage.setItem(TOKENS, JSON.stringify(tokens));
   markIn(true);
+  try { localStorage.removeItem(RETRY); } catch { /* fine */ }
   return tokens;
 }
 
