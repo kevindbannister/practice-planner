@@ -4656,7 +4656,7 @@ html[data-pflat]:not([data-work]):not([data-advisory]) :is(.page, .plan, .split-
   html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot .page-tabs { position: static; width: auto; max-width: none; margin: 0; padding: 0 28px;
     min-height: 56px; background: none; border-bottom: 0; box-shadow: none; animation: pt-fade 0.28s ease both; }
   /* every page sits at the same height under the band; Home has no views, so there the band and the space go */
-  html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.band-slot):not(:has(.page.home)) :is(.page, .plan, .split-main) { padding-top: 90px; margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.band-slot):not(:has(.page.home)) :is(.page, .plan, .split-main) { padding-top: 26px; margin-top: calc(56px + 18px); border-top-left-radius: 28px; border-top-right-radius: 28px; }
   html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.page.home) .band-slot { display: none; }
 }
 
@@ -4669,7 +4669,7 @@ html[data-pflat]:not([data-work]):not([data-advisory]) :is(.page, .plan, .split-
   html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot .band-default { padding: 0 28px; animation: band-drop 0.5s cubic-bezier(.2, .8, .2, 1) both; }
   html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot:has(.page-tabs) .band-default { display: none; }
   /* Home keeps the line too, with the page sitting under it */
-  html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.band-slot) .page.home { padding-top: 90px; margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.band-slot) .page.home { padding-top: 26px; margin-top: calc(56px + 18px); border-top-left-radius: 28px; border-top-right-radius: 28px; }
   html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.page.home) .band-slot { display: flex; }
   /* Advisory: the same white line, in the page flow like Work's client strip */
   .adv-band { position: sticky; top: 68px; z-index: 19; box-sizing: border-box; height: 56px; display: flex; align-items: center; padding: 0 28px; background: var(--surface);
@@ -4742,3 +4742,17 @@ html[data-pflat] .page-tabs, .practice-strip, .p-strip > .practice-strip { anima
 @media (prefers-reduced-motion: reduce) {
   .band-slot.mode-leave, .adv-band.mode-leave, .work-strip.out > .work-client, .band-slot.mode-enter, .adv-band.mode-enter, .work-strip.in > .work-client { animation: none !important; }
 }
+
+/* V35.11: one menu look in Practice, Work and Advisory.
+   - the same bar height: the Practice glass bar's bottom edge was a 1px border that made it 69px; it is now an inset line (68px like the others)
+   - no divider after a title that has no views to its right (Practice Home)
+   - the same leading icon and title in the second line: a plain 20px icon and a 17px bold name, in Work too (the icon is still a link) */
+@media (min-width: 721px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) { border-bottom: 0; box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.9), 0 6px 22px rgba(23, 38, 58, 0.08); }
+  .band-slot .band-default .page-tabs-name { border-right: 0; padding-right: 0; margin-right: 0; }
+  .work-client > .paper-top-icon:first-child, html[data-work] .paper-top > .paper-top-icon:first-child, html[data-advisory] .paper-top > .paper-top-icon:first-child { width: 20px; height: 28px; border-radius: 6px; background: none; color: var(--navy); }
+  html[data-advisory] .paper-top > .paper-top-icon:first-child { color: var(--adv-deep); }
+  .work-client > .paper-top-icon:first-child:hover, html[data-work] .paper-top > .paper-top-icon:first-child:hover, html[data-advisory] .paper-top > .paper-top-icon:first-child:hover { background: none; opacity: 0.7; }
+  .work-client .wc-name, html[data-work] .paper-top h1, html[data-advisory] .paper-top h1 { font-size: 17px; }
+}
+:root[data-theme="dark"] .work-client > .paper-top-icon:first-child { color: #fff; }
