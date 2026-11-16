@@ -1,6 +1,5 @@
 // In Practice, a strip under the menu says which section you are in and holds that section's tabs. It is built the
 // same way as the client strip in Work: the same height, with the icon and name in the same place.
-import { fmtDate, todayIso } from "../lib/domain";
 import { MODULE_LABELS } from "../lib/navAreas";
 import { Icon, IconName } from "./bits";
 import { setStripSlot } from "./StripSlot";
@@ -17,7 +16,6 @@ export function PracticeStrip({ section }: { section: string }) {
     <header className="paper-top work-client practice-strip" aria-label="Where you are">
       <a className="paper-top-icon" href={root} title={name} aria-label={name}><Icon name={ICONS[key] || "list"} size={20} /></a>
       <strong className="wc-name">{name}</strong>
-      {key === "home" && <span className="chip">{fmtDate(todayIso(), { weekday: true })}</span>}
       <div className="ps-tabs" ref={setStripSlot} />
     </header>
   );
