@@ -284,6 +284,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
   const AREA_ICONS: Record<AreaId, IconName> = { run: "layout", deliver: "check", grow: "chart" };
   const phoneMods = modeModules(menuKind, mode);
+  const ICON_TITLES: Record<string, string> = { "": "Home" };
   const PHONE_LABELS: Record<string, string> = { papers: "Papers", advisory: "Plans", practice: "Practice", taxplan: "Tax plan", reporting: "Reports" };
   return (
     <>
@@ -357,7 +358,18 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
       {two && <TwoLineModules section={section} area={area} chase={ready ? chase : 0} />}
     </header>
     {ready && <div className="rail-slot" ref={setStripSlot} />}
-    {ready && wide && !work && !advisory && practiceBar === "flat" && practiceLayout === "top" && <div className="band-slot" ref={setBandSlot} />}
+    {/* the full-width Practice bar always has its white line under it; each section's views drop into it from the bar */}
+    {ready && wide && !work && !advisory && practiceBar === "flat" && practiceLayout === "top" && (
+      <div className="band-slot" ref={setBandSlot}>
+        <div className="band-default"><span className="page-tabs-name"><Icon name={ICONS[section] || "home"} size={20} />{section === "" || section === "home" ? "Home" : (ICON_TITLES[section] || phoneMods.label(section))}</span></div>
+      </div>
+    )}
+    {/* Advisory has the same line under its purple bar, in the same place as Work's client strip */}
+    {ready && wide && advisory && (
+      <div className="adv-band" key="adv-band">
+        <span className="page-tabs-name" key={section}><Icon name={ICONS[section] || "chart"} size={20} />{section === WORKSPACES.advisory.homeSection ? WORKSPACES.advisory.homeLabel : phoneMods.label(section)}</span>
+      </div>
+    )}
     {strip && ready && <div className={`work-strip ${strip}`}><WorkClientBar section={section} routeKey={routeKey} /></div>}
     </>
   );

@@ -4659,3 +4659,22 @@ html[data-pflat]:not([data-work]):not([data-advisory]) :is(.page, .plan, .split-
   html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.band-slot):not(:has(.page.home)) :is(.page, .plan, .split-main) { padding-top: 90px; margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
   html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.page.home) .band-slot { display: none; }
 }
+
+/* V35.3: the line under the full-width bar is permanent in every workspace (Practice, Work, Advisory), and each menu drops into
+   it from the bar when you change section or workspace. Within a section only the labels change. */
+@keyframes band-drop { from { transform: translateY(-100%); opacity: 0; } 45% { opacity: 1; } to { transform: none; opacity: 1; } }
+@media (min-width: 721px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot { overflow: hidden; display: flex; align-items: center; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot .page-tabs { flex: 1 1 auto; animation: band-drop 0.5s cubic-bezier(.2, .8, .2, 1) both; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot .band-default { padding: 0 28px; animation: band-drop 0.5s cubic-bezier(.2, .8, .2, 1) both; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot:has(.page-tabs) .band-default { display: none; }
+  /* Home keeps the line too, with the page sitting under it */
+  html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.band-slot) .page.home { padding-top: 90px; margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) body:has(.page.home) .band-slot { display: flex; }
+  /* Advisory: the same white line, in the page flow like Work's client strip */
+  .adv-band { position: sticky; top: 68px; z-index: 19; box-sizing: border-box; height: 56px; display: flex; align-items: center; padding: 0 28px; background: var(--surface);
+    border-bottom: 1px solid var(--sep); box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07); animation: band-drop 0.5s cubic-bezier(.2, .8, .2, 1) both; }
+  .adv-band .page-tabs-name { border-right: 0; padding-right: 0; margin-right: 0; animation: pt-fade 0.28s ease both; font-weight: 700; font-size: 17px; display: inline-flex; align-items: center; gap: 10px; }
+  .adv-band .page-tabs-name svg { color: var(--adv-deep); }
+}
+@media (prefers-reduced-motion: reduce) { .band-slot .page-tabs, .band-slot .band-default, .adv-band { animation: none !important; } }
