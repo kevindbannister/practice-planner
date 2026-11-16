@@ -1,6 +1,6 @@
 // Starts the app: finishes Microsoft sign-in if returning from it, then loads the data.
 import { createRoot } from "react-dom/client";
-import { AuthError, getAccessToken, handleRedirect, isSignedIn, signIn } from "./lib/auth";
+import { AuthError, SilentSignInFailed, getAccessToken, handleRedirect, isSignedIn, signIn, wasSignedIn } from "./lib/auth";
 import { FakeGraph } from "./lib/fakeGraph";
 import { Graph, HttpGraph } from "./lib/graph";
 import { SharePointStore } from "./lib/sharepoint";
@@ -49,10 +49,13 @@ async function start() {
     try {
       await handleRedirect();
     } catch (e) {
-      root.render(<SignInScreen message={e instanceof AuthError ? e.message : "Sign-in didn't complete."} />);
+      root.render(e instanceof SilentSignInFailed ? <SignInScreen /> : <SignInScreen message={e instanceof AuthError ? e.message : "Sign-in didn't complete."} />);
       return;
     }
     if (!isSignedIn()) {
+      // signed in on this device before (e.g. the tab was reloaded, or a phone switched to its desktop site): sign back
+      // in quietly through Microsoft, which comes straight back while your Microsoft sign-in is still current
+      if (wasSignedIn()) { await signIn("none"); return; }
       root.render(<SignInScreen />);
       return;
     }

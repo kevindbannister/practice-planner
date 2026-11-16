@@ -4,9 +4,18 @@
 import { AUTHORITY, CLIENT_ID, SCOPES } from "../config";
 
 type Tokens = { access: string; refresh?: string; expires: number };
-type Pending = { verifier: string; state: string; returnTo: string };
+type Pending = { verifier: string; state: string; returnTo: string; silent?: boolean };
 
 const TOKENS = "pp.tokens";
+/** Remembers on this device that you were signed in (no tokens, just a flag), so a reloaded or reopened tab, or a
+ *  phone switching to its desktop site, can quietly sign you back in through Microsoft instead of showing Sign in. */
+const WAS_IN = "pp.signedin";
+const markIn = (on: boolean) => { try { if (on) localStorage.setItem(WAS_IN, "1"); else localStorage.removeItem(WAS_IN); } catch { /* fine */ } };
+/** True when this device was signed in before, so a quiet sign-in is worth trying. */
+export function wasSignedIn(): boolean { try { return localStorage.getItem(WAS_IN) === "1"; } catch { return false; } }
+
+/** Thrown when a quiet sign-in found you need to sign in yourself: show the Sign in screen without an error. */
+export class SilentSignInFailed extends Error {}
 const EXTRA = "pp.scopes.extra";
 
 /** Permissions asked for on top of the standard ones (e.g. the calendar), remembered on this device. */
@@ -71,10 +80,10 @@ export function isSignedIn(): boolean {
   return load() !== null;
 }
 
-export async function signIn(prompt?: "select_account"): Promise<never> {
+export async function signIn(prompt?: "select_account" | "none"): Promise<never> {
   const verifier = randomString(48);
   const state = randomString(16);
-  const pending: Pending = { verifier, state, returnTo: window.location.hash };
+  const pending: Pending = { verifier, state, returnTo: window.location.hash, silent: prompt === "none" };
   sessionStorage.setItem(PENDING, JSON.stringify(pending));
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -102,7 +111,10 @@ export async function handleRedirect(): Promise<boolean> {
   sessionStorage.removeItem(PENDING);
   window.history.replaceState(null, "", url.pathname + (pending?.returnTo || ""));
 
-  if (error) throw new AuthError(url.searchParams.get("error_description") || error);
+  if (error) {
+    if (pending?.silent) { markIn(false); throw new SilentSignInFailed(error); }
+    throw new AuthError(url.searchParams.get("error_description") || error);
+  }
   if (!pending || pending.state !== url.searchParams.get("state")) {
     throw new AuthError("The sign-in response didn't match this browser tab. Please sign in again.");
   }
@@ -132,6 +144,7 @@ async function tokenRequest(params: Record<string, string>): Promise<Tokens> {
     expires: Date.now() + (Number(json.expires_in || 3600) - 120) * 1000,
   };
   sessionStorage.setItem(TOKENS, JSON.stringify(tokens));
+  markIn(true);
   return tokens;
 }
 
@@ -164,5 +177,6 @@ export async function refreshNow(): Promise<void> {
 
 export function signOut(): void {
   sessionStorage.removeItem(TOKENS);
+  markIn(false);
   window.location.assign(`${AUTHORITY}/logout?post_logout_redirect_uri=${encodeURIComponent(redirectUri())}`);
 }
