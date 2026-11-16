@@ -4732,9 +4732,9 @@ html[data-pflat] .page-tabs, .practice-strip, .p-strip > .practice-strip { anima
    you arrive at drops down into it. Changing page inside a workspace stays instant. */
 @media (min-width: 721px) {
   .band-slot.mode-leave, .adv-band.mode-leave, .work-strip.out > .work-client {
-    animation: mode-up 0.45s cubic-bezier(.4, 0, .6, 1) both !important; pointer-events: none; }
+    animation: mode-up 0.9s cubic-bezier(.4, 0, .6, 1) both !important; pointer-events: none; }
   .band-slot.mode-enter, .adv-band.mode-enter, .work-strip.in > .work-client {
-    animation: mode-down 0.45s cubic-bezier(.2, .8, .2, 1) both !important; }
+    animation: mode-down 0.9s cubic-bezier(.2, .8, .2, 1) both !important; }
   .work-strip.out > .work-client { display: flex !important; }
 }
 @keyframes mode-up { from { transform: none; opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }

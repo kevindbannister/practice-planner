@@ -244,7 +244,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
     setBarHold(true);
     // the bar turns back to Practice at the same time as the strip goes up
     const b = window.setTimeout(() => setBarHold(false), 0);
-    const t = window.setTimeout(() => setStrip(""), 900);
+    const t = window.setTimeout(() => setStrip(""), 1000);
     return () => { window.clearTimeout(b); window.clearTimeout(t); };
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
   // remember the page for its workspace (shared pages such as Clients leave the workspace as it is)
@@ -263,7 +263,7 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
     if (lastBand.current === bandNow) return;
     setSwap({ from: lastBand.current });
     lastBand.current = bandNow;
-    const t = window.setTimeout(() => setSwap(null), 900);
+    const t = window.setTimeout(() => setSwap(null), 1000);
     return () => window.clearTimeout(t);
   }, [bandNow]);
   // the views of the line being left stay as they were, so the line does not change while it slides away
