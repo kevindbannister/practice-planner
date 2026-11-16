@@ -4629,3 +4629,12 @@ html[data-advisory] .chip:not(.blue) { background: color-mix(in srgb, var(--adv-
     border-bottom: 1px solid var(--sep); box-shadow: 0 6px 16px rgba(23, 38, 58, 0.07); }
 }
 html[data-pflat]:not([data-work]):not([data-advisory]) :is(.page, .plan, .split-main):has(> .page-tabs) { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+
+/* V34.9: the full-width Practice bar is glass again (the page's gradient shows through it) and the page content sits lower under the views band, as in Work */
+@media (min-width: 721px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
+    background: rgba(255, 255, 255, 0.68); background-color: rgba(255, 255, 255, 0.68); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 6px 22px rgba(23, 38, 58, 0.08); }
+  html[data-pflat]:not([data-work]):not([data-advisory]) .page-tabs { margin-bottom: 34px; }
+}
+:root[data-theme="dark"] html[data-pflat] .topbar.mode-bar:not(.mode-work), :root[data-theme="dark"][data-pflat] .topbar.mode-bar:not(.mode-work) { background: rgba(20, 32, 48, 0.72); background-color: rgba(20, 32, 48, 0.72); }
