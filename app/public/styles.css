@@ -4167,3 +4167,10 @@ html[data-sheet] .plan .page-head h1 { font-size: 28px; line-height: 1.15; }
 
 /* V32.9: in Practice the soft blue and lavender gradient is back behind the white sheet; Work keeps its plain grey */
 html[data-sheet]:not([data-work]) body { background: var(--bg-glow), var(--ground); background-attachment: fixed; }
+
+/* V33.0: on a phone (or any narrow window) the pages keep their white sheet too, so the gradient only shows around it */
+@media (max-width: 720px) {
+  html[data-sheet] .page:not(.paper-page):not(.home), html[data-sheet] .plan { max-width: none; margin: 10px 0 0; padding: 18px 14px 40px; background: var(--surface);
+    border-radius: 22px 22px 0 0; min-height: calc(100vh - 80px); box-sizing: border-box; box-shadow: 0 -1px 0 rgba(23, 38, 58, 0.06), 0 -6px 20px rgba(23, 38, 58, 0.05); }
+  html[data-sheet] .page:not(.home) .card, html[data-sheet] .page:not(.home) .tile, html[data-sheet] .plan .card { background: var(--surface); border: 1px solid var(--sep); box-shadow: 0 1px 2px rgba(23, 38, 58, 0.05); }
+}
