@@ -4815,3 +4815,10 @@ html[data-trial="client"][data-sheet]:not([data-work]) body { background: #E7EBF
   :root[data-theme="dark"][data-trial="client"][data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
     background: linear-gradient(95deg, #14506e 0%, #2b2d6b 100%); background-color: #1f3f6b; }
 }
+
+/* V35.21: on the client page copy the second line is solid white. Over the grey canvas the slightly see-through line came out a
+   dull grey-white; the original page shows a pale blue-white because the gradient is behind it. */
+@media (min-width: 721px) {
+  html[data-trial="client"][data-pflat]:not([data-work]):not([data-advisory]) .band-slot {
+    background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 1px solid var(--sep); }
+}
