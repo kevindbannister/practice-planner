@@ -4638,3 +4638,12 @@ html[data-pflat]:not([data-work]):not([data-advisory]) :is(.page, .plan, .split-
   html[data-pflat]:not([data-work]):not([data-advisory]) .page-tabs { margin-bottom: 34px; }
 }
 :root[data-theme="dark"] html[data-pflat] .topbar.mode-bar:not(.mode-work), :root[data-theme="dark"][data-pflat] .topbar.mode-bar:not(.mode-work) { background: rgba(20, 32, 48, 0.72); background-color: rgba(20, 32, 48, 0.72); }
+
+/* V35.0: in the full-width Practice bar the views band never moves: it is fixed under the bar (the page no longer carries it up
+   and down), and when you change page its labels fade over, like the top menu */
+@media (min-width: 721px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .page-tabs { position: fixed; top: 68px; left: 0; right: 0; width: auto; margin: 0; z-index: 19; animation: pt-fade 0.28s ease both; }
+  html[data-pflat]:not([data-work]):not([data-advisory]) :is(.page, .plan, .split-main):has(> .page-tabs) { padding-top: 90px; }
+  @keyframes pt-fade { from { opacity: 0; } to { opacity: 1; } }
+}
+@media (prefers-reduced-motion: reduce) { html[data-pflat] .page-tabs { animation: none; } }
