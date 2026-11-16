@@ -65,6 +65,7 @@ const ChecklistsPage = page(() => import("./Checklists").then((m) => m.Checklist
 const PortalPage = page(() => import("./PortalAdmin").then((m) => m.PortalPage));
 const DevHubPage = page(() => import("./DevHub").then((m) => m.DevHubPage));
 const ClientPage = page(() => import("./ClientPage").then((m) => m.ClientPage));
+const ClientPageCopy = page(() => import("./ClientPageCopy").then((m) => m.ClientPageCopy));
 const ClientsPage = page(() => import("./ClientsPage").then((m) => m.ClientsPage));
 const SetupPage = page(() => import("./SetupPage").then((m) => m.SetupPage));
 const PlanPage = page(() => import("./PlanPage").then((m) => m.PlanPage));
@@ -130,6 +131,8 @@ export function App({ demo }: { demo: boolean }) {
     body = <SetupPage />;
   } else if (section === "clients" && parts[1] === "all") {
     body = <ClientsPage />;
+  } else if (section === "client-copy" && parts[1]) {
+    body = <ClientPageCopy clientKey={parts[1]} tab={(["work", "tasks", "papers", "numbers", "comms", "meetings", "tax", "activity", "timeline", "signing", "invoices", "clearance", "disengage", "aml", "forms", "portal"].includes(parts[2]) ? parts[2] : "overview") as "overview"} />;
   } else if (section === "clients" && parts[1]) {
     body = <ClientPage clientKey={parts[1]} tab={(["work", "tasks", "papers", "numbers", "comms", "meetings", "tax", "activity", "timeline", "signing", "invoices", "clearance", "disengage", "aml", "forms", "portal"].includes(parts[2]) ? parts[2] : "overview") as "overview"} />;
   } else if (section === "groups" || section === "clients") {
@@ -259,10 +262,10 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
   const area = AREAS.find((a) => a.id === (shown || here || picked)) || AREAS[0];
   const current = navKeyOf(section);
   const pickArea = (id: AreaId) => { setShown(id); setPicked(id); try { localStorage.setItem("pp.nav.area", id); } catch { /* fine */ } };
-  const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
+  const ICONS: Record<string, IconName> = { plan: "plan", clients: "clients", "client-copy": "clients", sales: "chart", comms: "mail", practice: "layout", aml: "scale", papers: "list", tax: "calc", payroll: "coins", cosec: "building", reporting: "chart", advisory: "flag", taxplan: "calc" };
   const AREA_ICONS: Record<AreaId, IconName> = { run: "layout", deliver: "check", grow: "chart" };
   const phoneMods = modeModules(menuKind, mode);
-  const ICON_TITLES: Record<string, string> = { "": "Home" };
+  const ICON_TITLES: Record<string, string> = { "": "Home", "client-copy": "Clients" };
   const PHONE_LABELS: Record<string, string> = { papers: "Papers", advisory: "Plans", practice: "Practice", taxplan: "Tax plan", reporting: "Reports" };
   return (
     <>

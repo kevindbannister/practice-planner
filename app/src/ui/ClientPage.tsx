@@ -96,6 +96,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
             {(idx.groupsByMember.get(c.Key) || []).map((g) => (
               <span key={g.Key} className="chip blue">{g.Title}</span>
             ))}
+            <a className="chip" href={href("client-copy", c.Key)}>Preview the new look</a>
           </div>
         </div>
         <div className="row-wrap client-head-actions">

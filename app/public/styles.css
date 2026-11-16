@@ -4801,3 +4801,17 @@ html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: none !i
 .page-tabs-nav { position: relative; }
 :root[data-theme="dark"] .advl-link[aria-current] { background: rgba(255, 255, 255, 0.16); color: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .advl-link[aria-current] { background: rgba(255, 255, 255, 0.16); color: #fff; } }
+
+/* V35.19: the client page copy (#/client-copy/<client>) tries a different look: the soft blue-to-lavender gradient that used
+   to glow behind Practice pages now colours the top bar itself, and the page sits on Work's plain grey canvas with the white
+   second line and white sheet. Only this page asks for it (html[data-trial="client"]); the rest of Practice is unchanged. */
+html[data-trial="client"][data-sheet]:not([data-work]) body { background: #E7EBF0; }
+:root[data-theme="dark"][data-trial="client"][data-sheet]:not([data-work]) body { background: #0b1522; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-trial="client"][data-sheet]:not([data-work]) body { background: #0b1522; } }
+@media (min-width: 721px) {
+  html[data-trial="client"][data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
+    background: linear-gradient(95deg, #BEEAFC 0%, #D6D7FA 100%); background-color: #CBE0FB;
+    -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: var(--bar-edge); }
+  :root[data-theme="dark"][data-trial="client"][data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
+    background: linear-gradient(95deg, #14506e 0%, #2b2d6b 100%); background-color: #1f3f6b; }
+}
