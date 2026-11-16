@@ -4289,3 +4289,24 @@ html[data-sheet]:not([data-work]) body {
   .p-strip > .practice-strip .paper-top-icon { background: color-mix(in srgb, var(--navy) 8%, transparent); }
 }
 :root[data-theme="dark"] .p-strip > .practice-strip.paper-top { border-color: var(--glass-line); }
+
+/* V33.6: the strip unfolds out of the rounded menu. The menu's bottom corners square off as the strip opens
+   downwards beneath it (the page moves down with it), and going into Work it folds back up into the menu. */
+@media (min-width: 721px) {
+  html:not([data-work]) .topbar.mode-bar:not(.mode-work) { border-radius: 35px; }
+  html:not([data-work]) .topbar.mode-bar:not(.mode-work):has(+ .p-strip) { border-radius: 35px 35px 0 0; }
+  html:not([data-work]) .topbar.mode-bar:not(.mode-work):has(+ .p-strip.out) { border-radius: 35px; }
+  .p-strip.in > .practice-strip.paper-top { animation: ps-unfold 0.7s cubic-bezier(.2, .8, .2, 1) both; animation-delay: 0s; overflow: hidden; }
+  .p-strip.out > .practice-strip.paper-top { animation: ps-fold 0.6s cubic-bezier(.4, 0, .6, 1) both; margin-bottom: 0; overflow: hidden; }
+}
+@keyframes ps-unfold {
+  from { height: 0; min-height: 0; opacity: 0; border-bottom-left-radius: 35px; border-bottom-right-radius: 35px; }
+  35% { opacity: 1; }
+  to { height: 56px; min-height: 56px; opacity: 1; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; }
+}
+@keyframes ps-fold {
+  from { height: 56px; min-height: 56px; opacity: 1; }
+  70% { opacity: 1; }
+  to { height: 0; min-height: 0; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .p-strip.in > .practice-strip.paper-top, .p-strip.out > .practice-strip.paper-top { animation: none; } }

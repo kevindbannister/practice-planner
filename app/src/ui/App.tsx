@@ -240,8 +240,13 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
     const t = window.setTimeout(() => setStrip(""), 900);
     return () => { window.clearTimeout(b); window.clearTimeout(t); };
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
-  // in Practice, the section strip comes down once the client strip has gone up (and goes up as Work comes in)
-  const [pstrip, setPstrip] = useState<"" | "on" | "in" | "out">(toggle && !work ? "on" : "");
+  // in Practice, the section strip unfolds out of the menu: the rounded menu shows on its own first, then the strip
+  // opens downwards from it (when the app opens, and when coming back from Work once the client strip has gone up)
+  const [pstrip, setPstrip] = useState<"" | "on" | "in" | "out">(() => {
+    let seen = false;
+    try { seen = sessionStorage.getItem("pp.menu.unfolded") === "1"; } catch { /* first time */ }
+    return toggle && !work && seen ? "on" : "";
+  });
   useEffect(() => {
     if (!toggle) { setPstrip(""); return; }
     if (work) {
@@ -249,8 +254,13 @@ function TopBar({ section, routeKey, demo, ready, scrolls = false }: { section: 
       const t = window.setTimeout(() => setPstrip(""), 900);
       return () => window.clearTimeout(t);
     }
-    if (!strip) setPstrip((p) => (p === "on" ? "on" : "in"));
-  }, [toggle, work, strip]);
+    if (strip) return;
+    const t = window.setTimeout(() => {
+      setPstrip((p) => (p === "on" ? "on" : "in"));
+      try { sessionStorage.setItem("pp.menu.unfolded", "1"); } catch { /* fine */ }
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [toggle, work, strip]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { rememberPage(section); }, [section, routeKey]);
   useEffect(() => { document.documentElement.toggleAttribute("data-work", work); }, [work]);
   // the sheet design (grey background, white sheet, navy table headings) is used in both Practice and Work
