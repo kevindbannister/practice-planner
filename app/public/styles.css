@@ -4164,3 +4164,6 @@ html[data-work-in] .paper-page .paper-top:not(.work-client) { animation: wc-down
     box-shadow: 0 -1px 0 rgba(23, 38, 58, 0.06), 0 -6px 24px rgba(23, 38, 58, 0.05); min-height: calc(100vh - 100px); }
 }
 html[data-sheet] .plan .page-head h1 { font-size: 28px; line-height: 1.15; }
+
+/* V32.9: in Practice the soft blue and lavender gradient is back behind the white sheet; Work keeps its plain grey */
+html[data-sheet]:not([data-work]) body { background: var(--bg-glow), var(--ground); background-attachment: fixed; }
