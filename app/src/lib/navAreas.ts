@@ -155,6 +155,7 @@ export function effectiveMode(p: NavPrefs, section: string, three = true): Mode 
 
 /** Notes a page visit. Returns the same object when nothing changed, so nothing is saved for it. */
 export function noteVisit(p: NavPrefs, section: string, hash: string, now: string): NavPrefs {
+  if (section === "client-copy") return p; // trying the copy must not change which workspace is remembered
   const m = modeOfSection(section);
   if (!m) return p;
   const at = hash && hash.startsWith("#") ? hash : WORKSPACES[m].home;

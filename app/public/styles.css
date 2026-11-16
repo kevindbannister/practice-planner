@@ -4810,10 +4810,10 @@ html[data-trial="client"][data-sheet]:not([data-work]) body { background: #E7EBF
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"])[data-trial="client"][data-sheet]:not([data-work]) body { background: #0b1522; } }
 @media (min-width: 721px) {
   html[data-trial="client"][data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
-    background: linear-gradient(95deg, #BEEAFC 0%, #D6D7FA 100%); background-color: #CBE0FB;
+    background: linear-gradient(95deg, #E7FAFF 0%, #F2F8FE 50%, #F2F3FF 100%); background-color: #EEF6FE;
     -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: var(--bar-edge); }
   :root[data-theme="dark"][data-trial="client"][data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) {
-    background: linear-gradient(95deg, #14506e 0%, #2b2d6b 100%); background-color: #1f3f6b; }
+    background: linear-gradient(95deg, #10293b 0%, #1a2145 100%); background-color: #152a40; }
 }
 
 /* V35.21: on the client page copy the second line is solid white. Over the grey canvas the slightly see-through line came out a

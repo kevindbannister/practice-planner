@@ -1,5 +1,5 @@
 // A copy of the client page (ClientPage.tsx) to try a different look: a gradient top bar, the white second line and the grey
-// canvas as in Work. It lives at #/client-copy/<client>, keeps you inside the copy as you move between its tabs, and can be
+// canvas as in Work. It lives at #/client-copy/<client>, keeps you inside the copy as you move between its tabs (its look is switched on by TopBar in App.tsx), and can be
 // changed freely without touching the real client page.
 import { startJobRow } from "../lib/onboarding";
 import { ClientWorkOverview } from "./ClientWorkOverview";
@@ -8,7 +8,7 @@ import { CustomDetailsCard } from "./CustomFields";
 import { XamaClientPanel } from "./XamaClientPanel";
 import { CisCard } from "./CisCard";
 import { cisStatus } from "../lib/cis";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useRef, useState } from "react";
 import {
   Client, IMPORTANCE, Importance, Job, KIND_LABEL, holdLabel, importanceLabel, importanceOf, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
 } from "../lib/domain";
@@ -63,8 +63,6 @@ export function ClientPageCopy({ clientKey, tab }: { clientKey: string; tab: "ov
   const owingCount = allData.taxPayments.filter((p) => p.ClientKey === clientKey && !p.PaidOn && Number(p.Amount) > 0).length;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [arrangeTick, setArrangeTick] = useState(0);
-  // the page asks for its own look (see html[data-trial="client"] in styles.css) while it is on screen
-  useEffect(() => { document.documentElement.setAttribute("data-trial", "client"); return () => document.documentElement.removeAttribute("data-trial"); }, []);
   const c = idx.clientByKey.get(clientKey);
   if (!c) {
     return (
