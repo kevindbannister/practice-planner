@@ -1,6 +1,7 @@
 // Home: the first screen. What needs you today, what's due soon, how full your time is,
 // and anything waiting for a decision. Each panel links through to the screen with the detail.
 import { ChecklistsHomeCard } from "./Checklists";
+import { HomeWork } from "./HomeWork";
 import { useMemo } from "react";
 import { chaseItems, groupByClient } from "../lib/chase";
 import { Job, Task, fmtDate, fmtHours, holdAlert, isOnHold, jobState, todayIso } from "../lib/domain";
@@ -179,6 +180,8 @@ export function HomePage() {
           <Tile href="#/plan" tone={doneThisWeek ? "green" : ""} label="Done this week" icon="check" hue="hue-green" value={String(doneThisWeek)} sub="jobs and tasks completed" />
         </div>
       </section>
+
+      <HomeWork />
 
       <div className="home-g2">
         <section className="card" aria-labelledby="today-h">

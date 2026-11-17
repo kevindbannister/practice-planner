@@ -42,6 +42,7 @@ import { XeroInvoices } from "./XeroInvoices";
 import { ClearanceCard, ClearanceTab } from "./Clearance";
 import { latest as latestClearance } from "../lib/clearance";
 import { AddEmpty, openAddField } from "./AddEmpty";
+import { useStaff } from "./staffKit";
 import { DisengageTab } from "./Disengage";
 import { AmlCard, AmlTab } from "./AmlTab";
 import { TaxRefsCard } from "./TaxRefs";
@@ -673,6 +674,29 @@ function WorkTab({ client: c, jobs }: { client: Client; jobs: Job[] }) {
   );
 }
 
+/** Who does one stage of a client's work: a pick from the practice's people, saved for this client. */
+function StageWho({ job: j, stageNo, row, fallback }: { job: Job; stageNo: number; row?: Row; fallback?: string }) {
+  const { create, update } = useData();
+  const staff = useStaff();
+  const [busy, setBusy] = useState(false);
+  const who = String(row?.Who || "");
+  if (!staff.names.length) return <>{who || fallback || "—"}</>;
+  const set = async (v: string) => {
+    setBusy(true);
+    try {
+      if (row) await update("ClientServiceStages", row, { Who: v });
+      else await create("ClientServiceStages", { Key: newKey("CS"), ClientKey: j.ClientKey, ServiceKey: j.ServiceKey, StageNo: stageNo, Who: v });
+    } finally { setBusy(false); }
+  };
+  return (
+    <select className="input" style={{ minHeight: 32, padding: "2px 8px", width: "auto" }} value={who} disabled={busy} aria-label={`Who does stage ${stageNo}`} onChange={(e) => void set(e.target.value)}>
+      <option value="">{fallback ? `${fallback} (the usual for this work)` : "Not assigned"}</option>
+      {staff.names.map((n) => <option key={n} value={n}>{n}</option>)}
+      {who && !staff.names.includes(who) && <option value={who}>{who}</option>}
+    </select>
+  );
+}
+
 function JobCard({ job: j }: { job: Job }) {
   const { data, update } = useData();
   const [saving, setSaving] = useState(false);
@@ -762,7 +786,7 @@ function JobCard({ job: j }: { job: Job }) {
                           {(t.StageNo as number) === current ? <strong style={{ color: "var(--blue-ink)" }}>{t.Title}</strong> : t.Title}
                           {s?.BillingPoint ? <span className="chip" style={{ marginLeft: 6 }}>Invoice</span> : null}
                         </td>
-                        <td>{(s?.Who as string) || "—"}</td>
+                        <td><StageWho job={j} stageNo={t.StageNo as number} row={s} fallback={String(t.DefaultWho || "")} /></td>
                         <td className="mono">{fmtHours(s?.BudgetHours as number) || "—"}</td>
                       </tr>
                     );

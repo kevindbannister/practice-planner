@@ -27,6 +27,8 @@ import { can as canDo } from "../lib/checklist";
 import { useChecklists } from "./checklistKit";
 import { JobChecklistLine, useJobBlockers } from "./JobChecklist";
 import { useData, useIndex } from "./data";
+import { useStaff } from "./staffKit";
+import { ownerOf } from "../lib/jobBands";
 
 type Open =
   | { kind: "job"; key: string }
@@ -162,6 +164,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const [fin, setFin] = useState("");
   const askRef = useRef<HTMLDivElement>(null);
   const gate = useJobBlockers(jobKey);
+  const staff = useStaff();
   const afterJob = useTemplatesForNewJob();
   const checks = useChecklists();
   const [why, setWhy] = useState("");
@@ -313,6 +316,14 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
           <button type="button" className="btn small" onClick={() => save({ PlannedDate: job.SuggestedSlot, DayOrder: "" })}>Plan for then</button>
         </div>
       )}
+      <label className="stack" style={{ gap: 4, fontSize: 13 }}>
+        Owner
+        <select className="input" value={String(job.Owner || "")} onChange={(e) => save({ Owner: e.target.value })} aria-label="Who owns this job">
+          <option value="">{ownerOf({}, data.clients.find((c) => c.Key === job.ClientKey)) ? `${ownerOf({}, data.clients.find((c) => c.Key === job.ClientKey))} (the client's manager)` : "Not set"}</option>
+          {staff.names.map((n) => <option key={n} value={n}>{n}</option>)}
+          {job.Owner && !staff.names.includes(String(job.Owner)) && <option value={String(job.Owner)}>{String(job.Owner)}</option>}
+        </select>
+      </label>
       <label className="row-wrap" style={{ gap: 8, fontSize: 15 }}>
         <input type="checkbox" checked={job.Priority === "urgent"} onChange={(e) => save({ Priority: e.target.checked ? "urgent" : "" })} style={{ width: 18, height: 18 }} />
         Urgent

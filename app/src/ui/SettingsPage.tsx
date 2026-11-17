@@ -23,6 +23,7 @@ import { FirmSettings } from "./FirmSettings";
 // due, default hours and its stages); and Companies House checks.
 import React, { useEffect, useRef, useState } from "react";
 import { fmtDate, fmtHours, todayIso } from "../lib/domain";
+import { DEFAULT_SOON, DEFAULT_VERY_SOON } from "../lib/jobBands";
 import {
   BUILT_IN_RULES, DEFAULT_HOURS, Hours, Rule, deadlineByRule, describeRule, newKey, nextPeriod, planDateFor, ruleFields, ruleFor,
 } from "../lib/planning";
@@ -676,6 +677,8 @@ function StagesCard({ service }: { service: string }) {
         The steps this work goes through, shown on every job. Drag a stage by its handle to change the order, or use the arrows.
         Rename a stage by editing it; it saves when you leave the box. Mark the stage where the work is with the client
         (such as sent for approval) as "With client": the job comes off the plan until you speak to them, then comes back to finalise.
+        Under each stage, set how many days before the deadline work at that stage counts as "due very soon" and as "due soon" on the Home page
+        (left blank they use {DEFAULT_VERY_SOON} and {DEFAULT_SOON}).
         {inUse.length ? ` ${inUse.length} open job${inUse.length === 1 ? "" : "s"} use these stages and stay on the same stage when you re-order.` : ""}
       </p>
       <ol className="stage-edit" ref={listRef}>
@@ -721,6 +724,7 @@ function StagesCard({ service }: { service: string }) {
                 <Icon name="close" size={14} />
               </button>
             </span>
+            <StageDays stage={st} onSave={(patch) => update("StageTemplates", st, patch)} />
           </li>
         ))}
         {!stages.length && <li className="muted">No stages yet. Add the first one below.</li>}
@@ -735,6 +739,30 @@ function StagesCard({ service }: { service: string }) {
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
     </section>
+  );
+}
+
+/** How many days before the deadline work at this stage counts as "due very soon" and as "due soon" on the Home work tiles. */
+function StageDays({ stage, onSave }: { stage: Row; onSave: (patch: Row) => Promise<unknown> }) {
+  const [vs, setVs] = useState(String(stage.VerySoonDays ?? ""));
+  const [so, setSo] = useState(String(stage.SoonDays ?? ""));
+  const [error, setError] = useState("");
+  const commit = (field: "VerySoonDays" | "SoonDays", raw: string) => {
+    const t = raw.trim();
+    const n = t === "" ? "" : Math.max(0, Math.floor(Number(t)));
+    if (n !== "" && !Number.isFinite(n)) { setError("Use a number of days."); return; }
+    setError("");
+    if (String(n) === String(stage[field] ?? "")) return;
+    onSave({ [field]: n }).catch(() => setError("Couldn't save that change."));
+  };
+  return (
+    <span className="stage-days">
+      <label>Very soon <input className="input" type="number" min={0} inputMode="numeric" placeholder={String(DEFAULT_VERY_SOON)} value={vs} aria-label={`${stage.Title}: due very soon, days before the deadline`}
+        onChange={(e) => setVs(e.target.value)} onBlur={() => commit("VerySoonDays", vs)} /> days</label>
+      <label>Due soon <input className="input" type="number" min={0} inputMode="numeric" placeholder={String(DEFAULT_SOON)} value={so} aria-label={`${stage.Title}: due soon, days before the deadline`}
+        onChange={(e) => setSo(e.target.value)} onBlur={() => commit("SoonDays", so)} /> days</label>
+      {error && <span className="error-text" role="alert">{error}</span>}
+    </span>
   );
 }
 

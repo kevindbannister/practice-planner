@@ -545,6 +545,14 @@
      "type": "bool"
     },
     {
+     "name": "VerySoonDays",
+     "type": "number"
+    },
+    {
+     "name": "SoonDays",
+     "type": "number"
+    },
+    {
      "name": "PracticeId",
      "type": "text"
     }
@@ -699,6 +707,10 @@
     },
     {
      "name": "StageName",
+     "type": "text"
+    },
+    {
+     "name": "Owner",
      "type": "text"
     },
     {

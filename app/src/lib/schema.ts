@@ -68,7 +68,7 @@ export const LISTS: ListDef[] = [
   },
   {
     key: "StageTemplates", displayName: "PP Stage Templates", description: "Practice Planner: default stages per type of work",
-    columns: [t("Key", true), t("ServiceKey", true), n("StageNo"), t("DefaultWho"), n("DefaultBudget"), b("BillingPoint"), b("WaitClient"), t("PracticeId", true),
+    columns: [t("Key", true), t("ServiceKey", true), n("StageNo"), t("DefaultWho"), n("DefaultBudget"), b("BillingPoint"), b("WaitClient"), n("VerySoonDays"), n("SoonDays"), t("PracticeId", true),
     ],
   },
   {
@@ -89,7 +89,7 @@ export const LISTS: ListDef[] = [
     key: "Jobs", displayName: "PP Jobs", description: "Practice Planner: open jobs",
     columns: [
       t("Key", true), t("ClientKey", true), t("ClientName"), t("ServiceKey"), t("PeriodEnd"),
-      n("StageNo"), t("StageName"), t("RecordsExpected"), t("RecordsReceived"), t("PlannedDate", true),
+      n("StageNo"), t("StageName"), t("Owner"), t("RecordsExpected"), t("RecordsReceived"), t("PlannedDate", true),
       n("EstimateHours"), t("InternalDeadline"), t("Deadline", true), t("DeadlineSource"), t("CHDeadline"),
       t("SuggestedSlot"), t("LastCompleted"), t("Priority"), t("Status"), t("CompletedDate"),
       n("ActualHours"), n("RemainingHours"), n("ReadyHours"), t("ReadyNote"), n("Fee"), t("FeePeriod"), t("Source"), t("EngagerClient"), note("Notes"),
