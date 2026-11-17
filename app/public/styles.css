@@ -4861,3 +4861,15 @@ html[data-sheet][data-theme="dark"]:not([data-work]):not([data-advisory]), html[
 .attention-list > li { flex-wrap: nowrap; white-space: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
 .attention-list > li::-webkit-scrollbar { display: none; }
 .attention-list > li > .row-wrap { flex-wrap: nowrap; }
+
+/* V35.29: the client page on a phone. The header buttons wrap onto their own rows, and the section tabs scroll sideways inside
+   their row (with the settings and arrange icons kept in place), so the page itself never scrolls sideways. */
+@media (max-width: 720px) {
+  .client-head { flex-wrap: wrap; }
+  .client-head-actions { flex-wrap: wrap; margin-left: 0; width: 100%; }
+  .tabs-row { flex-wrap: nowrap; align-items: center; min-width: 0; }
+  .tabs-row > .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .tabs-row > .tabs::-webkit-scrollbar { display: none; }
+  .tabs-row > .tabs a { flex: none; white-space: nowrap; }
+  .tabs-row > .tabs-tools { flex: none; }
+}
