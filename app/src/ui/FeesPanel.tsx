@@ -57,6 +57,25 @@ export function ClientFees({ client }: { client: Row }) {
   };
   const doW = (w: { error: string } | Parameters<typeof s.apply>[0], ok?: string) => run(async () => ("error" in w ? w : s.apply(w)), ok);
   if (!s.can("view") && !rows.length) return null;
+  // nothing agreed, charged, costed or changed yet: one short line and the two ways to start, instead of five empty sections
+  if (!lines.length && !charges.length && !costs.length && !history.length && !unapplied.length) {
+    return (
+      <section className="card pad stack" aria-label="Fee schedule" style={{ gap: 10 }}>
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+          <h2 className="sec-h">Fee schedule</h2>
+          <span className="muted">No fees agreed yet</span>
+        </div>
+        {err && <p role="alert" style={{ color: "var(--red-ink)", margin: 0 }}>{err}</p>}
+        {note && <p role="status" style={{ margin: 0 }}>{note}</p>}
+        {f.can ? (
+          <div className="row-wrap" style={{ gap: 8 }}>
+            <AddCharge disabled={busy} onAdd={(c) => doW(addCharge(client, c, s.pcan, s.ctx()), "Charge added.")} />
+            <AddCost disabled={busy} onAdd={(c) => doW(addCost(client, c, s.pcan, s.ctx()), "Cost added.")} />
+          </div>
+        ) : <p className="muted" style={{ margin: 0 }}>Only a manager or partner can change fees and costs.</p>}
+      </section>
+    );
+  }
   return (
     <section className="card pad stack" aria-label="Fee schedule" style={{ gap: 10 }}>
       <div className="row-wrap" style={{ justifyContent: "space-between" }}>

@@ -17,7 +17,7 @@ export const MODULE_LABELS: Record<string, string> = {
 
 /** The menu item a page belongs to: some screens sit under another item. */
 export function navKeyOf(section: string): string {
-  if (section === "groups" || section === "client-copy") return "clients";
+  if (section === "groups") return "clients";
   if (section === "compliance") return "practice";
   if (section === "chase") return "plan";
   if (section === "checklists" || section === "portal") return "settings";
@@ -90,7 +90,6 @@ export function sectionOfHash(hash: string): string {
 /** The workspace a page belongs to. Shared pages (Clients, Settings and so on) belong to none: they keep whichever
  *  workspace you were in. With `three` false (the older two-way switch) Advisory's pages count as Work. */
 export function modeOfSection(section: string, three = true): Mode | undefined {
-  if (section === "client-copy") return "practice"; // the copy has its own Practice-style look in every workspace
   if (section === "clients" || section === "groups") return undefined;
   for (const m of MODES) if (WORKSPACES[m].homeSection === section) return !three && m === "advisory" ? "work" : m;
   const a = areaOf(section);
@@ -155,7 +154,6 @@ export function effectiveMode(p: NavPrefs, section: string, three = true): Mode 
 
 /** Notes a page visit. Returns the same object when nothing changed, so nothing is saved for it. */
 export function noteVisit(p: NavPrefs, section: string, hash: string, now: string): NavPrefs {
-  if (section === "client-copy") return p; // trying the copy must not change which workspace is remembered
   const m = modeOfSection(section);
   if (!m) return p;
   const at = hash && hash.startsWith("#") ? hash : WORKSPACES[m].home;

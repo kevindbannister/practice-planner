@@ -293,7 +293,6 @@ function QuickLook({ client: c, onClose }: { client: Client; onClose: () => void
 
       <div className="stack" style={{ gap: 8, marginTop: "auto" }}>
         <a className="btn primary" href={href("clients", c.Key)}>Open full client</a>
-        <a className="btn" href={href("client-copy", c.Key)} title="Open the full client page with the new look: gradient top bar, white second line, grey canvas">Open full client, new look</a>
         <div className="row-wrap">
           <a className="btn" style={{ flex: 1 }} href={href("clients", c.Key, "work")}>Work</a>
           {ch && <a className="btn" style={{ flex: 1 }} href={ch} target="_blank" rel="noreferrer">Companies House</a>}

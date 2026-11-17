@@ -4841,3 +4841,17 @@ html[data-sheet]:not([data-work]):not([data-advisory]) { background: #F4F6F9; }
 html[data-sheet][data-work], html[data-sheet][data-advisory] { background: #E7EBF0; }
 html[data-sheet][data-theme="dark"]:not([data-work]):not([data-advisory]), html[data-sheet][data-theme="dark"][data-work], html[data-sheet][data-theme="dark"][data-advisory] { background: #0b1522; }
 @media (prefers-color-scheme: dark) { html[data-sheet]:not([data-theme="light"]) { background: #0b1522; } }
+
+/* V35.27: client page. The "Needs attention" strip (one box instead of three) and the folded "Not set up yet" group. */
+.attention-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.attention-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+.attention-list a, .attention-list .linkbtn { font-size: inherit; }
+.empty-group > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; cursor: pointer; }
+.empty-group > summary h2 { margin: 0; }
+.empty-group .card { box-shadow: none; background: transparent; border: 1px solid var(--sep); }
+.empty-group .stack > div + div { margin-top: 0; }
+.attention-list { gap: 6px; font-size: 14px; }
+.attention-list li { gap: 0 14px; line-height: 1.35; }
+.attention-list .linkbtn { font: inherit; padding: 0; min-height: 0; }
+.attention-list a { font: inherit; }
+.attention-list a, .attention-list .linkbtn { color: var(--blue); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }

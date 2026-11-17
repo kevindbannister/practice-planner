@@ -6,9 +6,9 @@ import { CustomDetailsCard } from "./CustomFields";
 import { XamaClientPanel } from "./XamaClientPanel";
 import { CisCard } from "./CisCard";
 import { cisStatus } from "../lib/cis";
-import { ReactNode, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import {
-  Client, IMPORTANCE, Importance, Job, KIND_LABEL, holdLabel, importanceLabel, importanceOf, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, todayIso,
+  Client, IMPORTANCE, Importance, Job, KIND_LABEL, holdLabel, importanceLabel, importanceOf, isOnHold, amlLabel, contactName, fmtDate, fmtHours, fmtMoney, jobState, loeLabel, recordGaps, GAP_FIELD, todayIso,
 } from "../lib/domain";
 import { Row } from "../lib/schema";
 import { newKey } from "../lib/planning";
@@ -40,6 +40,8 @@ import { ClientFees } from "./FeesPanel";
 import { SigningRequests } from "./SigningRequests";
 import { XeroInvoices } from "./XeroInvoices";
 import { ClearanceCard, ClearanceTab } from "./Clearance";
+import { latest as latestClearance } from "../lib/clearance";
+import { AddEmpty, openAddField } from "./AddEmpty";
 import { DisengageTab } from "./Disengage";
 import { AmlCard, AmlTab } from "./AmlTab";
 import { TaxRefsCard } from "./TaxRefs";
@@ -78,6 +80,10 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
   const amlPos = amlPosition(c as never, allData.amlAssessments, allData.onboardings, todayIso());
   const amlAlert = amlPos.state === "overdue" || amlPos.state === "soon" || amlPos.state === "stopped" || ((amlPos.state === "none" || amlPos.state === "declined" || amlPos.state === "inprogress") && aml.warn);
   const loe = loeLabel(c.LoEStatus);
+  const gaps = recordGaps(c, idx.servicesByClient.get(c.Key) || new Set());
+  const amlSerious = amlPos.state === "overdue" || amlPos.state === "stopped";
+  const amlText = amlPos.state === "stopped" ? "AML: due diligence could not be completed. Don't do work for this client" : amlPos.state === "overdue" ? "AML review overdue" : amlPos.state === "soon" ? "AML review due soon" : `AML: ${amlPos.state === "none" ? "no assessment" : amlPos.state === "inprogress" ? "assessment in progress" : "not approved"}`;
+  const showCard = (id: string) => window.dispatchEvent(new CustomEvent("pp-show-card", { detail: { id } }));
 
   return (
     <div className="page client-page">
@@ -99,14 +105,13 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
           </div>
         </div>
         <div className="row-wrap client-head-actions">
-          <a className="btn" href={href("client-copy", c.Key)} title="Open a copy of this page with the new look: gradient top bar, white second line, grey canvas"><Icon name="layout" size={16} /> New look</a>
           <a className="btn" href={href("advisory", c.Key)} title="Open this client's Freedom Plan to go through with them"><Icon name="flag" size={16} /> Advisory</a>
-          {!(c.Kind === "Ltd" || c.Kind === "LLP" || c.CompanyNumber) && <a className="btn" href={href("tax", c.Key)} title="Self Assessment return and tax computation">Tax return</a>}
-          {(c.Kind === "Ltd" || (!!c.CompanyNumber && c.Kind !== "LLP")) && <a className="btn" href={href("taxplan", c.Key)} title="Salary and dividend planning for the directors and shareholders">Tax planning</a>}
-          {(c.Kind === "Ltd" || c.Kind === "LLP" || !!c.CompanyNumber) && <a className="btn" href="#/payroll" title="PAYE payroll run as agent">Payroll</a>}
-          {ch && <a className="btn" href={ch} target="_blank" rel="noreferrer">Companies House</a>}
-          {elementsUrl(c) && <a className="btn" href={elementsUrl(c)} target="_blank" rel="noreferrer noopener" title="Open this client in Iris Elements">Iris Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span></a>}
-          {c.Email && <a className="btn" href={`mailto:${c.Email}`}>Email</a>}
+          {!(c.Kind === "Ltd" || c.Kind === "LLP" || c.CompanyNumber) && <a className="btn" href={href("tax", c.Key)} title="Self Assessment return and tax computation"><Icon name="calc" size={16} /> Tax return</a>}
+          {(c.Kind === "Ltd" || (!!c.CompanyNumber && c.Kind !== "LLP")) && <a className="btn" href={href("taxplan", c.Key)} title="Salary and dividend planning for the directors and shareholders"><Icon name="calc" size={16} /> Tax planning</a>}
+          {(c.Kind === "Ltd" || c.Kind === "LLP" || !!c.CompanyNumber) && <a className="btn" href="#/payroll" title="PAYE payroll run as agent"><Icon name="coins" size={16} /> Payroll</a>}
+          {ch && <a className="btn" href={ch} target="_blank" rel="noreferrer"><Icon name="building" size={16} /> Companies House</a>}
+          {elementsUrl(c) && <a className="btn" href={elementsUrl(c)} target="_blank" rel="noreferrer noopener" title="Open this client in Iris Elements"><Icon name="book" size={16} /> Iris Elements<span aria-hidden="true"> ↗</span><span className="sr-only"> (opens in a new tab)</span></a>}
+          {c.Email && <a className="btn" href={`mailto:${c.Email}`}><Icon name="mail" size={16} /> Email</a>}
         </div>
       </div>
 
@@ -114,7 +119,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
         <section className="alerts" aria-label="Ceased client"><div className="alert amber"><strong>Ceased{c.CeasedOn ? ` on ${fmtDate(String(c.CeasedOn))}` : ""}{c.CeasedReason ? `: ${String(c.CeasedReason)}` : ""}</strong><a href={href("clients", c.Key, "disengage")}>Ceasing to act</a> <a href={href("compliance", "retention")}>Retention</a></div></section>
       )}
 
-      {(urgent.length > 0 || (tab === "overview" && (amlAlert || loe.warn))) && (
+      {(urgent.length > 0 || (tab === "overview" && (amlAlert || loe.warn || gaps.length > 0))) && (
         <section className="alerts" aria-label="Needs attention">
           {urgent.slice(0, 3).map((j) => {
             const st = jobState(j, today);
@@ -128,10 +133,21 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
               </div>
             );
           })}
-          {tab === "overview" && amlAlert && (
-            <div className={`alert ${amlPos.state === "overdue" || amlPos.state === "stopped" ? "" : "amber"}`}><strong>{amlPos.state === "stopped" ? "AML: due diligence could not be completed. Don't do work for this client" : amlPos.state === "overdue" ? "AML review overdue" : amlPos.state === "soon" ? "AML review due soon" : `AML: ${amlPos.state === "none" ? "no assessment" : amlPos.state === "inprogress" ? "assessment in progress" : "not approved"}`}</strong><a href={href("clients", c.Key, "aml")}>Open AML</a></div>
+          {tab === "overview" && (amlAlert || loe.warn || gaps.length > 0) && (
+            <div className={`alert attention${amlAlert && amlSerious ? "" : " amber"}`} style={{ gridColumn: "1 / -1" }}>
+              <strong>Needs attention</strong>
+              <ul className="attention-list">
+                {amlAlert && <li><span>{amlText}</span><a href={href("clients", c.Key, "aml")}>Open AML</a></li>}
+                {loe.warn && <li><span>Engagement letter: {loe.text.toLowerCase()}</span><button type="button" className="linkbtn" onClick={() => showCard("letters")}>Go to engagement letters</button></li>}
+                {gaps.length > 0 && (
+                  <li>
+                    <span>Missing from this record:</span>
+                    <span className="row-wrap" style={{ gap: "0 6px" }}>{gaps.map((g, i) => <span key={g}><button type="button" className="linkbtn" onClick={() => openAddField(GAP_FIELD[g])}>{g}</button>{i < gaps.length - 1 ? "," : ""}</span>)}</span>
+                  </li>
+                )}
+              </ul>
+            </div>
           )}
-          {tab === "overview" && loe.warn && <div className="alert"><strong>Engagement letter: {loe.text.toLowerCase()}</strong></div>}
         </section>
       )}
 
@@ -215,7 +231,6 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
 function Overview({ client: c, jobs, arrangeSignal }: { client: Client; jobs: Job[]; arrangeSignal: number }) {
   const { data } = useData();
   const idx = useIndex();
-  const gaps = recordGaps(c, idx.servicesByClient.get(c.Key) || new Set());
   const company = c.Kind === "Ltd" || c.Kind === "LLP";
   const today = todayIso();
 
@@ -260,12 +275,6 @@ function Overview({ client: c, jobs, arrangeSignal }: { client: Client; jobs: Jo
       )}
     </section>
     ) },
-    ...(gaps.length > 0 ? [{ id: "gaps", label: "Missing details", node: (
-      <div className="alert amber">
-        <strong>Missing from this record</strong>
-        <span>{gaps.join(", ")}. Add them under References or Contact.</span>
-      </div>
-    ) }] : []),
     { id: "services", label: "Services and fees", node: <ServicesCard client={c} jobs={jobs} /> },
     { id: "fees", label: "Fee schedule", node: <ClientFees client={c} /> },
     ...(c.Kind === "Individual" ? [{ id: "portal", label: "Portal access", node: <IndividualPortalAccess client={c} /> }] : []),
@@ -283,11 +292,11 @@ function Overview({ client: c, jobs, arrangeSignal }: { client: Client; jobs: Jo
       render={() => (
         <>
           <div>
-            <div style={{ fontWeight: 600 }}>{contactName(c) || "—"}</div>
+            <div style={{ fontWeight: 600 }}>{contactName(c) || <AddEmpty client={c} fields={[["ContactFirst", "First name"], ["ContactLast", "Last name"]]} label="contact name" />}</div>
             {c.ContactPreference && <div className="muted" style={{ fontSize: 13 }}>Prefers {String(c.ContactPreference).toLowerCase()}</div>}
           </div>
-          <div className="kv"><span>Email</span><span>{c.Email ? <a href={`mailto:${c.Email}`}>{c.Email}</a> : "—"}</span></div>
-          <div className="kv"><span>Mobile</span><span className="mono">{(c.Mobile as string) || "—"}</span></div>
+          <div className="kv"><span>Email</span><span>{c.Email ? <a href={`mailto:${c.Email}`}>{c.Email}</a> : <AddEmpty client={c} fields={[["Email", "Email"]]} label="email" kind="email" />}</span></div>
+          <div className="kv"><span>Mobile</span><span className="mono">{(c.Mobile as string) || <AddEmpty client={c} fields={[["Mobile", "Mobile"]]} label="mobile" kind="tel" />}</span></div>
           {c.Phone && <div className="kv"><span>Phone</span><span className="mono">{c.Phone as string}</span></div>}
         </>
       )}
@@ -298,9 +307,8 @@ function Overview({ client: c, jobs, arrangeSignal }: { client: Client; jobs: Jo
     { id: "team", label: "Team", node: (
     <section className="card pad stack" aria-labelledby="team-h">
       <h2 id="team-h">Team</h2>
-      <div className="kv"><span>Partner</span><span>{(c.Partner as string) || "—"}</span></div>
-      <div className="kv"><span>Manager</span><span>{(c.Manager as string) || "—"}</span></div>
-      {c.Engaged && <div className="kv"><span>Client since</span><span>{fmtDate(c.Engaged as string)}</span></div>}
+      <div className="kv"><span>Partner</span><span>{(c.Partner as string) || <AddEmpty client={c} fields={[["Partner", "Partner"]]} label="partner" />}</span></div>
+      <div className="kv"><span>Manager</span><span>{(c.Manager as string) || <AddEmpty client={c} fields={[["Manager", "Manager"]]} label="manager" />}</span></div>
     </section>
     ) },
     { id: "compliance", label: "Compliance", node: (
@@ -312,7 +320,7 @@ function Overview({ client: c, jobs, arrangeSignal }: { client: Client; jobs: Jo
     </section>
     ) },
     { id: "sales", label: "Opportunities", node: (<><ClientOpportunities clientKey={c.Key} /><ClientOnboardingCard clientKey={c.Key} /></>) },
-    { id: "letters", label: "Engagement letters", node: <ClientEngagements clientKey={c.Key} /> },
+    { id: "letters", label: "Engagement letters", node: <div data-card="letters"><ClientEngagements clientKey={c.Key} /></div> },
     { id: "aml", label: "AML", node: <AmlCard client={c} /> },
     { id: "memos", label: "Memos", node: <MemosCard client={c} /> },
     { id: "clearance", label: "Professional clearance", node: <ClearanceCard client={c} openHref={href("clients", c.Key, "clearance")} /> },
@@ -320,13 +328,45 @@ function Overview({ client: c, jobs, arrangeSignal }: { client: Client; jobs: Jo
     <CisCard client={c} hasCisWork={jobs.some((j) => j.ServiceKey === "CIS")} />
     ) },
   ];
-  return <OverviewGrid cards={cards} columns={STANDARD_COLUMNS} name="the overview" store="overview" arrangeSignal={arrangeSignal} />;
+  // cards with nothing in them yet fold into one "Not set up yet" card, so a new client's page is not a column of empty boxes
+  const empty = new Set<string>();
+  if (jobs.length === 0) empty.add("work");
+  if (company && !data.cosecOfficers.some((o) => o.ClientKey === c.Key && o.Status === "current") && !data.cosecPscs.some((p) => p.ClientKey === c.Key && p.Status === "current")) empty.add("people");
+  if (latestClearance(data.clearances, c.Key, today).status === "none") empty.add("clearance");
+  if (cisStatus(c) === "" && !jobs.some((j) => j.ServiceKey === "CIS")) empty.add("cis");
+  if (!data.activities.some((a) => a.ClientKey === c.Key && a.Type === "note" && a.Source === "manual")) empty.add("memos");
+  const folded = cards.filter((x) => empty.has(x.id));
+  const shown = cards.filter((x) => !empty.has(x.id));
+  if (folded.length > 0) shown.push({ id: "empty", label: "Not set up yet", node: <EmptyGroup items={folded} /> });
+  return <OverviewGrid cards={shown} columns={STANDARD_COLUMNS} name="the overview" store="overview" arrangeSignal={arrangeSignal} />;
+}
+
+/** The cards that have nothing in them yet, folded into one. Opening it shows each card as usual, so nothing is out of reach. */
+function EmptyGroup({ items }: { items: OverviewCard[] }) {
+  const [open, setOpen] = useState(false);
+  const ids = items.map((i) => i.id).join("|");
+  useEffect(() => {
+    const on = (e: Event) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (!id) return;
+      if (items.some((i) => i.id === id)) setOpen(true);
+      window.setTimeout(() => document.querySelector(`[data-card="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 80);
+    };
+    window.addEventListener("pp-show-card", on);
+    return () => window.removeEventListener("pp-show-card", on);
+  }, [ids]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <details className="card pad empty-group" open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary><h2>Not set up yet</h2><span className="chip">{items.length}</span><span className="muted">{items.map((i) => i.label).join(", ")}</span></summary>
+      <div className="stack" style={{ marginTop: 12 }}>{items.map((i) => <div key={i.id} data-card={i.id}>{i.node}</div>)}</div>
+    </details>
+  );
 }
 
 const STANDARD_COLUMNS: DefaultColumn[] = [
-  { w: 30, ids: ["work", "gaps", "services", "fees"] },
-  { w: 15, ids: ["profile", "custom", "portal", "contact", "refs", "addresses", "team"] },
-  { w: 15, ids: ["people", "compliance", "aml", "sales", "letters", "clearance", "memos", "cis"] },
+  { w: 30, ids: ["work", "services", "fees", "empty"] },
+  { w: 15, ids: ["profile", "custom", "portal", "contact", "refs"] },
+  { w: 15, ids: ["people", "compliance", "aml", "sales", "letters", "addresses", "team", "clearance", "memos", "cis"] },
 ];
 
 /** Key, normal or low-touch: how much this client matters when the planner decides what comes first. */
@@ -373,11 +413,11 @@ function ProfileCard({ client: c }: { client: Client }) {
       {row("Type", KIND_LABEL[c.Kind as string] || (c.Kind as string))}
       {row("Status", <span style={{ textTransform: "capitalize" }}>{status}</span>)}
       {c.TradingName ? row("Trading as", c.TradingName as string) : null}
-      {company && row("Incorporated", c.Incorporated ? fmtDate(c.Incorporated as string) : "")}
-      {row("Client since", c.Engaged ? fmtDate(c.Engaged as string) : "")}
-      {row("Year end", c.YearEnd as string)}
+      {company && row("Incorporated", c.Incorporated ? fmtDate(c.Incorporated as string) : <AddEmpty client={c} fields={[["Incorporated", "Incorporated"]]} label="date incorporated" kind="date" />)}
+      {row("Client since", c.Engaged ? fmtDate(c.Engaged as string) : <AddEmpty client={c} fields={[["Engaged", "Client since"]]} label="client since date" kind="date" />)}
+      {row("Year end", c.YearEnd ? fmtDate(`2000-${c.YearEnd}`, { year: false }) : "")}
       {company && row("Companies House", c.CompanyNumber ? <a href={companiesHouseUrl(String(c.CompanyNumber))} target="_blank" rel="noreferrer">{String(c.CompanyNumber)}</a> : "")}
-      {row("Nature of business", [c.SIC, c.BusinessActivity].filter(Boolean).join(" · "))}
+      {row("Nature of business", [c.SIC, c.BusinessActivity].filter(Boolean).join(" · ") || <AddEmpty client={c} fields={[["BusinessActivity", "Nature of business"]]} label="nature of business" />)}
       {c.Website ? row("Website", <a href={String(c.Website).startsWith("http") ? String(c.Website) : `https://${c.Website}`} target="_blank" rel="noreferrer">{String(c.Website)}</a>) : null}
     </section>
   );
@@ -427,8 +467,10 @@ function AddressesCard({ client: c }: { client: Client }) {
         // show what is held (including a registered office on a non-company record); empty ones show a dash
         const held = fs.filter(([k]) => c[k]);
         const shown = held.length ? held : fs;
-        return <>{shown.map(([k, label]) => (
-          <div key={k}><div className="muted" style={{ fontSize: 13 }}>{label}</div><div>{(c[k] as string) || "—"}</div></div>
+        return <>{shown.map(([k, label]) => c[k] ? (
+          <div key={k}><div className="muted" style={{ fontSize: 13 }}>{label}</div><div>{c[k] as string}</div></div>
+        ) : (
+          <div className="kv" key={k}><span>{label}</span><AddEmpty client={c} fields={[[k, label]]} label={label.toLowerCase()} /></div>
         ))}</>;
       }}
     />

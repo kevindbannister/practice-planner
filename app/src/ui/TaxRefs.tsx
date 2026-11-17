@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Client, fmtDate, todayIso } from "../lib/domain";
 import { newKey } from "../lib/planning";
 import { AUTH_LABEL, AUTH_STATE_CHIP, AUTH_STATE_LABEL, RefGroup, allFields, authRow, authState, check, groupsFor, mask } from "../lib/taxRefs";
-import { CopyButton, Icon } from "./bits";
+import { CopyButton } from "./bits";
+import { AddEmpty } from "./AddEmpty";
 import { useData } from "./data";
 
 export function TaxRefsCard({ client }: { client: Client }) {
@@ -16,11 +17,6 @@ export function TaxRefsCard({ client }: { client: Client }) {
   const [shown, setShown] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  // adding one empty reference in place, from the small + beside it
-  const [adding, setAdding] = useState<string | null>(null);
-  const [addText, setAddText] = useState("");
-  const [addBusy, setAddBusy] = useState(false);
-  const [addError, setAddError] = useState("");
   const today = todayIso();
   const all = Object.keys(shown).length > 0 && fields.every(([k]) => shown[k] || !client[k]);
 
@@ -32,21 +28,13 @@ export function TaxRefsCard({ client }: { client: Client }) {
     setBusy(true);
     try { await update("Clients", client, patch); setEditing(false); } catch { setError("Couldn't save. Your changes are still here; try again."); } finally { setBusy(false); }
   };
-  const startAdd = (k: string) => { setAdding(k); setAddText(""); setAddError(""); };
-  const stopAdd = () => { setAdding(null); setAddText(""); setAddError(""); };
-  const saveAdd = async (k: string) => {
-    const v = addText.trim();
-    if (!v) return;
-    setAddBusy(true); setAddError("");
-    try { await update("Clients", client, { [k]: v }); stopAdd(); } catch { setAddError("Couldn't save that. Try again."); } finally { setAddBusy(false); }
-  };
   const toggleAll = () => setShown(all ? {} : Object.fromEntries(fields.map(([k]) => [k, true])));
 
   return (
     <section className="card pad stack" aria-labelledby="taxrefs-h">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-        <h2 id="taxrefs-h">Tax references</h2>
-        <span className="row-wrap" style={{ gap: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", gap: "2px 12px" }}>
+        <h2 id="taxrefs-h" style={{ margin: 0, flex: "0 0 auto" }}>Tax references</h2>
+        <span className="row-wrap" style={{ gap: 12, flexWrap: "nowrap", whiteSpace: "nowrap", marginLeft: "auto" }}>
           {!editing && <button type="button" className="linkbtn" onClick={toggleAll}>{all ? "Hide all codes" : "Show all codes"}</button>}
           {!editing && <button type="button" className="linkbtn" onClick={start}>Edit</button>}
         </span>
@@ -82,28 +70,13 @@ export function TaxRefsCard({ client }: { client: Client }) {
             return (
               <div className="kv" key={f.key}>
                 <span>{f.label}</span>
-                {adding === f.key ? (
-                  <span className="copy-val" style={{ flexWrap: "wrap", gap: 6 }}>
-                    <input className="input mono" autoFocus aria-label={`Add ${f.label}`} value={addText} style={{ flex: "1 1 100%", minWidth: 0, minHeight: 32, padding: "2px 8px" }}
-                      aria-invalid={check(f.key, addText) ? true : undefined}
-                      onChange={(e) => setAddText(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void saveAdd(f.key); } else if (e.key === "Escape") stopAdd(); }} />
-                    <span className="row-wrap" style={{ gap: 6 }}>
-                      <button type="button" className="btn small primary" disabled={addBusy || !addText.trim()} onClick={() => void saveAdd(f.key)}>Save</button>
-                      <button type="button" className="btn small" disabled={addBusy} onClick={stopAdd}>Cancel</button>
-                    </span>
-                    {check(f.key, addText) && <span className="muted" style={{ fontSize: 13, color: "var(--amber-ink)", flexBasis: "100%" }}>{check(f.key, addText)} You can still save it.</span>}
-                    {addError && <span className="error-text" role="alert" style={{ flexBasis: "100%" }}>{addError}</span>}
+                {!v ? <AddEmpty client={client} fields={[[f.key, f.label]]} label={f.label} check={(k, val) => check(k, val)} /> : (
+                  <span className="copy-val">
+                    <span className="mono">{open ? v : mask(v)}</span>
+                    {f.sensitive && <button type="button" className="linkbtn" aria-pressed={!!shown[f.key]} aria-label={`${shown[f.key] ? "Hide" : "Show"} ${f.label}`} onClick={() => setShown({ ...shown, [f.key]: !shown[f.key] })}>{shown[f.key] ? "Hide" : "Show"}</button>}
+                    <CopyButton value={v} label={f.label.toLowerCase()} />
+                    {bad && <span title={bad} aria-label={bad} style={{ color: "var(--amber-ink)", cursor: "help" }}>⚠</span>}
                   </span>
-                ) : (
-                <span className="copy-val">
-                  <span className="mono">{v ? (open ? v : mask(v)) : <span style={{ color: "var(--muted)", fontFamily: "var(--sans)" }}>—</span>}</span>
-                  {v && f.sensitive && <button type="button" className="linkbtn" aria-pressed={!!shown[f.key]} aria-label={`${shown[f.key] ? "Hide" : "Show"} ${f.label}`} onClick={() => setShown({ ...shown, [f.key]: !shown[f.key] })}>{shown[f.key] ? "Hide" : "Show"}</button>}
-                  {v ? <CopyButton value={v} label={f.label.toLowerCase()} /> : (
-                    <button type="button" className="copybtn" onClick={() => startAdd(f.key)} aria-label={`Add ${f.label}`} title={`Add ${f.label}`}><Icon name="plus" size={13} /></button>
-                  )}
-                  {bad && <span title={bad} aria-label={bad} style={{ color: "var(--amber-ink)", cursor: "help" }}>⚠</span>}
-                </span>
                 )}
               </div>
             );

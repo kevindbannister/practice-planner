@@ -27,7 +27,7 @@
     var three = style !== "toggle";                                            // the two-way switch keeps Advisory inside Work
 
     var mode;
-    if (/^(home|plan|chase|sales|comms|practice|compliance|aml|client-copy)$/.test(s)) mode = "practice";
+    if (/^(home|plan|chase|sales|comms|practice|compliance|aml)$/.test(s)) mode = "practice";
     else if (/^(work|papers|tax|payroll|cosec)$/.test(s)) mode = "work";
     else if (/^(advisory-overview|reporting|advisory|taxplan)$/.test(s)) mode = three ? "advisory" : "work";
     else {                                                                     // Clients, Settings and the like: the workspace you were last in

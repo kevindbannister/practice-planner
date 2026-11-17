@@ -174,6 +174,12 @@ export function recordGaps(c: Client, services: Set<string>): string[] {
   return gaps;
 }
 
+/** The record column each item from recordGaps fills in (so the page can open the right box to add it). */
+export const GAP_FIELD: Record<string, string> = {
+  "Company number": "CompanyNumber", "Companies House auth code": "CHAuthCode", "Corporation tax UTR": "CTUTR", "Self Assessment UTR": "UTR",
+  "NI number": "NINumber", "VAT number": "VATNumber", "PAYE reference": "PAYERef", "Email or mobile": "Email",
+};
+
 export function amlLabel(status?: string): { text: string; warn: boolean } {
   switch ((status || "").toLowerCase()) {
     case "in progress":
