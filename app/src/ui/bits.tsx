@@ -229,7 +229,9 @@ export function GroupedTabs({ groups, current, label, heading, plain }: { groups
             <div className="rail-head"><span className="rail-icon" aria-hidden="true"><Icon name={icon} size={18} /></span><strong>{label}</strong></div>
             {groups.map((g) => (
               <div key={g.label} className="rail-group">
-                <a className={`rail-link${g === active && g.items.length > 1 ? " open" : ""}`} href={g.items[0].to} aria-current={g === active && g.items.length === 1 ? "page" : undefined}><span>{g.label}</span>{badge(count(g))}</a>
+                <a className={`rail-link${g.items.length > 1 ? " multi" : ""}${g === active && g.items.length > 1 ? " open" : ""}`} href={g.items[0].to} aria-current={g === active && g.items.length === 1 ? "page" : undefined} aria-expanded={g.items.length > 1 ? g === active : undefined}>
+                  {g.items.length > 1 && <span className="rail-chev" aria-hidden="true">{g === active ? "▾" : "▸"}</span>}<span className="rail-name">{g.label}</span>{badge(count(g))}
+                </a>
                 {g === active && g.items.length > 1 && <div className="rail-sub">{subs}</div>}
               </div>
             ))}

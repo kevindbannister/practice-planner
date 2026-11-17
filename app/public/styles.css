@@ -5210,3 +5210,37 @@ code { overflow-wrap: anywhere; }
 }
 /* the letterhead sample is a picture of a printed page, so it keeps dark ink on white in both modes */
 .brand-sample { color: #17263a; }
+
+/* V35.39: "List down the left" on Practice pages drawn like the section list on the Work pages: a plain panel on the grey,
+   group names in bold with a small arrow and a thin blue rule under them, the pages under each group indented, and the page you
+   are on picked out in soft blue (no white pill). The section's name is already in the line above, so it isn't repeated here. */
+@media (min-width: 901px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .rail-slot:not(:empty) { top: 124px; padding: 18px 12px 24px 20px; }
+  html[data-pflat] .rail-head { display: none; }
+}
+.rail { gap: 0; }
+.rail-group { gap: 0; }
+.rail-link, .rail-sub a { box-shadow: none !important; }
+.rail-link { justify-content: flex-start; gap: 8px; min-height: 40px; padding: 8px 10px; border-radius: 10px; font-size: 15px; font-weight: 700; color: var(--ink); }
+.rail-link.multi { border-radius: 0; border-bottom: 1px solid var(--blue-line); margin: 0 0 4px; }
+.rail-link .rail-name { flex: 1 1 auto; min-width: 0; }
+.rail-chev { width: 14px; flex: none; color: var(--ink-2); font-size: 13px; }
+.rail-link:hover, .rail-sub a:hover { background: rgba(255, 255, 255, 0.7); color: var(--ink); }
+.rail-link.multi:hover { background: transparent; color: var(--navy); }
+.rail-link[aria-current], .rail-sub a[aria-current] { background: color-mix(in srgb, #2F6FD6 13%, #fff); color: var(--ink); font-weight: 700; }
+.rail-sub { gap: 0; margin: 0 0 8px; padding-left: 0; border-left: 0; }
+.rail-sub a { justify-content: space-between; min-height: 0; padding: 8px 10px 8px 32px; border-radius: 10px; font-size: 14.5px; font-weight: 500; color: var(--ink-2); }
+.rail-group + .rail-group { margin-top: 2px; }
+:root[data-theme="dark"] :is(.rail-link[aria-current], .rail-sub a[aria-current]) { background: color-mix(in srgb, #8fb4ff 18%, var(--surface)); color: #fff; }
+:root[data-theme="dark"] :is(.rail-link:hover, .rail-sub a:hover) { background: rgba(255, 255, 255, 0.06); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.rail-link[aria-current], .rail-sub a[aria-current]) { background: color-mix(in srgb, #8fb4ff 18%, var(--surface)); color: #fff; }
+  :root:not([data-theme="light"]) :is(.rail-link:hover, .rail-sub a:hover) { background: rgba(255, 255, 255, 0.06); }
+}
+/* on a phone the list stays a row of chips along the top */
+@media (max-width: 900px) {
+  .rail-chev { display: none; }
+  .rail-link.multi { border-bottom: 0; margin: 0; }
+  .rail-link, .rail-sub a { padding: 0 14px; border-radius: 12px; font-size: 14px; }
+}
+@media (min-width: 901px) { .rail-link:not(.multi) { padding-left: 32px; } }
