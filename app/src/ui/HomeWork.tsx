@@ -52,9 +52,9 @@ export function HomeWork() {
   const allName = scope === "everyone" ? "All work" : label;
 
   return (
-    <section className="card pad stack hw" aria-labelledby="hw-h">
-      <div className="row-wrap" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h2 id="hw-h" style={{ margin: 0 }}>Work</h2>
+    <section className="hw" aria-labelledby="hw-h">
+      <div className="hw-bar-head">
+        <h2 id="hw-h">Work by type</h2>
         {access.scopes.length > 1 ? (
           <span className="seg" role="group" aria-label="Whose work to show">
             {access.scopes.map((s) => <button key={s} type="button" aria-pressed={scope === s} onClick={() => setScope(s)}>{SCOPE_LABEL[s]}</button>)}
@@ -62,7 +62,7 @@ export function HomeWork() {
         ) : <span className="muted" style={{ fontSize: 13 }}>Showing {label.toLowerCase()}</span>}
       </div>
       {jobs.length === 0 ? (
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted hw-empty">
           {scope === "mine" ? "No work is assigned to you yet. Whoever does each stage is set on the client's Work tab." : scope === "jobs" ? "No jobs are yours yet. A job's owner is set on the job, or comes from the client's manager." : "No open work."}
         </p>
       ) : (
@@ -102,20 +102,29 @@ function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number
 }
 
 function Tile({ name, serviceKey, total, c, days, onOpen }: { name: string; serviceKey?: string; total?: boolean; c: Counts; days: number; onOpen: () => void }) {
-  const chips: Band[] = ["verySoon", "soon", "ok", "hold"];
+  const ahead: Band[] = ["verySoon", "soon", "ok", "hold"];
+  const SHORT: Record<Band, string> = { overdue: "overdue", verySoon: "very soon", soon: "soon", ok: "OK", hold: "on hold" };
+  const sum = ahead.reduce((n, b) => n + c[b], 0);
   return (
-    <article className={`hw-tile${total ? " total" : ""} ${serviceKey ? svcClass(serviceKey) : ""}`}>
+    <article className={`hw-tile${total ? " total" : ""}${c.overdue ? " late" : ""}`}>
       <div className="hw-head">
-        <a className="hw-name" href="#/plan/deadlines" title="Open the deadlines">{name}<Icon name="right" size={14} /></a>
+        <a className="hw-name" href="#/plan/deadlines" title="Open the deadlines">
+          {total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${serviceKey ? svcClass(serviceKey) : ""}`} aria-hidden="true" />}
+          <span>{name}</span>
+        </a>
         <button type="button" className="hw-info" onClick={onOpen} aria-label={`Breakdown of ${name}`} title="Breakdown, and how many days to look ahead"><Icon name="chart" size={16} /></button>
       </div>
-      <div className="hw-body">
-        <span className={`hw-pill overdue${c.overdue ? " on" : ""}`}>{c.overdue} overdue</span>
-        <span className="hw-next">next {days} days:</span>
-        <span className="hw-chips">
-          {chips.map((b) => <span key={b} className={`hw-dot ${b}${c[b] ? " on" : ""}`} title={`${BAND_LABEL[b]}: ${c[b]}`} aria-label={`${BAND_LABEL[b]}: ${c[b]}`}>{c[b]}</span>)}
-        </span>
+      <div className="hw-main">
+        <span className="hw-big">{c.overdue}</span>
+        <span className="hw-big-label">overdue</span>
       </div>
+      <div className="hw-meter" role="img" aria-label={`Next ${days} days: ${ahead.map((b) => `${c[b]} ${SHORT[b]}`).join(", ")}`}>
+        {sum ? ahead.filter((b) => c[b]).map((b) => <span key={b} className={`hw-seg ${b}`} style={{ flexGrow: c[b] }} />) : <span className="hw-seg none" />}
+      </div>
+      <ul className="hw-legend" aria-hidden="true">
+        {ahead.map((b) => <li key={b} className={c[b] ? "on" : ""}><i className={`hw-key ${b}`} /><strong>{c[b]}</strong> {SHORT[b]}</li>)}
+      </ul>
+      <span className="hw-window">Next {days} days</span>
     </article>
   );
 }
