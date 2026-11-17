@@ -5259,3 +5259,10 @@ a.hw-say-part:hover, a.hw-legend-n:hover, a.hw-big:hover { text-decoration-color
 a.hw-badge.late { color: #fff; }
 .dl-from-home { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 16px; border-radius: 14px; background: color-mix(in srgb, #2F6FD6 9%, var(--surface)); border: 1px solid color-mix(in srgb, #2F6FD6 25%, transparent); }
 .dl-filters-off { display: none !important; }
+
+/* V35.41: Work by type in two groups, statutory deadlines then other deadlines */
+.hw-group-h { margin: 6px 0 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.hw-tiles .hw-group-h { grid-column: 1 / -1; margin: 8px 0 -6px; }
+.hw-bars .hw-group-h { margin: 14px 0 0; }
+.hw-grid tr.hw-group-row th { padding: 14px 12px 6px; text-align: left; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: transparent; border-bottom: 1px solid var(--sep); }
+.hw-summary li.hw-group-li { display: block; padding: 12px 4px 4px; border: 0; background: transparent; box-shadow: none; min-height: 0; }

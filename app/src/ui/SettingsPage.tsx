@@ -751,29 +751,34 @@ function WorkStart({ service }: { service: string }) {
   const { data, saveSetting } = useData();
   const rules = readStartRules(readSetting(data.settings, START_KEY));
   const rule = startRuleFor(rules, service);
-  const [days, setDays] = useState(String(rule.days ?? DEFAULT_START_DAYS));
+  const fallback = rule.kind === "days" ? DEFAULT_START_DAYS : 0;
+  const [days, setDays] = useState(String(rule.days ?? fallback));
   const [error, setError] = useState("");
-  useEffect(() => { setDays(String(rule.days ?? DEFAULT_START_DAYS)); }, [service, rule.days]);
+  useEffect(() => { setDays(String(rule.days ?? fallback)); }, [service, rule.kind, rule.days]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = (next: StartRule) => { setError(""); saveSetting(START_KEY, { ...rules, [service]: next }).catch(() => setError("Couldn't save that change.")); };
   const commitDays = () => {
     const n = Math.floor(Number(days));
     if (!Number.isFinite(n) || n < 0 || n > 365) { setError("Use a number of days from 0 to 365."); return; }
-    if (n !== rule.days) save({ kind: "days", days: n });
+    if (rule.kind !== "any" && n !== (rule.days ?? fallback)) save({ kind: rule.kind, days: n });
   };
+  const pick = (k: StartRule["kind"]) => save(k === "any" ? { kind: "any" } : { kind: k, days: k === "days" ? DEFAULT_START_DAYS : 0 });
   return (
     <div className="work-start">
       <span className="work-start-label">Work can start</span>
-      <select className="input" value={rule.kind} aria-label="When this work can start"
-        onChange={(e) => save(e.target.value === "days" ? { kind: "days", days: Math.floor(Number(days)) || DEFAULT_START_DAYS } : { kind: e.target.value as "any" | "period" })}>
-        <option value="period">Once the period has ended</option>
-        <option value="days">A set number of days before the deadline</option>
+      {rule.kind !== "any" && (
+        <label><input className="input" type="number" min={0} max={365} inputMode="numeric" value={days}
+          aria-label={rule.kind === "days" ? "Days before the deadline the work can start" : "Days after the period ends the work can start"}
+          onChange={(e) => setDays(e.target.value)} onBlur={commitDays} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} /> days</label>
+      )}
+      <select className="input" value={rule.kind} aria-label="When this work can start" onChange={(e) => pick(e.target.value as StartRule["kind"])}>
+        <option value="period">after the period ends</option>
+        <option value="days">before the deadline</option>
         <option value="any">Any time</option>
       </select>
-      {rule.kind === "days" && (
-        <label><input className="input" type="number" min={0} max={365} inputMode="numeric" value={days} aria-label="Days before the deadline the work can start"
-          onChange={(e) => setDays(e.target.value)} onBlur={commitDays} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} /> days before</label>
-      )}
-      <span className="muted work-start-hint">Until then its jobs show as "Not ready yet" on Home, in grey with lines through.</span>
+      <span className="muted work-start-hint">
+        {rule.kind === "period" ? "For accounts, about a month after the year end once the records are in. " : rule.kind === "days" ? "For payroll, a week before pay day. " : ""}
+        Until then, jobs due within the look-ahead show as "Not ready yet" on Home, in grey with lines through.
+      </span>
       {error && <span className="error-text" role="alert">{error}</span>}
     </div>
   );

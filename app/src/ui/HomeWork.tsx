@@ -7,6 +7,7 @@ import { Row } from "../lib/schema";
 import { daysBetween, fmtDate, todayIso } from "../lib/domain";
 import { stageAt } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
+import { isStatutory } from "../lib/workGroups";
 import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, START_KEY, Scope, StartRule, accessFor, bandLink, bandsOf, bandsShown, emptyCounts, inScope, nextOn, readStartRules, startRuleFor, tally } from "../lib/jobBands";
 import { Icon } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
@@ -75,6 +76,9 @@ export function HomeWork() {
   ];
   const counts = (list: Row[], k: string): Counts => tally(list, stagesFor, today, win(k), includeHolds, ruleFor);
   const withCounts = types.map((t) => ({ ...t, c: counts(t.jobs, t.key) })).sort((a, b) => b.c.overdue - a.c.overdue || a.name.localeCompare(b.name));
+  // statutory deadlines (filing and payment dates the law sets) first, then everything else
+  const statOf = (k: string) => isStatutory(data.services.find((x) => x.Key === k), k);
+  const grouped = ([["statutory", withCounts.filter((t) => statOf(t.key))], ["other", withCounts.filter((t) => !statOf(t.key))]] as const).filter(([, l]) => l.length);
   const allCounts = tally(jobs, stagesFor, today, win(ALL), includeHolds, ruleFor);
   const label = SCOPE_LABEL[scope === "everyone" ? "everyone" : scope];
   const allName = scope === "everyone" ? "All work" : label;
@@ -112,7 +116,10 @@ export function HomeWork() {
       ) : (
         <WorkDisplay view={view} bands={bands} items={[
           { key: ALL, name: allName, total: true, c: allCounts, days: win(ALL), ahead: ahead(ALL), onOpen: () => setOpen(ALL), link: (b: Band) => bandLink({ type: "", band: b, days: win(ALL), holds: includeHolds, scope }) },
-          ...withCounts.map((t) => ({ key: t.key, name: t.name, serviceKey: t.key, c: t.c, days: win(t.key), ahead: ahead(t.key), onOpen: () => setOpen(t.key), link: (b: Band) => bandLink({ type: t.key, band: b, days: win(t.key), holds: includeHolds, scope }) })),
+          ...grouped.flatMap(([g, list]) => [
+            { heading: true, key: `@${g}`, name: g === "statutory" ? "Statutory deadlines" : "Other deadlines", c: emptyCounts(), days: 0, ahead: "", onOpen: (): void => undefined } as Item,
+            ...list.map((t) => ({ key: t.key, name: t.name, serviceKey: t.key, c: t.c, days: win(t.key), ahead: ahead(t.key), onOpen: () => setOpen(t.key), link: (b: Band) => bandLink({ type: t.key, band: b, days: win(t.key), holds: includeHolds, scope }) })),
+          ]),
         ]} />
       )}
       {open && (
@@ -146,10 +153,11 @@ function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number
 }
 
 /** `slot` sets the colour directly (the Appearance preview shows a colour before it is saved). */
-export type Item = { key: string; name: string; serviceKey?: string; slot?: number; link?: (b: Band) => string; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void };
+/** `heading`: a group name (Statutory deadlines, Other deadlines) drawn above the types in it; it has no counts of its own. */
+export type Item = { heading?: boolean; key: string; name: string; serviceKey?: string; slot?: number; link?: (b: Band) => string; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void };
 
 export function WorkDisplay({ view, items, bands = BANDS }: { view: WorkView; items: Item[]; bands?: Band[] }) {
-  if (view === "cards") return <div className="hw-tiles">{items.map(({ key, ...rest }) => <Tile key={key} {...rest} bands={bands} />)}</div>;
+  if (view === "cards") return <div className="hw-tiles">{items.map(({ key, heading, ...rest }) => heading ? <h3 key={key} className="hw-group-h">{rest.name}</h3> : <Tile key={key} {...rest} bands={bands} />)}</div>;
   if (view === "bars") return <BarsView items={items} bands={bands} />;
   if (view === "summary") return <SummaryView items={items} bands={bands} />;
   return (
@@ -163,7 +171,9 @@ export function WorkDisplay({ view, items, bands = BANDS }: { view: WorkView; it
             <th scope="col" className="ahead">Looking ahead</th>
           </tr>
         </thead>
-        <tbody>{items.map(({ key, ...rest }) => <Line key={key} {...rest} bands={bands} />)}</tbody>
+        <tbody>{items.map(({ key, heading, ...rest }) => heading
+          ? <tr key={key} className="hw-group-row"><th scope="colgroup" colSpan={bands.length + 2}>{rest.name}</th></tr>
+          : <Line key={key} {...rest} bands={bands} />)}</tbody>
       </table>
     </div>
   );
@@ -192,7 +202,7 @@ function BarsView({ items, bands }: { items: Item[]; bands: Band[] }) {
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const totalOf = (c: Counts) => bands.reduce((n, b) => n + c[b], 0);
-  const max = Math.max(1, ...items.filter((i) => !i.total).map((i) => totalOf(i.c)), ...items.filter((i) => i.total).map((i) => totalOf(i.c)));
+  const max = Math.max(1, ...items.filter((i) => !i.total && !i.heading).map((i) => totalOf(i.c)), ...items.filter((i) => i.total).map((i) => totalOf(i.c)));
   const show = (e: React.MouseEvent | React.FocusEvent, text: string) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect(), o = box.current!.getBoundingClientRect();
     setTip({ x: r.left - o.left + r.width / 2, y: r.top - o.top, text });
@@ -203,6 +213,7 @@ function BarsView({ items, bands }: { items: Item[]; bands: Band[] }) {
         {bands.map((b) => <li key={b}><i className={`hw-key ${b}`} />{BAND_LABEL[b]}</li>)}
       </ul>
       {items.map((i) => {
+        if (i.heading) return <h3 key={i.key} className="hw-group-h">{i.name}</h3>;
         const t = totalOf(i.c);
         return (
           <div key={i.key} className={`hw-bar-row${i.total ? " total" : ""}`}>
@@ -230,11 +241,17 @@ function BarsView({ items, bands }: { items: Item[]; bands: Band[] }) {
 /** Summary: a plain sentence for each type of work, most pressing first, with the overdue count as a badge. */
 function SummaryView({ items, bands }: { items: Item[]; bands: Band[] }) {
   const words: Record<Band, string> = { overdue: "overdue", verySoon: "due very soon", soon: "due soon", ok: "on track", notYet: "not ready yet", hold: "on hold" };
-  const [all, ...rest] = items;
-  const order = [all, ...[...rest].sort((a, b) => b.c.overdue - a.c.overdue || b.c.verySoon - a.c.verySoon || b.c.soon - a.c.soon || a.name.localeCompare(b.name))];
+  // most pressing first within each group, the groups kept in their order under their headings
+  const urgent = (a: Item, b: Item) => b.c.overdue - a.c.overdue || b.c.verySoon - a.c.verySoon || b.c.soon - a.c.soon || a.name.localeCompare(b.name);
+  const order: Item[] = [];
+  let run: Item[] = [];
+  const flush = () => { order.push(...run.sort(urgent)); run = []; };
+  for (const i of items) { if (i.total || i.heading) { flush(); order.push(i); } else run.push(i); }
+  flush();
   return (
     <ul className="hw-board hw-summary">
       {order.map((i) => {
+        if (i.heading) return <li key={i.key} className="hw-group-li"><h3 className="hw-group-h">{i.name}</h3></li>;
         const parts = bands.filter((b) => b !== "overdue" && i.c[b]).map((b) => <Count key={b} n={i.c[b]} href={i.link?.(b)} className="hw-say-part" label={`${i.name}, ${words[b]}`}>{i.c[b]} {words[b]}</Count>);
         return (
           <li key={i.key} className={i.total ? "total" : ""}>

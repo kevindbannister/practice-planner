@@ -37,21 +37,28 @@ export function thresholds(stage?: Row): { verySoon: number; soon: number } {
 /* ---------- when work can start ---------- */
 
 /**
- * When a type of work can be started. "period": once its period has ended (the day after the job's period end), which suits VAT,
- * accounts and tax returns. "days": a set number of days before the deadline, which suits payroll, where the month's run can't be
- * done until just before pay day. "any": whenever. Set for each type of work in Settings, Types of work.
+ * When a type of work can be started. "period": a number of days after its period ends (0: the day after), which suits VAT, tax
+ * returns, and accounts (a month after the year end, by default, once the records are in). "days": a number of days before the
+ * deadline, which suits payroll, where the month's run can't be done until a week before pay day. "any": whenever. Set for each
+ * type of work in Settings, Types of work.
  */
 export type StartRule = { kind: "any" | "period" | "days"; days?: number };
 export const START_KEY = "work-start";
 export const DEFAULT_START_DAYS = 7;
-const BUILT_IN_START: Record<string, StartRule> = { PAYROLL: { kind: "days", days: DEFAULT_START_DAYS } };
+export const DEFAULT_AFTER_PERIOD_ACCOUNTS = 30;
+const ACCOUNTS_KEYS = ["ACCS_LTD", "ACCS_LLP", "SE_ACCOUNTS", "CHARITY_ACCOUNTS", "ACCS_OTHER_A", "ACCS_OTHER_B"];
+const BUILT_IN_START: Record<string, StartRule> = {
+  PAYROLL: { kind: "days", days: DEFAULT_START_DAYS },
+  ...Object.fromEntries(ACCOUNTS_KEYS.map((k) => [k, { kind: "period", days: DEFAULT_AFTER_PERIOD_ACCOUNTS } as StartRule])),
+};
 
 export function readStartRules(raw: unknown): Record<string, StartRule> {
   const out: Record<string, StartRule> = {};
   if (!raw || typeof raw !== "object") return out;
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
-    if (o.kind === "any" || o.kind === "period") out[k] = { kind: o.kind };
+    if (o.kind === "any") out[k] = { kind: "any" };
+    else if (o.kind === "period") out[k] = { kind: "period", days: num(o.days) ?? 0 };
     else if (o.kind === "days") out[k] = { kind: "days", days: num(o.days) ?? DEFAULT_START_DAYS };
   }
   return out;
@@ -63,7 +70,7 @@ const shift = (iso: string, n: number) => { const t = new Date(`${iso.slice(0, 1
 
 /** The first day the job's work can be done, or undefined when it can be done now (or there is nothing to go on). */
 export function readyOn(job: Row, rule: StartRule): string | undefined {
-  if (rule.kind === "period") { const pe = String(job.PeriodEnd || ""); return /^\d{4}-\d{2}-\d{2}/.test(pe) ? shift(pe, 1) : undefined; }
+  if (rule.kind === "period") { const pe = String(job.PeriodEnd || ""); return /^\d{4}-\d{2}-\d{2}/.test(pe) ? shift(pe, 1 + (rule.days ?? 0)) : undefined; }
   if (rule.kind === "days") { const d = String(job.Deadline || ""); return /^\d{4}-\d{2}-\d{2}/.test(d) ? shift(d, -(rule.days ?? DEFAULT_START_DAYS)) : undefined; }
   return undefined;
 }
@@ -71,8 +78,8 @@ export const notReady = (job: Row, rule: StartRule, today: string): boolean => {
 
 /**
  * The bands a job counts in. Held work counts only as on hold, and only when held work is included. Work with no deadline, or due
- * beyond the window, counts nowhere (overdue work always counts). Work that can't be started yet counts as not ready, however far
- * off its deadline is, so it stays in view without looking like something to be doing now.
+ * beyond the window, counts nowhere (overdue work always counts). Work within the window that can't be started yet counts as not
+ * ready, so it is in view without looking like something to be doing now.
  */
 export function bandsOf(job: Row, stage: Row | undefined, today: string, windowDays: number, includeHolds: boolean, rule: StartRule = { kind: "any" }): Band[] {
   if (isOnHold(job as { Status?: string })) return includeHolds ? ["hold"] : [];
@@ -80,9 +87,9 @@ export function bandsOf(job: Row, stage: Row | undefined, today: string, windowD
   if (!deadline) return [];
   const days = daysBetween(today, deadline);
   if (days < 0) return ["overdue"];
-  // work that can't be started yet sits in its own band whatever the window, so the next payroll run is always in view
-  if (notReady(job, rule, today)) return ["notYet"];
+  // beyond the look-ahead (or the 31 December / 31 January date) nothing is shown, ready or not
   if (days > windowDays) return [];
+  if (notReady(job, rule, today)) return ["notYet"];
   const t = thresholds(stage);
   return [days <= t.verySoon ? "verySoon" : days <= t.soon ? "soon" : "ok"];
 }
@@ -161,12 +168,13 @@ export function nextOn(today: string, month: number, day: number): string {
 /* ---------- from a Home count to the jobs behind it ---------- */
 
 /** What a number on Home's Work by type counted: the type of work ("" for all of it), the band, and the settings it used. */
-export type BandQuery = { type: string; band: Band; days: number; holds: boolean; scope: Scope };
+export type BandQuery = { type: string; band: Band; days: number; holds: boolean; scope: Scope; group?: "statutory" | "other" };
 
 /** The Deadlines address that lists the jobs behind a number on Home. */
 export function bandLink(q: BandQuery): string {
   const p = new URLSearchParams({ band: q.band, days: String(q.days), scope: q.scope });
   if (q.type) p.set("type", q.type);
+  if (q.group) p.set("group", q.group);
   if (q.holds) p.set("holds", "1");
   return `#/plan/deadlines?${p.toString()}`;
 }
@@ -176,7 +184,9 @@ export function readBandQuery(p: URLSearchParams): BandQuery | undefined {
   if (!BANDS.includes(band)) return undefined;
   const days = Math.max(0, Math.floor(Number(p.get("days"))));
   const scope = p.get("scope");
+  const group = p.get("group");
   return {
+    ...(group === "statutory" || group === "other" ? { group } : {}),
     type: p.get("type") || "", band, days: Number.isFinite(days) ? days : DEFAULT_WINDOW, holds: p.get("holds") === "1",
     scope: scope === "jobs" || scope === "mine" ? scope : "everyone",
   };
@@ -185,11 +195,12 @@ export function readBandQuery(p: URLSearchParams): BandQuery | undefined {
 /** The jobs a Home count is made of, worked out exactly as Home counts them, so the list always matches the number. */
 export function jobsForBand(q: BandQuery, o: {
   jobs: Row[]; user: string; today: string; clientOf: (clientKey: string) => Row | undefined; stagesFor: (serviceKey: string) => Row[];
-  clientStages: Row[]; ruleFor: (serviceKey: string) => StartRule;
+  clientStages: Row[]; ruleFor: (serviceKey: string) => StartRule; statutory?: (serviceKey: string) => boolean;
 }): Row[] {
   return o.jobs.filter((j) => {
     const k = String(j.ServiceKey || "");
     if (q.type && k !== q.type) return false;
+    if (q.group && o.statutory && o.statutory(k) !== (q.group === "statutory")) return false;
     const stages = o.stagesFor(k);
     if (!inScope(q.scope, o.user, j, o.clientOf(String(j.ClientKey || "")), stages, o.clientStages)) return false;
     return bandsOf(j, stageAt(stages, Number(j.StageNo || 1)), o.today, q.days, q.holds, o.ruleFor(k)).includes(q.band);

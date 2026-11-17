@@ -53,9 +53,9 @@ export function DeadlinesView() {
     const rules = readStartRules(readSetting(data.settings, START_KEY));
     return new Set(jobsForBand(fromHome, {
       jobs: idx.openJobs, user: user || "", today, clientOf: (k) => idx.clientByKey.get(k), stagesFor: (k) => idx.stagesByService.get(k) || [],
-      clientStages: data.clientStages, ruleFor: (k) => startRuleFor(rules, k),
+      clientStages: data.clientStages, ruleFor: (k) => startRuleFor(rules, k), statutory: (k) => isStatutory(data.services.find((x) => x.Key === k), k),
     }).map((j) => String(j.Key)));
-  }, [fromHome, idx, data.settings, data.clientStages, user, today]);
+  }, [fromHome, idx, data.settings, data.clientStages, data.services, user, today]);
 
   const lines = useMemo(() => {
     const out: Line[] = [];
@@ -176,9 +176,9 @@ export function DeadlinesView() {
         <div className="dl-from-home" role="status">
           <span>
             <strong>{shown.length} job{shown.length === 1 ? "" : "s"}: {BAND_LABEL[fromHome.band].toLowerCase()}</strong>
-            {" · "}{fromHome.type ? idx.serviceName.get(fromHome.type) || fromHome.type : "all work"}
+            {" · "}{fromHome.type ? idx.serviceName.get(fromHome.type) || fromHome.type : fromHome.group === "statutory" ? "statutory deadlines" : fromHome.group === "other" ? "other deadlines" : "all work"}
             {" · "}{SCOPE_LABEL[fromHome.scope].toLowerCase()}
-            {fromHome.band !== "overdue" && fromHome.band !== "notYet" && fromHome.band !== "hold" ? ` · next ${fromHome.days} days` : ""}
+            {fromHome.band !== "overdue" && fromHome.band !== "hold" ? ` · next ${fromHome.days} days` : ""}
             <span className="muted"> · as counted on Home</span>
           </span>
           <span className="row-wrap" style={{ gap: 8 }}>

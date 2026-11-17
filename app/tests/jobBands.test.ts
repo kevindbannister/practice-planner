@@ -52,8 +52,15 @@ test("held work counts only as on hold, and only when held work is included", ()
 
 test("work that can't be started yet is not ready, whatever the window", () => {
   const period: StartRule = { kind: "period" };
-  // period still running: not ready, even though the deadline is a long way off
-  assert.deepEqual(bandsOf(job({ PeriodEnd: day(5), Deadline: day(60) }), undefined, today, 14, false, period), ["notYet"]);
+  // period still running: not ready
+  assert.deepEqual(bandsOf(job({ PeriodEnd: day(5), Deadline: day(12) }), undefined, today, 14, false, period), ["notYet"]);
+  // ...but due beyond the look-ahead it isn't shown at all
+  assert.deepEqual(bandsOf(job({ PeriodEnd: day(5), Deadline: day(60) }), undefined, today, 14, false, period), []);
+  // accounts: ready a month after the year end by default
+  const accs = startRuleFor({}, "ACCS_LTD");
+  assert.deepEqual(accs, { kind: "period", days: 30 });
+  assert.deepEqual(bandsOf(job({ PeriodEnd: day(-20), Deadline: day(10) }), undefined, today, 14, false, accs), ["notYet"]);
+  assert.deepEqual(bandsOf(job({ PeriodEnd: day(-31), Deadline: day(10) }), undefined, today, 14, false, accs), ["ok"]);
   // the period ended yesterday: ready, so counted by its deadline as usual
   assert.deepEqual(bandsOf(job({ PeriodEnd: day(-1), Deadline: day(2) }), undefined, today, 14, false, period), ["verySoon"]);
   // the period ends today: the work starts tomorrow
@@ -61,7 +68,8 @@ test("work that can't be started yet is not ready, whatever the window", () => {
   // payroll: can start 7 days before pay day
   const payroll = startRuleFor({}, "PAYROLL");
   assert.deepEqual(payroll, { kind: "days", days: 7 });
-  assert.deepEqual(bandsOf(job({ Deadline: day(24) }), undefined, today, 14, false, payroll), ["notYet"]);
+  assert.deepEqual(bandsOf(job({ Deadline: day(12) }), undefined, today, 14, false, payroll), ["notYet"]);
+  assert.deepEqual(bandsOf(job({ Deadline: day(24) }), undefined, today, 14, false, payroll), []);
   assert.deepEqual(bandsOf(job({ Deadline: day(7) }), undefined, today, 14, false, payroll), ["soon"]);
   // overdue wins, and "any time" never waits
   assert.deepEqual(bandsOf(job({ PeriodEnd: day(5), Deadline: day(-1) }), undefined, today, 14, false, period), ["overdue"]);
@@ -74,8 +82,10 @@ test("work that can't be started yet is not ready, whatever the window", () => {
 test("saved start rules are checked, and the practice's choice wins over the built-in one", () => {
   const rules = readStartRules({ PAYROLL: { kind: "any" }, VAT: { kind: "days", days: "10" }, BAD: { kind: "soon" }, CIS: { kind: "days", days: -3 } });
   assert.deepEqual(rules, { PAYROLL: { kind: "any" }, VAT: { kind: "days", days: 10 }, CIS: { kind: "days", days: 7 } });
+  assert.deepEqual(readStartRules({ X: { kind: "period", days: "45" }, Y: { kind: "period" } }), { X: { kind: "period", days: 45 }, Y: { kind: "period", days: 0 } });
   assert.deepEqual(startRuleFor(rules, "PAYROLL"), { kind: "any" });
   assert.deepEqual(startRuleFor(rules, "SA100"), { kind: "period" });
+  assert.deepEqual(startRuleFor(rules, "ACCS_LLP"), { kind: "period", days: 30 });
 });
 
 test("tally counts jobs by band using each job's stage", () => {
@@ -159,6 +169,10 @@ test("a Home count links to exactly the jobs it counted", async () => {
   assert.deepEqual(jobsForBand(q, o).map((j) => j.Key), ["a"]);
   assert.deepEqual(jobsForBand({ ...q, type: "" }, o).map((j) => j.Key), ["a", "c"]);
   assert.deepEqual(jobsForBand({ ...q, band: "hold", holds: true }, o).map((j) => j.Key), ["d"]);
+  // a statutory or other group
+  const g = { ...q, type: "", group: "other" as const };
+  assert.deepEqual(readBandQuery(new URLSearchParams(bandLink(g).split("?")[1])), g);
+  assert.deepEqual(jobsForBand(g, { ...o, statutory: (k: string) => k === "VAT" }).map((j) => j.Key), ["c"]);
   // the same jobs tally counts
   const c = tally(jobs.filter((j) => j.ServiceKey === "VAT"), o.stagesFor, today, 14, false);
   assert.equal(c.verySoon, jobsForBand(q, o).length);
