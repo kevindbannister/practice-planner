@@ -134,7 +134,7 @@ export function ClientPage({ clientKey, tab }: { clientKey: string; tab: "overvi
             );
           })}
           {tab === "overview" && (amlAlert || loe.warn || gaps.length > 0) && (
-            <div className={`alert attention${amlAlert && amlSerious ? "" : " amber"}`} style={{ gridColumn: "1 / -1" }}>
+            <div className={`alert attention${amlAlert && amlSerious ? "" : " amber"}`}>
               <strong>Needs attention</strong>
               <ul className="attention-list">
                 {amlAlert && <li><span>{amlText}</span><a href={href("clients", c.Key, "aml")}>Open AML</a></li>}

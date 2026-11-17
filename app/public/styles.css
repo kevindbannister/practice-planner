@@ -4873,3 +4873,9 @@ html[data-sheet][data-theme="dark"]:not([data-work]):not([data-advisory]), html[
   .tabs-row > .tabs a { flex: none; white-space: nowrap; }
   .tabs-row > .tabs-tools { flex: none; }
 }
+
+/* V35.30: the job alerts and "Needs attention" sit side by side in one row (wrapping only on a narrow screen), rather than the
+   attention box taking a row of its own underneath. */
+section.alerts:has(> .attention) { display: flex; flex-wrap: wrap; align-items: stretch; gap: 12px; }
+section.alerts:has(> .attention) > .alert:not(.attention) { flex: 0 1 300px; min-width: 240px; }
+section.alerts:has(> .attention) > .attention { flex: 1 1 420px; min-width: 0; }
