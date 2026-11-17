@@ -5244,3 +5244,18 @@ code { overflow-wrap: anywhere; }
   .rail-link, .rail-sub a { padding: 0 14px; border-radius: 12px; font-size: 14px; }
 }
 @media (min-width: 901px) { .rail-link:not(.multi) { padding-left: 32px; } }
+
+/* V35.40: the numbers on Home's Work by type open the jobs behind them on Deadlines */
+a.hw-link, a.hw-bseg[href], a.hw-badge, a.hw-say-part { cursor: pointer; text-decoration: none; }
+a.hw-cell.hw-link:hover, a.hw-bseg[href]:hover, a.hw-badge:hover { filter: brightness(0.92); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px currentColor; }
+a.hw-cell.hw-link, a.hw-bseg[href] { color: inherit; }
+.hw-cell.overdue.on.hw-link, .hw-cell.ok.on.hw-link, .hw-cell.hold.on.hw-link { color: #fff; }
+.hw-cell.verySoon.on.hw-link, .hw-cell.soon.on.hw-link { color: #0b0b0b; }
+a.hw-bseg[href] { color: #fff; }
+a.hw-bseg.soon[href], a.hw-bseg.verySoon[href], a.hw-bseg.notYet[href] { color: #0b0b0b; }
+a.hw-say-part, a.hw-legend-n, a.hw-big { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
+a.hw-say-part:hover, a.hw-legend-n:hover, a.hw-big:hover { text-decoration-color: currentColor; }
+.hw-legend-n { display: inline-flex; align-items: center; gap: 5px; }
+a.hw-badge.late { color: #fff; }
+.dl-from-home { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 16px; border-radius: 14px; background: color-mix(in srgb, #2F6FD6 9%, var(--surface)); border: 1px solid color-mix(in srgb, #2F6FD6 25%, transparent); }
+.dl-filters-off { display: none !important; }

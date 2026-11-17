@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react";
 import { Job, Task, fmtDate, isOnHold, jobState, todayIso } from "../lib/domain";
 import { addDays } from "../lib/planning";
-import { ElementsLink, Icon, PlanTabs, href } from "./bits";
+import { ElementsLink, Icon, PlanTabs, href, useRoute } from "./bits";
+import { BAND_LABEL, SCOPE_LABEL, START_KEY, jobsForBand, readBandQuery, readStartRules, startRuleFor } from "../lib/jobBands";
 import { TypeFilter, useRememberedTypes } from "./TypeFilter";
 import { svcClass } from "../lib/serviceColour";
 import { inFinalise, waitingForClient } from "../lib/waiting";
 import { isStatutory } from "../lib/workGroups";
-import { useData, useIndex } from "./data";
+import { readSetting, useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 
 type Range = "30" | "60" | "90" | "180" | "all";
@@ -44,6 +45,18 @@ export function DeadlinesView() {
   const inGroup = (clientKey?: string) => !!clientKey && (idx.groupsByMember.get(clientKey) || []).some((g) => g.Key === group);
   const members = theGroup ? data.clients.filter((c) => inGroup(c.Key as string)).sort((a, b) => String(a.Title).localeCompare(String(b.Title))) : [];
 
+  // opened from a number on Home: just the jobs that number counted, worked out the same way
+  const { query } = useRoute();
+  const fromHome = useMemo(() => readBandQuery(query), [query]);
+  const homeKeys = useMemo(() => {
+    if (!fromHome) return undefined;
+    const rules = readStartRules(readSetting(data.settings, START_KEY));
+    return new Set(jobsForBand(fromHome, {
+      jobs: idx.openJobs, user: user || "", today, clientOf: (k) => idx.clientByKey.get(k), stagesFor: (k) => idx.stagesByService.get(k) || [],
+      clientStages: data.clientStages, ruleFor: (k) => startRuleFor(rules, k),
+    }).map((j) => String(j.Key)));
+  }, [fromHome, idx, data.settings, data.clientStages, user, today]);
+
   const lines = useMemo(() => {
     const out: Line[] = [];
     for (const j of idx.openJobs) {
@@ -73,7 +86,7 @@ export function DeadlinesView() {
   const chosen = picked.filter((k) => types.some(([t]) => t === k));
   const typeOptions = types.map(([key, name]) => ({ key, name, count: lines.filter((l) => l.type === key).length }));
   const until = range === "all" ? "9999-12-31" : addDays(today, Number(range));
-  const shown = lines.filter((l) =>
+  const shown = homeKeys ? lines.filter((l) => l.kind === "job" && homeKeys.has(l.key)) : lines.filter((l) =>
     l.deadline <= until &&
     (!chosen.length || chosen.includes(l.type)) &&
     (kind === "all" || (kind === "statutory") === l.statutory) &&
@@ -159,7 +172,22 @@ export function DeadlinesView() {
         <strong>Deadlines: {rangeText}{typeText}</strong>
         <span>Printed {fmtDate(today, { weekday: true })}{user ? ` by ${user}` : ""} · {shown.length} items</span>
       </div>
-      <div className="row-wrap no-print">
+      {fromHome && (
+        <div className="dl-from-home" role="status">
+          <span>
+            <strong>{shown.length} job{shown.length === 1 ? "" : "s"}: {BAND_LABEL[fromHome.band].toLowerCase()}</strong>
+            {" · "}{fromHome.type ? idx.serviceName.get(fromHome.type) || fromHome.type : "all work"}
+            {" · "}{SCOPE_LABEL[fromHome.scope].toLowerCase()}
+            {fromHome.band !== "overdue" && fromHome.band !== "notYet" && fromHome.band !== "hold" ? ` · next ${fromHome.days} days` : ""}
+            <span className="muted"> · as counted on Home</span>
+          </span>
+          <span className="row-wrap" style={{ gap: 8 }}>
+            <a className="btn small" href="#/"><Icon name="left" size={14} /> Back to Home</a>
+            <a className="btn small" href="#/plan/deadlines">Show all deadlines</a>
+          </span>
+        </div>
+      )}
+      <div className={`row-wrap no-print${fromHome ? " dl-filters-off" : ""}`}>
         <div className="seg" role="group" aria-label="Due within">
           {(["30", "60", "90", "180", "all"] as Range[]).map((r) => (
             <button key={r} type="button" aria-pressed={range === r} onClick={() => setRange(r)} aria-label={r === "all" ? "All" : `${r} days`}>
@@ -198,10 +226,10 @@ export function DeadlinesView() {
           <button type="button" className="btn primary" onClick={() => window.print()}><Icon name="print" />Print or PDF</button>
         </div>
       </div>
-      <p className="muted no-print" style={{ margin: 0, fontSize: 13 }}>
+      {!fromHome && <p className="muted no-print" style={{ margin: 0, fontSize: 13 }}>
         {shown.length} item{shown.length === 1 ? "" : "s"} due in {rangeText}{typeText}{late.length ? `, including ${late.length} late` : ""}.
         To save a PDF, choose Print or PDF and pick "Save as PDF".
-      </p>
+      </p>}
 
       {theGroup && (
         <section className="card pad stack group-strip" aria-label={`${theGroup.Title} group`} style={{ gap: 8 }}>
@@ -229,7 +257,7 @@ export function DeadlinesView() {
           </div>
           <div className="table-wrap">{table(dueToday)}</div>
         </section>
-      ) : (
+      ) : !fromHome && (
         <p className="muted no-print" style={{ margin: 0, fontSize: 13 }}>Nothing is due today.</p>
       )}
       {late.length > 0 && (
@@ -244,7 +272,7 @@ export function DeadlinesView() {
           <div className="table-wrap">{table(list)}</div>
         </section>
       ))}
-      {!shown.length && <div className="card empty">Nothing due in {rangeText}{theGroup ? ` for ${theGroup.Title}` : ""}.</div>}
+      {!shown.length && <div className="card empty">{fromHome ? "None of these jobs now. They may have been finished or moved since Home was opened." : <>Nothing due in {rangeText}{theGroup ? ` for ${theGroup.Title}` : ""}.</>}</div>}
     </div>
   );
 }

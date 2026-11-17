@@ -157,3 +157,41 @@ export function nextOn(today: string, month: number, day: number): string {
   const md = `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   return `${y}-${md}` >= today.slice(0, 10) ? `${y}-${md}` : `${y + 1}-${md}`;
 }
+
+/* ---------- from a Home count to the jobs behind it ---------- */
+
+/** What a number on Home's Work by type counted: the type of work ("" for all of it), the band, and the settings it used. */
+export type BandQuery = { type: string; band: Band; days: number; holds: boolean; scope: Scope };
+
+/** The Deadlines address that lists the jobs behind a number on Home. */
+export function bandLink(q: BandQuery): string {
+  const p = new URLSearchParams({ band: q.band, days: String(q.days), scope: q.scope });
+  if (q.type) p.set("type", q.type);
+  if (q.holds) p.set("holds", "1");
+  return `#/plan/deadlines?${p.toString()}`;
+}
+
+export function readBandQuery(p: URLSearchParams): BandQuery | undefined {
+  const band = p.get("band") as Band;
+  if (!BANDS.includes(band)) return undefined;
+  const days = Math.max(0, Math.floor(Number(p.get("days"))));
+  const scope = p.get("scope");
+  return {
+    type: p.get("type") || "", band, days: Number.isFinite(days) ? days : DEFAULT_WINDOW, holds: p.get("holds") === "1",
+    scope: scope === "jobs" || scope === "mine" ? scope : "everyone",
+  };
+}
+
+/** The jobs a Home count is made of, worked out exactly as Home counts them, so the list always matches the number. */
+export function jobsForBand(q: BandQuery, o: {
+  jobs: Row[]; user: string; today: string; clientOf: (clientKey: string) => Row | undefined; stagesFor: (serviceKey: string) => Row[];
+  clientStages: Row[]; ruleFor: (serviceKey: string) => StartRule;
+}): Row[] {
+  return o.jobs.filter((j) => {
+    const k = String(j.ServiceKey || "");
+    if (q.type && k !== q.type) return false;
+    const stages = o.stagesFor(k);
+    if (!inScope(q.scope, o.user, j, o.clientOf(String(j.ClientKey || "")), stages, o.clientStages)) return false;
+    return bandsOf(j, stageAt(stages, Number(j.StageNo || 1)), o.today, q.days, q.holds, o.ruleFor(k)).includes(q.band);
+  });
+}

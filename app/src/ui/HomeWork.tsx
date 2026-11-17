@@ -7,7 +7,7 @@ import { Row } from "../lib/schema";
 import { daysBetween, fmtDate, todayIso } from "../lib/domain";
 import { stageAt } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
-import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, START_KEY, Scope, StartRule, accessFor, bandsOf, bandsShown, emptyCounts, inScope, nextOn, readStartRules, startRuleFor, tally } from "../lib/jobBands";
+import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, START_KEY, Scope, StartRule, accessFor, bandLink, bandsOf, bandsShown, emptyCounts, inScope, nextOn, readStartRules, startRuleFor, tally } from "../lib/jobBands";
 import { Icon } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
 import { useStaff } from "./staffKit";
@@ -111,8 +111,8 @@ export function HomeWork() {
         </p>
       ) : (
         <WorkDisplay view={view} bands={bands} items={[
-          { key: ALL, name: allName, total: true, c: allCounts, days: win(ALL), ahead: ahead(ALL), onOpen: () => setOpen(ALL) },
-          ...withCounts.map((t) => ({ key: t.key, name: t.name, serviceKey: t.key, c: t.c, days: win(t.key), ahead: ahead(t.key), onOpen: () => setOpen(t.key) })),
+          { key: ALL, name: allName, total: true, c: allCounts, days: win(ALL), ahead: ahead(ALL), onOpen: () => setOpen(ALL), link: (b: Band) => bandLink({ type: "", band: b, days: win(ALL), holds: includeHolds, scope }) },
+          ...withCounts.map((t) => ({ key: t.key, name: t.name, serviceKey: t.key, c: t.c, days: win(t.key), ahead: ahead(t.key), onOpen: () => setOpen(t.key), link: (b: Band) => bandLink({ type: t.key, band: b, days: win(t.key), holds: includeHolds, scope }) })),
         ]} />
       )}
       {open && (
@@ -146,7 +146,7 @@ function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number
 }
 
 /** `slot` sets the colour directly (the Appearance preview shows a colour before it is saved). */
-export type Item = { key: string; name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void };
+export type Item = { key: string; name: string; serviceKey?: string; slot?: number; link?: (b: Band) => string; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void };
 
 export function WorkDisplay({ view, items, bands = BANDS }: { view: WorkView; items: Item[]; bands?: Band[] }) {
   if (view === "cards") return <div className="hw-tiles">{items.map(({ key, ...rest }) => <Tile key={key} {...rest} bands={bands} />)}</div>;
@@ -167,6 +167,13 @@ export function WorkDisplay({ view, items, bands = BANDS }: { view: WorkView; it
       </table>
     </div>
   );
+}
+
+/** A count that opens the list of the jobs behind it (on Deadlines), when there are any and the count can link. */
+function Count({ n, href, className, label, children }: { n: number; href?: string; className: string; label: string; children: React.ReactNode }) {
+  return n && href
+    ? <a className={`${className} hw-link`} href={href} aria-label={`${label}: ${n}. Show these jobs`} title="Show these jobs">{children}</a>
+    : <span className={className} aria-label={`${label}: ${n}`}>{children}</span>;
 }
 
 const markClass = (serviceKey?: string, slot?: number) => (slot !== undefined ? `svc-${slot}` : serviceKey ? svcClass(serviceKey) : "");
@@ -203,10 +210,10 @@ function BarsView({ items, bands }: { items: Item[]; bands: Band[] }) {
             <div className="hw-bar-track" role="img" aria-label={`${i.name}: ${bands.map((b) => `${i.c[b]} ${BAND_LABEL[b].toLowerCase()}`).join(", ")}`}>
               <div className="hw-bar-fill" style={{ width: `${(t / max) * 100}%` }}>
                 {bands.filter((b) => i.c[b]).map((b) => (
-                  <span key={b} className={`hw-bseg ${b}`} style={{ flexGrow: i.c[b] }} tabIndex={0}
-                    onMouseEnter={(e) => show(e, `${i.name} · ${BAND_LABEL[b]}: ${i.c[b]}`)} onFocus={(e) => show(e, `${i.name} · ${BAND_LABEL[b]}: ${i.c[b]}`)} onBlur={() => setTip(null)}>
+                  <a key={b} className={`hw-bseg ${b}`} style={{ flexGrow: i.c[b] }} href={i.link?.(b)} aria-label={`${i.name}, ${BAND_LABEL[b].toLowerCase()}: ${i.c[b]}. Show these jobs`}
+                    onMouseEnter={(e) => show(e, `${i.name} · ${BAND_LABEL[b]}: ${i.c[b]}. Click to see them`)} onFocus={(e) => show(e, `${i.name} · ${BAND_LABEL[b]}: ${i.c[b]}`)} onBlur={() => setTip(null)}>
                     <span className="hw-bseg-n">{i.c[b]}</span>
-                  </span>
+                  </a>
                 ))}
               </div>
               {t === 0 && <span className="muted hw-bar-none">Nothing in view</span>}
@@ -228,15 +235,17 @@ function SummaryView({ items, bands }: { items: Item[]; bands: Band[] }) {
   return (
     <ul className="hw-board hw-summary">
       {order.map((i) => {
-        const parts = bands.filter((b) => b !== "overdue" && i.c[b]).map((b) => `${i.c[b]} ${words[b]}`);
+        const parts = bands.filter((b) => b !== "overdue" && i.c[b]).map((b) => <Count key={b} n={i.c[b]} href={i.link?.(b)} className="hw-say-part" label={`${i.name}, ${words[b]}`}>{i.c[b]} {words[b]}</Count>);
         return (
           <li key={i.key} className={i.total ? "total" : ""}>
-            <span className={`hw-badge${i.c.overdue ? " late" : " clear"}`} aria-hidden="true">{i.c.overdue ? i.c.overdue : <Icon name="check" size={16} />}</span>
+            {i.c.overdue && i.link
+              ? <a className="hw-badge late" href={i.link("overdue")} aria-label={`${i.name}: ${i.c.overdue} overdue. Show these jobs`} title="Show these jobs">{i.c.overdue}</a>
+              : <span className={`hw-badge${i.c.overdue ? " late" : " clear"}`} aria-hidden="true">{i.c.overdue ? i.c.overdue : <Icon name="check" size={16} />}</span>}
             <span className="hw-say">
               <span className="hw-say-name"><Mark total={i.total} serviceKey={i.serviceKey} slot={i.slot} />{i.name}</span>
               <span className="hw-say-text">
-                {i.c.overdue ? <strong className="late">{i.c.overdue} overdue</strong> : <strong>Nothing overdue</strong>}
-                {parts.length ? <>{" · "}{parts.join(", ")}</> : " · nothing else coming up"}
+                {i.c.overdue ? <strong className="late"><Count n={i.c.overdue} href={i.link?.("overdue")} className="hw-say-part" label={`${i.name}, overdue`}>{i.c.overdue} overdue</Count></strong> : <strong>Nothing overdue</strong>}
+                {parts.length ? <>{" · "}{parts.flatMap((x, n) => (n ? [", ", x] : [x]))}</> : " · nothing else coming up"}
               </span>
             </span>
             <AheadButton name={i.name} ahead={i.ahead} onOpen={i.onOpen} />
@@ -249,7 +258,7 @@ function SummaryView({ items, bands }: { items: Item[]; bands: Band[] }) {
 
 /** One type of work as a row: its counts in each band as pills (coloured when there is any), a thin bar showing the mix, and the
  *  look-ahead, which opens the breakdown where it can be changed. */
-function Line({ name, serviceKey, slot, total, c, ahead: aheadLabel, onOpen, bands }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; ahead: string; onOpen: () => void; bands: Band[] }) {
+function Line({ name, serviceKey, slot, total, c, ahead: aheadLabel, onOpen, bands, link }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; ahead: string; onOpen: () => void; bands: Band[]; link?: (b: Band) => string }) {
   const sum = bands.reduce((n, b) => n + c[b], 0);
   return (
     <tr className={`hw-row${total ? " total" : ""}`}>
@@ -265,7 +274,7 @@ function Line({ name, serviceKey, slot, total, c, ahead: aheadLabel, onOpen, ban
       </th>
       {bands.map((b) => (
         <td key={b} className="num" data-label={BAND_LABEL[b]}>
-          <span className={`hw-cell ${b}${c[b] ? " on" : ""}`} aria-label={`${BAND_LABEL[b]}: ${c[b]}`}>{c[b]}</span>
+          <Count n={c[b]} href={link?.(b)} className={`hw-cell ${b}${c[b] ? " on" : ""}`} label={`${name}, ${BAND_LABEL[b].toLowerCase()}`}>{c[b]}</Count>
         </td>
       ))}
       <td className="ahead">
@@ -277,7 +286,7 @@ function Line({ name, serviceKey, slot, total, c, ahead: aheadLabel, onOpen, ban
   );
 }
 
-function Tile({ name, serviceKey, slot, total, c, days, onOpen, bands }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; days: number; onOpen: () => void; bands: Band[] }) {
+function Tile({ name, serviceKey, slot, total, c, days, onOpen, bands, link }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; days: number; onOpen: () => void; bands: Band[]; link?: (b: Band) => string }) {
   const ahead: Band[] = bands.filter((b) => b !== "overdue");
   const SHORT: Record<Band, string> = { overdue: "overdue", verySoon: "very soon", soon: "soon", ok: "OK", notYet: "not ready", hold: "on hold" };
   const sum = ahead.reduce((n, b) => n + c[b], 0);
@@ -291,14 +300,14 @@ function Tile({ name, serviceKey, slot, total, c, days, onOpen, bands }: { name:
         <button type="button" className="hw-info" onClick={onOpen} aria-label={`Breakdown of ${name}`} title="Breakdown, and how many days to look ahead"><Icon name="chart" size={16} /></button>
       </div>
       <div className="hw-main">
-        <span className="hw-big">{c.overdue}</span>
+        <Count n={c.overdue} href={link?.("overdue")} className="hw-big" label={`${name}, overdue`}>{c.overdue}</Count>
         <span className="hw-big-label">overdue</span>
       </div>
       <div className="hw-meter" role="img" aria-label={`Next ${days} days: ${ahead.map((b) => `${c[b]} ${SHORT[b]}`).join(", ")}`}>
         {sum ? ahead.filter((b) => c[b]).map((b) => <span key={b} className={`hw-seg ${b}`} style={{ flexGrow: c[b] }} />) : <span className="hw-seg none" />}
       </div>
-      <ul className="hw-legend" aria-hidden="true">
-        {ahead.map((b) => <li key={b} className={c[b] ? "on" : ""}><i className={`hw-key ${b}`} /><strong>{c[b]}</strong> {SHORT[b]}</li>)}
+      <ul className="hw-legend">
+        {ahead.map((b) => <li key={b} className={c[b] ? "on" : ""}><Count n={c[b]} href={link?.(b)} className="hw-legend-n" label={`${name}, ${BAND_LABEL[b].toLowerCase()}`}><i className={`hw-key ${b}`} aria-hidden="true" /><strong>{c[b]}</strong> {SHORT[b]}</Count></li>)}
       </ul>
       <span className="hw-window">Next {days} days</span>
     </article>

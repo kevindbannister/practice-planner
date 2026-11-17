@@ -145,3 +145,21 @@ test("the next 31 December and the next 31 January", async () => {
   assert.equal(nextOn("2027-01-10", 1, 31), "2027-01-31");
   assert.equal(nextOn("2027-02-01", 1, 31), "2028-01-31");
 });
+
+test("a Home count links to exactly the jobs it counted", async () => {
+  const { bandLink, readBandQuery, jobsForBand } = await import("../src/lib/jobBands.ts");
+  const q = { type: "VAT", band: "verySoon" as const, days: 14, holds: false, scope: "everyone" as const };
+  const link = bandLink(q);
+  assert.equal(link, "#/plan/deadlines?band=verySoon&days=14&scope=everyone&type=VAT");
+  assert.deepEqual(readBandQuery(new URLSearchParams(link.split("?")[1])), q);
+  assert.equal(readBandQuery(new URLSearchParams("band=nonsense")), undefined);
+  const jobs = [job({ Key: "a", Deadline: day(2) }), job({ Key: "b", Deadline: day(20) }), job({ Key: "c", ServiceKey: "PAYE", Deadline: day(1) }), job({ Key: "d", Status: "On hold", Deadline: day(1) })];
+  const stages: Record<string, Record<string, unknown>[]> = { VAT: [{ StageNo: 1, VerySoonDays: 3, SoonDays: 7 }] };
+  const o = { jobs, user: "", today, clientOf: () => undefined, stagesFor: (k: string) => stages[k] || [], clientStages: [], ruleFor: () => ({ kind: "any" as const }) };
+  assert.deepEqual(jobsForBand(q, o).map((j) => j.Key), ["a"]);
+  assert.deepEqual(jobsForBand({ ...q, type: "" }, o).map((j) => j.Key), ["a", "c"]);
+  assert.deepEqual(jobsForBand({ ...q, band: "hold", holds: true }, o).map((j) => j.Key), ["d"]);
+  // the same jobs tally counts
+  const c = tally(jobs.filter((j) => j.ServiceKey === "VAT"), o.stagesFor, today, 14, false);
+  assert.equal(c.verySoon, jobsForBand(q, o).length);
+});
