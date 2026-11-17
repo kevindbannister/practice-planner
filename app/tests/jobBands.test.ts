@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_SOON, DEFAULT_VERY_SOON, accessFor, assigneeOf, bandsOf, inScope, isAssignedTo, ownerOf, tally, thresholds } from "../src/lib/jobBands.ts";
+import { DEFAULT_SOON, DEFAULT_VERY_SOON, StartRule, accessFor, assigneeOf, bandsOf, bandsShown, inScope, isAssignedTo, ownerOf, readStartRules, readyOn, startRuleFor, tally, thresholds } from "../src/lib/jobBands.ts";
 import type { Config } from "../src/lib/checklist.ts";
 
 const today = "2026-11-17";
@@ -42,10 +42,40 @@ test("overdue always counts, whatever the window; no deadline counts nowhere", (
   assert.deepEqual(bandsOf(job({ Deadline: "" }), undefined, today, 14, true), []);
 });
 
-test("held work is its own band; ignoring holdups keeps it out of the deadline bands", () => {
+test("held work counts only as on hold, and only when held work is included", () => {
   const held = job({ Status: "On hold", Deadline: day(-2) });
   assert.deepEqual(bandsOf(held, undefined, today, 14, true), ["hold"]);
-  assert.deepEqual(bandsOf(held, undefined, today, 14, false), ["hold", "overdue"]);
+  assert.deepEqual(bandsOf(held, undefined, today, 14, false), []);
+  assert.deepEqual(bandsShown(false).includes("hold"), false);
+  assert.deepEqual(bandsShown(true).includes("hold"), true);
+});
+
+test("work that can't be started yet is not ready, whatever the window", () => {
+  const period: StartRule = { kind: "period" };
+  // period still running: not ready, even though the deadline is a long way off
+  assert.deepEqual(bandsOf(job({ PeriodEnd: day(5), Deadline: day(60) }), undefined, today, 14, false, period), ["notYet"]);
+  // the period ended yesterday: ready, so counted by its deadline as usual
+  assert.deepEqual(bandsOf(job({ PeriodEnd: day(-1), Deadline: day(2) }), undefined, today, 14, false, period), ["verySoon"]);
+  // the period ends today: the work starts tomorrow
+  assert.deepEqual(bandsOf(job({ PeriodEnd: day(0), Deadline: day(10) }), undefined, today, 14, false, period), ["notYet"]);
+  // payroll: can start 7 days before pay day
+  const payroll = startRuleFor({}, "PAYROLL");
+  assert.deepEqual(payroll, { kind: "days", days: 7 });
+  assert.deepEqual(bandsOf(job({ Deadline: day(24) }), undefined, today, 14, false, payroll), ["notYet"]);
+  assert.deepEqual(bandsOf(job({ Deadline: day(7) }), undefined, today, 14, false, payroll), ["soon"]);
+  // overdue wins, and "any time" never waits
+  assert.deepEqual(bandsOf(job({ PeriodEnd: day(5), Deadline: day(-1) }), undefined, today, 14, false, period), ["overdue"]);
+  assert.deepEqual(bandsOf(job({ PeriodEnd: day(5), Deadline: day(3) }), undefined, today, 14, false, { kind: "any" }), ["verySoon"]);
+  // no period end to go on: ready
+  assert.deepEqual(bandsOf(job({ Deadline: day(3) }), undefined, today, 14, false, period), ["verySoon"]);
+  assert.equal(readyOn(job({ PeriodEnd: "2026-01-31" }), period), "2026-02-01");
+});
+
+test("saved start rules are checked, and the practice's choice wins over the built-in one", () => {
+  const rules = readStartRules({ PAYROLL: { kind: "any" }, VAT: { kind: "days", days: "10" }, BAD: { kind: "soon" }, CIS: { kind: "days", days: -3 } });
+  assert.deepEqual(rules, { PAYROLL: { kind: "any" }, VAT: { kind: "days", days: 10 }, CIS: { kind: "days", days: 7 } });
+  assert.deepEqual(startRuleFor(rules, "PAYROLL"), { kind: "any" });
+  assert.deepEqual(startRuleFor(rules, "SA100"), { kind: "period" });
 });
 
 test("tally counts jobs by band using each job's stage", () => {
@@ -55,7 +85,7 @@ test("tally counts jobs by band using each job's stage", () => {
     job({ Key: "d", ServiceKey: "PAYE", Deadline: day(9) }), job({ Key: "e", Status: "On hold" }),
   ];
   const c = tally(jobs, (k) => stages[k] || [], today, 14, true);
-  assert.deepEqual(c, { overdue: 1, verySoon: 2, soon: 0, ok: 1, hold: 1 });
+  assert.deepEqual(c, { overdue: 1, verySoon: 2, soon: 0, ok: 1, notYet: 0, hold: 1 });
 });
 
 test("a job's owner is the one set on it, else the client's manager, else partner", () => {

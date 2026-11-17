@@ -24,7 +24,7 @@ import { AppearanceSettings } from "./AppearanceSettings";
 // due, default hours and its stages); and Companies House checks.
 import React, { useEffect, useRef, useState } from "react";
 import { fmtDate, fmtHours, todayIso } from "../lib/domain";
-import { DEFAULT_SOON, DEFAULT_VERY_SOON } from "../lib/jobBands";
+import { DEFAULT_SOON, DEFAULT_START_DAYS, DEFAULT_VERY_SOON, START_KEY, StartRule, readStartRules, startRuleFor } from "../lib/jobBands";
 import {
   BUILT_IN_RULES, DEFAULT_HOURS, Hours, Rule, deadlineByRule, describeRule, newKey, nextPeriod, planDateFor, ruleFields, ruleFor,
 } from "../lib/planning";
@@ -683,6 +683,7 @@ function StagesCard({ service }: { service: string }) {
         (left blank they use {DEFAULT_VERY_SOON} and {DEFAULT_SOON}).
         {inUse.length ? ` ${inUse.length} open job${inUse.length === 1 ? "" : "s"} use these stages and stay on the same stage when you re-order.` : ""}
       </p>
+      <WorkStart service={service} />
       <ol className="stage-edit" ref={listRef}>
         {shown.map((st, i) => (
           <li key={st.Key as string} data-key={st.Key as string} className={dragKey === st.Key ? "dragging" : undefined}>
@@ -745,6 +746,39 @@ function StagesCard({ service }: { service: string }) {
 }
 
 /** How many days before the deadline work at this stage counts as "due very soon" and as "due soon" on the Home work tiles. */
+/** When this type of work can be started. Until then its jobs show as "Not ready yet" on the Home page. */
+function WorkStart({ service }: { service: string }) {
+  const { data, saveSetting } = useData();
+  const rules = readStartRules(readSetting(data.settings, START_KEY));
+  const rule = startRuleFor(rules, service);
+  const [days, setDays] = useState(String(rule.days ?? DEFAULT_START_DAYS));
+  const [error, setError] = useState("");
+  useEffect(() => { setDays(String(rule.days ?? DEFAULT_START_DAYS)); }, [service, rule.days]);
+  const save = (next: StartRule) => { setError(""); saveSetting(START_KEY, { ...rules, [service]: next }).catch(() => setError("Couldn't save that change.")); };
+  const commitDays = () => {
+    const n = Math.floor(Number(days));
+    if (!Number.isFinite(n) || n < 0 || n > 365) { setError("Use a number of days from 0 to 365."); return; }
+    if (n !== rule.days) save({ kind: "days", days: n });
+  };
+  return (
+    <div className="work-start">
+      <span className="work-start-label">Work can start</span>
+      <select className="input" value={rule.kind} aria-label="When this work can start"
+        onChange={(e) => save(e.target.value === "days" ? { kind: "days", days: Math.floor(Number(days)) || DEFAULT_START_DAYS } : { kind: e.target.value as "any" | "period" })}>
+        <option value="period">Once the period has ended</option>
+        <option value="days">A set number of days before the deadline</option>
+        <option value="any">Any time</option>
+      </select>
+      {rule.kind === "days" && (
+        <label><input className="input" type="number" min={0} max={365} inputMode="numeric" value={days} aria-label="Days before the deadline the work can start"
+          onChange={(e) => setDays(e.target.value)} onBlur={commitDays} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} /> days before</label>
+      )}
+      <span className="muted work-start-hint">Until then its jobs show as "Not ready yet" on Home, in grey with lines through.</span>
+      {error && <span className="error-text" role="alert">{error}</span>}
+    </div>
+  );
+}
+
 function StageDays({ stage, onSave }: { stage: Row; onSave: (patch: Row) => Promise<unknown> }) {
   const [vs, setVs] = useState(String(stage.VerySoonDays ?? ""));
   const [so, setSo] = useState(String(stage.SoonDays ?? ""));

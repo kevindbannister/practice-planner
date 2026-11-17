@@ -4,7 +4,7 @@
 import { CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MenuKind, Mode, WORKSPACES, isModeKind, AREAS } from "../lib/navAreas";
 import { PracticeLook, WorkViewChoice, lookVars } from "../lib/appearance";
-import { emptyCounts } from "../lib/jobBands";
+import { bandsShown, emptyCounts } from "../lib/jobBands";
 import { AreaMenu, AreaPicker, ModeMenu, TwoLineAreas, TwoLineModules } from "./AreaMenu";
 import { WorkDisplay, type Item } from "./HomeWork";
 import { Brand, Icon } from "./bits";
@@ -13,9 +13,9 @@ import { useData } from "./data";
 const WIDTH = 1240;
 const SECTION: Record<Mode, string> = { practice: "home", work: "work", advisory: "advisory-overview" };
 const SAMPLE = [
-  { overdue: 2, verySoon: 3, soon: 5, ok: 14, hold: 1 },
-  { overdue: 0, verySoon: 1, soon: 4, ok: 9, hold: 0 },
-  { overdue: 1, verySoon: 0, soon: 2, ok: 6, hold: 2 },
+  { overdue: 2, verySoon: 3, soon: 5, ok: 14, notYet: 4, hold: 0 },
+  { overdue: 0, verySoon: 1, soon: 4, ok: 9, notYet: 0, hold: 0 },
+  { overdue: 1, verySoon: 0, soon: 2, ok: 6, notYet: 6, hold: 0 },
 ];
 
 export type PreviewTypes = { key: string; name: string; slot: number }[];
@@ -116,7 +116,7 @@ export function MenuPreview({ kind, look, layout, workView, types, mode }: {
           )}
           <section className="hw ap-hw">
             <div className="ap-hw-head"><h2>Work by type</h2></div>
-            <WorkDisplay view={workView} items={items} />
+            <WorkDisplay view={workView} items={items} bands={bandsShown(false)} />
           </section>
         </div>
       </div>

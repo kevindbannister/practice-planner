@@ -5146,3 +5146,23 @@ html[data-sheet][data-theme="dark"], html[data-sheet][data-theme="dark"] body { 
   .ap-side-col { order: -1; }
   .ap-sticky { position: static; }
 }
+
+/* V35.37: "Not ready yet" work (can't be started yet: its period hasn't ended, or for payroll it's too early in the month), drawn in
+   grey with diagonal lines so it reads as waiting rather than as something to do. Dark text on a light hatch stays readable. */
+:root { --band-notyet: #c9ced6; --band-notyet-line: #9aa2ae; }
+:root[data-theme="dark"] { --band-notyet: #3a4352; --band-notyet-line: #5b6575; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --band-notyet: #3a4352; --band-notyet-line: #5b6575; } }
+.hw-cell.notYet.on, .hw-seg.notYet, .hw-bseg.notYet, .hw-key.notYet {
+  background: repeating-linear-gradient(135deg, var(--band-notyet) 0 4px, var(--band-notyet-line) 4px 6px); color: var(--ink, #17263a);
+}
+.hw-cell.notYet.on { font-weight: 700; text-shadow: 0 0 3px var(--band-notyet), 0 0 3px var(--band-notyet); }
+.hw-bseg.notYet .hw-bseg-n { color: var(--ink, #17263a); text-shadow: 0 0 3px var(--band-notyet), 0 0 3px var(--band-notyet); }
+.hw-holds { height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--sep); background: var(--surface); color: var(--navy); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; box-shadow: var(--box-shadow); }
+.hw-holds:hover { background: color-mix(in srgb, var(--navy) 8%, var(--surface)); }
+.hw-holds.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+:root[data-theme="dark"] .hw-holds.on { background: #fff; color: var(--navy); }
+.work-start { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2, transparent); }
+.work-start-label { font-weight: 600; }
+.work-start select { width: auto; }
+.work-start input[type=number] { width: 70px; }
+.work-start-hint { font-size: 13px; flex-basis: 100%; }

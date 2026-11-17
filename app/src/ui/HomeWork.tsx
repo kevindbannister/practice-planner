@@ -7,9 +7,9 @@ import { Row } from "../lib/schema";
 import { daysBetween, fmtDate, todayIso } from "../lib/domain";
 import { stageAt } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
-import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, Scope, accessFor, bandsOf, emptyCounts, inScope, nextOn, tally } from "../lib/jobBands";
+import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, START_KEY, Scope, StartRule, accessFor, bandsOf, bandsShown, emptyCounts, inScope, nextOn, readStartRules, startRuleFor, tally } from "../lib/jobBands";
 import { Icon } from "./bits";
-import { useData, useIndex } from "./data";
+import { readSetting, useData, useIndex } from "./data";
 import { useStaff } from "./staffKit";
 
 /** How Work by type is drawn, chosen in the profile menu and remembered on this device. */
@@ -29,7 +29,8 @@ export function useWorkView(): [WorkView, (v: WorkView) => void] {
 
 const STORE = "pp.home.work.v1";
 /** `until`: every tile counts work due up to this date (set by the 31 December and 31 January buttons) instead of its own days. */
-type Saved = { scope?: Scope; hold?: boolean; days?: Record<string, number>; until?: string };
+/** `holds`: count jobs on hold (in their own band). Off unless turned on. */
+type Saved = { scope?: Scope; holds?: boolean; days?: Record<string, number>; until?: string };
 const read = (user: string): Saved => { try { return JSON.parse(localStorage.getItem(`${STORE}:${user}`) || "{}") as Saved; } catch { return {}; } };
 const write = (user: string, s: Saved) => { try { localStorage.setItem(`${STORE}:${user}`, JSON.stringify(s)); } catch { /* this visit only */ } };
 
@@ -43,12 +44,15 @@ export function HomeWork() {
   const access = useMemo(() => accessFor(staff.cfg, user || ""), [staff.cfg, user]);
   const saved = useMemo(() => read(user || ""), [user]);
   const [scope, setScope] = useState<Scope>(saved.scope && access.scopes.includes(saved.scope) ? saved.scope : access.initial);
-  const [ignoreHolds, setIgnoreHolds] = useState(saved.hold !== false); // on unless it was turned off
+  const [includeHolds, setIncludeHolds] = useState(saved.holds === true);
+  const rules = useMemo(() => readStartRules(readSetting(data.settings, START_KEY)), [data.settings]);
+  const ruleFor = (k: string): StartRule => startRuleFor(rules, k);
+  const bands = bandsShown(includeHolds);
   const [days, setDays] = useState<Record<string, number>>(saved.days || {});
   const [open, setOpen] = useState<string | null>(null);
   const [view] = useWorkView();
   const [until, setUntil] = useState<string | undefined>(saved.until && saved.until >= today ? saved.until : undefined);
-  useEffect(() => { write(user || "", { scope, hold: ignoreHolds, days, until }); }, [user, scope, ignoreHolds, days, until]);
+  useEffect(() => { write(user || "", { scope, holds: includeHolds, days, until }); }, [user, scope, includeHolds, days, until]);
   // a role change (someone made a manager, say) can take away a view that was saved
   useEffect(() => { if (!access.scopes.includes(scope)) setScope(access.initial); }, [access, scope]);
 
@@ -69,9 +73,9 @@ export function HomeWork() {
     { key: "christmas", date: nextOn(today, 12, 31), icon: <TreeIcon /> },
     { key: "jan", date: nextOn(today, 1, 31), icon: <Icon name="form" size={16} /> },
   ];
-  const counts = (list: Row[], k: string): Counts => tally(list, stagesFor, today, win(k), ignoreHolds);
+  const counts = (list: Row[], k: string): Counts => tally(list, stagesFor, today, win(k), includeHolds, ruleFor);
   const withCounts = types.map((t) => ({ ...t, c: counts(t.jobs, t.key) })).sort((a, b) => b.c.overdue - a.c.overdue || a.name.localeCompare(b.name));
-  const allCounts = tally(jobs, stagesFor, today, win(ALL), ignoreHolds);
+  const allCounts = tally(jobs, stagesFor, today, win(ALL), includeHolds, ruleFor);
   const label = SCOPE_LABEL[scope === "everyone" ? "everyone" : scope];
   const allName = scope === "everyone" ? "All work" : label;
 
@@ -90,6 +94,10 @@ export function HomeWork() {
             </button>
           );
         })}
+        <button type="button" className={`hw-holds${includeHolds ? " on" : ""}`} aria-pressed={includeHolds} onClick={() => setIncludeHolds(!includeHolds)}
+          title={includeHolds ? "Jobs on hold are counted under On hold. Click to leave them out." : "Jobs on hold are left out. Click to count them under On hold."}>
+          <Icon name={includeHolds ? "check" : "clock"} size={14} /> Include on hold
+        </button>
         {access.scopes.length > 1 ? (
           <span className="seg" role="group" aria-label="Whose work to show">
             {access.scopes.map((s) => <button key={s} type="button" aria-pressed={scope === s} onClick={() => setScope(s)}>{SCOPE_LABEL[s]}</button>)}
@@ -102,7 +110,7 @@ export function HomeWork() {
           {scope === "mine" ? "No work is assigned to you yet. Whoever does each stage is set on the client's Work tab." : scope === "jobs" ? "No jobs are yours yet. A job's owner is set on the job, or comes from the client's manager." : "No open work."}
         </p>
       ) : (
-        <WorkDisplay view={view} items={[
+        <WorkDisplay view={view} bands={bands} items={[
           { key: ALL, name: allName, total: true, c: allCounts, days: win(ALL), ahead: ahead(ALL), onOpen: () => setOpen(ALL) },
           ...withCounts.map((t) => ({ key: t.key, name: t.name, serviceKey: t.key, c: t.c, days: win(t.key), ahead: ahead(t.key), onOpen: () => setOpen(t.key) })),
         ]} />
@@ -111,10 +119,10 @@ export function HomeWork() {
         <Breakdown
           title={open === ALL ? `Breakdown by job type: ${allName.toLowerCase()}` : `Breakdown: ${idx.serviceName.get(open) || open}`}
           days={win(open)} until={until} onDays={(n) => { setUntil(undefined); setDays({ ...days, [open]: n }); }}
-          ignoreHolds={ignoreHolds} onIgnoreHolds={setIgnoreHolds}
+          includeHolds={includeHolds} onIncludeHolds={setIncludeHolds} bands={bands}
           rows={open === ALL
-            ? withCounts.map((t) => ({ label: t.name, c: tally(t.jobs, stagesFor, today, win(ALL), ignoreHolds) }))
-            : stageRows(types.find((t) => t.key === open)?.jobs || [], stagesFor(open), today, win(open), ignoreHolds)}
+            ? withCounts.map((t) => ({ label: t.name, c: tally(t.jobs, stagesFor, today, win(ALL), includeHolds, ruleFor) }))
+            : stageRows(types.find((t) => t.key === open)?.jobs || [], stagesFor(open), today, win(open), includeHolds, ruleFor(open))}
           total={open === ALL ? allCounts : counts(types.find((t) => t.key === open)?.jobs || [], open)}
           rowHeading={open === ALL ? "Service" : "Stage"}
           onClose={() => setOpen(null)}
@@ -125,14 +133,14 @@ export function HomeWork() {
 }
 
 /** A service's jobs counted stage by stage, so each stage's own days show. Jobs at a stage that has gone count as "Other". */
-function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number, ignoreHolds: boolean): { label: string; c: Counts }[] {
+function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number, includeHolds: boolean, rule: StartRule): { label: string; c: Counts }[] {
   const ordered = [...stages].sort((a, b) => Number(a.StageNo) - Number(b.StageNo));
   const rows = ordered.map((s) => ({ no: Number(s.StageNo), label: `${s.StageNo}. ${s.Title}`, c: emptyCounts() }));
   const other = { no: -1, label: "Other", c: emptyCounts() };
   for (const j of jobs) {
     const no = Number(j.StageNo || 1);
     const row = rows.find((r) => r.no === no) || other;
-    for (const b of bandsOf(j, stageAt(ordered, no), today, windowDays, ignoreHolds)) row.c[b] += 1;
+    for (const b of bandsOf(j, stageAt(ordered, no), today, windowDays, includeHolds, rule)) row.c[b] += 1;
   }
   return [...rows, ...(BANDS.some((b) => other.c[b]) ? [other] : [])].map(({ label, c }) => ({ label, c }));
 }
@@ -140,10 +148,10 @@ function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number
 /** `slot` sets the colour directly (the Appearance preview shows a colour before it is saved). */
 export type Item = { key: string; name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void };
 
-export function WorkDisplay({ view, items }: { view: WorkView; items: Item[] }) {
-  if (view === "cards") return <div className="hw-tiles">{items.map(({ key, ...rest }) => <Tile key={key} {...rest} />)}</div>;
-  if (view === "bars") return <BarsView items={items} />;
-  if (view === "summary") return <SummaryView items={items} />;
+export function WorkDisplay({ view, items, bands = BANDS }: { view: WorkView; items: Item[]; bands?: Band[] }) {
+  if (view === "cards") return <div className="hw-tiles">{items.map(({ key, ...rest }) => <Tile key={key} {...rest} bands={bands} />)}</div>;
+  if (view === "bars") return <BarsView items={items} bands={bands} />;
+  if (view === "summary") return <SummaryView items={items} bands={bands} />;
   return (
     <div className="hw-board">
       <table className="hw-grid">
@@ -151,11 +159,11 @@ export function WorkDisplay({ view, items }: { view: WorkView; items: Item[] }) 
         <thead>
           <tr>
             <th scope="col">Type of work</th>
-            {BANDS.map((b) => <th key={b} scope="col" className="num">{BAND_LABEL[b]}</th>)}
+            {bands.map((b) => <th key={b} scope="col" className="num">{BAND_LABEL[b]}</th>)}
             <th scope="col" className="ahead">Looking ahead</th>
           </tr>
         </thead>
-        <tbody>{items.map(({ key, ...rest }) => <Line key={key} {...rest} />)}</tbody>
+        <tbody>{items.map(({ key, ...rest }) => <Line key={key} {...rest} bands={bands} />)}</tbody>
       </table>
     </div>
   );
@@ -173,10 +181,10 @@ const AheadButton = ({ name, ahead, onOpen }: { name: string; ahead: string; onO
 
 /** Bars: each type of work as one stacked bar on a shared scale (the longest bar is the busiest type), segments in band order with
  *  the count written in each, a key above, and a tooltip on each segment. */
-function BarsView({ items }: { items: Item[] }) {
+function BarsView({ items, bands }: { items: Item[]; bands: Band[] }) {
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
   const box = useRef<HTMLDivElement>(null);
-  const totalOf = (c: Counts) => BANDS.reduce((n, b) => n + c[b], 0);
+  const totalOf = (c: Counts) => bands.reduce((n, b) => n + c[b], 0);
   const max = Math.max(1, ...items.filter((i) => !i.total).map((i) => totalOf(i.c)), ...items.filter((i) => i.total).map((i) => totalOf(i.c)));
   const show = (e: React.MouseEvent | React.FocusEvent, text: string) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect(), o = box.current!.getBoundingClientRect();
@@ -185,16 +193,16 @@ function BarsView({ items }: { items: Item[] }) {
   return (
     <div className="hw-board hw-bars" ref={box} onMouseLeave={() => setTip(null)}>
       <ul className="hw-key-row" aria-label="Key">
-        {BANDS.map((b) => <li key={b}><i className={`hw-key ${b}`} />{BAND_LABEL[b]}</li>)}
+        {bands.map((b) => <li key={b}><i className={`hw-key ${b}`} />{BAND_LABEL[b]}</li>)}
       </ul>
       {items.map((i) => {
         const t = totalOf(i.c);
         return (
           <div key={i.key} className={`hw-bar-row${i.total ? " total" : ""}`}>
             <div className="hw-bar-name"><Mark total={i.total} serviceKey={i.serviceKey} slot={i.slot} /><span>{i.name}</span><span className="hw-type-sum">{t} shown</span></div>
-            <div className="hw-bar-track" role="img" aria-label={`${i.name}: ${BANDS.map((b) => `${i.c[b]} ${BAND_LABEL[b].toLowerCase()}`).join(", ")}`}>
+            <div className="hw-bar-track" role="img" aria-label={`${i.name}: ${bands.map((b) => `${i.c[b]} ${BAND_LABEL[b].toLowerCase()}`).join(", ")}`}>
               <div className="hw-bar-fill" style={{ width: `${(t / max) * 100}%` }}>
-                {BANDS.filter((b) => i.c[b]).map((b) => (
+                {bands.filter((b) => i.c[b]).map((b) => (
                   <span key={b} className={`hw-bseg ${b}`} style={{ flexGrow: i.c[b] }} tabIndex={0}
                     onMouseEnter={(e) => show(e, `${i.name} · ${BAND_LABEL[b]}: ${i.c[b]}`)} onFocus={(e) => show(e, `${i.name} · ${BAND_LABEL[b]}: ${i.c[b]}`)} onBlur={() => setTip(null)}>
                     <span className="hw-bseg-n">{i.c[b]}</span>
@@ -213,14 +221,14 @@ function BarsView({ items }: { items: Item[] }) {
 }
 
 /** Summary: a plain sentence for each type of work, most pressing first, with the overdue count as a badge. */
-function SummaryView({ items }: { items: Item[] }) {
-  const words: Record<Band, string> = { overdue: "overdue", verySoon: "due very soon", soon: "due soon", ok: "on track", hold: "on hold" };
+function SummaryView({ items, bands }: { items: Item[]; bands: Band[] }) {
+  const words: Record<Band, string> = { overdue: "overdue", verySoon: "due very soon", soon: "due soon", ok: "on track", notYet: "not ready yet", hold: "on hold" };
   const [all, ...rest] = items;
   const order = [all, ...[...rest].sort((a, b) => b.c.overdue - a.c.overdue || b.c.verySoon - a.c.verySoon || b.c.soon - a.c.soon || a.name.localeCompare(b.name))];
   return (
     <ul className="hw-board hw-summary">
       {order.map((i) => {
-        const parts = BANDS.filter((b) => b !== "overdue" && i.c[b]).map((b) => `${i.c[b]} ${words[b]}`);
+        const parts = bands.filter((b) => b !== "overdue" && i.c[b]).map((b) => `${i.c[b]} ${words[b]}`);
         return (
           <li key={i.key} className={i.total ? "total" : ""}>
             <span className={`hw-badge${i.c.overdue ? " late" : " clear"}`} aria-hidden="true">{i.c.overdue ? i.c.overdue : <Icon name="check" size={16} />}</span>
@@ -241,8 +249,8 @@ function SummaryView({ items }: { items: Item[] }) {
 
 /** One type of work as a row: its counts in each band as pills (coloured when there is any), a thin bar showing the mix, and the
  *  look-ahead, which opens the breakdown where it can be changed. */
-function Line({ name, serviceKey, slot, total, c, ahead: aheadLabel, onOpen }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; ahead: string; onOpen: () => void }) {
-  const sum = BANDS.reduce((n, b) => n + c[b], 0);
+function Line({ name, serviceKey, slot, total, c, ahead: aheadLabel, onOpen, bands }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; ahead: string; onOpen: () => void; bands: Band[] }) {
+  const sum = bands.reduce((n, b) => n + c[b], 0);
   return (
     <tr className={`hw-row${total ? " total" : ""}`}>
       <th scope="row">
@@ -252,10 +260,10 @@ function Line({ name, serviceKey, slot, total, c, ahead: aheadLabel, onOpen }: {
           <span className="hw-type-sum" title="Jobs counted in the bands for this look-ahead">{sum} shown</span>
         </span>
         <span className="hw-mix" aria-hidden="true">
-          {sum ? BANDS.filter((b) => c[b]).map((b) => <span key={b} className={`hw-seg ${b}`} style={{ flexGrow: c[b] }} />) : null}
+          {sum ? bands.filter((b) => c[b]).map((b) => <span key={b} className={`hw-seg ${b}`} style={{ flexGrow: c[b] }} />) : null}
         </span>
       </th>
-      {BANDS.map((b) => (
+      {bands.map((b) => (
         <td key={b} className="num" data-label={BAND_LABEL[b]}>
           <span className={`hw-cell ${b}${c[b] ? " on" : ""}`} aria-label={`${BAND_LABEL[b]}: ${c[b]}`}>{c[b]}</span>
         </td>
@@ -269,9 +277,9 @@ function Line({ name, serviceKey, slot, total, c, ahead: aheadLabel, onOpen }: {
   );
 }
 
-function Tile({ name, serviceKey, slot, total, c, days, onOpen }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; days: number; onOpen: () => void }) {
-  const ahead: Band[] = ["verySoon", "soon", "ok", "hold"];
-  const SHORT: Record<Band, string> = { overdue: "overdue", verySoon: "very soon", soon: "soon", ok: "OK", hold: "on hold" };
+function Tile({ name, serviceKey, slot, total, c, days, onOpen, bands }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; days: number; onOpen: () => void; bands: Band[] }) {
+  const ahead: Band[] = bands.filter((b) => b !== "overdue");
+  const SHORT: Record<Band, string> = { overdue: "overdue", verySoon: "very soon", soon: "soon", ok: "OK", notYet: "not ready", hold: "on hold" };
   const sum = ahead.reduce((n, b) => n + c[b], 0);
   return (
     <article className={`hw-tile${total ? " total" : ""}${c.overdue ? " late" : ""}`}>
@@ -297,8 +305,8 @@ function Tile({ name, serviceKey, slot, total, c, days, onOpen }: { name: string
   );
 }
 
-function Breakdown({ title, days, until, onDays, ignoreHolds, onIgnoreHolds, rows, total, rowHeading, onClose }: {
-  title: string; days: number; until?: string; onDays: (n: number) => void; ignoreHolds: boolean; onIgnoreHolds: (v: boolean) => void;
+function Breakdown({ title, days, until, onDays, includeHolds, onIncludeHolds, bands, rows, total, rowHeading, onClose }: {
+  title: string; days: number; until?: string; onDays: (n: number) => void; includeHolds: boolean; onIncludeHolds: (v: boolean) => void; bands: Band[];
   rows: { label: string; c: Counts }[]; total: Counts; rowHeading: string; onClose: () => void;
 }) {
   const first = useRef<HTMLInputElement>(null);
@@ -320,21 +328,21 @@ function Breakdown({ title, days, until, onDays, ignoreHolds, onIgnoreHolds, row
           <label>Overdue and due in the next{" "}
             <input ref={first} className="input" type="number" min={1} max={365} value={days} aria-label="Number of days to look ahead"
               onChange={(e) => { const n = Math.floor(Number(e.target.value)); if (Number.isFinite(n) && n >= 1 && n <= 365) onDays(n); }} />{" "}days.</label>
-          <label className="row-wrap" style={{ gap: 6 }}><input type="checkbox" checked={ignoreHolds} onChange={(e) => onIgnoreHolds(e.target.checked)} /> Ignore holdups</label>
+          <label className="row-wrap" style={{ gap: 6 }}><input type="checkbox" checked={includeHolds} onChange={(e) => onIncludeHolds(e.target.checked)} /> Include jobs on hold</label>
         </div>
         {until && <p className="hw-until-note">Every tile is counting work due up to {fmtDate(until)}. Changing the days here goes back to each tile's own setting.</p>}
         <p className="muted" style={{ margin: 0, fontSize: 13, textAlign: "center" }}>
-          These settings also apply to the tile. "Due very soon" and "due soon" are set for each stage in Settings. A job on hold always counts under On hold; with holdups ignored it is not also counted by its deadline.
+          These settings also apply to the tile. "Due very soon" and "due soon" are set for each stage in Settings. "Not ready yet" is work that can't be started yet (its period hasn't ended, or for payroll it's too early in the month); when it can start is set for each type of work in Settings. Jobs on hold are left out unless included.
         </p>
         <div className="table-wrap">
           <table className="hw-table">
-            <thead><tr><th scope="col">{rowHeading}</th>{BANDS.map((b) => <th key={b} scope="col">{BAND_LABEL[b]}</th>)}</tr></thead>
+            <thead><tr><th scope="col">{rowHeading}</th>{bands.map((b) => <th key={b} scope="col">{BAND_LABEL[b]}</th>)}</tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.label}><th scope="row">{r.label}</th>{BANDS.map((b) => <td key={b}><span className={`hw-cell ${b}${r.c[b] ? " on" : ""}`}>{r.c[b]}</span></td>)}</tr>
+                <tr key={r.label}><th scope="row">{r.label}</th>{bands.map((b) => <td key={b}><span className={`hw-cell ${b}${r.c[b] ? " on" : ""}`}>{r.c[b]}</span></td>)}</tr>
               ))}
             </tbody>
-            <tfoot><tr><th scope="row">TOTAL</th>{BANDS.map((b) => <td key={b}>{jobs(total[b])}</td>)}</tr></tfoot>
+            <tfoot><tr><th scope="row">TOTAL</th>{bands.map((b) => <td key={b}>{jobs(total[b])}</td>)}</tr></tfoot>
           </table>
         </div>
       </div>
