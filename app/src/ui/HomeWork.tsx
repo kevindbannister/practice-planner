@@ -86,9 +86,21 @@ export function HomeWork() {
           {scope === "mine" ? "No work is assigned to you yet. Whoever does each stage is set on the client's Work tab." : scope === "jobs" ? "No jobs are yours yet. A job's owner is set on the job, or comes from the client's manager." : "No open work."}
         </p>
       ) : (
-        <div className="hw-tiles">
-          <Tile name={allName} total c={allCounts} days={win(ALL)} ahead={ahead(ALL)} onOpen={() => setOpen(ALL)} />
-          {withCounts.map((t) => <Tile key={t.key} name={t.name} serviceKey={t.key} c={t.c} days={win(t.key)} ahead={ahead(t.key)} onOpen={() => setOpen(t.key)} />)}
+        <div className="hw-board">
+          <table className="hw-grid">
+            <caption className="sr-only">Open jobs by type of work and how close their deadlines are</caption>
+            <thead>
+              <tr>
+                <th scope="col">Type of work</th>
+                {BANDS.map((b) => <th key={b} scope="col" className="num">{BAND_LABEL[b]}</th>)}
+                <th scope="col" className="ahead">Looking ahead</th>
+              </tr>
+            </thead>
+            <tbody>
+              <Line name={allName} total c={allCounts} ahead={ahead(ALL)} onOpen={() => setOpen(ALL)} />
+              {withCounts.map((t) => <Line key={t.key} name={t.name} serviceKey={t.key} c={t.c} ahead={ahead(t.key)} onOpen={() => setOpen(t.key)} />)}
+            </tbody>
+          </table>
         </div>
       )}
       {open && (
@@ -121,31 +133,33 @@ function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number
   return [...rows, ...(BANDS.some((b) => other.c[b]) ? [other] : [])].map(({ label, c }) => ({ label, c }));
 }
 
-function Tile({ name, serviceKey, total, c, days, ahead: aheadLabel, onOpen }: { name: string; serviceKey?: string; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void }) {
-  const ahead: Band[] = ["verySoon", "soon", "ok", "hold"];
-  const SHORT: Record<Band, string> = { overdue: "overdue", verySoon: "very soon", soon: "soon", ok: "OK", hold: "on hold" };
-  const sum = ahead.reduce((n, b) => n + c[b], 0);
+/** One type of work as a row: its counts in each band as pills (coloured when there is any), a thin bar showing the mix, and the
+ *  look-ahead, which opens the breakdown where it can be changed. */
+function Line({ name, serviceKey, total, c, ahead: aheadLabel, onOpen }: { name: string; serviceKey?: string; total?: boolean; c: Counts; ahead: string; onOpen: () => void }) {
+  const sum = BANDS.reduce((n, b) => n + c[b], 0);
   return (
-    <article className={`hw-tile${total ? " total" : ""}${c.overdue ? " late" : ""}`}>
-      <div className="hw-head">
-        <a className="hw-name" href="#/plan/deadlines" title="Open the deadlines">
+    <tr className={`hw-row${total ? " total" : ""}`}>
+      <th scope="row">
+        <span className="hw-type">
           {total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${serviceKey ? svcClass(serviceKey) : ""}`} aria-hidden="true" />}
-          <span>{name}</span>
-        </a>
-        <button type="button" className="hw-info" onClick={onOpen} aria-label={`Breakdown of ${name}`} title="Breakdown, and how many days to look ahead"><Icon name="chart" size={16} /></button>
-      </div>
-      <div className="hw-main">
-        <span className="hw-big">{c.overdue}</span>
-        <span className="hw-big-label">overdue</span>
-      </div>
-      <div className="hw-meter" role="img" aria-label={`${aheadLabel} (${days} days): ${ahead.map((b) => `${c[b]} ${SHORT[b]}`).join(", ")}`}>
-        {sum ? ahead.filter((b) => c[b]).map((b) => <span key={b} className={`hw-seg ${b}`} style={{ flexGrow: c[b] }} />) : <span className="hw-seg none" />}
-      </div>
-      <ul className="hw-legend" aria-hidden="true">
-        {ahead.map((b) => <li key={b} className={c[b] ? "on" : ""}><i className={`hw-key ${b}`} /><strong>{c[b]}</strong> {SHORT[b]}</li>)}
-      </ul>
-      <span className="hw-window">{aheadLabel}</span>
-    </article>
+          <span className="hw-type-name">{name}</span>
+          <span className="hw-type-sum" title="Jobs counted in the bands for this look-ahead">{sum} shown</span>
+        </span>
+        <span className="hw-mix" aria-hidden="true">
+          {sum ? BANDS.filter((b) => c[b]).map((b) => <span key={b} className={`hw-seg ${b}`} style={{ flexGrow: c[b] }} />) : null}
+        </span>
+      </th>
+      {BANDS.map((b) => (
+        <td key={b} className="num" data-label={BAND_LABEL[b]}>
+          <span className={`hw-cell ${b}${c[b] ? " on" : ""}`} aria-label={`${BAND_LABEL[b]}: ${c[b]}`}>{c[b]}</span>
+        </td>
+      ))}
+      <td className="ahead">
+        <button type="button" className="hw-ahead" onClick={onOpen} aria-label={`${name}: ${aheadLabel}. Open the breakdown`} title="Breakdown, and how far ahead to look">
+          <Icon name="chart" size={14} /><span>{aheadLabel}</span>
+        </button>
+      </td>
+    </tr>
   );
 }
 
