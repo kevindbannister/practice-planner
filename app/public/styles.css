@@ -4855,3 +4855,9 @@ html[data-sheet][data-theme="dark"]:not([data-work]):not([data-advisory]), html[
 .attention-list .linkbtn { font: inherit; padding: 0; min-height: 0; }
 .attention-list a { font: inherit; }
 .attention-list a, .attention-list .linkbtn { color: var(--blue); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
+/* V35.28: each warning in "Needs attention" stays on one line at every width. On a phone a long one scrolls sideways inside its
+   own row rather than wrapping or widening the page. */
+.attention-list > li { flex-wrap: nowrap; white-space: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+.attention-list > li::-webkit-scrollbar { display: none; }
+.attention-list > li > .row-wrap { flex-wrap: nowrap; }
