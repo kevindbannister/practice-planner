@@ -14,14 +14,14 @@ import { addDays } from "../lib/planning";
 import { signOut } from "../lib/auth";
 import { Brand, ClientBadge, ClientsTabs, Icon, IconName, href, useRoute } from "./bits";
 import { useTheme } from "./theme";
-import { AREAS, MENU_KINDS, MODULE_LABELS, WORKSPACES, areaOf, isAreaId, isModeKind, navKeyOf, type AreaId } from "../lib/navAreas";
+import { AREAS, MODULE_LABELS, WORKSPACES, areaOf, isAreaId, isModeKind, navKeyOf, type AreaId } from "../lib/navAreas";
 import { useData, useIndex } from "./data";
 import { EditorProvider, useEditor } from "./Editors";
 import { useChaseCount } from "./chaseCount";
 import { SettingsTabs } from "./SettingsTabs";
-import { setBandSlot, setStripSlot, usePracticeLayout } from "./StripSlot";
+import { setBandSlot, setStripSlot } from "./StripSlot";
 import { AdvisoryLine } from "./AdvisoryLine";
-import { WORK_VIEWS, useWorkView } from "./HomeWork";
+import { AppearanceSync, devicePersonal, useSavePersonal } from "./appearanceKit";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -195,6 +195,7 @@ export function App({ demo }: { demo: boolean }) {
             <NavPrefsSync />
             <AssistantProvider>
               <>
+                <AppearanceSync />
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
                 {!(section === "devhub" || (section === "advisory" || section === "taxplan") && parts[1] && parts[1] !== "production") && <TopBar section={section} routeKey={parts[1]} demo={demo} ready={status === "ready"} scrolls={(section === "papers" || section === "tax" || section === "reporting") && !!parts[1]} />}
                 <span className="version-badge" title={`Prototype, version ${VERSION}`}>P V{VERSION}</span>
@@ -375,9 +376,9 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
   const { save } = useData();
   const { dark, set } = useTheme();
   const [tips, setTips] = useTips();
-  const [menuKind, setMenuKind] = useMenuKind();
-  const [layout, setLayout] = usePracticeLayout();
-  const [workView, setWorkView] = useWorkView();
+  const savePersonal = useSavePersonal();
+  // the two quick switches here are saved to your account too, like the rest of Settings, Appearance
+  const keep = (change: { tips?: boolean; theme?: "light" | "dark" }) => { const p = devicePersonal(); void savePersonal({ layout: p.layout, workView: p.workView, tips: p.tips, theme: p.theme, ...change }); };
   const navError = useNavState().error;
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -404,32 +405,15 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
               {save.state === "saving" ? "Saving…" : save.state === "saved" ? `Saved to SharePoint · ${at}` : save.state === "error" ? "Not saved" : "SharePoint"}
             </span>
           </div>
-          <button type="button" role="menuitemcheckbox" aria-checked={tips} onClick={() => { setTips(!tips); setShown(false); }}>
+          <button type="button" role="menuitemcheckbox" aria-checked={tips} onClick={() => { setTips(!tips); keep({ tips: !tips }); setShown(false); }}>
             <Icon name={tips ? "check" : "book"} size={16} /> Show tips on each screen
           </button>
-          <button type="button" role="menuitem" onClick={() => { set(dark ? "light" : "dark"); setShown(false); }}>
+          <button type="button" role="menuitem" onClick={() => { set(dark ? "light" : "dark"); keep({ theme: dark ? "light" : "dark" }); setShown(false); }}>
             <Icon name={dark ? "sun" : "moon"} size={16} /> {dark ? "Light mode" : "Dark mode"}
           </button>
           <a role="menuitem" href="#/settings" onClick={() => setShown(false)}><Icon name="settings" size={16} /> Settings{waiting > 0 && <span className="nav-count" aria-label={`${waiting} waiting in the portal`}>{waiting}</span>}</a>
+          <a role="menuitem" href="#/settings/appearance" onClick={() => setShown(false)}><Icon name="layout" size={16} /> Appearance and menu…</a>
           <a role="menuitem" href="#/devhub" onClick={() => setShown(false)}><Icon name="cog" size={16} /> Development Hub</a>
-          <div className="profile-sub">Practice pages</div>
-          {([["top", "Tabs on the page"], ["side", "List down the left"]] as const).map(([k, label]) => (
-            <button key={k} type="button" role="menuitemradio" aria-checked={layout === k} onClick={() => { setLayout(k); setShown(false); }}>
-              <Icon name={layout === k ? "check" : "layout"} size={16} /> {label}
-            </button>
-          ))}
-          <div className="profile-sub">Work by type on Home</div>
-          {WORK_VIEWS.map(([k, label]) => (
-            <button key={k} type="button" role="menuitemradio" aria-checked={workView === k} onClick={() => { setWorkView(k); setShown(false); }}>
-              <Icon name={workView === k ? "check" : "chart"} size={16} /> {label}
-            </button>
-          ))}
-          <div className="profile-sub">Menu style</div>
-          {MENU_KINDS.map(([k, label]) => (
-            <button key={k} type="button" role="menuitemradio" aria-checked={menuKind === k} onClick={() => { setMenuKind(k); setShown(false); }}>
-              <Icon name={menuKind === k ? "check" : "layout"} size={16} /> {label}
-            </button>
-          ))}
           {navError && <p className="profile-note" role="alert">{navError}</p>}
           {!demo && <button type="button" role="menuitem" onClick={signOut}><Icon name="left" size={16} /> Sign out</button>}
         </div>

@@ -6,6 +6,11 @@
 (function () {
   try {
     var h = document.documentElement;
+    // the practice's colours (Settings, Appearance), remembered from the last visit, so the first paint is already in them
+    try {
+      var vars = JSON.parse(localStorage.getItem("pp.look.vars") || "null");
+      if (vars && typeof vars === "object") for (var name in vars) if (/^--[a-z-]+$/.test(name) && typeof vars[name] === "string") h.style.setProperty(name, vars[name]);
+    } catch (e) { /* the defaults in styles.css */ }
     var parts = (location.hash || "").replace(/^#\/?/, "").split("?")[0].split("/").filter(Boolean);
     var s = parts[0] || "home";
     // a client's Freedom Plan or tax plan, and the Development Hub, are full screens with no top bar

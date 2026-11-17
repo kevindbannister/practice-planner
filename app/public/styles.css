@@ -5054,3 +5054,95 @@ section.alerts:has(> .attention) > .attention { flex: 1 1 420px; min-width: 0; }
   .hw-summary li .hw-ahead { grid-column: 2; justify-self: start; }
 }
 
+
+/* V35.36: the practice look (Settings, Appearance) as variables. The defaults here are the original colours; the app sets the
+   practice's choices on the page, and the Appearance preview sets a draft on its own box only. Dark mode keeps its dark versions. */
+:root {
+  --work-bar: #1B3049; --adv-bar: #2E2368; --practice-bar: linear-gradient(95deg, #E7FAFF 0%, #F2F8FE 50%, #F2F3FF 100%);
+  --canvas-practice: #F4F6F9; --canvas-work: #E7EBF0;
+}
+.topbar.mode-work:not(.mode-advisory), .topbar.mode-bar.mode-work:not(.mode-advisory) { background: var(--work-bar) !important; background-color: var(--work-bar) !important; }
+.topbar.mode-work.mode-advisory, .topbar.mode-bar.mode-work.mode-advisory { background: var(--adv-bar) !important; background-color: var(--adv-bar) !important; }
+@media (min-width: 721px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) { background: var(--practice-bar) !important; }
+  :root[data-theme="dark"][data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) { background: linear-gradient(95deg, #10293b 0%, #1a2145 100%) !important; }
+}
+@media (min-width: 721px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-pflat]:not([data-work]):not([data-advisory]) .topbar.mode-bar:not(.mode-work) { background: linear-gradient(95deg, #10293b 0%, #1a2145 100%) !important; }
+}
+html[data-sheet]:not([data-work]):not([data-advisory]), html[data-sheet]:not([data-work]):not([data-advisory]) body { background: var(--canvas-practice); }
+html[data-sheet][data-work], html[data-sheet][data-work] body, html[data-sheet][data-advisory]:not([data-work]), html[data-sheet][data-advisory]:not([data-work]) body { background: var(--canvas-work); }
+html[data-sheet][data-theme="dark"], html[data-sheet][data-theme="dark"] body { background: #0b1522; }
+@media (prefers-color-scheme: dark) { html[data-sheet]:not([data-theme="light"]), html[data-sheet]:not([data-theme="light"]) body { background: #0b1522; } }
+@media (min-width: 721px) {
+  html[data-boot]::before { background: var(--work-bar); }
+  html[data-boot="advisory"]::before { background: var(--adv-bar); }
+  html[data-boot="practice"]::before { background: var(--practice-bar); }
+}
+
+/* V35.36: Settings, Appearance. Options on the left, a preview that stays in view on the right. */
+.ap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 20px; align-items: start; margin-top: 16px; }
+.ap-options { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ap-card { padding: 22px; }
+.ap-card h2 { margin: 0 0 2px; }
+.ap-lead { margin: 0 0 14px; }
+.ap-field { border: 0; margin: 0 0 16px; padding: 0; min-width: 0; }
+.ap-field legend { font-weight: 600; margin-bottom: 8px; padding: 0; }
+.ap-field[disabled] { opacity: 0.7; }
+.ap-hint { font-size: 13px; margin: -2px 0 10px; }
+.ap-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; }
+.ap-choice { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 14px; }
+.ap-choice.on { border-color: var(--accent, #2f6fd6); background: color-mix(in srgb, var(--accent, #2f6fd6) 8%, transparent); }
+.ap-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.ap-seg label { position: relative; padding: 7px 12px; font-size: 14px; cursor: pointer; border-right: 1px solid var(--line); }
+.ap-seg label:last-child { border-right: 0; }
+.ap-seg label.on { background: var(--accent, #2f6fd6); color: #fff; }
+.ap-seg input, .ap-swatch input, .ap-dot input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.ap-seg label:has(input:focus-visible), .ap-swatch:has(input:focus-visible), .ap-dot:has(input:focus-visible), .ap-choice:has(input:focus-visible) { outline: 2px solid var(--accent, #2f6fd6); outline-offset: 2px; }
+.ap-check { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.ap-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ap-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.ap-swatch { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 72px; font-size: 12px; cursor: pointer; text-align: center; }
+.ap-swatches.wide .ap-swatch { width: 104px; }
+.ap-chip { display: block; width: 100%; height: 34px; border-radius: 8px; border: 1px solid var(--line); box-sizing: border-box; }
+.ap-swatch.on .ap-chip { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent, #2f6fd6); }
+.ap-swatch.on { font-weight: 600; }
+.ap-types { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ap-types li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 7px 0; border-bottom: 1px solid var(--sep, var(--line)); }
+.ap-types li:last-child { border-bottom: 0; }
+.ap-type-name { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; min-width: 0; }
+.ap-dots { display: inline-flex; gap: 6px; }
+.ap-dot { position: relative; width: 20px; height: 20px; border-radius: 50%; background: var(--svc); cursor: pointer; box-sizing: border-box; }
+.ap-dot.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink, #17263a); }
+.ap-side-col { align-self: stretch; min-width: 0; }
+.ap-sticky { position: sticky; top: calc(var(--topbar-h, 68px) + 72px); display: flex; flex-direction: column; gap: 8px; }
+.ap-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ap-modes label { padding: 5px 10px; font-size: 13px; }
+.ap-saved { display: inline-flex; align-items: center; gap: 6px; color: var(--ok, #0a7d0a); font-weight: 600; margin: 0; }
+
+/* the preview box: a desktop-width copy of the top of the app, scaled down */
+.ap-preview { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--canvas-practice); box-shadow: 0 6px 20px rgba(23, 38, 58, 0.08); }
+.ap-stage { position: absolute; top: 0; left: 0; transform-origin: 0 0; background: var(--canvas-practice); pointer-events: none; user-select: none; padding-bottom: 24px; }
+.ap-stage.ap-work { background: var(--canvas-work); }
+.ap-stage .topbar { position: relative !important; top: 0 !important; margin: 0 !important; border-radius: 0 !important; width: auto !important; min-height: 68px; box-sizing: border-box; padding: 8px 24px 8px 28px; flex-wrap: nowrap; }
+.ap-stage .topbar .hide-phone { display: block !important; }
+.ap-stage .topbar.mode-work .nv-link, .ap-stage .topbar.mode-work .brand, .ap-stage .topbar.mode-work .brand * { color: #fff; }
+.ap-stage .topbar.mode-work .btn:not(.primary) { background: rgba(255, 255, 255, 0.12); color: #fff; border-color: rgba(255, 255, 255, 0.2); }
+.ap-avatar { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent, #2f6fd6); color: #fff; font-weight: 700; font-size: 13px; margin-left: 8px; }
+.ap-line { display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 28px; background: var(--surface); border-bottom: 1px solid var(--sep, var(--line)); box-shadow: 0 4px 14px rgba(23, 38, 58, 0.06); box-sizing: border-box; }
+.ap-line-work .paper-top-icon { display: inline-grid; place-items: center; color: var(--muted); }
+.ap-line-tools { margin-left: auto; display: inline-flex; gap: 6px; }
+.ap-tabs { display: inline-flex; gap: 4px; margin-left: 12px; }
+.ap-tabs span, .ap-sidelist span { padding: 6px 12px; border-radius: 999px; font-size: 14px; color: var(--muted); }
+.ap-tabs span.on, .ap-sidelist span.on { background: color-mix(in srgb, var(--accent, #2f6fd6) 12%, transparent); color: var(--ink, #17263a); font-weight: 600; }
+.ap-canvas { padding: 22px 28px 0; }
+.ap-canvas.ap-side { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 20px; }
+.ap-sidelist { display: flex; flex-direction: column; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; align-self: start; }
+.ap-sidelist span { border-radius: 8px; }
+.ap-hw { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.ap-hw-head h2 { margin: 0 0 12px; font-size: 18px; }
+@media (max-width: 1100px) {
+  .ap { grid-template-columns: minmax(0, 1fr); }
+  .ap-side-col { order: -1; }
+  .ap-sticky { position: static; }
+}

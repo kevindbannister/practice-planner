@@ -11,10 +11,20 @@ const FAMILY: Record<string, number> = {
   CT600: 7, // corporation tax: violet
 };
 
+// the practice's own choices (Settings, Appearance), which win over the families above
+let chosen: Record<string, number> = {};
+/** Set the colour the practice chose for each type of work (from the saved practice look). */
+export function setServiceSlots(slots: Record<string, number>) { chosen = slots || {}; }
+
 /** 1 to 7 for a coloured family of work, 0 for neutral. */
 export function serviceSlot(serviceKey?: string): number {
+  const own = chosen[serviceKey || ""];
+  if (Number.isInteger(own) && own >= 0 && own <= 7) return own;
   return FAMILY[serviceKey || ""] || 0;
 }
+
+/** The colour a type of work has before the practice chooses one. */
+export const builtInSlot = (serviceKey?: string): number => FAMILY[serviceKey || ""] || 0;
 
 /** Names for each colour, for legends. */
 export const FAMILY_NAMES: Record<number, string> = {

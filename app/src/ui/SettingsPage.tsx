@@ -20,6 +20,7 @@ import { HmrcSettings } from "./HmrcSettings";
 import { CoSecSettings } from "./CoSecSettings";
 import { XamaSettings } from "./XamaSettings";
 import { FirmSettings } from "./FirmSettings";
+import { AppearanceSettings } from "./AppearanceSettings";
 // due, default hours and its stages); and Companies House checks.
 import React, { useEffect, useRef, useState } from "react";
 import { fmtDate, fmtHours, todayIso } from "../lib/domain";
@@ -64,6 +65,7 @@ export function SettingsPage() {
       {tab === "week" && <AppearanceCard />}
       {tab === "work" && <TypesOfWork />}
       {tab === "companies-house" && <CompaniesHouseSettings />}
+      {tab === "appearance" && <AppearanceSettings />}
       {tab === "backups" && <BackupSettings />}
       {tab === "calendar" && <CalendarSettings />}
       {(tab === "letters" || tab === "engagement") && <CommsSettings />}

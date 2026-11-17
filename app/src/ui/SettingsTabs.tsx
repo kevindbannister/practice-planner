@@ -4,7 +4,7 @@ import { GroupedTabs, TabGroup, href } from "./bits";
 import { usePortal } from "./portalKit";
 
 export const TABS: [string, string][] = [
-  ["week", "Your week"], ["firm", "Your firm"], ["work", "Types of work"], ["services", "Services & pricing"], ["fields", "Your own fields"], ["pricing", "Pricing rules"], ["design", "Document design"], ["clearance", "Clearance points"], ["adfin", "Adfin"], ["engagement", "Engagement letters"], ["onboarding", "Onboarding"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["forms", "Forms"], ["xero", "Xero"], ["detailedpl", "Detailed P&L"], ["hmrc", "HMRC"], ["cosec", "Co Sec"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
+  ["week", "Your week"], ["firm", "Your firm"], ["appearance", "Appearance"], ["work", "Types of work"], ["services", "Services & pricing"], ["fields", "Your own fields"], ["pricing", "Pricing rules"], ["design", "Document design"], ["clearance", "Clearance points"], ["adfin", "Adfin"], ["engagement", "Engagement letters"], ["onboarding", "Onboarding"], ["calendar", "Calendar"], ["companies-house", "Companies House"], ["letters", "Letters and email"], ["forms", "Forms"], ["xero", "Xero"], ["detailedpl", "Detailed P&L"], ["hmrc", "HMRC"], ["cosec", "Co Sec"], ["xama", "Xama"], ["sales", "Sales"], ["backups", "Backups"],
 ];
 // These two have their own pages; they sit with Settings rather than in the main bar.
 export const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "#/checklists"], ["dependencies", "Dependencies", "#/dependencies"], ["portal", "Client portal", "#/portal"]];
@@ -12,7 +12,7 @@ export const PAGE_TABS: [string, string, string][] = [["checklists", "Checks", "
 /** Screens that now sit inside another one (pricing rules under Services & pricing, engagement letters under Letters and email). Their old addresses still work. */
 export const SETTINGS_ALIAS: Record<string, string> = { pricing: "services", engagement: "letters" };
 const SECTION_OF: [string, string[]][] = [
-  ["Firm", ["week", "firm", "calendar", "backups"]],
+  ["Firm", ["week", "firm", "appearance", "calendar", "backups"]],
   ["Work and pricing", ["work", "fields", "services", "clearance", "sales"]],
   ["Documents and email", ["design", "letters", "forms", "onboarding"]],
   ["Connections", ["xero", "adfin", "hmrc", "companies-house", "cosec", "xama", "detailedpl"]],

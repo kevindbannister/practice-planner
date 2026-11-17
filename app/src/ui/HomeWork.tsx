@@ -137,9 +137,10 @@ function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number
   return [...rows, ...(BANDS.some((b) => other.c[b]) ? [other] : [])].map(({ label, c }) => ({ label, c }));
 }
 
-type Item = { key: string; name: string; serviceKey?: string; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void };
+/** `slot` sets the colour directly (the Appearance preview shows a colour before it is saved). */
+export type Item = { key: string; name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void };
 
-function WorkDisplay({ view, items }: { view: WorkView; items: Item[] }) {
+export function WorkDisplay({ view, items }: { view: WorkView; items: Item[] }) {
   if (view === "cards") return <div className="hw-tiles">{items.map(({ key, ...rest }) => <Tile key={key} {...rest} />)}</div>;
   if (view === "bars") return <BarsView items={items} />;
   if (view === "summary") return <SummaryView items={items} />;
@@ -160,8 +161,9 @@ function WorkDisplay({ view, items }: { view: WorkView; items: Item[] }) {
   );
 }
 
-const Mark = ({ total, serviceKey }: { total?: boolean; serviceKey?: string }) =>
-  total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${serviceKey ? svcClass(serviceKey) : ""}`} aria-hidden="true" />;
+const markClass = (serviceKey?: string, slot?: number) => (slot !== undefined ? `svc-${slot}` : serviceKey ? svcClass(serviceKey) : "");
+const Mark = ({ total, serviceKey, slot }: { total?: boolean; serviceKey?: string; slot?: number }) =>
+  total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${markClass(serviceKey, slot)}`} aria-hidden="true" />;
 
 const AheadButton = ({ name, ahead, onOpen }: { name: string; ahead: string; onOpen: () => void }) => (
   <button type="button" className="hw-ahead" onClick={onOpen} aria-label={`${name}: ${ahead}. Open the breakdown`} title="Breakdown, and how far ahead to look">
@@ -189,7 +191,7 @@ function BarsView({ items }: { items: Item[] }) {
         const t = totalOf(i.c);
         return (
           <div key={i.key} className={`hw-bar-row${i.total ? " total" : ""}`}>
-            <div className="hw-bar-name"><Mark total={i.total} serviceKey={i.serviceKey} /><span>{i.name}</span><span className="hw-type-sum">{t} shown</span></div>
+            <div className="hw-bar-name"><Mark total={i.total} serviceKey={i.serviceKey} slot={i.slot} /><span>{i.name}</span><span className="hw-type-sum">{t} shown</span></div>
             <div className="hw-bar-track" role="img" aria-label={`${i.name}: ${BANDS.map((b) => `${i.c[b]} ${BAND_LABEL[b].toLowerCase()}`).join(", ")}`}>
               <div className="hw-bar-fill" style={{ width: `${(t / max) * 100}%` }}>
                 {BANDS.filter((b) => i.c[b]).map((b) => (
@@ -223,7 +225,7 @@ function SummaryView({ items }: { items: Item[] }) {
           <li key={i.key} className={i.total ? "total" : ""}>
             <span className={`hw-badge${i.c.overdue ? " late" : " clear"}`} aria-hidden="true">{i.c.overdue ? i.c.overdue : <Icon name="check" size={16} />}</span>
             <span className="hw-say">
-              <span className="hw-say-name"><Mark total={i.total} serviceKey={i.serviceKey} />{i.name}</span>
+              <span className="hw-say-name"><Mark total={i.total} serviceKey={i.serviceKey} slot={i.slot} />{i.name}</span>
               <span className="hw-say-text">
                 {i.c.overdue ? <strong className="late">{i.c.overdue} overdue</strong> : <strong>Nothing overdue</strong>}
                 {parts.length ? <>{" · "}{parts.join(", ")}</> : " · nothing else coming up"}
@@ -239,13 +241,13 @@ function SummaryView({ items }: { items: Item[] }) {
 
 /** One type of work as a row: its counts in each band as pills (coloured when there is any), a thin bar showing the mix, and the
  *  look-ahead, which opens the breakdown where it can be changed. */
-function Line({ name, serviceKey, total, c, ahead: aheadLabel, onOpen }: { name: string; serviceKey?: string; total?: boolean; c: Counts; ahead: string; onOpen: () => void }) {
+function Line({ name, serviceKey, slot, total, c, ahead: aheadLabel, onOpen }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; ahead: string; onOpen: () => void }) {
   const sum = BANDS.reduce((n, b) => n + c[b], 0);
   return (
     <tr className={`hw-row${total ? " total" : ""}`}>
       <th scope="row">
         <span className="hw-type">
-          {total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${serviceKey ? svcClass(serviceKey) : ""}`} aria-hidden="true" />}
+          {total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${markClass(serviceKey, slot)}`} aria-hidden="true" />}
           <span className="hw-type-name">{name}</span>
           <span className="hw-type-sum" title="Jobs counted in the bands for this look-ahead">{sum} shown</span>
         </span>
@@ -267,7 +269,7 @@ function Line({ name, serviceKey, total, c, ahead: aheadLabel, onOpen }: { name:
   );
 }
 
-function Tile({ name, serviceKey, total, c, days, onOpen }: { name: string; serviceKey?: string; total?: boolean; c: Counts; days: number; onOpen: () => void }) {
+function Tile({ name, serviceKey, slot, total, c, days, onOpen }: { name: string; serviceKey?: string; slot?: number; total?: boolean; c: Counts; days: number; onOpen: () => void }) {
   const ahead: Band[] = ["verySoon", "soon", "ok", "hold"];
   const SHORT: Record<Band, string> = { overdue: "overdue", verySoon: "very soon", soon: "soon", ok: "OK", hold: "on hold" };
   const sum = ahead.reduce((n, b) => n + c[b], 0);
@@ -275,7 +277,7 @@ function Tile({ name, serviceKey, total, c, days, onOpen }: { name: string; serv
     <article className={`hw-tile${total ? " total" : ""}${c.overdue ? " late" : ""}`}>
       <div className="hw-head">
         <a className="hw-name" href="#/plan/deadlines" title="Open the deadlines">
-          {total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${serviceKey ? svcClass(serviceKey) : ""}`} aria-hidden="true" />}
+          {total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${markClass(serviceKey, slot)}`} aria-hidden="true" />}
           <span>{name}</span>
         </a>
         <button type="button" className="hw-info" onClick={onOpen} aria-label={`Breakdown of ${name}`} title="Breakdown, and how many days to look ahead"><Icon name="chart" size={16} /></button>
