@@ -103,7 +103,7 @@ function Row({ r }: { r: ProductionRow }) {
         <a href={href("papers", r.client.Key, r.period)} className="adv-client"><ClientBadge client={r.client} /><span><strong>{r.client.Title}</strong>{r.client.CompanyNumber && <span className="cell-sub mono" style={{ display: "block" }}>{r.client.CompanyNumber}</span>}</span></a>
       </td>
       <td className="mono" style={{ whiteSpace: "nowrap" }}>{fmtDate(r.period)}</td>
-      <td className="mono" style={{ whiteSpace: "nowrap" }}>{r.deadline ? fmtDate(r.deadline) : "—"}{dl && <div className={`cell-sub${r.late ? " late" : ""}`} style={r.late ? { color: "var(--red, #b3261e)" } : undefined}>{dl}</div>}</td>
+      <td className="mono" style={{ whiteSpace: "nowrap" }}>{r.deadline ? fmtDate(r.deadline) : "—"}{dl && <div className={`cell-sub${r.late ? " late" : ""}`} style={r.late ? { color: "var(--red-ink)" } : undefined}>{dl}</div>}</td>
       <td><AccountsStatusSelect clientKey={String(r.client.Key)} period={r.period} compact /></td>
       <td>{r.stage}{r.waiting && <div className="cell-sub">Waiting for the client</div>}{r.complete && <div className="cell-sub">Job finished</div>}</td>
       <td>

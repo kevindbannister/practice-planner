@@ -5166,3 +5166,47 @@ html[data-sheet][data-theme="dark"], html[data-sheet][data-theme="dark"] body { 
 .work-start select { width: auto; }
 .work-start input[type=number] { width: 70px; }
 .work-start-hint { font-size: 13px; flex-basis: 100%; }
+
+/* V35.38: phone-width fixes found in the full review. Nothing on these screens may push the page sideways. */
+@media (max-width: 900px) { .create-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 800px) {
+  .paper-top .paper-tools { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; min-width: 0; margin-left: 0; }
+}
+code { overflow-wrap: anywhere; }
+
+/* V35.38: text contrast fixes found in the full review (every one below was under the 4.5:1 needed for normal text, or 3:1 for
+   large text). Light mode first, then dark. */
+/* amber and red numbers and words: the darker "ink" versions of the colours, which read on white */
+.home-hero .home-tile.amber .value, .work-family-sum .amber-text, .work-family-sum .amber-text strong { color: var(--amber-ink); }
+.home-hero .home-tile.red .value, .work-family-sum .red-text, .work-family-sum .red-text strong { color: var(--red-ink); }
+/* the small count badges: white on a deeper gold and red */
+.nav-count, .nav a[aria-current="page"] .nav-count, .topbar.mode-work .nav-count { background: #8f6420; color: #fff; }
+.bell-count.red { background: #b83a5c; }
+.adv-bar .adv-kicker { color: #7d6219; }
+/* Work by type: dark numbers on the orange band, and a slightly deeper green so white numbers read */
+:root { --band-ok: #0a870a; }
+.hw-cell.verySoon.on, .hw-bseg.verySoon { color: #0b0b0b; }
+
+/* dark mode: headings and links that kept their light-mode colours, and panels that stayed white */
+:root[data-theme="dark"] :is(.paper-main .card h1, .paper-main .card h2, .paper-main .card h3, .card-title) { color: var(--ink); }
+:root[data-theme="dark"] :is(.page:not(.home) td a, .split-main td a, .adv-table .linklike) { color: #8fb4ff; }
+:root[data-theme="dark"] .bell-count.red { background: var(--red-solid); }
+:root[data-theme="dark"] .paper-complete { background: var(--surface); }
+:root[data-theme="dark"] .paper-item.on { background: color-mix(in srgb, #8fb4ff 18%, var(--surface)); }
+:root[data-theme="dark"] :is(.hw-holds, .hw-ahead, .hw-target) { color: var(--navy-ink, #BFD2EA); }
+:root[data-theme="dark"] .hw-holds.on { background: #fff; color: #1B3049; }
+:root[data-theme="dark"] :is(.nav-count, .nav a[aria-current="page"] .nav-count, .topbar.mode-work .nav-count) { background: #D9A853; color: #1a1204; }
+:root[data-theme="dark"] .adv-bar .adv-kicker { color: #d9b54a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.paper-main .card h1, .paper-main .card h2, .paper-main .card h3, .card-title) { color: var(--ink); }
+  :root:not([data-theme="light"]) :is(.page:not(.home) td a, .split-main td a, .adv-table .linklike) { color: #8fb4ff; }
+  :root:not([data-theme="light"]) .bell-count.red { background: var(--red-solid); }
+  :root:not([data-theme="light"]) .paper-complete { background: var(--surface); }
+  :root:not([data-theme="light"]) .paper-item.on { background: color-mix(in srgb, #8fb4ff 18%, var(--surface)); }
+  :root:not([data-theme="light"]) :is(.hw-holds, .hw-ahead, .hw-target) { color: var(--navy-ink, #BFD2EA); }
+  :root:not([data-theme="light"]) .hw-holds.on { background: #fff; color: #1B3049; }
+  :root:not([data-theme="light"]) :is(.nav-count, .nav a[aria-current="page"] .nav-count, .topbar.mode-work .nav-count) { background: #D9A853; color: #1a1204; }
+  :root:not([data-theme="light"]) .adv-bar .adv-kicker { color: #d9b54a; }
+}
+/* the letterhead sample is a picture of a printed page, so it keeps dark ink on white in both modes */
+.brand-sample { color: #17263a; }

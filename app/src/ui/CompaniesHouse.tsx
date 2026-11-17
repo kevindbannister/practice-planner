@@ -37,6 +37,8 @@ type ChCtx = {
 };
 
 const Ctx = createContext<ChCtx | null>(null);
+/** One row for each flag, in case the same flag was saved twice. */
+const uniqueFlags = (rows: Row[]) => { const seen = new Set<string>(); return rows.filter((f) => { const k = String(f.Key); if (seen.has(k)) return false; seen.add(k); return true; }); };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function readSetting<T>(settings: Row[], key: string): T | undefined {
@@ -80,16 +82,36 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
     throw e;
   });
 
-  const check = useCallback(async () => {
-    const { data, create, update: upd } = latest.current;
-    const today = todayIso();
-    const found = plannerChecks({ clients: data.clients, jobs: data.jobs, services: data.services, today });
-    const scope = new Set<string>([...data.clients.map((c) => c.Key), ""]);
-    const writes = reconcile(found, data.chFlags, scope, today, isPlannerType);
-    for (const row of writes.create) await create("CHFlags", row);
-    for (const w of writes.update) await upd("CHFlags", w.row, w.patch);
-    return found.length;
+  // Flags written in this visit, so a second check that starts before the list has caught up doesn't add the same flag again
+  // (the planner's own check runs as the app opens, and the daily Companies House check runs it again when it finishes).
+  const made = useRef(new Set<string>());
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const createFlags = useCallback(async (rows: Row[]) => {
+    for (const row of rows) {
+      const k = String(row.Key);
+      if (made.current.has(k)) continue;
+      made.current.add(k);
+      await latest.current.create("CHFlags", row);
+    }
   }, []);
+  const check = useCallback((): Promise<number> => {
+    const next = queue.current.catch(() => undefined).then(async () => {
+      const { data, update: upd, remove } = latest.current;
+      const today = todayIso();
+      // an earlier version could save the same flag twice: keep the first of each
+      const firstOf = new Map<string, Row>();
+      for (const f of data.chFlags) { const k = String(f.Key); if (!firstOf.has(k)) firstOf.set(k, f); else await remove("CHFlags", f); }
+      const flags = [...firstOf.values()];
+      const found = plannerChecks({ clients: data.clients, jobs: data.jobs, services: data.services, today });
+      const scope = new Set<string>([...data.clients.map((c) => c.Key), ""]);
+      const writes = reconcile(found, flags, scope, today, isPlannerType);
+      await createFlags(writes.create);
+      for (const w of writes.update) await upd("CHFlags", w.row, w.patch);
+      return found.length;
+    });
+    queue.current = next;
+    return next;
+  }, [createFlags]);
 
   const run = useCallback(async (auto = false) => {
     if (running.current) return;
@@ -135,9 +157,9 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
         }
         if (!demo) await sleep(150); // well inside Companies House's limit of 600 calls per 5 minutes
       }
-      const { create, update: upd, saveSetting } = latest.current;
+      const { update: upd, saveSetting } = latest.current;
       const writes = reconcile(found, latest.current.data.chFlags, checked, todayIso());
-      for (const row of writes.create) await create("CHFlags", row);
+      await createFlags(writes.create);
       for (const w of writes.update) await upd("CHFlags", w.row, w.patch);
       await saveSetting("ch.people", nextPeople);
       await check(); // Companies House dates may have changed what the planner's own checks find
@@ -151,7 +173,7 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
     } finally {
       running.current = false;
     }
-  }, [demo, get, check]);
+  }, [demo, get, check, createFlags]);
 
   // the planner's own checks, once each time the planner opens
   const checkedOnce = useRef(false);
@@ -231,7 +253,7 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
     await latest.current.update("CHFlags", flag, status === "Open" ? { Status: "Open", Resolved: "" } : { Status: status, Resolved: todayIso() });
   }, []);
 
-  const openFlags = useMemo(() => ctx.data.chFlags.filter((f) => f.Status === "Open"), [ctx.data.chFlags]);
+  const openFlags = useMemo(() => uniqueFlags(ctx.data.chFlags).filter((f) => f.Status === "Open"), [ctx.data.chFlags]);
 
   const value = useMemo(
     () => ({ progress, lastRun, openFlags, run, check, test, apply, get, setStatus }),
@@ -267,7 +289,7 @@ export function CompaniesHouseSettings() {
     (a, b) => (RANK[a.Severity as string] ?? 3) - (RANK[b.Severity as string] ?? 3) ||
       String(idx.clientByKey.get(a.ClientKey as string)?.Title || "").localeCompare(String(idx.clientByKey.get(b.ClientKey as string)?.Title || "")),
   );
-  const earlier = data.chFlags
+  const earlier = uniqueFlags(data.chFlags)
     .filter((f) => f.Status !== "Open")
     .sort((a, b) => String(b.Resolved || b.Found || "").localeCompare(String(a.Resolved || a.Found || "")))
     .slice(0, 60);

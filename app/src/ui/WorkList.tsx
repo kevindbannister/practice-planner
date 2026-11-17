@@ -1,4 +1,5 @@
 // A compact list of work (jobs and tasks) with the actions that can be taken without opening it. Used by the client overview and by heatmap drill-down.
+import { todayIso } from "../lib/domain";
 import { useState } from "react";
 import { fmtDate, holdPatch } from "../lib/domain";
 import { createSessions } from "../lib/planSessions";
@@ -31,7 +32,7 @@ export function WorkList({ items, showClient, nameOf }: { items: Item[]; showCli
         setMsg(r.done ? `Planned ${hrs}h on ${fmtDate(form.value)}.` : r.problems[0] || "Not planned.");
       } else if (form.what === "waiting") {
         if (it.kind === "task") await tc.one(it.key, { status: "On hold", blockedReason: form.value || "Waiting" }, "Marked waiting");
-        else { const row = (data.jobs as Row[]).find((j) => j.Key === it.key)!; await update("Jobs", row, holdPatch(form.value || "Waiting", form.extra, new Date().toISOString().slice(0, 10), "Client")); setMsg("Marked as waiting on the client."); }
+        else { const row = (data.jobs as Row[]).find((j) => j.Key === it.key)!; await update("Jobs", row, holdPatch(form.value || "Waiting", form.extra, todayIso(), "Client")); setMsg("Marked as waiting on the client."); }
       }
       close();
     } catch { setMsg("That didn't save. Try again."); }

@@ -556,7 +556,8 @@ function PeopleTab({ P, scheme, people, year }: { P: PP; scheme: rec.SchemeRec; 
     } catch { setMsg("That didn't save. Try again."); }
   };
   const field = (k: string, label: string, type = "text", extra: Partial<React.InputHTMLAttributes<HTMLInputElement>> = {}) => <label className="field"><span>{label}</span><input className="input" type={type} value={s(edit?.[k])} onChange={(e) => setEdit({ ...edit!, [k]: type === "number" ? Number(e.target.value) || 0 : e.target.value })} {...extra} /></label>;
-  const pension = edit ? JSON.parse(s(edit.Pension) || "{}") : {};
+  // a damaged saved value shouldn't stop the person from opening: it shows as no pension details
+  const pension = (() => { if (!edit) return {}; try { const v = JSON.parse(s(edit.Pension) || "{}"); return v && typeof v === "object" ? v : {}; } catch { return {}; } })();
   return (
     <div className="stack">
       <section className="card pad stack" aria-label="People">

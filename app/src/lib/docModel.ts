@@ -327,14 +327,14 @@ function runHtml(r: Run, chips: boolean): string {
     last = (m.index ?? 0) + m[0].length;
   }
   out += piece(text.slice(last));
-  if (style) out = `<span style="${style}">${out}</span>`;
+  if (style) out = `<span style="${esc(style)}">${out}</span>`;
   if (r.u) out = `<u>${out}</u>`;
   if (r.i) out = `<i>${out}</i>`;
   if (r.b) out = `<b>${out}</b>`;
   return out;
 }
 const runsHtml = (runs: Run[], chips: boolean) => runs.map((r) => runHtml(r, chips)).join("");
-const alignAttr = (a?: Align) => (a && a !== "left" ? ` style="text-align:${a}"` : "");
+const alignAttr = (a?: Align) => (a === "center" || a === "right" || a === "justify" ? ` style="text-align:${a}"` : "");
 
 /** The content as HTML for the editor (merge fields as chips) or the preview (chips off). */
 export function toHtml(content: DocContent, chips = true): string {
@@ -345,7 +345,8 @@ export function toHtml(content: DocContent, chips = true): string {
       case "list": return `<${b.ordered ? "ol" : "ul"}>${b.items.map((it) => `<li>${runsHtml(it, chips)}</li>`).join("")}</${b.ordered ? "ol" : "ul"}>`;
       case "table":
         return `<table>${b.rows.map((r, i) => `<tr>${r.map((c) => `<${b.header && i === 0 ? "th" : "td"}${alignAttr(c.align)}>${runsHtml(c.runs, chips) || "<br>"}</${b.header && i === 0 ? "th" : "td"}>`).join("")}</tr>`).join("")}</table>`;
-      case "img": return `<p${alignAttr(b.align)}><img src="${b.src}" style="width:${Math.round(b.width / 0.2646)}px"></p>`;
+      // saved content is checked again here, so only an embedded picture can ever reach the page
+      case "img": return isImageData(b.src) ? `<p${alignAttr(b.align)}><img src="${esc(b.src)}" style="width:${Math.round(Number(b.width) / 0.2646) || 0}px"></p>` : "";
       case "break": return `<hr class="pagebreak">`;
     }
   }).join("");

@@ -164,8 +164,8 @@ export function AmlTab({ client }: { client: Client }) {
         <section className="card pad stack" aria-label="AML timeline">
           <h2 className="sec-h">Timeline</h2>
           <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>Every check and review for this client, newest first. It is read from the reviews, so to add or correct an entry, edit the check's date in a review.</p>
-          <table className="table"><thead><tr><th scope="col">Date</th><th scope="col">What</th><th scope="col">Result</th><th scope="col">Note</th><th scope="col">By</th><th scope="col">From</th></tr></thead>
-            <tbody>{tl.map((e, i) => <tr key={i}><td>{e.date ? fmtDate(e.date) : "—"}</td><td>{e.title}</td><td>{e.result === "pass" ? "Passed" : e.result === "fail" ? "Failed" : "Pending"}</td><td>{e.note}</td><td>{e.by}</td><td>{e.where}</td></tr>)}</tbody></table>
+          <div className="table-wrap"><table className="table"><thead><tr><th scope="col">Date</th><th scope="col">What</th><th scope="col">Result</th><th scope="col">Note</th><th scope="col">By</th><th scope="col">From</th></tr></thead>
+            <tbody>{tl.map((e, i) => <tr key={i}><td>{e.date ? fmtDate(e.date) : "—"}</td><td>{e.title}</td><td>{e.result === "pass" ? "Passed" : e.result === "fail" ? "Failed" : "Pending"}</td><td>{e.note}</td><td>{e.by}</td><td>{e.where}</td></tr>)}</tbody></table></div>
         </section>
       ); })()}
 
@@ -364,8 +364,8 @@ function Editor({ client, row, all, settings, independent, today, s, clientRow }
             <strong>From company secretarial</strong>
             {!co.hasData ? <p className="muted" style={{ margin: 0, fontSize: 13 }}>Nothing is recorded for this company in Company Secretarial yet (shareholdings, directors or people with significant control).</p> : (
               <>
-                <table className="table"><thead><tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col">Shares</th><th scope="col">Votes</th><th scope="col">Companies House ID</th></tr></thead>
-                  <tbody>{co.people.map((p) => <tr key={p.name}><td>{p.name}</td><td>{p.roles.join(", ")}{p.natures ? <div className="muted" style={{ fontSize: 13 }}>{p.natures}</div> : null}</td><td>{p.sharePercent !== null ? `${p.sharePercent}%` : "—"}</td><td>{p.votePercent !== null ? `${p.votePercent}%` : "—"}</td><td>{p.corporate ? "—" : p.id === "verified" ? `Verified${p.idOn ? ` ${fmtDate(p.idOn)}` : ""}` : p.id === "exempt" ? "Exempt" : p.id === "pending" ? "Not yet verified" : "Not recorded"}</td></tr>)}</tbody></table>
+                <div className="table-wrap"><table className="table"><thead><tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col">Shares</th><th scope="col">Votes</th><th scope="col">Companies House ID</th></tr></thead>
+                  <tbody>{co.people.map((p) => <tr key={p.name}><td>{p.name}</td><td>{p.roles.join(", ")}{p.natures ? <div className="muted" style={{ fontSize: 13 }}>{p.natures}</div> : null}</td><td>{p.sharePercent !== null ? `${p.sharePercent}%` : "—"}</td><td>{p.votePercent !== null ? `${p.votePercent}%` : "—"}</td><td>{p.corporate ? "—" : p.id === "verified" ? `Verified${p.idOn ? ` ${fmtDate(p.idOn)}` : ""}` : p.id === "exempt" ? "Exempt" : p.id === "pending" ? "Not yet verified" : "Not recorded"}</td></tr>)}</tbody></table></div>
                 {co.findings.length > 0 && <div className="import-list warn"><strong>Check these:</strong><ul className="plain">{co.findings.map((x) => <li key={x}>{x}</li>)}</ul></div>}
                 {co.suggested.length > 0 && <div><button type="button" className="btn small" onClick={() => setOwners(mergeOwners(owners.filter((o) => o.name.trim()), co.suggested))}>Add these as beneficial owners ({co.suggested.length})</button> <span className="muted" style={{ fontSize: 13 }}>People with significant control and anyone over 25% of shares or votes. Direct holdings only: you judge control through other companies or other means.</span></div>}
               </>

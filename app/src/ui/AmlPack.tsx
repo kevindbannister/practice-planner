@@ -478,9 +478,9 @@ function XamaScreening() {
       <h2 className="sec-h">From Xama</h2>
       <p className="muted tip" style={{ margin: 0, fontSize: 13 }}>Each client's Xama AML check (identity and address, PEP and sanctions), dated from Xama's own report. It fills in when you refresh a client's Xama result. Record checks done anywhere else in the form below.</p>
       {rows.length === 0 ? <p className="muted" style={{ margin: 0 }}>No Xama AML check has been picked up yet. Open a client's AML tab and press Refresh result after running one.</p> : (
-        <table className="table"><thead><tr><th>Client</th><th>Checked</th><th>Result</th></tr></thead>
+        <div className="table-wrap"><table className="table"><thead><tr><th>Client</th><th>Checked</th><th>Result</th></tr></thead>
           <tbody>{rows.map(({ c, x }) => <tr key={String(c.Key)}><td><a href={href("clients", String(c.Key), "aml")}>{String(c.Title)}</a></td><td>{x.on ? fmtDate(x.on) : "—"}</td>
-            <td>{x.state === "waiting" ? "Running" : x.state === "done" ? "No PEP or sanctions matches" : `Possible matches: ${x.pep} PEP, ${x.sanctions} sanctions. Review in Xama`}</td></tr>)}</tbody></table>
+            <td>{x.state === "waiting" ? "Running" : x.state === "done" ? "No PEP or sanctions matches" : `Possible matches: ${x.pep} PEP, ${x.sanctions} sanctions. Review in Xama`}</td></tr>)}</tbody></table></div>
       )}
     </section>
   );

@@ -104,7 +104,7 @@ export function AmlClients() {
       </section>
       <section className="card pad" aria-label="Clients" style={{ overflowX: "auto" }}>
         {shown.length === 0 ? <p style={{ margin: 0 }}>No clients match.</p> : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead><tr><th scope="col">Client</th><th scope="col">Risk</th><th scope="col">Status</th><th scope="col">Last done</th><th scope="col">ID checked</th><th scope="col">Xama</th><th scope="col">Sanctions and PEP</th><th scope="col">Next review</th><th scope="col">Trigger</th><th scope="col"><span className="sr-only">Action</span></th></tr></thead>
             <tbody>
               {shown.map((i) => (
@@ -123,7 +123,7 @@ export function AmlClients() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </section>
     </>

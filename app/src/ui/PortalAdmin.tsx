@@ -552,10 +552,10 @@ function SetupInfo() {
       <section className="card pad stack">
         <h2 className="sec-h">{status?.configured ? "The client portal is switched on" : "The client portal needs setting up"}</h2>
         <p className="muted" style={{ margin: 0 }}>Clients register and sign in through Microsoft Entra External ID, a separate sign-in service for customers, so no passwords are kept here and two-step sign-in comes with it. Their browser only talks to the portal server, never to SharePoint. The server needs these Azure application settings; the full steps are in <code>docs/client-portal.md</code>.</p>
-        <table className="bank-table">
+        <div className="table-wrap"><table className="bank-table">
           <thead><tr><th>Setting</th><th>What it is</th><th>Status</th></tr></thead>
           <tbody>{SETTINGS.map(([k, what, required]) => <tr key={k}><td className="mono">{k}</td><td>{what}</td><td>{missing.has(k) ? <span className={`chip ${required ? "red" : "amber"}`}>{required ? "Missing" : "Not set"}</span> : <span className="chip green">Set</span>}</td></tr>)}</tbody>
-        </table>
+        </table></div>
         <div><button type="button" className="btn small" onClick={() => void reload()}>Check again</button></div>
       </section>
     </div>

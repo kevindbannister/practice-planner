@@ -308,7 +308,7 @@ export function FeatureDetail({ id, onSelect, onClose }: { id: string; onSelect:
           <ListEdit title="Next actions" items={f.next} onSave={(v) => hub.editFeature(f.id, { next: v }, `${f.name}: next actions updated`)} empty="None recorded." />
           <section>
             <h3 className="dh-h">Notes</h3>
-            <textarea className="input" rows={3} defaultValue={f.notes} key={`${f.id}:n`} placeholder="Development notes" onBlur={(e) => { if (e.target.value !== f.notes) void hub.editFeature(f.id, { notes: e.target.value }, `${f.name}: notes updated`); }} />
+            <textarea className="input" rows={3} defaultValue={f.notes} key={`${f.id}:n`} placeholder="Development notes" aria-label={`Development notes for ${f.name}`} onBlur={(e) => { if (e.target.value !== f.notes) void hub.editFeature(f.id, { notes: e.target.value }, `${f.name}: notes updated`); }} />
           </section>
         </>
       )}

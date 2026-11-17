@@ -220,7 +220,7 @@ export function TaxPlanView({ clientKey, year: yearParam }: { clientKey: string;
               <div className="table-wrap"><table className="grid">
                 <thead><tr><th /><th>Option</th><th>Salaries</th><th>Employment Allowance</th><th className="num">Take-home</th><th className="num">Kept in company</th><th className="num">All tax</th></tr></thead>
                 <tbody>{options.map((o) => (
-                  <tr key={o.key} style={o.key === best?.key ? { background: "var(--tint, #eef7ee)" } : undefined}>
+                  <tr key={o.key} style={o.key === best?.key ? { background: "color-mix(in srgb, var(--green, #12705b) 14%, transparent)" } : undefined}>
                     <td><input type="radio" name="tp-option" aria-label={`Choose ${o.label}`} checked={pick?.key === o.key} onChange={() => setChosen(o.key)} /></td>
                     <td><strong>{o.label}</strong>{o.key === best?.key && <div><span className="chip green">Best on these figures</span></div>}{o.key !== "custom" && <div><button className="linkbtn" type="button" onClick={() => copySalaries(o)}>Edit these</button></div>}</td>
                     <td style={{ fontSize: 13 }}>{names(o)}</td>

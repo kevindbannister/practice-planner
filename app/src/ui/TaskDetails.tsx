@@ -1,5 +1,6 @@
 // Extra details on an existing task, in the task editor: who is responsible, status, priority, dates, parent task and what is blocking it.
 // Every save goes through lib/work/tasks, so the rules (parents, client-action status path, version) are the same as in the lists.
+import { todayIso } from "../lib/domain";
 import { ReactNode, useState } from "react";
 import { Row } from "../lib/schema";
 import { EXTERNAL_STATUSES, CORE_STATUSES, canMove, readTask, statusLabel } from "../lib/work/model";
@@ -24,7 +25,7 @@ export function TaskDetails({ task }: { task: Row }) {
     if ("error" in c && c.error) return setError(c.error);
     setError(undefined);
     try { const patch = (c as { patch: Row }).patch; await update("Tasks", task, patch);
-      if (patch.Status === "Done" && task.RecurrenceRule) { const n = spawnNext({ ...task, ...patch }, rows, { now: new Date().toISOString(), today: new Date().toISOString().slice(0, 10), key: () => newKey("T") }); if (n.row) await create("Tasks", n.row); } for (const e of eventsForChange(task, patch, { user: user || "", now: new Date().toISOString(), key: () => newKey("E") })) await create("TaskEvents", taskEventRow(e)); } catch { setError("That didn't save. Try again."); }
+      if (patch.Status === "Done" && task.RecurrenceRule) { const n = spawnNext({ ...task, ...patch }, rows, { now: new Date().toISOString(), today: todayIso(), key: () => newKey("T") }); if (n.row) await create("Tasks", n.row); } for (const e of eventsForChange(task, patch, { user: user || "", now: new Date().toISOString(), key: () => newKey("E") })) await create("TaskEvents", taskEventRow(e)); } catch { setError("That didn't save. Try again."); }
   };
   const statuses = (t.ownerType === "user" ? CORE_STATUSES : EXTERNAL_STATUSES).filter((s) => canMove(t.status, s, t.ownerType));
   const parents = rows.map(readTask).filter((p) => p.key !== t.key && !["Done", "Complete", "Cancelled"].includes(p.status) && (!t.clientKey || !p.clientKey || p.clientKey === t.clientKey));
@@ -43,7 +44,7 @@ export function TaskDetails({ task }: { task: Row }) {
         {field("Follow up on", <input className="input" type="date" value={t.followUpDate} onChange={(e) => void save({ followUp: e.target.value || null })} />)}
         {field("Part of (bigger task)", <select className="input" value={t.parentKey} onChange={(e) => void save({ parent: e.target.value || null })}><option value="">None</option>{parents.map((p) => <option key={p.key} value={p.key}>{p.title}</option>)}</select>)}
         <div style={{ gridColumn: "1 / -1" }}>{field("Repeats (optional)", <input className="input" defaultValue={t.recurrence} placeholder="e.g. weekly:mon, monthly:last, daily/3" onBlur={(e) => { if (e.target.value.trim() !== t.recurrence) void save({ repeat: e.target.value.trim() || null }); }} />)}
-          {t.recurrence && (() => { const r = parseRule(t.recurrence); return "error" in r ? null : <p className="muted" style={{ margin: "4px 0 0" }}>{describeRule(r)}. Next: {preview(r, t.dueDate || new Date().toISOString().slice(0, 10), 3).join(", ") || "none"}. Only the next one is made, when this one is finished.</p>; })()}</div>
+          {t.recurrence && (() => { const r = parseRule(t.recurrence); return "error" in r ? null : <p className="muted" style={{ margin: "4px 0 0" }}>{describeRule(r)}. Next: {preview(r, t.dueDate || todayIso(), 3).join(", ") || "none"}. Only the next one is made, when this one is finished.</p>; })()}</div>
         <div style={{ gridColumn: "1 / -1" }}>{field("What is stopping it? (optional)", <input className="input" defaultValue={t.blockedReason} placeholder="Leave blank if nothing" onBlur={(e) => { if (e.target.value.trim() !== t.blockedReason) void save({ blockedReason: e.target.value }); }} />)}</div>
       </div>
       {kids.total > 0 && <p className="muted" style={{ margin: 0 }}>Smaller tasks: {kids.done} of {kids.total} done.</p>}
