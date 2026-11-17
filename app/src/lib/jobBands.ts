@@ -113,3 +113,10 @@ export function tally(jobs: Row[], stagesFor: (serviceKey: string) => Row[], tod
   }
   return c;
 }
+
+/** The next given day of the year on or after today: the next 31 January is this year's until it has passed, then next year's. */
+export function nextOn(today: string, month: number, day: number): string {
+  const y = Number(today.slice(0, 4));
+  const md = `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return `${y}-${md}` >= today.slice(0, 10) ? `${y}-${md}` : `${y + 1}-${md}`;
+}

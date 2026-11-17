@@ -4,16 +4,17 @@
 // or their own work, for everyone else the work assigned to them. See lib/jobBands.ts for the rules.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Row } from "../lib/schema";
-import { todayIso } from "../lib/domain";
+import { daysBetween, fmtDate, todayIso } from "../lib/domain";
 import { stageAt } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
-import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, Scope, accessFor, bandsOf, emptyCounts, inScope, tally } from "../lib/jobBands";
+import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, Scope, accessFor, bandsOf, emptyCounts, inScope, nextOn, tally } from "../lib/jobBands";
 import { Icon } from "./bits";
 import { useData, useIndex } from "./data";
 import { useStaff } from "./staffKit";
 
 const STORE = "pp.home.work.v1";
-type Saved = { scope?: Scope; hold?: boolean; days?: Record<string, number> };
+/** `until`: every tile counts work due up to this date (set by the 31 December and 31 January buttons) instead of its own days. */
+type Saved = { scope?: Scope; hold?: boolean; days?: Record<string, number>; until?: string };
 const read = (user: string): Saved => { try { return JSON.parse(localStorage.getItem(`${STORE}:${user}`) || "{}") as Saved; } catch { return {}; } };
 const write = (user: string, s: Saved) => { try { localStorage.setItem(`${STORE}:${user}`, JSON.stringify(s)); } catch { /* this visit only */ } };
 
@@ -30,7 +31,8 @@ export function HomeWork() {
   const [ignoreHolds, setIgnoreHolds] = useState(saved.hold !== false); // on unless it was turned off
   const [days, setDays] = useState<Record<string, number>>(saved.days || {});
   const [open, setOpen] = useState<string | null>(null);
-  useEffect(() => { write(user || "", { scope, hold: ignoreHolds, days }); }, [user, scope, ignoreHolds, days]);
+  const [until, setUntil] = useState<string | undefined>(saved.until && saved.until >= today ? saved.until : undefined);
+  useEffect(() => { write(user || "", { scope, hold: ignoreHolds, days, until }); }, [user, scope, ignoreHolds, days, until]);
   // a role change (someone made a manager, say) can take away a view that was saved
   useEffect(() => { if (!access.scopes.includes(scope)) setScope(access.initial); }, [access, scope]);
 
@@ -44,7 +46,13 @@ export function HomeWork() {
     for (const j of jobs) { const k = String(j.ServiceKey || ""); if (!m.has(k)) m.set(k, []); m.get(k)!.push(j); }
     return [...m.entries()].map(([key, list]) => ({ key, name: idx.serviceName.get(key) || key || "Other work", jobs: list }));
   }, [jobs, idx.serviceName]);
-  const win = (k: string) => days[k] ?? DEFAULT_WINDOW;
+  const win = (k: string) => (until ? Math.max(0, daysBetween(today, until)) : days[k] ?? DEFAULT_WINDOW);
+  const ahead = (k: string) => (until ? `Up to ${fmtDate(until)}` : `Next ${win(k)} days`);
+  // quick ways to look ahead to a date for every tile at once: the year end, and the Self Assessment deadline
+  const targets = [
+    { key: "christmas", date: nextOn(today, 12, 31), icon: <TreeIcon /> },
+    { key: "jan", date: nextOn(today, 1, 31), icon: <Icon name="form" size={16} /> },
+  ];
   const counts = (list: Row[], k: string): Counts => tally(list, stagesFor, today, win(k), ignoreHolds);
   const withCounts = types.map((t) => ({ ...t, c: counts(t.jobs, t.key) })).sort((a, b) => b.c.overdue - a.c.overdue || a.name.localeCompare(b.name));
   const allCounts = tally(jobs, stagesFor, today, win(ALL), ignoreHolds);
@@ -55,11 +63,23 @@ export function HomeWork() {
     <section className="hw" aria-labelledby="hw-h">
       <div className="hw-bar-head">
         <h2 id="hw-h">Work by type</h2>
+        <span className="hw-tools">
+        {targets.map((t) => {
+          const on = until === t.date;
+          return (
+            <button key={t.key} type="button" className={`hw-target${on ? " on" : ""}`} aria-pressed={on} onClick={() => setUntil(on ? undefined : t.date)}
+              aria-label={`Count work due up to ${fmtDate(t.date)} on every tile`}
+              title={on ? `Every tile counts work due up to ${fmtDate(t.date)}. Click again to go back to each tile's own days.` : `Count work due up to ${fmtDate(t.date)} on every tile`}>
+              {t.icon}
+            </button>
+          );
+        })}
         {access.scopes.length > 1 ? (
           <span className="seg" role="group" aria-label="Whose work to show">
             {access.scopes.map((s) => <button key={s} type="button" aria-pressed={scope === s} onClick={() => setScope(s)}>{SCOPE_LABEL[s]}</button>)}
           </span>
         ) : <span className="muted" style={{ fontSize: 13 }}>Showing {label.toLowerCase()}</span>}
+        </span>
       </div>
       {jobs.length === 0 ? (
         <p className="muted hw-empty">
@@ -67,14 +87,14 @@ export function HomeWork() {
         </p>
       ) : (
         <div className="hw-tiles">
-          <Tile name={allName} total c={allCounts} days={win(ALL)} onOpen={() => setOpen(ALL)} />
-          {withCounts.map((t) => <Tile key={t.key} name={t.name} serviceKey={t.key} c={t.c} days={win(t.key)} onOpen={() => setOpen(t.key)} />)}
+          <Tile name={allName} total c={allCounts} days={win(ALL)} ahead={ahead(ALL)} onOpen={() => setOpen(ALL)} />
+          {withCounts.map((t) => <Tile key={t.key} name={t.name} serviceKey={t.key} c={t.c} days={win(t.key)} ahead={ahead(t.key)} onOpen={() => setOpen(t.key)} />)}
         </div>
       )}
       {open && (
         <Breakdown
           title={open === ALL ? `Breakdown by job type: ${allName.toLowerCase()}` : `Breakdown: ${idx.serviceName.get(open) || open}`}
-          days={win(open)} onDays={(n) => setDays({ ...days, [open]: n })}
+          days={win(open)} until={until} onDays={(n) => { setUntil(undefined); setDays({ ...days, [open]: n }); }}
           ignoreHolds={ignoreHolds} onIgnoreHolds={setIgnoreHolds}
           rows={open === ALL
             ? withCounts.map((t) => ({ label: t.name, c: tally(t.jobs, stagesFor, today, win(ALL), ignoreHolds) }))
@@ -101,7 +121,7 @@ function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number
   return [...rows, ...(BANDS.some((b) => other.c[b]) ? [other] : [])].map(({ label, c }) => ({ label, c }));
 }
 
-function Tile({ name, serviceKey, total, c, days, onOpen }: { name: string; serviceKey?: string; total?: boolean; c: Counts; days: number; onOpen: () => void }) {
+function Tile({ name, serviceKey, total, c, days, ahead: aheadLabel, onOpen }: { name: string; serviceKey?: string; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void }) {
   const ahead: Band[] = ["verySoon", "soon", "ok", "hold"];
   const SHORT: Record<Band, string> = { overdue: "overdue", verySoon: "very soon", soon: "soon", ok: "OK", hold: "on hold" };
   const sum = ahead.reduce((n, b) => n + c[b], 0);
@@ -118,19 +138,19 @@ function Tile({ name, serviceKey, total, c, days, onOpen }: { name: string; serv
         <span className="hw-big">{c.overdue}</span>
         <span className="hw-big-label">overdue</span>
       </div>
-      <div className="hw-meter" role="img" aria-label={`Next ${days} days: ${ahead.map((b) => `${c[b]} ${SHORT[b]}`).join(", ")}`}>
+      <div className="hw-meter" role="img" aria-label={`${aheadLabel} (${days} days): ${ahead.map((b) => `${c[b]} ${SHORT[b]}`).join(", ")}`}>
         {sum ? ahead.filter((b) => c[b]).map((b) => <span key={b} className={`hw-seg ${b}`} style={{ flexGrow: c[b] }} />) : <span className="hw-seg none" />}
       </div>
       <ul className="hw-legend" aria-hidden="true">
         {ahead.map((b) => <li key={b} className={c[b] ? "on" : ""}><i className={`hw-key ${b}`} /><strong>{c[b]}</strong> {SHORT[b]}</li>)}
       </ul>
-      <span className="hw-window">Next {days} days</span>
+      <span className="hw-window">{aheadLabel}</span>
     </article>
   );
 }
 
-function Breakdown({ title, days, onDays, ignoreHolds, onIgnoreHolds, rows, total, rowHeading, onClose }: {
-  title: string; days: number; onDays: (n: number) => void; ignoreHolds: boolean; onIgnoreHolds: (v: boolean) => void;
+function Breakdown({ title, days, until, onDays, ignoreHolds, onIgnoreHolds, rows, total, rowHeading, onClose }: {
+  title: string; days: number; until?: string; onDays: (n: number) => void; ignoreHolds: boolean; onIgnoreHolds: (v: boolean) => void;
   rows: { label: string; c: Counts }[]; total: Counts; rowHeading: string; onClose: () => void;
 }) {
   const first = useRef<HTMLInputElement>(null);
@@ -154,6 +174,7 @@ function Breakdown({ title, days, onDays, ignoreHolds, onIgnoreHolds, rows, tota
               onChange={(e) => { const n = Math.floor(Number(e.target.value)); if (Number.isFinite(n) && n >= 1 && n <= 365) onDays(n); }} />{" "}days.</label>
           <label className="row-wrap" style={{ gap: 6 }}><input type="checkbox" checked={ignoreHolds} onChange={(e) => onIgnoreHolds(e.target.checked)} /> Ignore holdups</label>
         </div>
+        {until && <p className="hw-until-note">Every tile is counting work due up to {fmtDate(until)}. Changing the days here goes back to each tile's own setting.</p>}
         <p className="muted" style={{ margin: 0, fontSize: 13, textAlign: "center" }}>
           These settings also apply to the tile. "Due very soon" and "due soon" are set for each stage in Settings. A job on hold always counts under On hold; with holdups ignored it is not also counted by its deadline.
         </p>
@@ -170,5 +191,16 @@ function Breakdown({ title, days, onDays, ignoreHolds, onIgnoreHolds, rows, tota
         </div>
       </div>
     </div>
+  );
+}
+
+/** A small Christmas tree, drawn like the app's other icons (the 31 December button). */
+function TreeIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+      <path d="M8 .6l.55 1.1 1.2.18-.87.85.2 1.2L8 3.37l-1.08.56.2-1.2-.87-.85 1.2-.18z" />
+      <path d="M8 3.9L5.3 7.1h1.5L4.3 10.2h1.7L3.3 13.3h9.4L10 10.2h1.7L9.2 7.1h1.5z" />
+      <rect x="7.1" y="13.3" width="1.8" height="2.1" rx=".4" />
+    </svg>
   );
 }

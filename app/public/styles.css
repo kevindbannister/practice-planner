@@ -4948,3 +4948,11 @@ section.alerts:has(> .attention) > .attention { flex: 1 1 420px; min-width: 0; }
 .hw-legend strong { color: var(--ink); font-weight: 700; }
 .hw-key { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
 .hw-window { font-size: 12px; color: var(--muted); }
+
+/* V35.33: the 31 December and 31 January buttons above the work tiles */
+.hw-tools { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
+.hw-target { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--sep); background: var(--surface); color: var(--navy); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: var(--box-shadow); }
+.hw-target:hover { background: color-mix(in srgb, var(--navy) 8%, var(--surface)); }
+.hw-target.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+.hw-until-note { margin: 0; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--navy) 7%, transparent); font-size: 13px; text-align: center; }
+:root[data-theme="dark"] .hw-target.on { background: #fff; color: var(--navy); }

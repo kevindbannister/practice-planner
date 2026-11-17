@@ -106,3 +106,12 @@ test("scopes: everyone sees all, a manager their jobs and assigned work, others 
   assert.equal(inScope("mine", "Alex", j, client, templates, cs), false, "owning is not the same as being assigned");
   assert.equal(inScope("mine", "Sam", j, client, templates, cs), true);
 });
+
+test("the next 31 December and the next 31 January", async () => {
+  const { nextOn } = await import("../src/lib/jobBands.ts");
+  assert.equal(nextOn("2026-11-17", 12, 31), "2026-12-31");
+  assert.equal(nextOn("2026-12-31", 12, 31), "2026-12-31", "on the day itself it is today");
+  assert.equal(nextOn("2026-11-17", 1, 31), "2027-01-31");
+  assert.equal(nextOn("2027-01-10", 1, 31), "2027-01-31");
+  assert.equal(nextOn("2027-02-01", 1, 31), "2028-01-31");
+});
