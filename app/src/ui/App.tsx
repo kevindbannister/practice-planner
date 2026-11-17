@@ -21,6 +21,7 @@ import { useChaseCount } from "./chaseCount";
 import { SettingsTabs } from "./SettingsTabs";
 import { setBandSlot, setStripSlot, usePracticeLayout } from "./StripSlot";
 import { AdvisoryLine } from "./AdvisoryLine";
+import { WORK_VIEWS, useWorkView } from "./HomeWork";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -376,6 +377,7 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
   const [tips, setTips] = useTips();
   const [menuKind, setMenuKind] = useMenuKind();
   const [layout, setLayout] = usePracticeLayout();
+  const [workView, setWorkView] = useWorkView();
   const navError = useNavState().error;
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -414,6 +416,12 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
           {([["top", "Tabs on the page"], ["side", "List down the left"]] as const).map(([k, label]) => (
             <button key={k} type="button" role="menuitemradio" aria-checked={layout === k} onClick={() => { setLayout(k); setShown(false); }}>
               <Icon name={layout === k ? "check" : "layout"} size={16} /> {label}
+            </button>
+          ))}
+          <div className="profile-sub">Work by type on Home</div>
+          {WORK_VIEWS.map(([k, label]) => (
+            <button key={k} type="button" role="menuitemradio" aria-checked={workView === k} onClick={() => { setWorkView(k); setShown(false); }}>
+              <Icon name={workView === k ? "check" : "chart"} size={16} /> {label}
             </button>
           ))}
           <div className="profile-sub">Menu style</div>

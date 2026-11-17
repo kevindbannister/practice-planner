@@ -2,7 +2,7 @@
 // (overdue, due very soon, due soon, OK, on hold). The chart button on a tile opens the breakdown, where the number of days can be
 // changed for that tile. A switch picks whose work is counted: for a partner everyone's or their own, for a manager the jobs they own
 // or their own work, for everyone else the work assigned to them. See lib/jobBands.ts for the rules.
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Row } from "../lib/schema";
 import { daysBetween, fmtDate, todayIso } from "../lib/domain";
 import { stageAt } from "../lib/waiting";
@@ -11,6 +11,21 @@ import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, Scope, ac
 import { Icon } from "./bits";
 import { useData, useIndex } from "./data";
 import { useStaff } from "./staffKit";
+
+/** How Work by type is drawn, chosen in the profile menu and remembered on this device. */
+export type WorkView = "table" | "cards" | "bars" | "summary";
+export const WORK_VIEWS: [WorkView, string][] = [["table", "Table"], ["cards", "Cards"], ["bars", "Bars"], ["summary", "Summary"]];
+const VIEW_KEY = "pp.home.view";
+const readView = (): WorkView => { try { const v = localStorage.getItem(VIEW_KEY); return WORK_VIEWS.some(([k]) => k === v) ? (v as WorkView) : "table"; } catch { return "table"; } };
+export function useWorkView(): [WorkView, (v: WorkView) => void] {
+  const [v, setV] = useState<WorkView>(readView);
+  useEffect(() => {
+    const f = () => setV(readView());
+    window.addEventListener("pp-work-view", f);
+    return () => window.removeEventListener("pp-work-view", f);
+  }, []);
+  return [v, (n) => { try { localStorage.setItem(VIEW_KEY, n); } catch { /* this visit only */ } setV(n); window.dispatchEvent(new Event("pp-work-view")); }];
+}
 
 const STORE = "pp.home.work.v1";
 /** `until`: every tile counts work due up to this date (set by the 31 December and 31 January buttons) instead of its own days. */
@@ -31,6 +46,7 @@ export function HomeWork() {
   const [ignoreHolds, setIgnoreHolds] = useState(saved.hold !== false); // on unless it was turned off
   const [days, setDays] = useState<Record<string, number>>(saved.days || {});
   const [open, setOpen] = useState<string | null>(null);
+  const [view] = useWorkView();
   const [until, setUntil] = useState<string | undefined>(saved.until && saved.until >= today ? saved.until : undefined);
   useEffect(() => { write(user || "", { scope, hold: ignoreHolds, days, until }); }, [user, scope, ignoreHolds, days, until]);
   // a role change (someone made a manager, say) can take away a view that was saved
@@ -86,22 +102,10 @@ export function HomeWork() {
           {scope === "mine" ? "No work is assigned to you yet. Whoever does each stage is set on the client's Work tab." : scope === "jobs" ? "No jobs are yours yet. A job's owner is set on the job, or comes from the client's manager." : "No open work."}
         </p>
       ) : (
-        <div className="hw-board">
-          <table className="hw-grid">
-            <caption className="sr-only">Open jobs by type of work and how close their deadlines are</caption>
-            <thead>
-              <tr>
-                <th scope="col">Type of work</th>
-                {BANDS.map((b) => <th key={b} scope="col" className="num">{BAND_LABEL[b]}</th>)}
-                <th scope="col" className="ahead">Looking ahead</th>
-              </tr>
-            </thead>
-            <tbody>
-              <Line name={allName} total c={allCounts} ahead={ahead(ALL)} onOpen={() => setOpen(ALL)} />
-              {withCounts.map((t) => <Line key={t.key} name={t.name} serviceKey={t.key} c={t.c} ahead={ahead(t.key)} onOpen={() => setOpen(t.key)} />)}
-            </tbody>
-          </table>
-        </div>
+        <WorkDisplay view={view} items={[
+          { key: ALL, name: allName, total: true, c: allCounts, days: win(ALL), ahead: ahead(ALL), onOpen: () => setOpen(ALL) },
+          ...withCounts.map((t) => ({ key: t.key, name: t.name, serviceKey: t.key, c: t.c, days: win(t.key), ahead: ahead(t.key), onOpen: () => setOpen(t.key) })),
+        ]} />
       )}
       {open && (
         <Breakdown
@@ -133,6 +137,106 @@ function stageRows(jobs: Row[], stages: Row[], today: string, windowDays: number
   return [...rows, ...(BANDS.some((b) => other.c[b]) ? [other] : [])].map(({ label, c }) => ({ label, c }));
 }
 
+type Item = { key: string; name: string; serviceKey?: string; total?: boolean; c: Counts; days: number; ahead: string; onOpen: () => void };
+
+function WorkDisplay({ view, items }: { view: WorkView; items: Item[] }) {
+  if (view === "cards") return <div className="hw-tiles">{items.map(({ key, ...rest }) => <Tile key={key} {...rest} />)}</div>;
+  if (view === "bars") return <BarsView items={items} />;
+  if (view === "summary") return <SummaryView items={items} />;
+  return (
+    <div className="hw-board">
+      <table className="hw-grid">
+        <caption className="sr-only">Open jobs by type of work and how close their deadlines are</caption>
+        <thead>
+          <tr>
+            <th scope="col">Type of work</th>
+            {BANDS.map((b) => <th key={b} scope="col" className="num">{BAND_LABEL[b]}</th>)}
+            <th scope="col" className="ahead">Looking ahead</th>
+          </tr>
+        </thead>
+        <tbody>{items.map(({ key, ...rest }) => <Line key={key} {...rest} />)}</tbody>
+      </table>
+    </div>
+  );
+}
+
+const Mark = ({ total, serviceKey }: { total?: boolean; serviceKey?: string }) =>
+  total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${serviceKey ? svcClass(serviceKey) : ""}`} aria-hidden="true" />;
+
+const AheadButton = ({ name, ahead, onOpen }: { name: string; ahead: string; onOpen: () => void }) => (
+  <button type="button" className="hw-ahead" onClick={onOpen} aria-label={`${name}: ${ahead}. Open the breakdown`} title="Breakdown, and how far ahead to look">
+    <Icon name="chart" size={14} /><span>{ahead}</span>
+  </button>
+);
+
+/** Bars: each type of work as one stacked bar on a shared scale (the longest bar is the busiest type), segments in band order with
+ *  the count written in each, a key above, and a tooltip on each segment. */
+function BarsView({ items }: { items: Item[] }) {
+  const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const totalOf = (c: Counts) => BANDS.reduce((n, b) => n + c[b], 0);
+  const max = Math.max(1, ...items.filter((i) => !i.total).map((i) => totalOf(i.c)), ...items.filter((i) => i.total).map((i) => totalOf(i.c)));
+  const show = (e: React.MouseEvent | React.FocusEvent, text: string) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect(), o = box.current!.getBoundingClientRect();
+    setTip({ x: r.left - o.left + r.width / 2, y: r.top - o.top, text });
+  };
+  return (
+    <div className="hw-board hw-bars" ref={box} onMouseLeave={() => setTip(null)}>
+      <ul className="hw-key-row" aria-label="Key">
+        {BANDS.map((b) => <li key={b}><i className={`hw-key ${b}`} />{BAND_LABEL[b]}</li>)}
+      </ul>
+      {items.map((i) => {
+        const t = totalOf(i.c);
+        return (
+          <div key={i.key} className={`hw-bar-row${i.total ? " total" : ""}`}>
+            <div className="hw-bar-name"><Mark total={i.total} serviceKey={i.serviceKey} /><span>{i.name}</span><span className="hw-type-sum">{t} shown</span></div>
+            <div className="hw-bar-track" role="img" aria-label={`${i.name}: ${BANDS.map((b) => `${i.c[b]} ${BAND_LABEL[b].toLowerCase()}`).join(", ")}`}>
+              <div className="hw-bar-fill" style={{ width: `${(t / max) * 100}%` }}>
+                {BANDS.filter((b) => i.c[b]).map((b) => (
+                  <span key={b} className={`hw-bseg ${b}`} style={{ flexGrow: i.c[b] }} tabIndex={0}
+                    onMouseEnter={(e) => show(e, `${i.name} · ${BAND_LABEL[b]}: ${i.c[b]}`)} onFocus={(e) => show(e, `${i.name} · ${BAND_LABEL[b]}: ${i.c[b]}`)} onBlur={() => setTip(null)}>
+                    <span className="hw-bseg-n">{i.c[b]}</span>
+                  </span>
+                ))}
+              </div>
+              {t === 0 && <span className="muted hw-bar-none">Nothing in view</span>}
+            </div>
+            <AheadButton name={i.name} ahead={i.ahead} onOpen={i.onOpen} />
+          </div>
+        );
+      })}
+      {tip && <div className="hw-tip" role="tooltip" style={{ left: tip.x, top: tip.y }}>{tip.text}</div>}
+    </div>
+  );
+}
+
+/** Summary: a plain sentence for each type of work, most pressing first, with the overdue count as a badge. */
+function SummaryView({ items }: { items: Item[] }) {
+  const words: Record<Band, string> = { overdue: "overdue", verySoon: "due very soon", soon: "due soon", ok: "on track", hold: "on hold" };
+  const [all, ...rest] = items;
+  const order = [all, ...[...rest].sort((a, b) => b.c.overdue - a.c.overdue || b.c.verySoon - a.c.verySoon || b.c.soon - a.c.soon || a.name.localeCompare(b.name))];
+  return (
+    <ul className="hw-board hw-summary">
+      {order.map((i) => {
+        const parts = BANDS.filter((b) => b !== "overdue" && i.c[b]).map((b) => `${i.c[b]} ${words[b]}`);
+        return (
+          <li key={i.key} className={i.total ? "total" : ""}>
+            <span className={`hw-badge${i.c.overdue ? " late" : " clear"}`} aria-hidden="true">{i.c.overdue ? i.c.overdue : <Icon name="check" size={16} />}</span>
+            <span className="hw-say">
+              <span className="hw-say-name"><Mark total={i.total} serviceKey={i.serviceKey} />{i.name}</span>
+              <span className="hw-say-text">
+                {i.c.overdue ? <strong className="late">{i.c.overdue} overdue</strong> : <strong>Nothing overdue</strong>}
+                {parts.length ? <>{" · "}{parts.join(", ")}</> : " · nothing else coming up"}
+              </span>
+            </span>
+            <AheadButton name={i.name} ahead={i.ahead} onOpen={i.onOpen} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /** One type of work as a row: its counts in each band as pills (coloured when there is any), a thin bar showing the mix, and the
  *  look-ahead, which opens the breakdown where it can be changed. */
 function Line({ name, serviceKey, total, c, ahead: aheadLabel, onOpen }: { name: string; serviceKey?: string; total?: boolean; c: Counts; ahead: string; onOpen: () => void }) {
@@ -160,6 +264,34 @@ function Line({ name, serviceKey, total, c, ahead: aheadLabel, onOpen }: { name:
         </button>
       </td>
     </tr>
+  );
+}
+
+function Tile({ name, serviceKey, total, c, days, onOpen }: { name: string; serviceKey?: string; total?: boolean; c: Counts; days: number; onOpen: () => void }) {
+  const ahead: Band[] = ["verySoon", "soon", "ok", "hold"];
+  const SHORT: Record<Band, string> = { overdue: "overdue", verySoon: "very soon", soon: "soon", ok: "OK", hold: "on hold" };
+  const sum = ahead.reduce((n, b) => n + c[b], 0);
+  return (
+    <article className={`hw-tile${total ? " total" : ""}${c.overdue ? " late" : ""}`}>
+      <div className="hw-head">
+        <a className="hw-name" href="#/plan/deadlines" title="Open the deadlines">
+          {total ? <span className="hw-mark total" aria-hidden="true"><Icon name="layout" size={13} /></span> : <span className={`hw-mark ${serviceKey ? svcClass(serviceKey) : ""}`} aria-hidden="true" />}
+          <span>{name}</span>
+        </a>
+        <button type="button" className="hw-info" onClick={onOpen} aria-label={`Breakdown of ${name}`} title="Breakdown, and how many days to look ahead"><Icon name="chart" size={16} /></button>
+      </div>
+      <div className="hw-main">
+        <span className="hw-big">{c.overdue}</span>
+        <span className="hw-big-label">overdue</span>
+      </div>
+      <div className="hw-meter" role="img" aria-label={`Next ${days} days: ${ahead.map((b) => `${c[b]} ${SHORT[b]}`).join(", ")}`}>
+        {sum ? ahead.filter((b) => c[b]).map((b) => <span key={b} className={`hw-seg ${b}`} style={{ flexGrow: c[b] }} />) : <span className="hw-seg none" />}
+      </div>
+      <ul className="hw-legend" aria-hidden="true">
+        {ahead.map((b) => <li key={b} className={c[b] ? "on" : ""}><i className={`hw-key ${b}`} /><strong>{c[b]}</strong> {SHORT[b]}</li>)}
+      </ul>
+      <span className="hw-window">Next {days} days</span>
+    </article>
   );
 }
 
