@@ -446,7 +446,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
           <ol className="stage-list">
             {stages.map((s) => {
               const n = s.StageNo as number;
-              const state = n < current ? "done" : n === current ? "now" : "todo";
+              const state = !isOpen(job) || n < current ? "done" : n === current ? "now" : "todo";
               return (
                 <li key={s.Key as string}>
                   <button
@@ -578,7 +578,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <ElementsLink client={client} />
       </div>
       <div className="jc-chips">
-        <DeadlineChip job={job} today={today} />
+        {open && <DeadlineChip job={job} today={today} />}
         {open && (
           <button type="button" className={`jc-toggle${job.Priority === "urgent" ? " on" : ""}`} aria-pressed={job.Priority === "urgent"}
             onClick={() => save({ Priority: job.Priority === "urgent" ? "" : "urgent" })}>
@@ -595,7 +595,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <ol className="jc-steps" aria-label={`Stage ${current} of ${stages.length}`}>
           {stages.map((st) => {
             const n = Number(st.StageNo);
-            const state = n < current ? "done" : n === current ? "now" : "todo";
+            const state = !isOpen(job) || n < current ? "done" : n === current ? "now" : "todo";
             const who = whoOn(n);
             return (
               <li key={String(st.Key)} className={state}>
@@ -713,7 +713,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <div className="jc-main">
           <section className="jc-card" aria-label="Now">
             <h3 className="jc-h">Now</h3>
-            {nowStage ? (
+            {!open ? <p className="jc-now"><strong>Completed{job.CompletedDate ? ` ${fmtDate(String(job.CompletedDate))}` : ""}</strong><span className="muted"> · every stage done</span></p> : nowStage ? (
               <p className="jc-now">
                 <strong>{String(nowStage.Title)}</strong>
                 <span className="muted"> · stage {current} of {stages.length}{whoOn(current) ? ` · ${whoOn(current)}` : ""}</span>
@@ -751,7 +751,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
             </label>
           </section>
 
-          {!isInvoiceJob(job) && (
+          {!isInvoiceJob(job) && open && (
             <section className="jc-card">
               <h3 className="jc-h">Records</h3>
               {job.RecordsReceived ? (
@@ -811,7 +811,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
       <div className="jc-sub jc3-line">
         {client && <a href={href("clients", client.Key, "work")} onClick={onClose}>{client.Title}</a>}
         {job.PeriodEnd && <span>Period to {fmtDate(job.PeriodEnd)}</span>}
-        <DeadlineChip job={job} today={today} />
+        {open && <DeadlineChip job={job} today={today} />}
         {open && (
           <button type="button" className={`jc-toggle${job.Priority === "urgent" ? " on" : ""}`} aria-pressed={job.Priority === "urgent"}
             onClick={() => save({ Priority: job.Priority === "urgent" ? "" : "urgent" })}><Icon name="flag" size={13} /> Urgent</button>
@@ -827,7 +827,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <ol className="jc-steps jc3-steps" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }} aria-label={`Stage ${current} of ${stages.length}`}>
           {stages.map((st) => {
             const n = Number(st.StageNo);
-            const state = n < current ? "done" : n === current ? "now" : "todo";
+            const state = !isOpen(job) || n < current ? "done" : n === current ? "now" : "todo";
             const who = whoOn(n);
             return (
               <li key={String(st.Key)} className={state}>
@@ -892,7 +892,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <ol className="jc4-steps" ref={stepsRef} aria-label={`Stage ${current} of ${stages.length}`}>
           {stages.map((st) => {
             const n = Number(st.StageNo);
-            const state = n < current ? "done" : n === current ? "now" : "todo";
+            const state = !isOpen(job) || n < current ? "done" : n === current ? "now" : "todo";
             const who = whoOn(n);
             return (
               <li key={String(st.Key)} className={state}>
@@ -936,7 +936,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
             <div className="jc-cols">
               <div className="jc-main">
                 <section className="jc-card">
-                  <h3 className="jc-h">Now{nowStage ? <span className="jc3-now"> · {String(nowStage.Title)}, stage {current} of {stages.length}{whoOn(current) ? ` · ${whoOn(current)}` : ""}</span> : null}</h3>
+                  <h3 className="jc-h">Now{!open ? <span className="jc3-now"> · Completed{job.CompletedDate ? ` ${fmtDate(String(job.CompletedDate))}` : ""}, every stage done</span> : nowStage ? <span className="jc3-now"> · {String(nowStage.Title)}, stage {current} of {stages.length}{whoOn(current) ? ` · ${whoOn(current)}` : ""}</span> : null}</h3>
                   <JobTime job={job} stages={stages} current={current} open={open} part="now" />
                 </section>
                 <Field label="Notes" multiline value={job.Notes} onSave={(v) => save({ Notes: v })} />
@@ -964,7 +964,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
                   </div>
                 </section>
                 <section className="jc-card jc3-mini">
-                  {!isInvoiceJob(job) && (job.RecordsReceived
+                  {!isInvoiceJob(job) && open && (job.RecordsReceived
                     ? <p className="jc-line"><span className="jc-h">Records</span><span className="chip green">In {fmtDate(String(job.RecordsReceived), { year: false })}</span><button type="button" className="linkbtn" onClick={() => save({ RecordsReceived: "" })}>Not in after all</button></p>
                     : <p className="jc-line"><span className="jc-h">Records</span><span className="chip amber">Not in{job.RecordsExpected ? `, expected ${fmtDate(String(job.RecordsExpected), { year: false })}` : ""}</span>
                         <button type="button" className="btn small primary" onClick={() => save({ RecordsReceived: today })}><Icon name="check" size={13} />Received today</button>
