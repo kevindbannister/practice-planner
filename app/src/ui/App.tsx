@@ -23,6 +23,7 @@ import { setBandSlot, setStripSlot } from "./StripSlot";
 import { AdvisoryLine } from "./AdvisoryLine";
 import { AppearanceSync, devicePersonal, useSavePersonal } from "./appearanceKit";
 import { InvoiceStageTidy } from "./InvoiceStageTidy";
+import { CtFirstYearSync } from "./CtFirstYearSync";
 import { CompaniesHouseProvider, fmtWhen, useChAlerts, useCompaniesHouse } from "./CompaniesHouse";
 import { BackupProvider, useBackupAlert } from "./Backups";
 import { CalendarProvider } from "./Calendar";
@@ -198,6 +199,7 @@ export function App({ demo }: { demo: boolean }) {
               <>
                 <AppearanceSync />
             <InvoiceStageTidy />
+            <CtFirstYearSync />
                 {/* a client's Freedom Plan has its own banner, so the practice's menu stays out of sight while it is shown to the client */}
                 {!(section === "devhub" || (section === "advisory" || section === "taxplan") && parts[1] && parts[1] !== "production") && <TopBar section={section} routeKey={parts[1]} demo={demo} ready={status === "ready"} scrolls={(section === "papers" || section === "tax" || section === "reporting") && !!parts[1]} />}
                 <span className="version-badge" title={`Prototype, version ${VERSION}`}>P V{VERSION}</span>

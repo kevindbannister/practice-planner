@@ -72,7 +72,8 @@ export function plannerChecks({ clients, jobs, services, today }: CheckInput): P
       });
       continue;
     }
-    if (!sd || governed) continue;
+    // a split first-year Corporation Tax return is due 12 months after the end of the accounts, not of its own shorter period
+    if (!sd || governed || /^ct-split:/.test(String(j.Source || ""))) continue;
 
     if (!j.Deadline) {
       out.push({

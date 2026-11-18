@@ -143,7 +143,10 @@ export function CompaniesHouseProvider({ demo, children }: { demo: boolean; chil
           found.push(...compareCompany({ client: c, profile, jobs, off, officers, pscs, before: before[num] }));
           checked.add(c.Key);
           const st = profile ? statusText(profile) : "Not found at Companies House";
-          if (c.CHStatus !== st || !c.CHChecked) await update("Clients", c, { CHStatus: st, CHChecked: true });
+          // the incorporation date tells the planner when a company's first (possibly long) accounts period starts (see ctSplit)
+          const inc = profile ? String(profile.date_of_creation || "") : "";
+          const incPatch = inc && /^\d{4}-\d{2}-\d{2}$/.test(inc) && String(c.Incorporated || "").slice(0, 10) !== inc ? { Incorporated: inc } : {};
+          if (c.CHStatus !== st || !c.CHChecked || Object.keys(incPatch).length) await update("Clients", c, { CHStatus: st, CHChecked: true, ...incPatch });
           if (profile) { // what Companies House shows now, kept apart from the planner's own record (Co Sec compares the two)
             const history = await orNull(get(`company/${num}/filing-history?items_per_page=100`));
             const seen = verifiedFrom(profile, new Date().toISOString(), history ? filingsFrom(history) : verifiedOf(c).history);

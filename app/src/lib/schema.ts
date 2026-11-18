@@ -88,7 +88,7 @@ export const LISTS: ListDef[] = [
   {
     key: "Jobs", displayName: "PP Jobs", description: "Practice Planner: open jobs",
     columns: [
-      t("Key", true), t("ClientKey", true), t("ClientName"), t("ServiceKey"), t("PeriodEnd"),
+      t("Key", true), t("ClientKey", true), t("ClientName"), t("ServiceKey"), t("PeriodStart"), t("PeriodEnd"),
       n("StageNo"), t("StageName"), t("Owner"), t("RecordsExpected"), t("RecordsReceived"), t("PlannedDate", true),
       n("EstimateHours"), t("InternalDeadline"), t("Deadline", true), t("DeadlineSource"), t("CHDeadline"),
       t("SuggestedSlot"), t("LastCompleted"), t("Priority"), t("Status"), t("CompletedDate"),

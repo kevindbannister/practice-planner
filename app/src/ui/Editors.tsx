@@ -30,6 +30,7 @@ import { useData, useIndex } from "./data";
 import { useStaff } from "./staffKit";
 import { assigneeOf, ownerOf } from "../lib/jobBands";
 import { useJobCard } from "./appearanceKit";
+import { isEarlierPart } from "../lib/ctSplit";
 import { INVOICE_SERVICE, billedJobKey, invoiceJobFor, invoiceServiceRow, isInvoiceJob, readAmount } from "../lib/invoicing";
 
 type Open =
@@ -247,7 +248,9 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   };
   const rule = ruleFor(job.ServiceKey, data.services);
   const serviceOff = idx.servicesOff.has(`${job.ClientKey}|${job.ServiceKey}`);
-  const preview = serviceOff ? null : nextPeriod(rule, job.PeriodEnd, job.Deadline);
+  // the first of a split first-year Corporation Tax pair: the next return is already on the planner (see ctSplit)
+  const earlierPart = isEarlierPart(job);
+  const preview = serviceOff || earlierPart ? null : nextPeriod(rule, job.PeriodEnd, job.Deadline);
 
   const complete = async (choice?: "yes" | "no") => {
     const answer = choice ?? invoice;
@@ -326,7 +329,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
             {done.SuggestedSlot ? <>, suggested slot {fmtDate(done.SuggestedSlot as string, { weekday: true })}</> : null}.
           </p>
         ) : (
-          <p style={{ margin: 0 }} className="muted">{serviceOff ? "This work is turned off for the client, so there's no next job." : "This is one-off work, so there's no next job."}</p>
+          <p style={{ margin: 0 }} className="muted">{serviceOff ? "This work is turned off for the client, so there's no next job." : earlierPart ? "The company's other first-year Corporation Tax return is already on the planner, so there's no new job." : "This is one-off work, so there's no next job."}</p>
         )}
         {invoiceMade && (
           <p style={{ margin: 0 }}>
@@ -515,7 +518,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
                   ? `Completing it creates the next one: period to ${fmtDate(preview.PeriodEnd)}, due ${fmtDate(preview.Deadline)} (${describeRule(rule).toLowerCase()}).`
                   : serviceOff
                     ? `${idx.serviceName.get(job.ServiceKey || "") || "This work"} is turned off for ${client?.Title || "this client"}, so nothing is created after it. You can turn it back on from the client's page.`
-                    : "One-off work: nothing is created after it. You can change this in Settings › Types of work."}
+                    : earlierPart ? "The company's other first-year Corporation Tax return is already on the planner, so nothing new is created." : "One-off work: nothing is created after it. You can change this in Settings › Types of work."}
               </p>
               <div><button type="button" className="btn" onClick={() => setCompleting(true)}>Mark complete…</button></div>
             </>
@@ -574,7 +577,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     <>
       <div className="jc-sub">
         {client && <a href={href("clients", client.Key, "work")} onClick={onClose}>{client.Title}</a>}
-        {job.PeriodEnd && <span>Period to {fmtDate(job.PeriodEnd)}</span>}
+        {job.PeriodEnd && <span>{job.PeriodStart ? `Period ${fmtDate(String(job.PeriodStart))} to ${fmtDate(job.PeriodEnd)}` : `Period to ${fmtDate(job.PeriodEnd)}`}</span>}
         <ElementsLink client={client} />
       </div>
       <div className="jc-chips">
@@ -659,7 +662,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
               ? `Completing it creates the next one: period to ${fmtDate(preview.PeriodEnd)}, due ${fmtDate(preview.Deadline)}.`
               : serviceOff
                 ? `${typeName || "This work"} is turned off for ${client?.Title || "this client"}, so nothing is created after it.`
-                : "One-off work: nothing is created after it."}
+                : earlierPart ? "The company's other first-year Corporation Tax return is already on the planner, so nothing new is created." : "One-off work: nothing is created after it."}
           </p>
           {gate.blockers.length > 0 && (
             <div className="import-list warn" role="alert">
@@ -810,7 +813,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     <>
       <div className="jc-sub jc3-line">
         {client && <a href={href("clients", client.Key, "work")} onClick={onClose}>{client.Title}</a>}
-        {job.PeriodEnd && <span>Period to {fmtDate(job.PeriodEnd)}</span>}
+        {job.PeriodEnd && <span>{job.PeriodStart ? `Period ${fmtDate(String(job.PeriodStart))} to ${fmtDate(job.PeriodEnd)}` : `Period to ${fmtDate(job.PeriodEnd)}`}</span>}
         {open && <DeadlineChip job={job} today={today} />}
         {open && (
           <button type="button" className={`jc-toggle${job.Priority === "urgent" ? " on" : ""}`} aria-pressed={job.Priority === "urgent"}
@@ -854,7 +857,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <button type="button" className="btn small" onClick={() => setCompleting(false)} disabled={busy}>Not yet</button>
       </div>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-        {preview ? `Completing it creates the next one: period to ${fmtDate(preview.PeriodEnd)}, due ${fmtDate(preview.Deadline)}.` : serviceOff ? `${typeName || "This work"} is turned off for ${client?.Title || "this client"}, so nothing is created after it.` : "One-off work: nothing is created after it."}
+        {preview ? `Completing it creates the next one: period to ${fmtDate(preview.PeriodEnd)}, due ${fmtDate(preview.Deadline)}.` : serviceOff ? `${typeName || "This work"} is turned off for ${client?.Title || "this client"}, so nothing is created after it.` : earlierPart ? "The company's other first-year Corporation Tax return is already on the planner, so nothing new is created." : "One-off work: nothing is created after it."}
       </p>
       {gate.blockers.length > 0 && (
         <div className="import-list warn" role="alert">

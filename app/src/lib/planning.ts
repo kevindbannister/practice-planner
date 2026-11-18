@@ -260,6 +260,9 @@ export function nextPeriod(r: Rule, periodEnd?: string, deadline?: string): Next
 
 /** The next job to create when one is completed, or null for one-off work. */
 export function rollForward(job: Job, r: Rule, completedOn: string, newKey: string): Row | null {
+  // the first of a company's split first-year Corporation Tax returns: the next part already exists (see ctSplit)
+  const part = /^ct-split:(\d+)\/(\d+)/.exec(String((job as Row).Source || ""));
+  if (part && Number(part[1]) < Number(part[2])) return null;
   const next = nextPeriod(r, job.PeriodEnd, job.Deadline);
   if (!next) return null;
   // dates like "when the records came in" move on by the same amount as the period
@@ -268,7 +271,8 @@ export function rollForward(job: Job, r: Rule, completedOn: string, newKey: stri
   const slot = shift((job.PreparedOn as string | undefined) || job.PlannedDate || completedOn);
   return {
     Key: newKey,
-    Title: job.Title,
+    // a split first-year return's title carries its dates; the next year is a normal one
+    Title: part ? String(job.Title || "").replace(/\s+[-–]\s+\d.*$/, "") : job.Title,
     ClientKey: job.ClientKey,
     ClientName: job.ClientName,
     ServiceKey: job.ServiceKey,
