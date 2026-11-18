@@ -14,7 +14,11 @@ test("the Practice bars and backgrounds are light enough for dark text", () => {
 test("a saved look is checked: unknown choices go back to the default, colour slots must be 0 to 7", () => {
   assert.deepEqual(readLook(undefined), DEFAULT_LOOK);
   assert.deepEqual(readLook({ workBar: "teal", advisoryBar: "nope", practiceBar: "white", canvas: "deeper", serviceSlots: { VAT: 3, X: 9, Y: -1, Z: "2", W: 1.5 } }),
-    { workBar: "teal", advisoryBar: "purple", practiceBar: "white", canvas: "deeper", serviceSlots: { VAT: 3, Z: 2 } });
+    { workBar: "teal", advisoryBar: "purple", practiceBar: "white", practiceLine: "bar", canvas: "deeper", serviceSlots: { VAT: 3, Z: 2 } });
+  assert.equal(readLook({ practiceLine: "white" }).practiceLine, "white");
+  assert.equal(readLook({ practiceLine: "pink" }).practiceLine, "bar");
+  assert.equal(lookVars(readLook({ practiceLine: "white" }))["--practice-line"], "var(--surface)");
+  assert.equal(lookVars(readLook({ practiceBar: "mint" }))["--practice-line"], PRACTICE_BARS.find((p) => p.key === "mint")!.value);
 });
 
 test("a look becomes the CSS variables the page and the preview use", () => {
