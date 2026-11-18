@@ -789,7 +789,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     </Drawer>
   );
 
-  /* ---------- version 3: half the screen, everything in view, the checklist inside the card ---------- */
+  /* ---------- versions 3 and 4: half the screen, everything in view, the checklist inside the card; 4 has the stages down the left ---------- */
+  const vertical = cardVersion === "4";
   const cl = checks.byJob.get(job.Key);
   const clPct = cl ? checklistProgress(checks.itemsOf(cl.key), checks.today, openNoteCount(checks.notesOf(cl.key))).pct : undefined;
   const PANELS: ["job" | "checklist" | "time" | "more", string][] = [["job", "Job"], ["checklist", clPct === undefined ? "Checklist" : `Checklist ${clPct}%`], ["time", "Time"], ["more", "More"]];
@@ -810,7 +811,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         {!open && <span className="chip green">Complete</span>}
         <ElementsLink client={client} />
       </div>
-      {stages.length > 0 && (
+      {stages.length > 0 && !vertical && (
         <ol className="jc-steps jc3-steps" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }} aria-label={`Stage ${current} of ${stages.length}`}>
           {stages.map((st) => {
             const n = Number(st.StageNo);
@@ -874,6 +875,26 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   );
   return (
     <Drawer title={job.Title} eyebrow={typeName && typeName !== job.Title ? `Job · ${typeName}` : "Job"} onClose={onClose} accent={svcClass(job.ServiceKey)} half head={head3} foot={foot}>
+      <div className={vertical && stages.length ? "jc4" : undefined}>
+      {vertical && stages.length > 0 && (
+        <ol className="jc4-steps" aria-label={`Stage ${current} of ${stages.length}`}>
+          {stages.map((st) => {
+            const n = Number(st.StageNo);
+            const state = n < current ? "done" : n === current ? "now" : "todo";
+            const who = whoOn(n);
+            return (
+              <li key={String(st.Key)} className={state}>
+                <button type="button" aria-current={state === "now" ? "step" : undefined} title={`${String(st.Title)}${who ? ` · ${who}` : ""}: ${state === "now" ? "mark this stage done" : state === "done" ? "go back to this stage" : "move the job to this stage"}`}
+                  onClick={() => (state === "now" && open ? stageDone() : setStage(n))}>
+                  <span className="jc-dot" aria-hidden="true">{state === "done" ? <Icon name="check" size={12} /> : n}</span>
+                  <span className="jc-step-name"><span>{String(st.Title)}</span>{who ? <small>{who}</small> : null}{state === "now" && open ? <em>Click when done</em> : null}</span>
+                  {state === "done" && <span className="sr-only">(done)</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
       <div className="jc3">
         {billedKey && <p className="invoice-for">Bills: {billed ? <button type="button" className="linkbtn" onClick={() => openItem({ kind: "job", key: String(billed.Key) })}>{String(billed.Title)}{billed.CompletedDate ? `, completed ${fmtDate(String(billed.CompletedDate))}` : ""}</button> : "a job that has since been archived"}</p>}
         {mailOffer && <StageMailOffer job={job} rule={mailOffer.rule} stageName={mailOffer.stageName} onClose={() => setMailOffer(null)} />}
@@ -965,6 +986,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
             <CustomValuesEditor kind="job" entityKey={job.Key} clientKey={job.ClientKey} />
           </>
         )}
+      </div>
       </div>
     </Drawer>
   );

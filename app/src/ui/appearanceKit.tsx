@@ -12,7 +12,7 @@ const get = (k: string) => { try { return localStorage.getItem(k); } catch { ret
 const put = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* this visit only */ } };
 
 const JOB_CARD_KEY = "pp.jobcard";
-const readJobCard = (): JobCardVersion => { const v = get(JOB_CARD_KEY); return v === "1" || v === "2" ? v : "3"; };
+const readJobCard = (): JobCardVersion => { const v = get(JOB_CARD_KEY); return v === "1" || v === "2" || v === "3" ? v : "4"; };
 /** Which job card layout this person uses (Settings, Appearance). */
 export function useJobCard(): JobCardVersion {
   const [v, setV] = useState<JobCardVersion>(readJobCard);
