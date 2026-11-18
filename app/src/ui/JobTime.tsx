@@ -24,7 +24,9 @@ function useTick(active: boolean): Date {
   return active ? now : nowDate();
 }
 
-export function JobTime({ job, stages, current, open }: { job: Row; stages: Row[]; current: number; open: boolean }) {
+/** `part`: "now" is the timer, the stage you are on and adding time (the job card's main column); "table" is time stage by stage;
+ *  left out, both. */
+export function JobTime({ job, stages, current, open, part }: { job: Row; stages: Row[]; current: number; open: boolean; part?: "now" | "table" }) {
   const { data, user, create, update, store } = useData();
   const entries = useMemo(() => data.jobTime.map(readTime), [data.jobTime]);
   const run = runningTimer(entries);
@@ -61,15 +63,9 @@ export function JobTime({ job, stages, current, open }: { job: Row; stages: Row[
   const relevant = sm.stages.filter((x) => x.budget > 0 || x.actual > 0 || x.stageNo === current);
   const trimmed = sm.stages.length > 6 && relevant.length < sm.stages.length && !all;
   const shownStages = trimmed ? relevant : sm.stages;
-  return (
-    <section className="stack" aria-labelledby="jt-h" style={{ gap: 8 }}>
-      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h3 id="jt-h" style={{ margin: 0, fontSize: 15 }}>Time{sm.budget > 0 || sm.actual > 0 ? <span className="muted" style={{ fontWeight: 400 }}> · {lengthText(sm.actual)}{sm.budget > 0 ? ` of ${lengthText(sm.budget)} budget` : ""}</span> : null}</h3>
-        {open && (mine
-          ? <button type="button" className="btn small primary" disabled={busy} onClick={() => void stop()}>Stop · {clock(elapsedHours(run!, now))}</button>
-          : <button type="button" className="btn small" disabled={busy} onClick={() => void start()} title={run ? "Stops the timer running on another job and starts one here" : undefined}>Start timer on stage {current}</button>)}
-      </div>
-      {run && !mine && <p className="muted" style={{ margin: 0, fontSize: 13 }}>A timer is running on <a href={href("clients", run.clientKey)}>another job</a>. Starting one here stops it.</p>}
+  const here = sm.stages.find((x) => x.stageNo === current);
+  const table = (
+    <>
       <div className="table-wrap">
         <table className="grid" style={{ minWidth: 380 }}>
           <thead><tr><th scope="col">Stage</th><th scope="col" className="num">Budget</th><th scope="col" className="num">Worked</th><th scope="col"><span className="sr-only">Status</span></th></tr></thead>
@@ -87,6 +83,21 @@ export function JobTime({ job, stages, current, open }: { job: Row; stages: Row[
         </table>
       </div>
       {sm.stages.length > 6 && relevant.length < sm.stages.length && <button type="button" className="linkbtn" style={{ alignSelf: "flex-start" }} onClick={() => setAll(!all)}>{all ? "Show fewer stages" : `Show all ${sm.stages.length} stages`}</button>}
+    </>
+  );
+  if (part === "table") return <section className="stack" aria-label="Time stage by stage" style={{ gap: 8 }}>{table}</section>;
+  return (
+    <section className="stack" aria-labelledby="jt-h" style={{ gap: 8 }}>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <h3 id="jt-h" style={{ margin: 0, fontSize: 15 }}>Time{sm.budget > 0 || sm.actual > 0 ? <span className="muted" style={{ fontWeight: 400 }}> · {lengthText(sm.actual)}{sm.budget > 0 ? ` of ${lengthText(sm.budget)} budget` : ""}</span> : null}</h3>
+        {open && (mine
+          ? <button type="button" className="btn small primary" disabled={busy} onClick={() => void stop()}>Stop · {clock(elapsedHours(run!, now))}</button>
+          : <button type="button" className="btn small" disabled={busy} onClick={() => void start()} title={run ? "Stops the timer running on another job and starts one here" : undefined}>Start timer on stage {current}</button>)}
+      </div>
+      {run && !mine && <p className="muted" style={{ margin: 0, fontSize: 13 }}>A timer is running on <a href={href("clients", run.clientKey)}>another job</a>. Starting one here stops it.</p>}
+      {part === "now"
+        ? here && <p className="jt-here">This stage: <strong>{here.actual > 0 ? lengthText(here.actual) : "nothing"}</strong> worked{here.budget > 0 ? ` of ${lengthText(here.budget)} budget` : ""}{here.status !== "none" && here.actual > 0 ? <span className={`chip ${CHIP[here.status]}`} style={{ marginLeft: 8 }}>{WORDS[here.status]}</span> : null}</p>
+        : table}
       {open && (
         <div className="inline-form" aria-label="Add time">
           <input className="input" style={{ width: 100 }} aria-label="Time worked" placeholder="e.g. 1h30" value={hours} onChange={(e) => setHours(e.target.value)} />
