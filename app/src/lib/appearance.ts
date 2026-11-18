@@ -75,8 +75,15 @@ export function lookVars(look: PracticeLook): Record<string, string> {
 export type Layout = "top" | "side";
 export type WorkViewChoice = "table" | "cards" | "bars" | "summary";
 export type ThemeChoice = "system" | "light" | "dark";
-export type Personal = { layout: Layout; workView: WorkViewChoice; tips: boolean; theme: ThemeChoice; updated: string };
-export const DEFAULT_PERSONAL: Personal = { layout: "top", workView: "table", tips: false, theme: "system", updated: "" };
+/** How the job card is laid out: 1 the original single column, 2 the wide two-column card, 3 half the screen with everything in view. */
+export type JobCardVersion = "1" | "2" | "3";
+export const JOB_CARDS: [JobCardVersion, string, string][] = [
+  ["3", "Version 3", "Half the screen, everything in view without scrolling, checklist inside the card"],
+  ["2", "Version 2", "Wide card in two columns, with More folded at the bottom"],
+  ["1", "Version 1", "The original single column"],
+];
+export type Personal = { layout: Layout; workView: WorkViewChoice; tips: boolean; theme: ThemeChoice; jobCard: JobCardVersion; updated: string };
+export const DEFAULT_PERSONAL: Personal = { layout: "top", workView: "table", tips: false, theme: "system", jobCard: "3", updated: "" };
 export const personalKey = (user: string) => `appearance:${user.trim().toLowerCase()}`;
 
 export function readPersonal(raw: unknown): Personal | undefined {
@@ -87,6 +94,7 @@ export function readPersonal(raw: unknown): Personal | undefined {
     workView: o.workView === "cards" || o.workView === "bars" || o.workView === "summary" ? o.workView : "table",
     tips: o.tips === true,
     theme: o.theme === "light" || o.theme === "dark" ? o.theme : "system",
+    jobCard: o.jobCard === "1" || o.jobCard === "2" ? o.jobCard : "3",
     updated: typeof o.updated === "string" ? o.updated : "",
   };
 }

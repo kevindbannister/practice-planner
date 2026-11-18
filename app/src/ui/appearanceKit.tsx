@@ -1,8 +1,8 @@
 // Applying the look (lib/appearance.ts): the practice's colours on the page, and each person's own view on whichever computer they
 // sign in on. The settings that make up the personal view still live where they always did on the device (so every screen keeps
 // reading them as before); this keeps them in step with the copy saved to the person's account.
-import { useEffect, useMemo } from "react";
-import { LOOK_KEY, Personal, PracticeLook, lookVars, personalKey, readLook, readPersonal } from "../lib/appearance";
+import { useEffect, useMemo, useState } from "react";
+import { JobCardVersion, LOOK_KEY, Personal, PracticeLook, lookVars, personalKey, readLook, readPersonal } from "../lib/appearance";
 import { setServiceSlots } from "../lib/serviceColour";
 import { readSetting, useData } from "./data";
 import { setTheme, storedTheme } from "./theme";
@@ -10,6 +10,15 @@ import { setTheme, storedTheme } from "./theme";
 const STAMP = "pp.appearance.updated";
 const get = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const put = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* this visit only */ } };
+
+const JOB_CARD_KEY = "pp.jobcard";
+const readJobCard = (): JobCardVersion => { const v = get(JOB_CARD_KEY); return v === "1" || v === "2" ? v : "3"; };
+/** Which job card layout this person uses (Settings, Appearance). */
+export function useJobCard(): JobCardVersion {
+  const [v, setV] = useState<JobCardVersion>(readJobCard);
+  useEffect(() => { const f = () => setV(readJobCard()); window.addEventListener("pp-jobcard", f); return () => window.removeEventListener("pp-jobcard", f); }, []);
+  return v;
+}
 
 /** The practice look as saved, with defaults for anything not chosen. */
 export function usePracticeLook(): PracticeLook {
@@ -25,6 +34,7 @@ export function devicePersonal(): Personal {
     workView: v === "cards" || v === "bars" || v === "summary" ? v : "table",
     tips: get("pp.tips") === "1",
     theme: storedTheme(),
+    jobCard: readJobCard(),
     updated: get(STAMP) || "",
   };
 }
@@ -38,6 +48,8 @@ export function applyPersonal(p: Personal) {
   put("pp.tips", p.tips ? "1" : "0");
   document.documentElement.toggleAttribute("data-tips", p.tips);
   setTheme(p.theme);
+  put(JOB_CARD_KEY, p.jobCard);
+  window.dispatchEvent(new Event("pp-jobcard"));
   if (p.updated) put(STAMP, p.updated);
 }
 

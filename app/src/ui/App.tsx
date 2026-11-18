@@ -380,7 +380,7 @@ function ProfileMenu({ user, demo, waiting = 0 }: { user?: string; demo: boolean
   const [tips, setTips] = useTips();
   const savePersonal = useSavePersonal();
   // the two quick switches here are saved to your account too, like the rest of Settings, Appearance
-  const keep = (change: { tips?: boolean; theme?: "light" | "dark" }) => { const p = devicePersonal(); void savePersonal({ layout: p.layout, workView: p.workView, tips: p.tips, theme: p.theme, ...change }); };
+  const keep = (change: { tips?: boolean; theme?: "light" | "dark" }) => { const p = devicePersonal(); void savePersonal({ layout: p.layout, workView: p.workView, tips: p.tips, theme: p.theme, jobCard: p.jobCard, ...change }); };
   const navError = useNavState().error;
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

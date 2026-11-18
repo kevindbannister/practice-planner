@@ -29,7 +29,9 @@ test("a look becomes the CSS variables the page and the preview use", () => {
 test("each person's own view is checked and kept per person, whatever the capitals", () => {
   assert.equal(readPersonal(null), undefined);
   assert.deepEqual(readPersonal({ layout: "side", workView: "bars", tips: true, theme: "dark", updated: "2026-11-17T10:00:00Z" }),
-    { layout: "side", workView: "bars", tips: true, theme: "dark", updated: "2026-11-17T10:00:00Z" });
-  assert.deepEqual(readPersonal({ layout: "x", workView: "y", tips: "yes", theme: "z" }), { layout: "top", workView: "table", tips: false, theme: "system", updated: "" });
+    { layout: "side", workView: "bars", tips: true, theme: "dark", jobCard: "3", updated: "2026-11-17T10:00:00Z" });
+  assert.deepEqual(readPersonal({ layout: "x", workView: "y", tips: "yes", theme: "z" }), { layout: "top", workView: "table", tips: false, theme: "system", jobCard: "3", updated: "" });
+  assert.equal(readPersonal({ jobCard: "2" })?.jobCard, "2");
+  assert.equal(readPersonal({ jobCard: "9" })?.jobCard, "3");
   assert.equal(personalKey(" Demo User "), personalKey("demo user"));
 });

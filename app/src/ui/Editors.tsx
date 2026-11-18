@@ -23,12 +23,13 @@ import { CATEGORIES, PROJECT_STATUSES, categoryOf, nextAction, progressOf, proje
 import { TimePicker } from "./TimePicker";
 import { parseDuration, timePatch } from "../lib/timeSpent";
 import { DeadlineChip, ElementsLink, Icon, PapersLink, href } from "./bits";
-import { can as canDo } from "../lib/checklist";
+import { can as canDo, openNoteCount, progress as checklistProgress } from "../lib/checklist";
 import { useChecklists } from "./checklistKit";
-import { JobChecklistLine, useJobBlockers } from "./JobChecklist";
+import { JobChecklistLine, JobChecklistPage, useJobBlockers } from "./JobChecklist";
 import { useData, useIndex } from "./data";
 import { useStaff } from "./staffKit";
 import { assigneeOf, ownerOf } from "../lib/jobBands";
+import { useJobCard } from "./appearanceKit";
 import { INVOICE_SERVICE, billedJobKey, invoiceJobFor, invoiceServiceRow, isInvoiceJob, readAmount } from "../lib/invoicing";
 
 type Open =
@@ -62,7 +63,8 @@ export function EditorProvider({ children }: { children: ReactNode }) {
 }
 
 /** `wide`: the job card, which has the most on it. */
-function Drawer({ title, eyebrow, onClose, children, accent, wide = false, head, foot }: { title: string; eyebrow: string; onClose: () => void; children: ReactNode; accent?: string; wide?: boolean; head?: ReactNode; foot?: ReactNode }) {
+/** `half`: half the screen, running off the right-hand edge (job card version 3). */
+function Drawer({ title, eyebrow, onClose, children, accent, wide = false, half = false, head, foot }: { title: string; eyebrow: string; onClose: () => void; children: ReactNode; accent?: string; wide?: boolean; half?: boolean; head?: ReactNode; foot?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -75,9 +77,9 @@ function Drawer({ title, eyebrow, onClose, children, accent, wide = false, head,
     };
   }, []);
   return (
-    <div className="drawer-wrap">
+    <div className={`drawer-wrap${half ? " half" : ""}`}>
       <button type="button" className="drawer-scrim" aria-label="Close" onClick={onClose} tabIndex={-1} />
-      <div className={`drawer${accent ? ` accent ${accent}` : ""}${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby="drawer-title" ref={ref}>
+      <div className={`drawer${accent ? ` accent ${accent}` : ""}${wide ? " wide" : ""}${half ? " half" : ""}`} role="dialog" aria-modal="true" aria-labelledby="drawer-title" ref={ref}>
         <div className="drawer-head">
           <div className="stack" style={{ gap: 4 }}>
             <span className="eyebrow">{accent && <span className="svc-dot" aria-hidden="true" style={{ marginRight: 6, verticalAlign: "-1px" }} />}{eyebrow}</span>
@@ -168,6 +170,8 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const [invNote, setInvNote] = useState("");
   const [invoiceMade, setInvoiceMade] = useState<Row | null>(null);
   const { open: openItem } = useEditor();
+  const cardVersion = useJobCard();
+  const [panel, setPanel] = useState<"job" | "checklist" | "time" | "more">("job");
   const completeRef = useRef<HTMLElement>(null);
   const [ask, setAsk] = useState<Row | null>(null); // moving onto a "with the client" stage: the stage patch, waiting for answers
   const [speak, setSpeak] = useState("");
@@ -324,6 +328,227 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     );
   }
 
+  if (cardVersion === "1") return (
+    <Drawer title={job.Title} eyebrow={idx.serviceName.get(job.ServiceKey || "") && idx.serviceName.get(job.ServiceKey || "") !== job.Title ? `Job · ${idx.serviceName.get(job.ServiceKey || "")}` : "Job"} onClose={onClose} accent={svcClass(job.ServiceKey)}>
+      <div className="row-wrap" style={{ gap: 6 }}>
+        {client && <a href={href("clients", client.Key, "work")} onClick={onClose} style={{ fontWeight: 600 }}>{client.Title}</a>}
+        {job.PeriodEnd && <span className="muted">· period to {fmtDate(job.PeriodEnd)}</span>}
+        <ElementsLink client={client} />
+        <PapersLink job={job} onNavigate={onClose} />
+      </div>
+      {billedJobKey(job as Row) && (() => {
+        const billed = data.jobs.find((j) => j.Key === billedJobKey(job as Row)) || data.history.find((j) => j.Key === billedJobKey(job as Row));
+        return <p className="invoice-for">Bills: {billed ? <button type="button" className="linkbtn" onClick={() => openItem({ kind: "job", key: String(billed.Key) })}>{String(billed.Title)}{billed.CompletedDate ? `, completed ${fmtDate(String(billed.CompletedDate))}` : ""}</button> : "a job that has since been archived"}</p>;
+      })()}
+      <div className="row-wrap" style={{ gap: 6 }}>
+        {job.Priority === "urgent" && <span className="chip red">Urgent</span>}
+        {isOnHold(job) && <span className="chip hold">{holdLabel(job)}</span>}
+        {waiting && <span className="chip wait">With the client</span>}
+        {serviceOff && isOpen(job) && <span className="chip hold" title="Complete it yourself; no next job will be created">Service turned off</span>}
+        {inFinalise(job) && !waiting && isOpen(job) && <span className="chip wait">Ready to finalise</span>}
+        <DeadlineChip job={job} today={today} />
+        {!isOpen(job) && <span className="chip green">Complete</span>}
+      </div>
+      {/* the everyday fields first; everything else is under More details */}
+      <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+        <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v, DayOrder: "", StartTime: "" })} />
+        <TimeField value={job.StartTime as string} disabled={!job.PlannedDate} onSave={(v) => save({ StartTime: v })} />
+        <Field label="Deadline" type="date" value={job.Deadline} onSave={(v) => save({ Deadline: v, DeadlineSource: "Manual" })} />
+        <Field
+          label={`Your hours (default ${fmtHours(jobHours({ ServiceKey: job.ServiceKey }, data.services))})`}
+          type="number" step="0.25" value={job.EstimateHours}
+          onSave={(v) => save({ EstimateHours: num(v) as any })}
+        />
+      </div>
+      {job.SuggestedSlot && !job.PlannedDate && (
+        <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+          <span className="muted" style={{ fontSize: 13 }}>Suggested from last time: {fmtDate(job.SuggestedSlot, { weekday: true })}</span>
+          <button type="button" className="btn small" onClick={() => save({ PlannedDate: job.SuggestedSlot, DayOrder: "" })}>Plan for then</button>
+        </div>
+      )}
+      <label className="stack" style={{ gap: 4, fontSize: 13 }}>
+        Owner
+        <select className="input" value={String(job.Owner || "")} onChange={(e) => save({ Owner: e.target.value })} aria-label="Who owns this job">
+          <option value="">{ownerOf({}, data.clients.find((c) => c.Key === job.ClientKey)) ? `${ownerOf({}, data.clients.find((c) => c.Key === job.ClientKey))} (the client's manager)` : "Not set"}</option>
+          {staff.names.map((n) => <option key={n} value={n}>{n}</option>)}
+          {job.Owner && !staff.names.includes(String(job.Owner)) && <option value={String(job.Owner)}>{String(job.Owner)}</option>}
+        </select>
+      </label>
+      <label className="row-wrap" style={{ gap: 8, fontSize: 15 }}>
+        <input type="checkbox" checked={job.Priority === "urgent"} onChange={(e) => save({ Priority: e.target.checked ? "urgent" : "" })} style={{ width: 18, height: 18 }} />
+        Urgent
+      </label>
+      <details className="more-details">
+        <summary><span><strong>More details</strong><span className="muted">Period, records, on hold, time spent, links and note</span></span></summary>
+        <div className="more-details-body">
+          <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Field label="Note on card" value={job.CardNote as string} placeholder="A short note shown on the planner card" onSave={(v) => save({ CardNote: v })} />
+            </div>
+            <Field label="Records expected" type="date" value={job.RecordsExpected as string} onSave={(v) => save({ RecordsExpected: v })} />
+            <Field label="Records received" type="date" value={job.RecordsReceived} onSave={(v) => save({ RecordsReceived: v })} />
+          </div>
+          {isOpen(job) && <PeriodSection job={job} rule={rule} save={save} />}
+          {isOpen(job) && <HoldSection item={job} deadline={job.Deadline} save={save} what="job" />}
+          <ProgressSection item={job} kind="job" estimate={jobHours(job as never, data.services)} save={save} />
+          <DependencyPanel kind="job" id={job.Key as string} />
+        </div>
+      </details>
+
+      {inFinalise(job) && isOpen(job) && (
+        <section className="wait-box" aria-labelledby="wait-h">
+          <h3 id="wait-h">{waiting ? "With the client" : "Ready to finalise"}</h3>
+          <p style={{ margin: 0, fontSize: 13 }}>
+            {job.PreparedOn ? <>Prepared {fmtDate(job.PreparedOn as string, { weekday: true, year: false })}{Number(job.PreparedHours) > 0 ? ` (${fmtHours(Number(job.PreparedHours))})` : ""}. </> : "Prepared. "}
+            {waiting
+              ? "It's off the plan until you speak to them, then it comes back to finalise."
+              : "Plan the finalising on a day, or let Suggest a plan find room."}
+          </p>
+          <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            <Field label="Speaking to them on" type="date" value={job.SpeakOn as string} onSave={(v) => save({ SpeakOn: v })} />
+            <Field label="Time to finalise" type="number" step="0.25" value={job.FinaliseHours as number} onSave={(v) => save({ FinaliseHours: num(v) as any })} />
+          </div>
+          {waiting && (
+            <div><button type="button" className="btn small primary" onClick={stageDone}><Icon name="check" size={14} />Client approved</button></div>
+          )}
+        </section>
+      )}
+
+      <JobTime job={job} stages={stages} current={current} open={isOpen(job)} />
+      <CustomValuesEditor kind="job" entityKey={job.Key} clientKey={job.ClientKey} />
+      {mailOffer && <StageMailOffer job={job} rule={mailOffer.rule} stageName={mailOffer.stageName} onClose={() => setMailOffer(null)} />}
+
+      {stages.length > 0 && (
+        <section className="stack" aria-labelledby="stages-h" style={{ gap: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <h3 id="stages-h" style={{ margin: 0, fontSize: 15 }}>Stage {current} of {stages.length}</h3>
+            <div className="row-wrap" style={{ gap: 6 }}>
+              <button type="button" className="btn small" disabled={current <= 1} onClick={() => setStage(current - 1)}>Back</button>
+              {isOpen(job) && (
+                <button type="button" className="btn small primary" onClick={stageDone}>
+                  <Icon name="check" size={14} />{current >= stages.length ? "Last stage done" : "Stage done"}
+                </button>
+              )}
+            </div>
+          </div>
+          <ol className="stage-list">
+            {stages.map((s) => {
+              const n = s.StageNo as number;
+              const state = n < current ? "done" : n === current ? "now" : "todo";
+              return (
+                <li key={s.Key as string}>
+                  <button
+                    type="button"
+                    className={`stage ${state}`}
+                    aria-current={state === "now" ? "step" : undefined}
+                    onClick={() => (state === "now" && isOpen(job) ? stageDone() : setStage(n))}
+                    title={state === "now" ? "Mark this stage done" : state === "done" ? "Go back to this stage" : "Move the job to this stage"}
+                  >
+                    <span className="stage-dot" aria-hidden="true">{state === "done" ? <Icon name="check" size={12} /> : n}</span>
+                    <span>{s.Title as string}</span>
+                    {state === "done" && <span className="sr-only">(done)</span>}
+                    {state === "now" && <span className="stage-now">In progress{isOpen(job) ? <span className="stage-done-hint"> · click when done</span> : null}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <StageMailSettings job={job} stages={stages} />
+          {ask ? (
+            <div className="wait-box" role="group" aria-labelledby="ask-h" ref={askRef}>
+              <h3 id="ask-h">{String(ask.StageName || "Next stage")}: the client has it</h3>
+              <p style={{ margin: 0, fontSize: 13 }}>
+                The preparing is done. The job comes off the plan and comes back to finalise once you've spoken to them.
+              </p>
+              <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                <label>
+                  When are you speaking to them? (optional)
+                  <input className="input" type="date" value={speak} onChange={(e) => setSpeak(e.target.value)} />
+                </label>
+                <label>
+                  Time to finalise (hours)
+                  <input className="input" type="number" step="0.25" min="0" value={fin} onChange={(e) => setFin(e.target.value)} />
+                </label>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="btn" onClick={() => setAsk(null)}>Cancel</button>
+                <button type="button" className="btn primary" onClick={confirmWait}>Waiting for the client</button>
+              </div>
+            </div>
+          ) : (
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              Click the stage you're on when it's done, and the next one starts. Click any other stage to move the job straight to it.
+            </p>
+          )}
+        </section>
+      )}
+
+      <Field label="Notes" multiline value={job.Notes} onSave={(v) => save({ Notes: v })} />
+      {job.ChaseLog ? (
+        <details>
+          <summary>Chasing: {chaseSummary(job)}</summary>
+          <pre className="chase-log">{job.ChaseLog as string}</pre>
+        </details>
+      ) : null}
+
+      <JobChecklistLine jobKey={job.Key} onNavigate={onClose} />
+
+      {isOpen(job) && (
+        <section className="stack complete-box" aria-labelledby="complete-h" ref={completeRef}>
+          <h3 id="complete-h" style={{ margin: 0, fontSize: 15 }}>Finish this job</h3>
+          {!completing ? (
+            <>
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                {preview
+                  ? `Completing it creates the next one: period to ${fmtDate(preview.PeriodEnd)}, due ${fmtDate(preview.Deadline)} (${describeRule(rule).toLowerCase()}).`
+                  : serviceOff
+                    ? `${idx.serviceName.get(job.ServiceKey || "") || "This work"} is turned off for ${client?.Title || "this client"}, so nothing is created after it. You can turn it back on from the client's page.`
+                    : "One-off work: nothing is created after it. You can change this in Settings › Types of work."}
+              </p>
+              <div><button type="button" className="btn" onClick={() => setCompleting(true)}>Mark complete…</button></div>
+            </>
+          ) : (
+            <>
+              {gate.blockers.length > 0 && (
+                <div className="import-list warn" role="alert">
+                  <strong>The checklist isn't finished:</strong>
+                  <ul style={{ margin: "4px 0" }}>{gate.blockers.map((b) => <li key={b}>{b}</li>)}</ul>
+                  <a href={href("checklists", "job", job.Key)} onClick={onClose}>Open the checklist</a>
+                  {canDo(checks.config, checks.me, "override")
+                    ? <label className="doc-field" style={{ marginTop: 8 }}><span>To complete anyway, say why (kept on the record)</span><input className="input" value={why} onChange={(e) => setWhy(e.target.value)} /></label>
+                    : <p style={{ margin: "6px 0 0" }}>Only a manager or partner can complete the job with items still open.</p>}
+                </div>
+              )}
+              {!isInvoiceJob(job) && (
+                <fieldset className="invoice-ask">
+                  <legend>Does an invoice need raising for this work?</legend>
+                  <div className="seg" role="radiogroup" aria-label="Invoice needed">
+                    <button type="button" role="radio" aria-checked={invoice === "yes"} aria-pressed={invoice === "yes"} onClick={() => { setInvoice("yes"); setError(undefined); if (!amount && job.Fee !== undefined && job.Fee !== null && String(job.Fee) !== "") setAmount(String(job.Fee)); }}>Yes, raise an invoice</button>
+                    <button type="button" role="radio" aria-checked={invoice === "no"} aria-pressed={invoice === "no"} onClick={() => { setInvoice("no"); setError(undefined); }}>No invoice needed</button>
+                  </div>
+                  {invoice === "yes" && (
+                    <div className="invoice-fields">
+                      <label className="doc-field"><span>Amount to bill (£, optional)</span><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={job.Fee ? String(job.Fee) : "e.g. 450"} /></label>
+                      <label className="doc-field"><span>Note for whoever raises it (optional)</span><input className="input" value={invNote} onChange={(e) => setInvNote(e.target.value)} placeholder="e.g. add the extra bookkeeping hours" /></label>
+                      <p className="muted" style={{ margin: 0, fontSize: 13 }}>An "Invoices to raise" job is added for {client?.Title || "the client"}, due in a week, with the details of this work. This job then closes as filed.</p>
+                    </div>
+                  )}
+                </fieldset>
+              )}
+              <TimePicker value={actual} onChange={setActual} estimate={jobHours(job, data.services)} label="How long did it take? (optional, sets next year's estimate; you can add it later)" />
+              <TrackedHint jobKey={job.Key} onUse={(h) => setActual(String(h))} />
+              {error && <p className="error-text" role="alert">{error}</p>}
+              <div className="form-actions">
+                <button type="button" className="btn" onClick={() => setCompleting(false)} disabled={busy}>Cancel</button>
+                <button type="button" className="btn primary" onClick={() => void complete()} disabled={busy}>{busy ? "Saving…" : "Complete"}</button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+    </Drawer>
+  );
+
   const typeName = idx.serviceName.get(job.ServiceKey || "");
   const whoOn = (n: number) => assigneeOf(data.clientStages, stages, String(job.ClientKey || ""), String(job.ServiceKey || ""), n);
   const nowStage = stageAt(stages, current) || stages[current - 1];
@@ -390,7 +615,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     </>
   );
 
-  return (
+  if (cardVersion === "2") return (
     <Drawer title={job.Title} eyebrow={typeName && typeName !== job.Title ? `Job · ${typeName}` : "Job"} onClose={onClose} accent={svcClass(job.ServiceKey)} wide head={head} foot={foot}>
       {billedKey && (
         <p className="invoice-for">Bills: {billed ? <button type="button" className="linkbtn" onClick={() => openItem({ kind: "job", key: String(billed.Key) })}>{String(billed.Title)}{billed.CompletedDate ? `, completed ${fmtDate(String(billed.CompletedDate))}` : ""}</button> : "a job that has since been archived"}</p>
@@ -561,6 +786,186 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
           <CustomValuesEditor kind="job" entityKey={job.Key} clientKey={job.ClientKey} />
         </div>
       </details>
+    </Drawer>
+  );
+
+  /* ---------- version 3: half the screen, everything in view, the checklist inside the card ---------- */
+  const cl = checks.byJob.get(job.Key);
+  const clPct = cl ? checklistProgress(checks.itemsOf(cl.key), checks.today, openNoteCount(checks.notesOf(cl.key))).pct : undefined;
+  const PANELS: ["job" | "checklist" | "time" | "more", string][] = [["job", "Job"], ["checklist", clPct === undefined ? "Checklist" : `Checklist ${clPct}%`], ["time", "Time"], ["more", "More"]];
+  const head3 = (
+    <>
+      <div className="jc-sub jc3-line">
+        {client && <a href={href("clients", client.Key, "work")} onClick={onClose}>{client.Title}</a>}
+        {job.PeriodEnd && <span>Period to {fmtDate(job.PeriodEnd)}</span>}
+        <DeadlineChip job={job} today={today} />
+        {open && (
+          <button type="button" className={`jc-toggle${job.Priority === "urgent" ? " on" : ""}`} aria-pressed={job.Priority === "urgent"}
+            onClick={() => save({ Priority: job.Priority === "urgent" ? "" : "urgent" })}><Icon name="flag" size={13} /> Urgent</button>
+        )}
+        {isOnHold(job) && <span className="chip hold">{holdLabel(job)}</span>}
+        {waiting && <span className="chip wait">With the client</span>}
+        {serviceOff && open && <span className="chip hold" title="Complete it yourself; no next job will be created">Service off</span>}
+        {inFinalise(job) && !waiting && open && <span className="chip wait">Ready to finalise</span>}
+        {!open && <span className="chip green">Complete</span>}
+        <ElementsLink client={client} />
+      </div>
+      {stages.length > 0 && (
+        <ol className="jc-steps jc3-steps" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }} aria-label={`Stage ${current} of ${stages.length}`}>
+          {stages.map((st) => {
+            const n = Number(st.StageNo);
+            const state = n < current ? "done" : n === current ? "now" : "todo";
+            const who = whoOn(n);
+            return (
+              <li key={String(st.Key)} className={state}>
+                <button type="button" aria-current={state === "now" ? "step" : undefined} title={`${String(st.Title)}${who ? ` · ${who}` : ""}: ${state === "now" ? "mark this stage done" : state === "done" ? "go back to this stage" : "move the job to this stage"}`}
+                  onClick={() => (state === "now" && open ? stageDone() : setStage(n))}>
+                  <span className="jc-dot" aria-hidden="true">{state === "done" ? <Icon name="check" size={12} /> : n}</span>
+                  <span className="jc-step-name"><span>{String(st.Title)}</span>{who ? <small>{who}</small> : null}</span>
+                  {state === "done" && <span className="sr-only">(done)</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      <div className="jc3-tabs" role="tablist" aria-label="Job card">
+        {PANELS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={panel === k} onClick={() => setPanel(k)}>{label}</button>)}
+      </div>
+    </>
+  );
+  const finish = open && completing && (
+    <section className="stack complete-box" aria-labelledby="complete3-h" ref={completeRef}>
+      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
+        <h3 id="complete3-h" style={{ margin: 0, fontSize: 16 }}>Finish this job</h3>
+        <button type="button" className="btn small" onClick={() => setCompleting(false)} disabled={busy}>Not yet</button>
+      </div>
+      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+        {preview ? `Completing it creates the next one: period to ${fmtDate(preview.PeriodEnd)}, due ${fmtDate(preview.Deadline)}.` : serviceOff ? `${typeName || "This work"} is turned off for ${client?.Title || "this client"}, so nothing is created after it.` : "One-off work: nothing is created after it."}
+      </p>
+      {gate.blockers.length > 0 && (
+        <div className="import-list warn" role="alert">
+          <strong>The checklist isn't finished:</strong>
+          <ul style={{ margin: "4px 0" }}>{gate.blockers.map((b) => <li key={b}>{b}</li>)}</ul>
+          <button type="button" className="linkbtn" onClick={() => { setCompleting(false); setPanel("checklist"); }}>Open the checklist</button>
+          {canDo(checks.config, checks.me, "override")
+            ? <label className="doc-field" style={{ marginTop: 8 }}><span>To complete anyway, say why (kept on the record)</span><input className="input" value={why} onChange={(e) => setWhy(e.target.value)} /></label>
+            : <p style={{ margin: "6px 0 0" }}>Only a manager or partner can complete the job with items still open.</p>}
+        </div>
+      )}
+      <TimePicker value={actual} onChange={setActual} estimate={jobHours(job, data.services)} label="How long did it take? (optional, sets next year's estimate)" />
+      <TrackedHint jobKey={job.Key} onUse={(h) => setActual(String(h))} />
+      {!isInvoiceJob(job) && (
+        <div className="form" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 2fr)" }}>
+          <label className="doc-field"><span>Invoice amount (£, optional)</span><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={job.Fee ? String(job.Fee) : "e.g. 450"} /></label>
+          <label className="doc-field"><span>Note for whoever raises it (optional)</span><input className="input" value={invNote} onChange={(e) => setInvNote(e.target.value)} placeholder="Added to the invoice job, due in a week" /></label>
+        </div>
+      )}
+      {error && <p className="error-text" role="alert">{error}</p>}
+      <div className="form-actions">
+        {isInvoiceJob(job)
+          ? <button type="button" className="btn primary" onClick={() => void complete()} disabled={busy}>{busy ? "Saving…" : "Invoice raised: complete"}</button>
+          : <>
+              <button type="button" className="btn" onClick={() => void complete("no")} disabled={busy}>Complete, no invoice</button>
+              <button type="button" className="btn primary" onClick={() => { if (!amount && job.Fee !== undefined && job.Fee !== null && String(job.Fee) !== "") setAmount(String(job.Fee)); void complete("yes"); }} disabled={busy}>{busy ? "Saving…" : "Complete & raise invoice"}</button>
+            </>}
+      </div>
+    </section>
+  );
+  return (
+    <Drawer title={job.Title} eyebrow={typeName && typeName !== job.Title ? `Job · ${typeName}` : "Job"} onClose={onClose} accent={svcClass(job.ServiceKey)} half head={head3} foot={foot}>
+      <div className="jc3">
+        {billedKey && <p className="invoice-for">Bills: {billed ? <button type="button" className="linkbtn" onClick={() => openItem({ kind: "job", key: String(billed.Key) })}>{String(billed.Title)}{billed.CompletedDate ? `, completed ${fmtDate(String(billed.CompletedDate))}` : ""}</button> : "a job that has since been archived"}</p>}
+        {mailOffer && <StageMailOffer job={job} rule={mailOffer.rule} stageName={mailOffer.stageName} onClose={() => setMailOffer(null)} />}
+        {ask && (
+          <div className="wait-box" role="group" aria-labelledby="ask3-h" ref={askRef}>
+            <h3 id="ask3-h">{String(ask.StageName || "Next stage")}: the client has it</h3>
+            <div className="form" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+              <label>When are you speaking to them? (optional)<input className="input" type="date" value={speak} onChange={(e) => setSpeak(e.target.value)} /></label>
+              <label>Time to finalise (hours)<input className="input" type="number" step="0.25" min="0" value={fin} onChange={(e) => setFin(e.target.value)} /></label>
+            </div>
+            <div className="form-actions"><button type="button" className="btn" onClick={() => setAsk(null)}>Cancel</button><button type="button" className="btn primary" onClick={confirmWait}>Waiting for the client</button></div>
+          </div>
+        )}
+        {finish}
+        {!completing && panel === "job" && (
+          <>
+            {inFinalise(job) && open && (
+              <div className="wait-box jc3-wait">
+                <strong>{waiting ? "With the client" : "Ready to finalise"}</strong>
+                <div className="jc3-row">
+                  <Field label="Speaking to them on" type="date" value={job.SpeakOn as string} onSave={(v) => save({ SpeakOn: v })} />
+                  <Field label="Time to finalise" type="number" step="0.25" value={job.FinaliseHours as number} onSave={(v) => save({ FinaliseHours: num(v) as any })} />
+                  {waiting && <button type="button" className="btn small primary" onClick={stageDone}><Icon name="check" size={14} />Client approved</button>}
+                </div>
+              </div>
+            )}
+            <div className="jc-cols">
+              <div className="jc-main">
+                <section className="jc-card">
+                  <h3 className="jc-h">Now{nowStage ? <span className="jc3-now"> · {String(nowStage.Title)}, stage {current} of {stages.length}{whoOn(current) ? ` · ${whoOn(current)}` : ""}</span> : null}</h3>
+                  <JobTime job={job} stages={stages} current={current} open={open} part="now" />
+                </section>
+                <Field label="Notes" multiline value={job.Notes} onSave={(v) => save({ Notes: v })} />
+                <JobChecklistLine jobKey={job.Key} onOpen={() => setPanel("checklist")} />
+              </div>
+              <aside className="jc-side">
+                <section className="jc-card">
+                  <h3 className="jc-h">Plan</h3>
+                  <div className="jc3-row">
+                    <Field label="Planned for" type="date" value={job.PlannedDate} onSave={(v) => save({ PlannedDate: v, DayOrder: "", StartTime: "" })} />
+                    <Field label="Deadline" type="date" value={job.Deadline} onSave={(v) => save({ Deadline: v, DeadlineSource: "Manual" })} />
+                  </div>
+                  {job.PlannedDate && <TimeField value={job.StartTime as string} onSave={(v) => save({ StartTime: v })} />}
+                  {job.SuggestedSlot && !job.PlannedDate && <button type="button" className="btn small" onClick={() => save({ PlannedDate: job.SuggestedSlot, DayOrder: "" })}>Plan for {fmtDate(job.SuggestedSlot, { weekday: true, year: false })} (as last time)</button>}
+                  <div className="jc3-row">
+                    <Field label="Hours" placeholder={`usually ${fmtHours(jobHours({ ServiceKey: job.ServiceKey }, data.services))}`} type="number" step="0.25" value={job.EstimateHours} onSave={(v) => save({ EstimateHours: num(v) as any })} />
+                    <label>
+                      Owner
+                      <select className="input" value={String(job.Owner || "")} onChange={(e) => save({ Owner: e.target.value })} aria-label="Who owns this job">
+                        <option value="">{ownerOf({}, client) ? `${ownerOf({}, client)} (manager)` : "Not set"}</option>
+                        {staff.names.map((n) => <option key={n} value={n}>{n}</option>)}
+                        {job.Owner && !staff.names.includes(String(job.Owner)) && <option value={String(job.Owner)}>{String(job.Owner)}</option>}
+                      </select>
+                    </label>
+                  </div>
+                </section>
+                <section className="jc-card jc3-mini">
+                  {!isInvoiceJob(job) && (job.RecordsReceived
+                    ? <p className="jc-line"><span className="jc-h">Records</span><span className="chip green">In {fmtDate(String(job.RecordsReceived), { year: false })}</span><button type="button" className="linkbtn" onClick={() => save({ RecordsReceived: "" })}>Not in after all</button></p>
+                    : <p className="jc-line"><span className="jc-h">Records</span><span className="chip amber">Not in{job.RecordsExpected ? `, expected ${fmtDate(String(job.RecordsExpected), { year: false })}` : ""}</span>
+                        <button type="button" className="btn small primary" onClick={() => save({ RecordsReceived: today })}><Icon name="check" size={13} />Received today</button>
+                        <a className="btn small" href={chaseHref} onClick={onClose}><Icon name="mail" size={13} />Chase</a></p>)}
+                  <p className="jc-line"><span className="jc-h">Billing</span>
+                    <label className="jc3-fee">£<input className="input" type="number" step="0.01" aria-label="Fee" defaultValue={job.Fee === undefined || job.Fee === null ? "" : String(job.Fee)} key={String(job.Fee ?? "")} placeholder="Fee"
+                      onBlur={(e) => { const v = e.target.value.trim(); if (v !== String(job.Fee ?? "")) void save({ Fee: num(v) as any }); }} /></label>
+                    {job.FeePeriod ? <span className="muted">{String(job.FeePeriod)}</span> : null}
+                    {!open && !isInvoiceJob(job) && <span className="muted">{job.InvoiceNeeded === "yes" ? "Invoice raised" : job.InvoiceNeeded === "no" ? "No invoice needed" : ""}</span>}
+                  </p>
+                  {open && <HoldSection item={job} deadline={job.Deadline} save={save} what="job" />}
+                </section>
+              </aside>
+            </div>
+          </>
+        )}
+        {!completing && panel === "checklist" && <JobChecklistPage jobKey={job.Key} embedded />}
+        {!completing && panel === "time" && (
+          <>
+            <JobTime job={job} stages={stages} current={current} open={open} />
+            <ProgressSection item={job} kind="job" estimate={jobHours(job as never, data.services)} save={save} />
+          </>
+        )}
+        {!completing && panel === "more" && (
+          <>
+            {open && <PeriodSection job={job} rule={rule} save={save} />}
+            <Field label="Note on the planner card" value={job.CardNote as string} placeholder="A short note shown on the planner card" onSave={(v) => save({ CardNote: v })} />
+            {job.ChaseLog ? <details><summary>Chasing: {chaseSummary(job)}</summary><pre className="chase-log">{job.ChaseLog as string}</pre></details> : null}
+            <DependencyPanel kind="job" id={job.Key as string} />
+            {stages.length > 0 && <StageMailSettings job={job} stages={stages} />}
+            <CustomValuesEditor kind="job" entityKey={job.Key} clientKey={job.ClientKey} />
+          </>
+        )}
+      </div>
     </Drawer>
   );
 }

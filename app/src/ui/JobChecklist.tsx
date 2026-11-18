@@ -22,7 +22,8 @@ export function ProgressBar({ pct, label }: { pct: number; label?: string }) {
 }
 
 /** The whole checklist screen for one job. */
-export function JobChecklistPage({ jobKey }: { jobKey: string }) {
+/** `embedded`: drawn inside the job card (no page frame, links or heading of its own). */
+export function JobChecklistPage({ jobKey, embedded = false }: { jobKey: string; embedded?: boolean }) {
   const cl = useChecklists();
   const { data, reload } = useData();
   const idx = useIndex();
@@ -40,6 +41,13 @@ export function JobChecklistPage({ jobKey }: { jobKey: string }) {
   };
 
   if (!job) return <div className="page"><p className="muted">That job isn't here. <a href={href("checklists")}>Back to checklists</a></p></div>;
+  if (embedded) return (
+    <div className="job-checklist cl-embedded">
+      {error && <div className="import-list warn" role="alert">{error} {conflict && <button type="button" className="btn small" onClick={() => { setConflict(false); setError(""); reload(); }}>Reload</button>}</div>}
+      {!cl.ready && <p className="import-list warn" role="alert">The checklist lists aren't set up yet. They are added automatically when the planner starts.</p>}
+      {checklist ? <Body cl={cl} checklist={checklist} job={job} run={run} busy={busy} /> : <Attach cl={cl} job={job} svc={svc} client={client} run={run} busy={busy} />}
+    </div>
+  );
   return (
     <div className="page job-checklist">
       <div className="row-wrap">
@@ -398,16 +406,18 @@ function UpdatePanel({ cl, checklist, template, run, busy, onDone }: { cl: Retur
 /* ---------------------------------------------------------------- inside the job panel */
 
 /** One line for the job panel: progress, and a way in (or a way to add a checklist). */
-export function JobChecklistLine({ jobKey, onNavigate }: { jobKey: string; onNavigate?: () => void }) {
+/** `onOpen`: open the checklist in place (the job card) instead of going to its page. */
+export function JobChecklistLine({ jobKey, onNavigate, onOpen }: { jobKey: string; onNavigate?: () => void; onOpen?: () => void }) {
   const cl = useChecklists();
   const c = cl.byJob.get(jobKey);
   if (!cl.ready) return null;
-  if (!c) return <div className="cl-line-card"><span className="muted">No checklist on this job.</span> <a href={href("checklists", "job", jobKey)} onClick={onNavigate}>Add one</a></div>;
+  const go = (e: React.MouseEvent) => { if (onOpen) { e.preventDefault(); onOpen(); } else onNavigate?.(); };
+  if (!c) return <div className="cl-line-card"><span className="muted">No checklist on this job.</span> <a href={href("checklists", "job", jobKey)} onClick={go}>Add one</a></div>;
   const items = cl.itemsOf(c.key);
   const p = C.progress(items, cl.today, C.openNoteCount(cl.notesOf(c.key)));
   return (
     <div className="cl-line-card">
-      <a href={href("checklists", "job", jobKey)} onClick={onNavigate}><strong>Checklist {p.pct}%</strong></a>
+      <a href={href("checklists", "job", jobKey)} onClick={go}><strong>Checklist {p.pct}%</strong></a>
       <ProgressBar pct={p.pct} label="Checklist progress" />
       <span className="muted">{p.mandatoryOpen.length} mandatory open{c.status === "review" ? " · with reviewer" : c.status === "approved" ? " · approved" : ""}</span>
     </div>

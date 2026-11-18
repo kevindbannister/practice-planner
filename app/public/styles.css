@@ -5339,3 +5339,53 @@ a.hw-badge.late { color: #fff; }
   .jc-steps li { min-width: 108px; }
   .jc-foot-main { flex: 1 1 100%; justify-content: center; }
 }
+
+/* V35.46: job card version 3. Half the screen, running off the right-hand edge (square corners there), everything for the job in
+   view without scrolling, and the checklist, time and the rest in tabs inside the card. */
+.drawer-wrap.half { padding: 12px 0 12px 12px; }
+.drawer-wrap .drawer.half { width: max(50vw, 640px); max-width: 100%; border-radius: 24px 0 0 24px !important; }
+.drawer.half .drawer-head { padding: 14px 18px 12px 22px; row-gap: 8px; }
+.drawer.half .drawer-head h2 { font-size: 20px; }
+.jc3-line { flex-wrap: wrap; gap: 6px 12px; }
+.jc3-line .chip { height: 24px; }
+.jc3-line .elements-link { color: #fff; }
+/* every stage box the same size, whatever its name */
+.jc-steps.jc3-steps { display: grid; gap: 6px; overflow: visible; }
+.jc3-steps li { min-width: 0; }
+.jc3-steps button { height: 48px; padding: 6px 9px; overflow: hidden; }
+.jc3-steps .jc-step-name { flex: 1 1 auto; min-width: 0; }
+.jc3-steps .jc-step-name > span, .jc3-steps .jc-step-name small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jc3-tabs { display: flex; gap: 4px; margin-top: 2px; }
+.jc3-tabs button { border: 0; border-radius: 999px; padding: 6px 14px; background: rgba(255, 255, 255, 0.12); color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; }
+.jc3-tabs button:hover { background: rgba(255, 255, 255, 0.22); }
+.jc3-tabs button[aria-selected="true"] { background: #fff; color: #1B3049; }
+/* compact, so the whole job fits */
+.drawer.half .drawer-body { padding: 14px 18px 16px 22px; gap: 12px; }
+.jc3 { display: flex; flex-direction: column; gap: 12px; }
+.jc3 .jc-cols { gap: 12px; }
+.jc3 .jc-main, .jc3 .jc-side { gap: 10px; }
+.jc3 .jc-card { padding: 10px 12px; gap: 8px; border-radius: 16px; }
+.jc3 label { font-size: 12.5px; gap: 3px; }
+.jc3 .input { min-height: 36px; padding-top: 6px; padding-bottom: 6px; font-size: 14px; }
+.jc3 textarea.input { min-height: 0; }
+.jc3-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: end; }
+.jc3-wait .jc3-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.jc3-now { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--ink); font-size: 13px; }
+.jc3-mini .jc-line { gap: 6px 8px; }
+.jc3-mini .jc-h { min-width: 56px; }
+.jc3-fee { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
+.jc3-fee .input { width: 110px; }
+.jc3 .jt-here, .jc3 .jc-line { font-size: 13px; }
+.jc3 .hold-box { padding: 10px 12px; }
+.cl-embedded { display: flex; flex-direction: column; gap: 12px; }
+.cl-embedded > .card { box-shadow: none; }
+@media (max-width: 720px) {
+  .drawer-wrap.half { padding: 6px 0 0; }
+  .drawer-wrap .drawer.half { width: 100%; border-radius: 22px 22px 0 0 !important; }
+  .jc-steps.jc3-steps { display: flex; overflow-x: auto; }
+  .jc3-steps li { min-width: 108px; }
+}
+.drawer-wrap .drawer-body { flex: 1 1 auto; min-height: 0; }
+.drawer-foot { flex: none; }
+.jc3 .btn.small { min-height: 32px; padding: 0 11px; font-size: 13px; }
+.jc3-mini .row-wrap { gap: 6px; flex-wrap: wrap; }

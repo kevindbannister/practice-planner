@@ -4,7 +4,7 @@
 // - Practice look: the colours everyone sees. Only a partner or manager can change them (anyone, until people are set up).
 // The preview on the right shows the choices before they are saved. Nothing changes in the app until Save is pressed.
 import { useEffect, useMemo, useState } from "react";
-import { ADVISORY_BARS, CANVASES, LOOK_KEY, PRACTICE_BARS, PracticeLook, Preset, SLOT_NAMES, WORK_BARS, WorkViewChoice } from "../lib/appearance";
+import { ADVISORY_BARS, CANVASES, JOB_CARDS, JobCardVersion, LOOK_KEY, PRACTICE_BARS, PracticeLook, Preset, SLOT_NAMES, WORK_BARS, WorkViewChoice } from "../lib/appearance";
 import { MENU_KINDS, MenuKind, Mode, isModeKind } from "../lib/navAreas";
 import { can } from "../lib/checklist";
 import { builtInSlot, serviceSlot } from "../lib/serviceColour";
@@ -17,7 +17,7 @@ import { useData } from "./data";
 import { useStaff } from "./staffKit";
 import { ThemeChoice } from "./theme";
 
-type Mine = { kind: MenuKind; layout: "top" | "side"; workView: WorkViewChoice; theme: ThemeChoice; tips: boolean };
+type Mine = { kind: MenuKind; layout: "top" | "side"; workView: WorkViewChoice; theme: ThemeChoice; tips: boolean; jobCard: JobCardVersion };
 
 export function AppearanceSettings() {
   const { data, saveSetting } = useData();
@@ -27,7 +27,7 @@ export function AppearanceSettings() {
   const savePersonal = useSavePersonal();
   const saved = usePracticeLook();
 
-  const current = (): Mine => { const p = devicePersonal(); return { kind, layout: p.layout, workView: p.workView, theme: p.theme, tips: p.tips }; };
+  const current = (): Mine => { const p = devicePersonal(); return { kind, layout: p.layout, workView: p.workView, theme: p.theme, tips: p.tips, jobCard: p.jobCard }; };
   const [mine, setMine] = useState<Mine>(current);
   const [look, setLook] = useState<PracticeLook>(saved);
   // once the account's menu style has loaded, or the saved look changes, start from them
@@ -56,7 +56,7 @@ export function AppearanceSettings() {
 
   const saveMine = async () => {
     if (mine.kind !== kind) setKind(mine.kind);
-    await savePersonal({ layout: mine.layout, workView: mine.workView, theme: mine.theme, tips: mine.tips });
+    await savePersonal({ layout: mine.layout, workView: mine.workView, theme: mine.theme, tips: mine.tips, jobCard: mine.jobCard });
     say("Your view is saved");
   };
   const saveLook = async () => { await saveSetting(LOOK_KEY, look); say("The practice look is saved"); };
@@ -93,6 +93,18 @@ export function AppearanceSettings() {
             <div className="ap-seg" role="radiogroup">
               {WORK_VIEWS.map(([k, label]) => (
                 <label key={k} className={mine.workView === k ? "on" : ""}><input type="radio" name="ap-view" checked={mine.workView === k} onChange={() => set("workView", k)} />{label}</label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="ap-field">
+            <legend>Job card</legend>
+            <div className="ap-choices ap-choices-1">
+              {JOB_CARDS.map(([k, label, hint]) => (
+                <label key={k} className={`ap-choice${mine.jobCard === k ? " on" : ""}`}>
+                  <input type="radio" name="ap-jobcard" checked={mine.jobCard === k} onChange={() => set("jobCard", k)} />
+                  <span><strong>{label}</strong><span className="muted ap-choice-hint">{hint}</span></span>
+                </label>
               ))}
             </div>
           </fieldset>
