@@ -5433,3 +5433,12 @@ a.hw-badge.late { color: #fff; }
 .jc4 .jc-card { padding: 8px 12px; gap: 6px; }
 .jc4 textarea.input { height: 52px; }
 .jc4 .jt-here { margin: -2px 0 0; }
+
+/* V35.48: version 4's stage column scrolls on its own, so a long list of stages keeps the one you're on and the ones to come in
+   view (the card scrolls it for you as the job moves on) */
+.jc4-steps { max-height: calc(100vh - 290px); overflow-y: auto; scrollbar-width: thin; padding-bottom: 4px; }
+@media (max-width: 720px) { .jc4-steps { max-height: none; overflow-y: visible; } }
+/* finished stages shrink to a slim line, leaving room for the ones still to come */
+.jc4-steps li.done button { min-height: 34px; padding-top: 4px; padding-bottom: 4px; }
+.jc4-steps li.done small { display: none; }
+.jc4-steps li.done:not(:last-child)::after { top: 30px; }

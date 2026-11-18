@@ -172,6 +172,18 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const { open: openItem } = useEditor();
   const cardVersion = useJobCard();
   const [panel, setPanel] = useState<"job" | "checklist" | "time" | "more">("job");
+  // version 4: as the job moves on, the stage column scrolls so the stage you're on is near the top (one done stage above it)
+  // and the ones still to come show below without scrolling
+  const stepsRef = useRef<HTMLOListElement>(null);
+  const firstStepScroll = useRef(true);
+  useEffect(() => {
+    const ol = stepsRef.current;
+    if (!ol) return;
+    const at = Math.max(0, Number(job?.StageNo || 1) - 2);
+    const li = ol.children[at] as HTMLElement | undefined;
+    ol.scrollTo({ top: li ? li.offsetTop : 0, behavior: firstStepScroll.current ? "auto" : "smooth" });
+    firstStepScroll.current = false;
+  }, [job?.StageNo, panel]);
   const completeRef = useRef<HTMLElement>(null);
   const [ask, setAsk] = useState<Row | null>(null); // moving onto a "with the client" stage: the stage patch, waiting for answers
   const [speak, setSpeak] = useState("");
@@ -877,7 +889,7 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
     <Drawer title={job.Title} eyebrow={typeName && typeName !== job.Title ? `Job · ${typeName}` : "Job"} onClose={onClose} accent={svcClass(job.ServiceKey)} half head={head3} foot={foot}>
       <div className={vertical && stages.length ? "jc4" : undefined}>
       {vertical && stages.length > 0 && (
-        <ol className="jc4-steps" aria-label={`Stage ${current} of ${stages.length}`}>
+        <ol className="jc4-steps" ref={stepsRef} aria-label={`Stage ${current} of ${stages.length}`}>
           {stages.map((st) => {
             const n = Number(st.StageNo);
             const state = n < current ? "done" : n === current ? "now" : "todo";
