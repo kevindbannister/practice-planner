@@ -6,6 +6,7 @@ import { addScope } from "../lib/auth";
 import { AiError, AiStatus } from "../lib/ai";
 import { CommsTabs, MAIL_SCOPE, downloadFile, isDemo, mailAllowed, useAi, useCommsPrefs } from "./commsKit";
 import { MeetingPage, MeetingsList } from "./Meetings";
+import { ReceiptRequestPage } from "./ReceiptRequest";
 import { MailPage } from "./MailPage";
 import { DocumentsPage } from "./Documents";
 import { PaymentReminders } from "./TaxPayments";
@@ -48,6 +49,7 @@ export function CommsPage() {
   }
   if (parts[1] === "meetings" && parts[2]) return <MeetingPage key={parts[2]} meetingKey={parts[2]} />;
   if (parts[1] === "meetings") return <MeetingsList />;
+  if (parts[1] === "receipts") return <ReceiptRequestPage />;
   if (parts[1] === "new") {
     return (
       <Composer
@@ -79,6 +81,7 @@ export function NewButtons({ clientKey, jobKey }: { clientKey?: string; jobKey?:
   const q = (kind: CommKind) => `#/comms/new?kind=${kind}${clientKey ? `&client=${encodeURIComponent(clientKey)}` : ""}${jobKey ? `&job=${encodeURIComponent(jobKey)}` : ""}`;
   return (
     <div className="row-wrap">
+      <a className="btn" href={`#/comms/receipts${clientKey ? `?client=${encodeURIComponent(clientKey)}` : ""}`}><Icon name="form" />Request receipts</a>
       <a className="btn" href={q("email")}><Icon name="mail" />New email</a>
       <a className="btn primary" href={q("letter")}><Icon name="letter" />New letter</a>
     </div>
