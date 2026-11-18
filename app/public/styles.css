@@ -5442,3 +5442,15 @@ a.hw-badge.late { color: #fff; }
 .jc4-steps li.done button { min-height: 34px; padding-top: 4px; padding-bottom: 4px; }
 .jc4-steps li.done small { display: none; }
 .jc4-steps li.done:not(:last-child)::after { top: 30px; }
+
+/* V35.50: the line under the Practice bar can be in the bar's own colours (the default) or plain white, chosen in Settings,
+   Appearance. A fine rule keeps the two apart. */
+:root { --practice-line: var(--practice-bar); --practice-line-dark: linear-gradient(95deg, #10293b 0%, #1a2145 100%); }
+@media (min-width: 721px) {
+  html[data-pflat]:not([data-work]):not([data-advisory]) .band-slot { background: var(--practice-line); border-top: 1px solid rgba(23, 38, 58, 0.07); }
+  :root[data-theme="dark"][data-pflat]:not([data-work]):not([data-advisory]) .band-slot { background: var(--practice-line-dark); border-top-color: rgba(255, 255, 255, 0.08); }
+}
+@media (min-width: 721px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-pflat]:not([data-work]):not([data-advisory]) .band-slot { background: var(--practice-line-dark); border-top-color: rgba(255, 255, 255, 0.08); }
+}
+.ap-stage:not(.ap-work) .ap-line { background: var(--practice-line); border-top: 1px solid rgba(23, 38, 58, 0.07); }

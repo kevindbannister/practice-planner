@@ -144,6 +144,10 @@ export function AppearanceSettings() {
             <Swatches name="ap-prac" list={PRACTICE_BARS} value={look.practiceBar} wide onPick={(v) => { setL("practiceBar", v); setMode("practice"); }} />
           </fieldset>
           <fieldset className="ap-field" disabled={!mayEdit}>
+            <legend>Line under the Practice bar</legend>
+            <Swatches name="ap-pline" list={[{ key: "bar", label: "Same as the bar", value: PRACTICE_BARS.find((x) => x.key === look.practiceBar)?.value || PRACTICE_BARS[0].value }, { key: "white", label: "White", value: "#FFFFFF" }]} value={look.practiceLine} wide onPick={(v) => { setL("practiceLine", v as "bar" | "white"); setMode("practice"); }} />
+          </fieldset>
+          <fieldset className="ap-field" disabled={!mayEdit}>
             <legend>Page background</legend>
             <Swatches name="ap-canvas" list={CANVASES.map((c) => ({ key: c.key, label: c.label, value: `linear-gradient(90deg, ${c.practice} 50%, ${c.work} 50%)` }))} value={look.canvas} wide onPick={(v) => setL("canvas", v)} />
           </fieldset>
@@ -174,7 +178,7 @@ export function AppearanceSettings() {
             <div className="ap-actions">
               <button type="button" className="btn primary" disabled={!lookChanged} onClick={saveLook}>Save the practice look</button>
               {lookChanged && <button type="button" className="btn" onClick={() => setLook(saved)}>Undo changes</button>}
-              <button type="button" className="btn" onClick={() => setLook({ workBar: "navy", advisoryBar: "purple", practiceBar: "gradient", canvas: "light", serviceSlots: {} })}>Back to the original colours</button>
+              <button type="button" className="btn" onClick={() => setLook({ workBar: "navy", advisoryBar: "purple", practiceBar: "gradient", practiceLine: "bar", canvas: "light", serviceSlots: {} })}>Back to the original colours</button>
             </div>
           )}
         </section>

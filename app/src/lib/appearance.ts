@@ -32,8 +32,9 @@ export const CANVASES: Canvas[] = [
 /** The eight colours a type of work can have (0 is the neutral one); the CSS variables --svc-0 to --svc-7 hold them. */
 export const SLOT_NAMES = ["Grey", "Blue", "Terracotta", "Teal", "Slate", "Orchid", "Sea green", "Violet"];
 
-export type PracticeLook = { workBar: string; advisoryBar: string; practiceBar: string; canvas: string; serviceSlots: Record<string, number> };
-export const DEFAULT_LOOK: PracticeLook = { workBar: "navy", advisoryBar: "purple", practiceBar: "gradient", canvas: "light", serviceSlots: {} };
+/** `practiceLine`: the line under the Practice bar in the bar's own colours ("bar") or plain white ("white"). */
+export type PracticeLook = { workBar: string; advisoryBar: string; practiceBar: string; practiceLine: "bar" | "white"; canvas: string; serviceSlots: Record<string, number> };
+export const DEFAULT_LOOK: PracticeLook = { workBar: "navy", advisoryBar: "purple", practiceBar: "gradient", practiceLine: "bar", canvas: "light", serviceSlots: {} };
 export const LOOK_KEY = "appearance-practice";
 
 const pick = (list: { key: string }[], v: unknown, fallback: string) => (typeof v === "string" && list.some((x) => x.key === v) ? v : fallback);
@@ -52,6 +53,7 @@ export function readLook(raw: unknown): PracticeLook {
     workBar: pick(WORK_BARS, o.workBar, DEFAULT_LOOK.workBar),
     advisoryBar: pick(ADVISORY_BARS, o.advisoryBar, DEFAULT_LOOK.advisoryBar),
     practiceBar: pick(PRACTICE_BARS, o.practiceBar, DEFAULT_LOOK.practiceBar),
+    practiceLine: o.practiceLine === "white" ? "white" : "bar",
     canvas: pick(CANVASES, o.canvas, DEFAULT_LOOK.canvas),
     serviceSlots: slots,
   };
@@ -67,6 +69,9 @@ export function lookVars(look: PracticeLook): Record<string, string> {
     "--practice-bar": find(PRACTICE_BARS, look.practiceBar),
     "--canvas-practice": canvas.practice,
     "--canvas-work": canvas.work,
+    // the line under the Practice bar, in light and in dark mode
+    "--practice-line": look.practiceLine === "white" ? "var(--surface)" : find(PRACTICE_BARS, look.practiceBar),
+    "--practice-line-dark": look.practiceLine === "white" ? "var(--surface)" : "linear-gradient(95deg, #10293b 0%, #1a2145 100%)",
   };
 }
 
