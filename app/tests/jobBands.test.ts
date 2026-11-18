@@ -172,7 +172,9 @@ test("a Home count links to exactly the jobs it counted", async () => {
   // a statutory or other group
   const g = { ...q, type: "", group: "other" as const };
   assert.deepEqual(readBandQuery(new URLSearchParams(bandLink(g).split("?")[1])), g);
-  assert.deepEqual(jobsForBand(g, { ...o, statutory: (k: string) => k === "VAT" }).map((j) => j.Key), ["c"]);
+  assert.deepEqual(jobsForBand(g, { ...o, groupOf: (k: string) => (k === "VAT" ? "statutory" : "other") }).map((j) => j.Key), ["c"]);
+  // invoices to raise can go out straight away
+  assert.deepEqual(startRuleFor({}, "INVOICE"), { kind: "any" });
   // the same jobs tally counts
   const c = tally(jobs.filter((j) => j.ServiceKey === "VAT"), o.stagesFor, today, 14, false);
   assert.equal(c.verySoon, jobsForBand(q, o).length);

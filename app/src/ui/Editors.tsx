@@ -29,6 +29,7 @@ import { JobChecklistLine, useJobBlockers } from "./JobChecklist";
 import { useData, useIndex } from "./data";
 import { useStaff } from "./staffKit";
 import { ownerOf } from "../lib/jobBands";
+import { INVOICE_SERVICE, billedJobKey, invoiceJobFor, invoiceServiceRow, isInvoiceJob, readAmount } from "../lib/invoicing";
 
 type Open =
   | { kind: "job"; key: string }
@@ -50,7 +51,7 @@ export function EditorProvider({ children }: { children: ReactNode }) {
   return (
     <EditorContext.Provider value={{ open: setCurrent, close }}>
       {children}
-      {current?.kind === "job" && <JobPanel jobKey={current.key} onClose={close} />}
+      {current?.kind === "job" && <JobPanel key={current.key} jobKey={current.key} onClose={close} />}
       {current?.kind === "task" && (
         <TaskPanel taskKey={current.key} clientKey={current.clientKey} plannedDate={current.plannedDate} startTime={current.startTime} projectKey={current.projectKey} onClose={close} />
       )}
@@ -158,6 +159,12 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [done, setDone] = useState<Row | null | undefined>(undefined);
+  // billing: asked when the job is completed (not for the invoice jobs themselves)
+  const [invoice, setInvoice] = useState<"yes" | "no" | "">("");
+  const [amount, setAmount] = useState("");
+  const [invNote, setInvNote] = useState("");
+  const [invoiceMade, setInvoiceMade] = useState<Row | null>(null);
+  const { open: openItem } = useEditor();
   const completeRef = useRef<HTMLElement>(null);
   const [ask, setAsk] = useState<Row | null>(null); // moving onto a "with the client" stage: the stage patch, waiting for answers
   const [speak, setSpeak] = useState("");
@@ -244,6 +251,18 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         }
         await checks.overrideCompletion(gate.checklistKey!, why, gate.blockers);
       }
+      const billing = !isInvoiceJob(job);
+      if (billing && !invoice) {
+        setError("Say whether an invoice needs raising for this work.");
+        setBusy(false);
+        return;
+      }
+      const billAmount = invoice === "yes" ? readAmount(amount) : undefined;
+      if (invoice === "yes" && amount.trim() && billAmount === undefined) {
+        setError("I couldn't read that amount. Use a number such as 450 or 450.00, or leave it blank.");
+        setBusy(false);
+        return;
+      }
       const finished = { ...job, ActualHours: hours ?? job.ActualHours } as Job;
       const nextRow = serviceOff ? null : rollForward(finished, rule, today, newKey("J"));
       // create the next job first, so nothing is lost if the second step fails
@@ -252,7 +271,15 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         await create("Jobs", nextRow);
         await afterJob(nextRow);
       }
-      await save({ Status: "Complete", CompletedDate: today, ...(hours !== undefined ? timePatch(hours) : {}) });
+      // the invoice job next, so the billing is tracked before this job closes
+      let made: Row | null = null;
+      if (billing && invoice === "yes") {
+        if (!data.services.some((x) => x.Key === INVOICE_SERVICE)) await create("Services", invoiceServiceRow());
+        made = invoiceJobFor(job as Row, { key: newKey("J"), today, amount: billAmount, note: invNote, serviceName: idx.serviceName.get(job.ServiceKey || ""), clientName: client?.Title as string });
+        await create("Jobs", made);
+      }
+      await save({ Status: "Complete", CompletedDate: today, ...(hours !== undefined ? timePatch(hours) : {}), ...(billing ? { InvoiceNeeded: invoice } : {}) });
+      setInvoiceMade(made);
       setDone(nextRow);
     } catch {
       setError("Couldn't complete the job. Nothing has been lost; try again.");
@@ -277,6 +304,13 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         ) : (
           <p style={{ margin: 0 }} className="muted">{serviceOff ? "This work is turned off for the client, so there's no next job." : "This is one-off work, so there's no next job."}</p>
         )}
+        {invoiceMade && (
+          <p style={{ margin: 0 }}>
+            Invoice to raise added, due <strong>{fmtDate(invoiceMade.Deadline as string)}</strong>
+            {invoiceMade.Fee !== undefined ? <> for <strong>£{Number(invoiceMade.Fee).toFixed(2)}</strong></> : null}.{" "}
+            <button type="button" className="linkbtn" onClick={() => openItem({ kind: "job", key: String(invoiceMade.Key) })}>Open it</button>
+          </p>
+        )}
         <div className="form-actions"><button type="button" className="btn primary" onClick={onClose}>Done</button></div>
       </Drawer>
     );
@@ -290,6 +324,10 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
         <ElementsLink client={client} />
         <PapersLink job={job} onNavigate={onClose} />
       </div>
+      {billedJobKey(job as Row) && (() => {
+        const billed = data.jobs.find((j) => j.Key === billedJobKey(job as Row)) || data.history.find((j) => j.Key === billedJobKey(job as Row));
+        return <p className="invoice-for">Bills: {billed ? <button type="button" className="linkbtn" onClick={() => openItem({ kind: "job", key: String(billed.Key) })}>{String(billed.Title)}{billed.CompletedDate ? `, completed ${fmtDate(String(billed.CompletedDate))}` : ""}</button> : "a job that has since been archived"}</p>;
+      })()}
       <div className="row-wrap" style={{ gap: 6 }}>
         {job.Priority === "urgent" && <span className="chip red">Urgent</span>}
         {isOnHold(job) && <span className="chip hold">{holdLabel(job)}</span>}
@@ -468,6 +506,22 @@ function JobPanel({ jobKey, onClose }: { jobKey: string; onClose: () => void }) 
                     ? <label className="doc-field" style={{ marginTop: 8 }}><span>To complete anyway, say why (kept on the record)</span><input className="input" value={why} onChange={(e) => setWhy(e.target.value)} /></label>
                     : <p style={{ margin: "6px 0 0" }}>Only a manager or partner can complete the job with items still open.</p>}
                 </div>
+              )}
+              {!isInvoiceJob(job) && (
+                <fieldset className="invoice-ask">
+                  <legend>Does an invoice need raising for this work?</legend>
+                  <div className="seg" role="radiogroup" aria-label="Invoice needed">
+                    <button type="button" role="radio" aria-checked={invoice === "yes"} aria-pressed={invoice === "yes"} onClick={() => { setInvoice("yes"); setError(undefined); if (!amount && job.Fee !== undefined && job.Fee !== null && String(job.Fee) !== "") setAmount(String(job.Fee)); }}>Yes, raise an invoice</button>
+                    <button type="button" role="radio" aria-checked={invoice === "no"} aria-pressed={invoice === "no"} onClick={() => { setInvoice("no"); setError(undefined); }}>No invoice needed</button>
+                  </div>
+                  {invoice === "yes" && (
+                    <div className="invoice-fields">
+                      <label className="doc-field"><span>Amount to bill (£, optional)</span><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={job.Fee ? String(job.Fee) : "e.g. 450"} /></label>
+                      <label className="doc-field"><span>Note for whoever raises it (optional)</span><input className="input" value={invNote} onChange={(e) => setInvNote(e.target.value)} placeholder="e.g. add the extra bookkeeping hours" /></label>
+                      <p className="muted" style={{ margin: 0, fontSize: 13 }}>An "Invoices to raise" job is added for {client?.Title || "the client"}, due in a week, with the details of this work. This job then closes as filed.</p>
+                    </div>
+                  )}
+                </fieldset>
               )}
               <TimePicker value={actual} onChange={setActual} estimate={jobHours(job, data.services)} label="How long did it take? (optional, sets next year's estimate; you can add it later)" />
               <TrackedHint jobKey={job.Key} onUse={(h) => setActual(String(h))} />

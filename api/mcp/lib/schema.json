@@ -866,6 +866,10 @@
      "type": "text"
     },
     {
+     "name": "InvoiceNeeded",
+     "type": "text"
+    },
+    {
      "name": "PracticeId",
      "type": "text"
     }

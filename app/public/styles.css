@@ -5266,3 +5266,10 @@ a.hw-badge.late { color: #fff; }
 .hw-bars .hw-group-h { margin: 14px 0 0; }
 .hw-grid tr.hw-group-row th { padding: 14px 12px 6px; text-align: left; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: transparent; border-bottom: 1px solid var(--sep); }
 .hw-summary li.hw-group-li { display: block; padding: 12px 4px 4px; border: 0; background: transparent; box-shadow: none; min-height: 0; }
+
+/* V35.42: the invoice question when a job is completed */
+.invoice-ask { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px 14px; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.invoice-ask legend { padding: 0 4px; font-weight: 700; font-size: 14px; }
+.invoice-ask .seg { align-self: flex-start; flex-wrap: wrap; }
+.invoice-fields { display: flex; flex-direction: column; gap: 8px; }
+.invoice-for { margin: 0; font-size: 14px; }

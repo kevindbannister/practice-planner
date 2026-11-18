@@ -7,8 +7,8 @@ import { Row } from "../lib/schema";
 import { daysBetween, fmtDate, todayIso } from "../lib/domain";
 import { stageAt } from "../lib/waiting";
 import { svcClass } from "../lib/serviceColour";
-import { isStatutory } from "../lib/workGroups";
-import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, START_KEY, Scope, StartRule, accessFor, bandLink, bandsOf, bandsShown, emptyCounts, inScope, nextOn, readStartRules, startRuleFor, tally } from "../lib/jobBands";
+import { GROUP_NAME, workGroupOf } from "../lib/invoicing";
+import { BANDS, BAND_LABEL, Band, Counts, DEFAULT_WINDOW, SCOPE_LABEL, START_KEY, Scope, StartRule, WorkGroup, accessFor, bandLink, bandsOf, bandsShown, emptyCounts, inScope, nextOn, readStartRules, startRuleFor, tally } from "../lib/jobBands";
 import { Icon } from "./bits";
 import { readSetting, useData, useIndex } from "./data";
 import { useStaff } from "./staffKit";
@@ -76,9 +76,9 @@ export function HomeWork() {
   ];
   const counts = (list: Row[], k: string): Counts => tally(list, stagesFor, today, win(k), includeHolds, ruleFor);
   const withCounts = types.map((t) => ({ ...t, c: counts(t.jobs, t.key) })).sort((a, b) => b.c.overdue - a.c.overdue || a.name.localeCompare(b.name));
-  // statutory deadlines (filing and payment dates the law sets) first, then everything else
-  const statOf = (k: string) => isStatutory(data.services.find((x) => x.Key === k), k);
-  const grouped = ([["statutory", withCounts.filter((t) => statOf(t.key))], ["other", withCounts.filter((t) => !statOf(t.key))]] as const).filter(([, l]) => l.length);
+  // statutory deadlines (filing and payment dates the law sets) first, then everything else, then invoices to raise for finished work
+  const groupOf = (k: string): WorkGroup => workGroupOf(k, data.services);
+  const grouped = (["statutory", "other", "invoice"] as WorkGroup[]).map((g) => [g, withCounts.filter((t) => groupOf(t.key) === g)] as const).filter(([, l]) => l.length);
   const allCounts = tally(jobs, stagesFor, today, win(ALL), includeHolds, ruleFor);
   const label = SCOPE_LABEL[scope === "everyone" ? "everyone" : scope];
   const allName = scope === "everyone" ? "All work" : label;
@@ -117,7 +117,7 @@ export function HomeWork() {
         <WorkDisplay view={view} bands={bands} items={[
           { key: ALL, name: allName, total: true, c: allCounts, days: win(ALL), ahead: ahead(ALL), onOpen: () => setOpen(ALL), link: (b: Band) => bandLink({ type: "", band: b, days: win(ALL), holds: includeHolds, scope }) },
           ...grouped.flatMap(([g, list]) => [
-            { heading: true, key: `@${g}`, name: g === "statutory" ? "Statutory deadlines" : "Other deadlines", c: emptyCounts(), days: 0, ahead: "", onOpen: (): void => undefined } as Item,
+            { heading: true, key: `@${g}`, name: GROUP_NAME[g], c: emptyCounts(), days: 0, ahead: "", onOpen: (): void => undefined } as Item,
             ...list.map((t) => ({ key: t.key, name: t.name, serviceKey: t.key, c: t.c, days: win(t.key), ahead: ahead(t.key), onOpen: () => setOpen(t.key), link: (b: Band) => bandLink({ type: t.key, band: b, days: win(t.key), holds: includeHolds, scope }) })),
           ]),
         ]} />

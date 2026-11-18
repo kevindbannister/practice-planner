@@ -94,7 +94,7 @@ export const LISTS: ListDef[] = [
       t("SuggestedSlot"), t("LastCompleted"), t("Priority"), t("Status"), t("CompletedDate"),
       n("ActualHours"), n("RemainingHours"), n("ReadyHours"), t("ReadyNote"), n("Fee"), t("FeePeriod"), t("Source"), t("EngagerClient"), note("Notes"),
       t("HoldReason"), t("HoldUntil"), t("HeldOn"), t("HoldKind"), t("LastChased"), n("ChaseCount"), note("ChaseLog"), note("CardNote"),
-      t("WaitingSince"), t("SpeakOn"), n("FinaliseHours"), t("PreparedOn"), n("PreparedHours"), n("DayOrder"), t("StartTime"), t("TimeSkipped"), t("PracticeId", true),
+      t("WaitingSince"), t("SpeakOn"), n("FinaliseHours"), t("PreparedOn"), n("PreparedHours"), n("DayOrder"), t("StartTime"), t("TimeSkipped"), t("InvoiceNeeded"), t("PracticeId", true),
     ],
   },
   {

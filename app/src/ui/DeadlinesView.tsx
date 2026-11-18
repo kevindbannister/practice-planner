@@ -9,6 +9,7 @@ import { TypeFilter, useRememberedTypes } from "./TypeFilter";
 import { svcClass } from "../lib/serviceColour";
 import { inFinalise, waitingForClient } from "../lib/waiting";
 import { isStatutory } from "../lib/workGroups";
+import { GROUP_NAME, workGroupOf } from "../lib/invoicing";
 import { readSetting, useData, useIndex } from "./data";
 import { taskAsJob, useEditor } from "./Editors";
 
@@ -53,7 +54,7 @@ export function DeadlinesView() {
     const rules = readStartRules(readSetting(data.settings, START_KEY));
     return new Set(jobsForBand(fromHome, {
       jobs: idx.openJobs, user: user || "", today, clientOf: (k) => idx.clientByKey.get(k), stagesFor: (k) => idx.stagesByService.get(k) || [],
-      clientStages: data.clientStages, ruleFor: (k) => startRuleFor(rules, k), statutory: (k) => isStatutory(data.services.find((x) => x.Key === k), k),
+      clientStages: data.clientStages, ruleFor: (k) => startRuleFor(rules, k), groupOf: (k) => workGroupOf(k, data.services),
     }).map((j) => String(j.Key)));
   }, [fromHome, idx, data.settings, data.clientStages, data.services, user, today]);
 
@@ -176,7 +177,7 @@ export function DeadlinesView() {
         <div className="dl-from-home" role="status">
           <span>
             <strong>{shown.length} job{shown.length === 1 ? "" : "s"}: {BAND_LABEL[fromHome.band].toLowerCase()}</strong>
-            {" · "}{fromHome.type ? idx.serviceName.get(fromHome.type) || fromHome.type : fromHome.group === "statutory" ? "statutory deadlines" : fromHome.group === "other" ? "other deadlines" : "all work"}
+            {" · "}{fromHome.type ? idx.serviceName.get(fromHome.type) || fromHome.type : fromHome.group ? GROUP_NAME[fromHome.group].toLowerCase() : "all work"}
             {" · "}{SCOPE_LABEL[fromHome.scope].toLowerCase()}
             {fromHome.band !== "overdue" && fromHome.band !== "hold" ? ` · next ${fromHome.days} days` : ""}
             <span className="muted"> · as counted on Home</span>

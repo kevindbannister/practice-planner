@@ -49,6 +49,7 @@ export const DEFAULT_AFTER_PERIOD_ACCOUNTS = 30;
 const ACCOUNTS_KEYS = ["ACCS_LTD", "ACCS_LLP", "SE_ACCOUNTS", "CHARITY_ACCOUNTS", "ACCS_OTHER_A", "ACCS_OTHER_B"];
 const BUILT_IN_START: Record<string, StartRule> = {
   PAYROLL: { kind: "days", days: DEFAULT_START_DAYS },
+  INVOICE: { kind: "any" }, // an invoice can go out as soon as the work is done
   ...Object.fromEntries(ACCOUNTS_KEYS.map((k) => [k, { kind: "period", days: DEFAULT_AFTER_PERIOD_ACCOUNTS } as StartRule])),
 };
 
@@ -168,7 +169,9 @@ export function nextOn(today: string, month: number, day: number): string {
 /* ---------- from a Home count to the jobs behind it ---------- */
 
 /** What a number on Home's Work by type counted: the type of work ("" for all of it), the band, and the settings it used. */
-export type BandQuery = { type: string; band: Band; days: number; holds: boolean; scope: Scope; group?: "statutory" | "other" };
+export type BandQuery = { type: string; band: Band; days: number; holds: boolean; scope: Scope; group?: WorkGroup };
+/** How Work by type is grouped: statutory deadlines, other deadlines, and invoices to raise. */
+export type WorkGroup = "statutory" | "other" | "invoice";
 
 /** The Deadlines address that lists the jobs behind a number on Home. */
 export function bandLink(q: BandQuery): string {
@@ -186,7 +189,7 @@ export function readBandQuery(p: URLSearchParams): BandQuery | undefined {
   const scope = p.get("scope");
   const group = p.get("group");
   return {
-    ...(group === "statutory" || group === "other" ? { group } : {}),
+    ...(group === "statutory" || group === "other" || group === "invoice" ? { group } : {}),
     type: p.get("type") || "", band, days: Number.isFinite(days) ? days : DEFAULT_WINDOW, holds: p.get("holds") === "1",
     scope: scope === "jobs" || scope === "mine" ? scope : "everyone",
   };
@@ -195,12 +198,12 @@ export function readBandQuery(p: URLSearchParams): BandQuery | undefined {
 /** The jobs a Home count is made of, worked out exactly as Home counts them, so the list always matches the number. */
 export function jobsForBand(q: BandQuery, o: {
   jobs: Row[]; user: string; today: string; clientOf: (clientKey: string) => Row | undefined; stagesFor: (serviceKey: string) => Row[];
-  clientStages: Row[]; ruleFor: (serviceKey: string) => StartRule; statutory?: (serviceKey: string) => boolean;
+  clientStages: Row[]; ruleFor: (serviceKey: string) => StartRule; groupOf?: (serviceKey: string) => WorkGroup;
 }): Row[] {
   return o.jobs.filter((j) => {
     const k = String(j.ServiceKey || "");
     if (q.type && k !== q.type) return false;
-    if (q.group && o.statutory && o.statutory(k) !== (q.group === "statutory")) return false;
+    if (q.group && o.groupOf && o.groupOf(k) !== q.group) return false;
     const stages = o.stagesFor(k);
     if (!inScope(q.scope, o.user, j, o.clientOf(String(j.ClientKey || "")), stages, o.clientStages)) return false;
     return bandsOf(j, stageAt(stages, Number(j.StageNo || 1)), o.today, q.days, q.holds, o.ruleFor(k)).includes(q.band);
