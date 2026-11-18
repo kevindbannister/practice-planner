@@ -2,6 +2,7 @@
 // in a list are skipped, so running it twice never creates duplicates.
 import { ListKey, Row } from "./schema";
 import { SharePointStore } from "./sharepoint";
+import { bundleWithoutInvoiceStages } from "./invoicing";
 
 export type Bundle = { format: "practice-planner-import"; version: 1; created: string; lists: Partial<Record<ListKey, Row[]>> };
 
@@ -37,6 +38,8 @@ export async function runImport(
   onStep: (step: ImportStep, progress?: number) => void,
 ): Promise<ImportStep[]> {
   const steps: ImportStep[] = [];
+  // raising the invoice is its own job, not a stage inside the work
+  bundle = bundleWithoutInvoiceStages(bundle);
   for (const list of IMPORT_ORDER) {
     const rows = bundle.lists[list] || [];
     if (!rows.length) continue;
