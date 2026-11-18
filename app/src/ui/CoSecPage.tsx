@@ -36,14 +36,19 @@ export function CoSecPage() {
   const sub = parts[1] || "";
   if (!k.can("view")) return <div className="page"><div className="card empty"><p>Co Sec isn't open to your role. Ask a manager or partner if you need it.</p></div></div>;
   const current = sub === "filing" ? "filings" : sub === "company" ? "companies" : sub;
+  const title = sub === "filing" ? "Filing" : TABS.find(([key]) => key === current)?.[1] || "Overview";
   return (
-    <div className="page">
-      <div className="plan-title">
-        <h1>Co Sec</h1>
-        <nav className="subtabs" aria-label="Co Sec views">
-          {TABS.map(([key, label, to]) => <a key={key} href={to} aria-current={current === key ? "page" : undefined}>{label}</a>)}
-        </nav>
-      </div>
+    <div className="page cosec-page">
+      {/* a company's pages have a head of their own (in CoSecCompany); the rest share this one */}
+      {sub !== "company" && (
+        <header className="cs-hero">
+          <span className="cs-eyebrow">Co Sec</span>
+          <h1>{title}</h1>
+          <nav className="cs-tabs" aria-label="Co Sec views">
+            {TABS.map(([key, label, to]) => <a key={key} href={to} aria-current={current === key ? "page" : undefined}>{label}</a>)}
+          </nav>
+        </header>
+      )}
       {!sub && <Overview />}
       {sub === "filings" && <FilingsList />}
       {sub === "filing" && parts[2] && <FilingDetail txKey={parts[2]} />}

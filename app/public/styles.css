@@ -5477,3 +5477,34 @@ a.hw-badge.late { color: #fff; }
 .rr-drop.has svg { transform: none; }
 .rr-template { gap: 10px; padding: 14px; border-radius: 14px; background: color-mix(in srgb, #2F6FD6 4%, var(--surface)); border: 1px solid color-mix(in srgb, #2F6FD6 15%, transparent); }
 .rr-fields { margin: 0; padding-left: 18px; font-size: 13px; display: grid; gap: 2px; }
+
+/* V35.54: Co Sec in the job card's design: a navy gradient head with the views as white pills, soft blue rounded section cards with
+   small capital headings, and the journal's buttons. */
+.cosec-page { display: flex; flex-direction: column; gap: 14px; }
+.cs-hero { display: flex; flex-direction: column; gap: 8px; padding: 18px 22px 16px; border-radius: 24px; background: var(--grad); color: #fff; box-shadow: 0 12px 30px rgba(12, 90, 140, 0.22); }
+.cs-hero h1 { margin: 0; font-size: 24px; color: #fff; letter-spacing: -0.015em; }
+.cs-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.82); }
+.cs-eyebrow a { color: #fff; text-decoration: none; }
+.cs-eyebrow a:hover { text-decoration: underline; }
+.cs-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 14px; }
+.cs-sub a { color: #fff; font-weight: 600; }
+.cs-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.cs-tabs a { border-radius: 999px; padding: 7px 14px; background: rgba(255, 255, 255, 0.12); color: #fff; font-weight: 600; font-size: 13.5px; text-decoration: none; }
+.cs-tabs a:hover { background: rgba(255, 255, 255, 0.22); }
+.cs-tabs a[aria-current] { background: #fff; color: #1B3049; }
+/* the sections underneath */
+.cosec-page .card { border-radius: 18px; background: color-mix(in srgb, #2F6FD6 4%, var(--surface)); border: 1px solid color-mix(in srgb, #2F6FD6 13%, transparent); box-shadow: none; }
+.cosec-page .card .card { background: var(--surface); }
+.cosec-page .card > h2, .cosec-page .card h2.sec-h, .cosec-page .card > .row-wrap > h2, .cosec-page .card > .row-wrap > h3, .cosec-page .card > h3, .cosec-page .card .card-head h2 {
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.cosec-page .card .input { background: var(--surface); }
+.cosec-page .card table.grid { background: var(--surface); border-radius: 12px; overflow: hidden; }
+.cosec-page .btn.primary { background: var(--grad); border: 0; box-shadow: 0 6px 16px rgba(12, 90, 140, 0.25); }
+:root[data-theme="dark"] .cosec-page .card { background: color-mix(in srgb, #8fb4ff 6%, var(--surface)); border-color: rgba(255, 255, 255, 0.08); }
+html .cosec-page .card { border-radius: 18px !important; background: color-mix(in srgb, #2F6FD6 4%, var(--surface)) !important; border: 1px solid color-mix(in srgb, #2F6FD6 13%, transparent) !important; box-shadow: none !important; }
+html .cosec-page .card .card { background: var(--surface) !important; }
+:root[data-theme="dark"] .cosec-page .card { background: color-mix(in srgb, #8fb4ff 6%, var(--surface)) !important; border-color: rgba(255, 255, 255, 0.08) !important; }
+/* the action tiles: white tiles with a coloured edge on hover, like the job card's stage boxes */
+.cosec-page .ov-action { border-radius: 16px !important; background: var(--surface) !important; border: 1px solid color-mix(in srgb, #2F6FD6 16%, transparent) !important; box-shadow: none !important; align-items: flex-start; text-align: left; }
+.cosec-page .ov-action:hover { border-color: #2F6FD6 !important; box-shadow: 0 6px 16px rgba(12, 90, 140, 0.14) !important; }
+.cosec-page .ov-action strong { color: var(--ink); }

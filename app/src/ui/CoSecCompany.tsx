@@ -37,17 +37,21 @@ export function CoSecCompany({ clientKey, tab: tabIn }: { clientKey: string; tab
   if (!kind) return <div className="card empty"><p>{s(client.Title)} isn't a company or LLP, so it has no statutory record in Co Sec.</p></div>;
   return (
     <div className="stack" style={{ gap: 14 }}>
-      <div className="row-wrap" style={{ justifyContent: "space-between" }}>
-        <h2 className="sec-h">{s(client.Title)} <span className="muted">{s(client.CompanyNumber)} · {kind === "llp" ? "LLP" : "Limited company"}</span> <LevelChip client={client} /></h2>
-        <a href={href("clients", clientKey)}>Open the client record</a>
-      </div>
-      {SCREENS[tab] ? (
-        <div className="row-wrap" style={{ gap: 12 }}><a className="btn" href={`#/cosec/company/${clientKey}/overview`}>← Overview</a><h3 style={{ margin: 0 }}>{SCREENS[tab]}</h3></div>
-      ) : (
-        <nav className="subtabs" aria-label="Company views">
-          {TABS.filter(([key]) => (key !== "shares" && key !== "chart") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
-        </nav>
-      )}
+      <header className="cs-hero">
+        <span className="cs-eyebrow"><a href="#/cosec/companies">Co Sec</a> · {kind === "llp" ? "LLP" : "Limited company"}{s(client.CompanyNumber) ? ` · ${s(client.CompanyNumber)}` : ""}</span>
+        <h1>{s(client.Title)}</h1>
+        <div className="cs-sub"><LevelChip client={client} /><a href={href("clients", clientKey)}>Open the client record</a></div>
+        {SCREENS[tab] ? (
+          <nav className="cs-tabs" aria-label="Company views">
+            <a href={`#/cosec/company/${clientKey}/overview`}>← Overview</a>
+            <a aria-current="page" href={`#/cosec/company/${clientKey}/${tab}`}>{SCREENS[tab]}</a>
+          </nav>
+        ) : (
+          <nav className="cs-tabs" aria-label="Company views">
+            {TABS.filter(([key]) => (key !== "shares" && key !== "chart") || kind === "limited").map(([key, label]) => <a key={key} href={`#/cosec/company/${clientKey}/${key}`} aria-current={tab === key ? "page" : undefined}>{label}</a>)}
+          </nav>
+        )}
+      </header>
       {tab === "overview" && <Overview client={client} base={`#/cosec/company/${clientKey}`}><ServiceLevel client={client} /><Details client={client} /></Overview>}
       {tab === "officers" && <People client={client} entity="officer" />}
       {tab === "pscs" && <People client={client} entity="psc" />}
