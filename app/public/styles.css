@@ -5508,3 +5508,7 @@ html .cosec-page .card .card { background: var(--surface) !important; }
 .cosec-page .ov-action { border-radius: 16px !important; background: var(--surface) !important; border: 1px solid color-mix(in srgb, #2F6FD6 16%, transparent) !important; box-shadow: none !important; align-items: flex-start; text-align: left; }
 .cosec-page .ov-action:hover { border-color: #2F6FD6 !important; box-shadow: 0 6px 16px rgba(12, 90, 140, 0.14) !important; }
 .cosec-page .ov-action strong { color: var(--ink); }
+
+/* V35.56: a job card due soon (".job.warn") is marked by its amber outline only. The general ".warn" rule (amber text, for warning
+   messages) was turning every word on those cards dark orange. */
+.job.warn { color: var(--ink); }
