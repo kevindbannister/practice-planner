@@ -31,7 +31,9 @@ export function useWorkView(): [WorkView, (v: WorkView) => void] {
 const STORE = "pp.home.work.v1";
 /** `until`: every tile counts work due up to this date (set by the 31 December and 31 January buttons) instead of its own days. */
 /** `holds`: count jobs on hold (in their own band). Off unless turned on. */
-type Saved = { scope?: Scope; holds?: boolean; days?: Record<string, number>; until?: string };
+/** `group`: statutory deadlines, other deadlines and invoices under their own headings (on unless turned off). `order`: types with jobs
+ *  to do first and types with nothing to do last (on unless turned off). */
+type Saved = { scope?: Scope; holds?: boolean; group?: boolean; order?: boolean; days?: Record<string, number>; until?: string };
 const read = (user: string): Saved => { try { return JSON.parse(localStorage.getItem(`${STORE}:${user}`) || "{}") as Saved; } catch { return {}; } };
 const write = (user: string, s: Saved) => { try { localStorage.setItem(`${STORE}:${user}`, JSON.stringify(s)); } catch { /* this visit only */ } };
 
@@ -46,6 +48,8 @@ export function HomeWork() {
   const saved = useMemo(() => read(user || ""), [user]);
   const [scope, setScope] = useState<Scope>(saved.scope && access.scopes.includes(saved.scope) ? saved.scope : access.initial);
   const [includeHolds, setIncludeHolds] = useState(saved.holds === true);
+  const [groupBy, setGroupBy] = useState(saved.group !== false);
+  const [orderBy, setOrderBy] = useState(saved.order !== false);
   const rules = useMemo(() => readStartRules(readSetting(data.settings, START_KEY)), [data.settings]);
   const ruleFor = (k: string): StartRule => startRuleFor(rules, k);
   const bands = bandsShown(includeHolds);
@@ -53,7 +57,7 @@ export function HomeWork() {
   const [open, setOpen] = useState<string | null>(null);
   const [view] = useWorkView();
   const [until, setUntil] = useState<string | undefined>(saved.until && saved.until >= today ? saved.until : undefined);
-  useEffect(() => { write(user || "", { scope, holds: includeHolds, days, until }); }, [user, scope, includeHolds, days, until]);
+  useEffect(() => { write(user || "", { scope, holds: includeHolds, group: groupBy, order: orderBy, days, until }); }, [user, scope, includeHolds, groupBy, orderBy, days, until]);
   // a role change (someone made a manager, say) can take away a view that was saved
   useEffect(() => { if (!access.scopes.includes(scope)) setScope(access.initial); }, [access, scope]);
 
@@ -75,10 +79,15 @@ export function HomeWork() {
     { key: "jan", date: nextOn(today, 1, 31), icon: <Icon name="form" size={16} /> },
   ];
   const counts = (list: Row[], k: string): Counts => tally(list, stagesFor, today, win(k), includeHolds, ruleFor);
-  const withCounts = types.map((t) => ({ ...t, c: counts(t.jobs, t.key) })).sort((a, b) => b.c.overdue - a.c.overdue || a.name.localeCompare(b.name));
+  // the number of jobs a type has in the bands on show: "something to do" means at least one
+  const shownTotal = (c: Counts) => bands.reduce((n, b) => n + c[b], 0);
+  const withCounts = types.map((t) => ({ ...t, c: counts(t.jobs, t.key) }))
+    .sort((a, b) => (orderBy ? Number(shownTotal(b.c) > 0) - Number(shownTotal(a.c) > 0) : 0) || b.c.overdue - a.c.overdue || a.name.localeCompare(b.name));
   // statutory deadlines (filing and payment dates the law sets) first, then everything else, then invoices to raise for finished work
   const groupOf = (k: string): WorkGroup => workGroupOf(k, data.services);
-  const grouped = (["statutory", "other", "invoice"] as WorkGroup[]).map((g) => [g, withCounts.filter((t) => groupOf(t.key) === g)] as const).filter(([, l]) => l.length);
+  const grouped = groupBy
+    ? (["statutory", "other", "invoice"] as WorkGroup[]).map((g) => [g, withCounts.filter((t) => groupOf(t.key) === g)] as const).filter(([, l]) => l.length)
+    : [["all", withCounts] as const].filter(([, l]) => l.length);
   const allCounts = tally(jobs, stagesFor, today, win(ALL), includeHolds, ruleFor);
   const label = SCOPE_LABEL[scope === "everyone" ? "everyone" : scope];
   const allName = scope === "everyone" ? "All work" : label;
@@ -98,10 +107,7 @@ export function HomeWork() {
             </button>
           );
         })}
-        <button type="button" className={`hw-holds${includeHolds ? " on" : ""}`} aria-pressed={includeHolds} onClick={() => setIncludeHolds(!includeHolds)}
-          title={includeHolds ? "Jobs on hold are counted under On hold. Click to leave them out." : "Jobs on hold are left out. Click to count them under On hold."}>
-          <Icon name={includeHolds ? "check" : "clock"} size={14} /> Include on hold
-        </button>
+        <WorkSettings holds={includeHolds} onHolds={setIncludeHolds} group={groupBy} onGroup={setGroupBy} order={orderBy} onOrder={setOrderBy} />
         {access.scopes.length > 1 ? (
           <span className="seg" role="group" aria-label="Whose work to show">
             {access.scopes.map((s) => <button key={s} type="button" aria-pressed={scope === s} onClick={() => setScope(s)}>{SCOPE_LABEL[s]}</button>)}
@@ -117,7 +123,7 @@ export function HomeWork() {
         <WorkDisplay view={view} bands={bands} items={[
           { key: ALL, name: allName, total: true, c: allCounts, days: win(ALL), ahead: ahead(ALL), onOpen: () => setOpen(ALL), link: (b: Band) => bandLink({ type: "", band: b, days: win(ALL), holds: includeHolds, scope }) },
           ...grouped.flatMap(([g, list]) => [
-            { heading: true, key: `@${g}`, name: GROUP_NAME[g], c: emptyCounts(), days: 0, ahead: "", onOpen: (): void => undefined } as Item,
+            ...(g === "all" ? [] : [{ heading: true, key: `@${g}`, name: GROUP_NAME[g as WorkGroup], c: emptyCounts(), days: 0, ahead: "", onOpen: (): void => undefined } as Item]),
             ...list.map((t) => ({ key: t.key, name: t.name, serviceKey: t.key, c: t.c, days: win(t.key), ahead: ahead(t.key), onOpen: () => setOpen(t.key), link: (b: Band) => bandLink({ type: t.key, band: b, days: win(t.key), holds: includeHolds, scope }) })),
           ]),
         ]} />
@@ -176,6 +182,44 @@ export function WorkDisplay({ view, items, bands = BANDS }: { view: WorkView; it
           : <Line key={key} {...rest} bands={bands} />)}</tbody>
       </table>
     </div>
+  );
+}
+
+/** The settings gear above Work by type: a small panel of switches that change what is counted and how the types are laid out. */
+function WorkSettings({ holds, onHolds, group, onGroup, order, onOrder }: {
+  holds: boolean; onHolds: (v: boolean) => void; group: boolean; onGroup: (v: boolean) => void; order: boolean; onOrder: (v: boolean) => void;
+}) {
+  const [shown, setShown] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!shown) return;
+    const onDoc = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setShown(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setShown(false);
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("keydown", onKey); };
+  }, [shown]);
+  const options: [string, boolean, (v: boolean) => void, string, string][] = [
+    ["hold", holds, onHolds, "Include on hold", "Count jobs that are on hold, in their own On hold column."],
+    ["group", group, onGroup, "Group by statutory and other", "Keep statutory deadlines, other deadlines and invoices under their own headings."],
+    ["order", order, onOrder, "Jobs to do first", "Types with jobs to do at the top, and those with nothing to do at the bottom."],
+  ];
+  return (
+    <span className="hw-set" ref={ref}>
+      <button type="button" className={`hw-target${shown ? " on" : ""}`} aria-haspopup="true" aria-expanded={shown} aria-label="Work by type settings" title="Settings" onClick={() => setShown(!shown)}>
+        <Icon name="settings" size={17} />
+      </button>
+      {shown && (
+        <div className="hw-set-panel" role="group" aria-label="Work by type settings">
+          {options.map(([k, on, set, label, hint]) => (
+            <label key={k} className="hw-set-row">
+              <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} />
+              <span><strong>{label}</strong><span className="muted">{hint}</span></span>
+            </label>
+          ))}
+        </div>
+      )}
+    </span>
   );
 }
 
