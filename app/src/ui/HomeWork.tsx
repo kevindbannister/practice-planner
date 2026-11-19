@@ -31,9 +31,9 @@ export function useWorkView(): [WorkView, (v: WorkView) => void] {
 const STORE = "pp.home.work.v1";
 /** `until`: every tile counts work due up to this date (set by the 31 December and 31 January buttons) instead of its own days. */
 /** `holds`: count jobs on hold (in their own band). Off unless turned on. */
-/** `group`: statutory deadlines, other deadlines and invoices under their own headings (on unless turned off). `order`: types with jobs
+/** `hide`: leave out the types with nothing to do (off unless turned on). `group`: statutory deadlines, other deadlines and invoices under their own headings (on unless turned off). `order`: types with jobs
  *  to do first and types with nothing to do last (on unless turned off). */
-type Saved = { scope?: Scope; holds?: boolean; group?: boolean; order?: boolean; days?: Record<string, number>; until?: string };
+type Saved = { scope?: Scope; holds?: boolean; group?: boolean; order?: boolean; hide?: boolean; days?: Record<string, number>; until?: string };
 const read = (user: string): Saved => { try { return JSON.parse(localStorage.getItem(`${STORE}:${user}`) || "{}") as Saved; } catch { return {}; } };
 const write = (user: string, s: Saved) => { try { localStorage.setItem(`${STORE}:${user}`, JSON.stringify(s)); } catch { /* this visit only */ } };
 
@@ -50,6 +50,7 @@ export function HomeWork() {
   const [includeHolds, setIncludeHolds] = useState(saved.holds === true);
   const [groupBy, setGroupBy] = useState(saved.group !== false);
   const [orderBy, setOrderBy] = useState(saved.order !== false);
+  const [hideEmpty, setHideEmpty] = useState(saved.hide === true);
   const rules = useMemo(() => readStartRules(readSetting(data.settings, START_KEY)), [data.settings]);
   const ruleFor = (k: string): StartRule => startRuleFor(rules, k);
   const bands = bandsShown(includeHolds);
@@ -57,7 +58,7 @@ export function HomeWork() {
   const [open, setOpen] = useState<string | null>(null);
   const [view] = useWorkView();
   const [until, setUntil] = useState<string | undefined>(saved.until && saved.until >= today ? saved.until : undefined);
-  useEffect(() => { write(user || "", { scope, holds: includeHolds, group: groupBy, order: orderBy, days, until }); }, [user, scope, includeHolds, groupBy, orderBy, days, until]);
+  useEffect(() => { write(user || "", { scope, holds: includeHolds, group: groupBy, order: orderBy, hide: hideEmpty, days, until }); }, [user, scope, includeHolds, groupBy, orderBy, hideEmpty, days, until]);
   // a role change (someone made a manager, say) can take away a view that was saved
   useEffect(() => { if (!access.scopes.includes(scope)) setScope(access.initial); }, [access, scope]);
 
@@ -82,6 +83,7 @@ export function HomeWork() {
   // the number of jobs a type has in the bands on show: "something to do" means at least one
   const shownTotal = (c: Counts) => bands.reduce((n, b) => n + c[b], 0);
   const withCounts = types.map((t) => ({ ...t, c: counts(t.jobs, t.key) }))
+    .filter((t) => !hideEmpty || shownTotal(t.c) > 0)
     .sort((a, b) => (orderBy ? Number(shownTotal(b.c) > 0) - Number(shownTotal(a.c) > 0) : 0) || b.c.overdue - a.c.overdue || a.name.localeCompare(b.name));
   // statutory deadlines (filing and payment dates the law sets) first, then everything else, then invoices to raise for finished work
   const groupOf = (k: string): WorkGroup => workGroupOf(k, data.services);
@@ -107,7 +109,7 @@ export function HomeWork() {
             </button>
           );
         })}
-        <WorkSettings holds={includeHolds} onHolds={setIncludeHolds} group={groupBy} onGroup={setGroupBy} order={orderBy} onOrder={setOrderBy} />
+        <WorkSettings holds={includeHolds} onHolds={setIncludeHolds} group={groupBy} onGroup={setGroupBy} order={orderBy} onOrder={setOrderBy} hide={hideEmpty} onHide={setHideEmpty} />
         {access.scopes.length > 1 ? (
           <span className="seg" role="group" aria-label="Whose work to show">
             {access.scopes.map((s) => <button key={s} type="button" aria-pressed={scope === s} onClick={() => setScope(s)}>{SCOPE_LABEL[s]}</button>)}
@@ -134,7 +136,7 @@ export function HomeWork() {
           days={win(open)} until={until} onDays={(n) => { setUntil(undefined); setDays({ ...days, [open]: n }); }}
           includeHolds={includeHolds} onIncludeHolds={setIncludeHolds} bands={bands}
           rows={open === ALL
-            ? withCounts.map((t) => ({ label: t.name, c: tally(t.jobs, stagesFor, today, win(ALL), includeHolds, ruleFor) }))
+            ? types.map((t) => ({ label: t.name, c: tally(t.jobs, stagesFor, today, win(ALL), includeHolds, ruleFor) })).sort((x, y) => y.c.overdue - x.c.overdue || x.label.localeCompare(y.label))
             : stageRows(types.find((t) => t.key === open)?.jobs || [], stagesFor(open), today, win(open), includeHolds, ruleFor(open))}
           total={open === ALL ? allCounts : counts(types.find((t) => t.key === open)?.jobs || [], open)}
           rowHeading={open === ALL ? "Service" : "Stage"}
@@ -186,8 +188,8 @@ export function WorkDisplay({ view, items, bands = BANDS }: { view: WorkView; it
 }
 
 /** The settings gear above Work by type: a small panel of switches that change what is counted and how the types are laid out. */
-function WorkSettings({ holds, onHolds, group, onGroup, order, onOrder }: {
-  holds: boolean; onHolds: (v: boolean) => void; group: boolean; onGroup: (v: boolean) => void; order: boolean; onOrder: (v: boolean) => void;
+function WorkSettings({ holds, onHolds, group, onGroup, order, onOrder, hide, onHide }: {
+  holds: boolean; onHolds: (v: boolean) => void; group: boolean; onGroup: (v: boolean) => void; order: boolean; onOrder: (v: boolean) => void; hide: boolean; onHide: (v: boolean) => void;
 }) {
   const [shown, setShown] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
@@ -203,6 +205,7 @@ function WorkSettings({ holds, onHolds, group, onGroup, order, onOrder }: {
     ["hold", holds, onHolds, "Include on hold", "Count jobs that are on hold, in their own On hold column."],
     ["group", group, onGroup, "Group by statutory and other", "Keep statutory deadlines, other deadlines and invoices under their own headings."],
     ["order", order, onOrder, "Jobs to do first", "Types with jobs to do at the top, and those with nothing to do at the bottom."],
+    ["hide", hide, onHide, "Hide types with nothing to do", "Leave out any type with no jobs in the columns shown. The All work total is unchanged."],
   ];
   return (
     <span className="hw-set" ref={ref}>
